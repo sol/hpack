@@ -11,7 +11,7 @@ library
       Config
       Util
   build-depends:
-      base
+      base == 4.*
     , base-compat
     , directory
     , filepath

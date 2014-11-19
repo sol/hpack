@@ -1,5 +1,5 @@
 dependencies:
-  - base
+  - base == 4.*
   - base-compat
   - interpolate
   - directory
