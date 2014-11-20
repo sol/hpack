@@ -28,7 +28,7 @@ data Library = Library {
 } deriving (Eq, Show)
 
 configFile :: FilePath
-configFile = ".package.yaml"
+configFile = "package.yaml"
 
 cabalize :: IO (String, FilePath)
 cabalize = do

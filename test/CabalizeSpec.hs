@@ -15,7 +15,7 @@ spec = do
   describe "cabalize" $ do
     it "creates cabal file" $ do
       cabalize `shouldReturn` ("cabalize.cabal", unindent [i|
-      -- This file has been generated from .package.yaml by Cabalize.
+      -- This file has been generated from package.yaml by Cabalize.
       name: cabalize
       version: 0.0.0
       build-type: Simple

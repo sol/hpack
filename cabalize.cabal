@@ -1,4 +1,4 @@
--- This file has been generated from .package.yaml by Cabalize.
+-- This file has been generated from package.yaml by Cabalize.
 name: cabalize
 version: 0.0.0
 build-type: Simple
