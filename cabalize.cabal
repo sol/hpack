@@ -8,6 +8,7 @@ library
   hs-source-dirs: src
   exposed-modules:
       Cabalize
+  other-modules:
       Config
       Util
   build-depends:
@@ -17,4 +18,12 @@ library
     , filepath
     , interpolate
     , yaml
+  default-language: Haskell2010
+
+executable cabalize
+  hs-source-dirs: driver
+  main-is: Main.hs
+  build-depends:
+      base == 4.*
+    , cabalize
   default-language: Haskell2010
