@@ -27,3 +27,22 @@ executable cb
       base == 4.*
     , cabalize
   default-language: Haskell2010
+
+test-suite spec
+  type:
+      exitcode-stdio-1.0
+  ghc-options:
+      -Wall
+  hs-source-dirs: test, src
+  main-is:
+      Spec.hs
+  build-depends:
+      base == 4.*
+    , base-compat
+    , directory
+    , filepath
+    , interpolate
+    , yaml
+
+    , hspec == 2.*
+  default-language: Haskell2010
