@@ -6,6 +6,13 @@ import           Data.List
 import           System.Directory
 import           System.FilePath
 
+toModule :: FilePath -> Maybe String
+toModule = fmap (map f . reverse) . stripPrefix (reverse ".hs") . reverse
+  where
+    f c
+      | isPathSeparator c = '.'
+      | otherwise = c
+
 stripEmptyLines :: String -> String
 stripEmptyLines = unlines . reverse . dropWhile null . reverse . dropWhile null . lines
 

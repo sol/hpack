@@ -30,7 +30,7 @@ data Library = Library {
 configFile :: FilePath
 configFile = "package.yaml"
 
-cabalize :: IO (String, FilePath)
+cabalize :: IO (FilePath, String)
 cabalize = do
   mConf <- Config.readConfig configFile
   case mConf of
@@ -82,4 +82,4 @@ getModules :: FilePath -> IO [String]
 getModules src = toModules <$> getFilesRecursive src
   where
     toModules :: [FilePath] -> [String]
-    toModules = catMaybes . map (fmap reverse . stripPrefix (reverse ".hs") . reverse)
+    toModules = catMaybes . map toModule
