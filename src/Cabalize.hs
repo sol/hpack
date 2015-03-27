@@ -3,12 +3,12 @@ module Cabalize where
 
 import           Control.Applicative
 import           Data.Maybe
-import           Data.Char
 import           Data.List
 import           Data.String.Interpolate
 import           System.Directory
 import           System.FilePath
 import           System.Exit.Compat
+import qualified Data.HashMap.Lazy as Map
 
 import           Util
 import           Config (Config)
@@ -20,12 +20,36 @@ data Package = Package {
   packageName :: String
 , packageVersion :: [Int]
 , packageLibrary :: Library
+, packageTests :: [Test]
 } deriving (Eq, Show)
 
 data Library = Library {
   libraryExposedModules :: [String]
 , libraryDependencies :: [Dependency]
 } deriving (Eq, Show)
+
+data Test = Test {
+  testName :: String
+, testMain :: FilePath
+, testDependencies :: [Dependency]
+} deriving (Eq, Show)
+
+renderTests :: [Test] -> String
+renderTests = unlines . map renderTest
+
+renderTest :: Test -> String
+renderTest Test{..} = stripEmptyLines [i|
+test-suite spec
+  type: exitcode-stdio-1.0
+  hs-source-dirs: #{takeDirectory testMain}
+  main-is: #{takeFileName testMain}
+  build-depends:
+      #{intercalate "\n    , " $ sort testDependencies}
+  default-language: Haskell2010
+|]
+
+testConfigToTest :: [Dependency] -> String -> Config.Test -> Test
+testConfigToTest dependencies name t = Test name (Config.main t) dependencies
 
 configFile :: FilePath
 configFile = "package.yaml"
@@ -48,13 +72,14 @@ build-type: Simple
 cabal-version: >= 1.10
 
 #{renderLibrary packageLibrary}
+#{renderTests packageTests}
 |]
 
 renderVersion :: [Int] -> String
 renderVersion = intercalate "." . map show
 
 renderLibrary :: Library -> String
-renderLibrary Library{..} = dropWhile isSpace [i|
+renderLibrary Library{..} = stripEmptyLines [i|
 library
   hs-source-dirs: src
   exposed-modules:
@@ -72,6 +97,7 @@ mkPackage Config.Config{..} = do
         packageName = name
       , packageVersion = [0,0,0]
       , packageLibrary = library
+      , packageTests = (map (uncurry $ testConfigToTest dependencies) . Map.toList) tests
       }
   return package
 

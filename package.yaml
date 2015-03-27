@@ -1,7 +1,12 @@
 dependencies:
   - base == 4.*
   - base-compat
-  - interpolate
   - directory
   - filepath
+  - interpolate
+  - unordered-containers
   - yaml
+
+tests:
+  spec:
+    main: test/Spec.hs

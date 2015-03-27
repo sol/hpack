@@ -33,6 +33,21 @@ spec = do
           , directory
           , filepath
           , interpolate
+          , unordered-containers
+          , yaml
+        default-language: Haskell2010
+
+      test-suite spec
+        type: exitcode-stdio-1.0
+        hs-source-dirs: test
+        main-is: Spec.hs
+        build-depends:
+            base == 4.*
+          , base-compat
+          , directory
+          , filepath
+          , interpolate
+          , unordered-containers
           , yaml
         default-language: Haskell2010
       |])

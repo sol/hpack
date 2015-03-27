@@ -17,6 +17,7 @@ library
     , directory
     , filepath
     , interpolate
+    , unordered-containers
     , yaml
   default-language: Haskell2010
 
@@ -29,19 +30,18 @@ executable cb
   default-language: Haskell2010
 
 test-suite spec
-  type:
-      exitcode-stdio-1.0
+  type: exitcode-stdio-1.0
   ghc-options:
       -Wall
   hs-source-dirs: test, src
-  main-is:
-      Spec.hs
+  main-is: Spec.hs
   build-depends:
       base == 4.*
     , base-compat
     , directory
     , filepath
     , interpolate
+    , unordered-containers
     , yaml
 
     , hspec == 2.*
