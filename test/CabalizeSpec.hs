@@ -26,6 +26,7 @@ spec = do
         exposed-modules:
             Cabalize
             Config
+            Config.Test
             Util
         build-depends:
             base == 4.*
@@ -46,6 +47,7 @@ spec = do
           , base-compat
           , directory
           , filepath
+          , hspec == 2.*
           , interpolate
           , unordered-containers
           , yaml

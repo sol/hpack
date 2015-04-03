@@ -10,3 +10,5 @@ dependencies:
 tests:
   spec:
     main: test/Spec.hs
+    dependencies:
+      - hspec == 2.*

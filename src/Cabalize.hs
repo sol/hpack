@@ -12,7 +12,9 @@ import qualified Data.HashMap.Lazy as Map
 
 import           Util
 import           Config (Config)
+
 import qualified Config
+import qualified Config.Test as Test
 
 type Dependency = String
 
@@ -48,8 +50,8 @@ test-suite spec
   default-language: Haskell2010
 |]
 
-testConfigToTest :: [Dependency] -> String -> Config.Test -> Test
-testConfigToTest dependencies name t = Test name (Config.main t) dependencies
+testConfigToTest :: [Dependency] -> String -> Test.Test -> Test
+testConfigToTest dependencies name t = Test name (Test.main t) (dependencies ++ fromMaybe [] (Test.dependencies t))
 
 configFile :: FilePath
 configFile = "package.yaml"

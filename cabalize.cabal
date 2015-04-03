@@ -10,6 +10,7 @@ library
       Cabalize
   other-modules:
       Config
+      Config.Test
       Util
   build-depends:
       base == 4.*

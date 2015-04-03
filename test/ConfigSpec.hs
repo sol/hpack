@@ -6,6 +6,7 @@ import           Helper
 import           Data.String.Interpolate
 
 import           Config hiding (main)
+import           Config.Test (Test(Test))
 
 main :: IO ()
 main = hspec spec
@@ -21,4 +22,4 @@ dependencies:
 tests:
   spec: 
     main: test/Spec.hs
-      |] $ \file -> readConfig file `shouldReturn` Just (Config ["base"] [("spec", Test "test/Spec.hs")])
+      |] $ \file -> readConfig file `shouldReturn` Just (Config ["base"] [("spec", Test "test/Spec.hs" Nothing)])
