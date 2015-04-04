@@ -1,4 +1,6 @@
 language: haskell
 ghc: 7.8
+before_install:
+  - cabal install happy
 script:
   - cabal configure --enable-tests --ghc-options=-Werror && cabal build && cabal test
