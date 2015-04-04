@@ -11,7 +11,7 @@ main :: IO ()
 main = hspec spec
 
 package :: String -> Package
-package name = Package name [0,0,0] (Library [] []) [] []
+package name = Package name "0.0.0" (Library [] []) [] []
 
 executable :: String -> String -> Executable
 executable name path = Executable name path [] []
@@ -24,6 +24,13 @@ spec = around_ inTempDirectory $ do
         name: foo
         |]
       readConfig "package.yaml" `shouldReturn` Just (package "foo")
+
+    it "accepts version" $ do
+      writeFile "package.yaml" [i|
+        name: foo
+        version: 0.1.0
+        |]
+      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageVersion = "0.1.0"}
 
     context "when reading executable section" $ do
       it "reads executable section" $ do

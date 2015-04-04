@@ -12,7 +12,7 @@ library
       Config
       Util
   build-depends:
-      aeson
+      aeson >= 0.8
     , base == 4.*
     , base-compat
     , directory
@@ -26,7 +26,7 @@ executable cb
   hs-source-dirs: driver
   main-is: Main.hs
   build-depends:
-      aeson
+      aeson >= 0.8
     , base == 4.*
     , base-compat
     , cabalize
@@ -43,7 +43,7 @@ test-suite spec
   hs-source-dirs: test, src
   main-is: Spec.hs
   build-depends:
-      aeson
+      aeson >= 0.8
     , base == 4.*
     , base-compat
     , directory

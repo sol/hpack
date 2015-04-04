@@ -1,7 +1,7 @@
 name: cabalize
 ghc-options: -Wall
 dependencies:
-  - aeson
+  - aeson >= 0.8
   - base == 4.*
   - base-compat
   - directory

@@ -1,5 +1,5 @@
 {-# LANGUAGE QuasiQuotes, RecordWildCards #-}
-module Cabalize where
+module Cabalize (cabalize) where
 
 import           Prelude ()
 import           Prelude.Compat
@@ -55,7 +55,7 @@ renderPackage :: Package -> String
 renderPackage Package{..} = stripEmptyLines [i|
 -- This file has been generated from #{configFile} by Cabalize.
 name: #{packageName}
-version: #{renderVersion packageVersion}
+version: #{packageVersion}
 build-type: Simple
 cabal-version: >= 1.10
 
@@ -63,9 +63,6 @@ cabal-version: >= 1.10
 #{renderExecutables packageExecutables}
 #{renderTests packageTests}
 |]
-
-renderVersion :: [Int] -> String
-renderVersion = intercalate "." . map show
 
 renderLibrary :: Library -> String
 renderLibrary Library{..} = stripEmptyLines [i|
