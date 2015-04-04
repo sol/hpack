@@ -26,8 +26,15 @@ executable cb
   hs-source-dirs: driver
   main-is: Main.hs
   build-depends:
-      base == 4.*
+      aeson
+    , base == 4.*
+    , base-compat
     , cabalize
+    , directory
+    , filepath
+    , interpolate
+    , unordered-containers
+    , yaml
   default-language: Haskell2010
 
 test-suite spec

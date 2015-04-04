@@ -12,17 +12,30 @@ import           System.Exit.Compat
 import           Util
 import           Config
 
-renderTests :: [Test] -> String
-renderTests = unlines . map renderTest
+renderExecutables :: [Executable] -> String
+renderExecutables = intercalate "\n" . map renderExecutable
 
-renderTest :: Test -> String
-renderTest Test{..} = stripEmptyLines [i|
-test-suite spec
+renderExecutable :: Executable -> String
+renderExecutable executable@Executable{..} = stripEmptyLines [i|
+executable #{executableName}
+|] ++ renderExecutableSection executable
+
+renderTests :: [Executable] -> String
+renderTests = intercalate "\n" . map renderTest
+
+renderTest :: Executable -> String
+renderTest executable@Executable{..} = stripEmptyLines [i|
+test-suite #{executableName}
   type: exitcode-stdio-1.0
-  hs-source-dirs: #{takeDirectory testMain}
-  main-is: #{takeFileName testMain}
+|] ++ renderExecutableSection executable
+
+
+renderExecutableSection :: Executable -> String
+renderExecutableSection Executable{..} = stripEmptyLines [i|
+  hs-source-dirs: #{takeDirectory executableMain}
+  main-is: #{takeFileName executableMain}
   build-depends:
-      #{intercalate "\n    , " $ sort testDependencies}
+      #{intercalate "\n    , " $ sort executableDependencies}
   default-language: Haskell2010
 |]
 
@@ -46,6 +59,7 @@ build-type: Simple
 cabal-version: >= 1.10
 
 #{renderLibrary packageLibrary}
+#{renderExecutables packageExecutables}
 #{renderTests packageTests}
 |]
 

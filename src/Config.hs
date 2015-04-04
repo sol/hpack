@@ -3,7 +3,7 @@ module Config (
   readConfig
 , Package(..)
 , Library(..)
-, Test(..)
+, Executable(..)
 ) where
 
 import           Prelude ()
@@ -18,18 +18,19 @@ import           System.Directory
 
 import           Util
 
-data TestSection = TestSection {
-  testSectionMain :: FilePath
-, testSectionDependencies :: Maybe (List Dependency)
+data ExecutableSection = ExecutableSection {
+  executableSectionMain :: FilePath
+, executableSectionDependencies :: Maybe (List Dependency)
 } deriving (Eq, Show, Generic)
 
-instance FromJSON TestSection where
-  parseJSON = genericParseJSON_ "TestSection"
+instance FromJSON ExecutableSection where
+  parseJSON = genericParseJSON_ "ExecutableSection"
 
 data ConfigFile = ConfigFile {
   configFileName :: String
 , configFileDependencies :: Maybe [Dependency]
-, configFileTests :: Maybe (HashMap String TestSection)
+, configFileExecutables :: Maybe (HashMap String ExecutableSection)
+, configFileTests :: Maybe (HashMap String ExecutableSection)
 } deriving (Eq, Show, Generic)
 
 instance FromJSON ConfigFile where
@@ -48,7 +49,8 @@ data Package = Package {
   packageName :: String
 , packageVersion :: [Int]
 , packageLibrary :: Library
-, packageTests :: [Test]
+, packageExecutables :: [Executable]
+, packageTests :: [Executable]
 } deriving (Eq, Show)
 
 data Library = Library {
@@ -56,10 +58,10 @@ data Library = Library {
 , libraryDependencies :: [Dependency]
 } deriving (Eq, Show)
 
-data Test = Test {
-  testName :: String
-, testMain :: FilePath
-, testDependencies :: [Dependency]
+data Executable = Executable {
+  executableName :: String
+, executableMain :: FilePath
+, executableDependencies :: [Dependency]
 } deriving (Eq, Show)
 
 mkPackage :: ConfigFile -> IO Package
@@ -70,7 +72,8 @@ mkPackage ConfigFile{..} = do
         packageName = configFileName
       , packageVersion = [0,0,0]
       , packageLibrary = library
-      , packageTests = (map (uncurry $ testConfigToTest dependencies) . Map.toList) (fromMaybe mempty configFileTests)
+      , packageExecutables = toExecutables dependencies configFileExecutables
+      , packageTests       = toExecutables dependencies configFileTests
       }
   return package
 
@@ -87,5 +90,8 @@ getModules src = do
     toModules :: [FilePath] -> [String]
     toModules = catMaybes . map toModule
 
-testConfigToTest :: [Dependency] -> String -> TestSection -> Test
-testConfigToTest dependencies name t = Test name (testSectionMain t) (dependencies ++ maybe [] fromList (testSectionDependencies t))
+toExecutables :: [Dependency] -> Maybe (HashMap String ExecutableSection) -> [Executable]
+toExecutables dependencies executables = (map (uncurry $ toExecutable dependencies) . Map.toList) (fromMaybe mempty executables)
+
+toExecutable :: [Dependency] -> String -> ExecutableSection -> Executable
+toExecutable dependencies name t = Executable name (executableSectionMain t) (dependencies ++ maybe [] fromList (executableSectionDependencies t))
