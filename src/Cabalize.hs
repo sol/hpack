@@ -54,17 +54,16 @@ renderPackage :: Package -> String
 renderPackage Package{..} = stripEmptyLines [i|
 -- This file has been generated from #{configFile} by Cabalize.
 name: #{packageName}
-version: #{packageVersion}#{maybe "" ("\nlicense: " ++) packageLicense}#{maybe "" ("\nlicense-file: " ++) packageLicenseFile}
+version: #{packageVersion}#{maybe "" ("\nauthor: " ++) packageAuthor}#{maybe "" ("\nmaintainer: " ++) packageMaintainer}#{maybe "" ("\ncopyright: " ++) packageCopyright}#{maybe "" ("\nlicense: " ++) packageLicense}#{maybe "" ("\nlicense-file: " ++) packageLicenseFile}
 build-type: Simple
 cabal-version: >= 1.10
-
 #{maybe "" renderLibrary packageLibrary}
 #{renderExecutables packageExecutables}
 #{renderTests packageTests}
 |]
 
 renderLibrary :: Library -> String
-renderLibrary Library{..} = stripEmptyLines [i|
+renderLibrary Library{..} = [i|
 library
   hs-source-dirs: src
   exposed-modules:
@@ -75,4 +74,3 @@ library
       #{intercalate "\n    , " $ sort libraryDependencies}
   default-language: Haskell2010
 |]
-

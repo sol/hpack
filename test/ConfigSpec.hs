@@ -11,7 +11,7 @@ main :: IO ()
 main = hspec spec
 
 package :: String -> Package
-package name = Package name "0.0.0" Nothing Nothing Nothing [] []
+package name = Package name "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] []
 
 executable :: String -> String -> Executable
 executable name main_ = Executable name main_ [] [] []
@@ -34,6 +34,27 @@ spec = around_ inTempDirectory $ do
         version: 0.1.0
         |]
       readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageVersion = "0.1.0"}
+
+    it "accepts author" $ do
+      writeFile "package.yaml" [i|
+        name: foo
+        author: John Doe
+        |]
+      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageAuthor = Just "John Doe"}
+
+    it "accepts maintainer" $ do
+      writeFile "package.yaml" [i|
+        name: foo
+        maintainer: John Doe <john.doe@example.com>
+        |]
+      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageMaintainer = Just "John Doe <john.doe@example.com>"}
+
+    it "accepts copyright" $ do
+      writeFile "package.yaml" [i|
+        name: foo
+        copyright: (c) 2015 John Doe
+        |]
+      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageCopyright = Just "(c) 2015 John Doe"}
 
     it "accepts license" $ do
       writeFile "package.yaml" [i|
