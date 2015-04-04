@@ -6,7 +6,6 @@ import           Helper
 import           Data.String.Interpolate
 
 import           Config
-import           Config.Test (Test(Test))
 
 main :: IO ()
 main = hspec spec
@@ -24,4 +23,4 @@ tests:
   spec: 
     main: test/Spec.hs
       |]
-      readConfig "package.yaml" `shouldReturn` Just (Config "cabalize" ["base"] [("spec", Test "test/Spec.hs" Nothing)])
+      readConfig "package.yaml" `shouldReturn` Just (ConfigFile "cabalize" ["base"] [("spec", TestSection "test/Spec.hs" Nothing)])

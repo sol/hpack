@@ -5,15 +5,24 @@ import           Data.Yaml
 import           GHC.Generics
 import           Data.HashMap.Lazy (HashMap)
 
-import           Config.Test (Test)
+import           Util
 
-data Config = Config {
-  name :: String
-, dependencies :: [String]
-, tests :: HashMap String Test
+data TestSection = TestSection {
+  testSectionMain :: FilePath
+, testSectionDependencies :: Maybe [String]
 } deriving (Eq, Show, Generic)
 
-instance FromJSON Config
+instance FromJSON TestSection where
+  parseJSON = genericParseJSON_ "TestSection"
 
-readConfig :: FilePath -> IO (Maybe Config)
+data ConfigFile = ConfigFile {
+  configFileName :: String
+, configFileDependencies :: [String]
+, configFileTests :: HashMap String TestSection
+} deriving (Eq, Show, Generic)
+
+instance FromJSON ConfigFile where
+  parseJSON = genericParseJSON_ "ConfigFile"
+
+readConfig :: FilePath -> IO (Maybe ConfigFile)
 readConfig = decodeFile

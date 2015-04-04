@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Util where
 
 import           Control.Applicative
@@ -5,6 +6,12 @@ import           Control.Monad
 import           Data.List
 import           System.Directory
 import           System.FilePath
+
+import           GHC.Generics
+import           Data.Aeson.Types
+
+genericParseJSON_ :: (Generic a, GFromJSON (Rep a)) => String -> Value -> Parser a
+genericParseJSON_ name = genericParseJSON defaultOptions {fieldLabelModifier = camelTo '_' . drop (length name)}
 
 toModule :: FilePath -> Maybe String
 toModule = fmap (map f . reverse) . stripPrefix (reverse ".hs") . reverse

@@ -26,7 +26,6 @@ spec = do
         exposed-modules:
             Cabalize
             Config
-            Config.Test
             Util
         build-depends:
             base == 4.*

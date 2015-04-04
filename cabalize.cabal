@@ -10,10 +10,10 @@ library
       Cabalize
   other-modules:
       Config
-      Config.Test
       Util
   build-depends:
-      base == 4.*
+      aeson
+    , base == 4.*
     , base-compat
     , directory
     , filepath
@@ -37,7 +37,8 @@ test-suite spec
   hs-source-dirs: test, src
   main-is: Spec.hs
   build-depends:
-      base == 4.*
+      aeson
+    , base == 4.*
     , base-compat
     , directory
     , filepath
