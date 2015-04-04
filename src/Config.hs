@@ -8,7 +8,8 @@ import           Data.HashMap.Lazy (HashMap)
 import           Config.Test (Test)
 
 data Config = Config {
-  dependencies :: [String]
+  name :: String
+, dependencies :: [String]
 , tests :: HashMap String Test
 } deriving (Eq, Show, Generic)
 

@@ -1,3 +1,5 @@
+name: cabalize
+
 dependencies:
   - base == 4.*
   - base-compat

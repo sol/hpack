@@ -43,6 +43,7 @@ test-suite spec
     , filepath
     , hspec == 2.*
     , interpolate
+    , temporary
     , unordered-containers
     , yaml
   default-language: Haskell2010

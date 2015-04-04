@@ -93,7 +93,6 @@ library
 
 mkPackage :: Config -> IO Package
 mkPackage Config.Config{..} = do
-  name <- takeBaseName <$> getCurrentDirectory
   library <- mkLibrary dependencies
   let package = Package {
         packageName = name
