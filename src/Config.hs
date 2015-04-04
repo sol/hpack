@@ -16,6 +16,7 @@ import           Data.Yaml
 import           GHC.Generics
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as Map
+import           System.FilePath
 import           System.Directory
 
 import           Util
@@ -41,7 +42,7 @@ instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_ "ExecutableSection"
 
 data ConfigFile = ConfigFile {
-  configFileName :: String
+  configFileName :: Maybe String
 , configFileVersion :: Maybe String
 , configFileAuthor :: Maybe String
 , configFileMaintainer :: Maybe String
@@ -101,10 +102,12 @@ mkPackage ConfigFile{..} = do
   let ghcOptions = fromMaybeList configFileGhcOptions
   mLibrary <- mapM (mkLibrary dependencies ghcOptions) configFileLibrary
 
+  name <- maybe (takeBaseName <$> getCurrentDirectory) return configFileName
+
   licenseFileExists <- doesFileExist "LICENSE"
 
   let package = Package {
-        packageName = configFileName
+        packageName = name
       , packageVersion = fromMaybe "0.0.0" configFileVersion
       , packageAuthor = configFileAuthor
       , packageMaintainer = configFileMaintainer

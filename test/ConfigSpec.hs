@@ -10,8 +10,8 @@ import           Config
 main :: IO ()
 main = hspec spec
 
-package :: String -> Package
-package name = Package name "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] []
+package :: Package
+package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] []
 
 executable :: String -> String -> Executable
 executable name main_ = Executable name main_ [] [] []
@@ -22,128 +22,115 @@ library = Library [] [] [] []
 spec :: Spec
 spec = around_ (inTempDirectory "foo") $ do
   describe "readConfig" $ do
-    it "reads package config" $ do
+    it "accepts name" $ do
       writeFile "package.yaml" [i|
-        name: foo
+        name: bar
         |]
-      readConfig "package.yaml" `shouldReturn` Just (package "foo")
+      readConfig "package.yaml" `shouldReturn` Just package {packageName = "bar"}
 
     it "accepts version" $ do
       writeFile "package.yaml" [i|
-        name: foo
         version: 0.1.0
         |]
-      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageVersion = "0.1.0"}
+      readConfig "package.yaml" `shouldReturn` Just package {packageVersion = "0.1.0"}
 
     it "accepts author" $ do
       writeFile "package.yaml" [i|
-        name: foo
         author: John Doe
         |]
-      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageAuthor = Just "John Doe"}
+      readConfig "package.yaml" `shouldReturn` Just package {packageAuthor = Just "John Doe"}
 
     it "accepts maintainer" $ do
       writeFile "package.yaml" [i|
-        name: foo
         maintainer: John Doe <john.doe@example.com>
         |]
-      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageMaintainer = Just "John Doe <john.doe@example.com>"}
+      readConfig "package.yaml" `shouldReturn` Just package {packageMaintainer = Just "John Doe <john.doe@example.com>"}
 
     it "accepts copyright" $ do
       writeFile "package.yaml" [i|
-        name: foo
         copyright: (c) 2015 John Doe
         |]
-      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageCopyright = Just "(c) 2015 John Doe"}
+      readConfig "package.yaml" `shouldReturn` Just package {packageCopyright = Just "(c) 2015 John Doe"}
 
     it "accepts license" $ do
       writeFile "package.yaml" [i|
-        name: foo
         license: MIT
         |]
-      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLicense = Just "MIT"}
+      readConfig "package.yaml" `shouldReturn` Just package {packageLicense = Just "MIT"}
 
     it "infers license file" $ do
       writeFile "package.yaml" [i|
         name: foo
         |]
       touch "LICENSE"
-      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLicenseFile = Just "LICENSE"}
+      readConfig "package.yaml" `shouldReturn` Just package {packageLicenseFile = Just "LICENSE"}
 
     context "when reading library section" $ do
       it "allows to specify exposed-modules" $ do
         writeFile "package.yaml" [i|
-          name: foo
           library:
             exposed-modules: Foo
           |]
         touch "src/Foo.hs"
         touch "src/Bar.hs"
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
+        readConfig "package.yaml" `shouldReturn` Just package {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
 
       it "allows to specify other-modules" $ do
         writeFile "package.yaml" [i|
-          name: foo
           library:
             other-modules: Bar
           |]
         touch "src/Foo.hs"
         touch "src/Bar.hs"
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
+        readConfig "package.yaml" `shouldReturn` Just package {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
 
       it "allows to specify both exposed-modules and other-modules" $ do
         writeFile "package.yaml" [i|
-          name: foo
           library:
             exposed-modules: Foo
             other-modules: Bar
           |]
         touch "src/Baz.hs"
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
+        readConfig "package.yaml" `shouldReturn` Just package {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
 
       context "when neither exposed-module nor other-module are specified" $ do
         it "exposes all modules" $ do
           writeFile "package.yaml" [i|
-            name: foo
             library: {}
             |]
           touch "src/Foo.hs"
           touch "src/Bar.hs"
-          readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLibrary = Just library {libraryExposedModules = ["Bar", "Foo"]}}
+          readConfig "package.yaml" `shouldReturn` Just package {packageLibrary = Just library {libraryExposedModules = ["Bar", "Foo"]}}
 
     context "when reading executable section" $ do
       it "reads executable section" $ do
         writeFile "package.yaml" [i|
-          name: foo
           executables:
             foo:
               main: driver/Main.hs
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [executable "foo" "driver/Main.hs"]}
+        readConfig "package.yaml" `shouldReturn` Just package {packageExecutables = [executable "foo" "driver/Main.hs"]}
 
       it "accepts GHC options" $ do
         writeFile "package.yaml" [i|
-          name: foo
           executables:
             foo:
               main: driver/Main.hs
               ghc-options: -Wall
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
+        readConfig "package.yaml" `shouldReturn` Just package {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
 
       it "accepts global GHC options" $ do
         writeFile "package.yaml" [i|
-          name: foo
           ghc-options: -Wall
           executables:
             foo:
               main: driver/Main.hs
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
+        readConfig "package.yaml" `shouldReturn` Just package {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
 
       it "accepts source-dirs" $ do
         writeFile "package.yaml" [i|
-          name: foo
           executables:
             foo:
               main: Main.hs
@@ -151,31 +138,28 @@ spec = around_ (inTempDirectory "foo") $ do
                 - src
                 - driver
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [(executable "foo" "Main.hs") {executableSourceDirs = ["src", "driver"]}]}
+        readConfig "package.yaml" `shouldReturn` Just package {packageExecutables = [(executable "foo" "Main.hs") {executableSourceDirs = ["src", "driver"]}]}
 
     context "when reading test section" $ do
       it "reads test section" $ do
         writeFile "package.yaml" [i|
-          name: foo
           tests:
             spec:
               main: test/Spec.hs
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [executable "spec" "test/Spec.hs"]}
+        readConfig "package.yaml" `shouldReturn` Just package {packageTests = [executable "spec" "test/Spec.hs"]}
 
       it "accepts single dependency" $ do
         writeFile "package.yaml" [i|
-          name: foo
           tests:
             spec:
               main: test/Spec.hs
               dependencies: hspec
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["hspec"]}]}
+        readConfig "package.yaml" `shouldReturn` Just package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["hspec"]}]}
 
       it "accepts list of dependencies" $ do
         writeFile "package.yaml" [i|
-          name: foo
           tests:
             spec:
               main: test/Spec.hs
@@ -183,12 +167,11 @@ spec = around_ (inTempDirectory "foo") $ do
                 - hspec
                 - QuickCheck
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["hspec", "QuickCheck"]}]}
+        readConfig "package.yaml" `shouldReturn` Just package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["hspec", "QuickCheck"]}]}
 
       context "when both top-level and section specific dependencies are specified" $ do
         it "combines dependencies" $ do
           writeFile "package.yaml" [i|
-            name: foo
             dependencies:
               - base
 
@@ -197,4 +180,4 @@ spec = around_ (inTempDirectory "foo") $ do
                 main: test/Spec.hs
                 dependencies: hspec
             |]
-          readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["base", "hspec"]}]}
+          readConfig "package.yaml" `shouldReturn` Just package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["base", "hspec"]}]}
