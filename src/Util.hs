@@ -11,7 +11,7 @@ import           GHC.Generics
 import           Data.Aeson.Types
 
 genericParseJSON_ :: (Generic a, GFromJSON (Rep a)) => String -> Value -> Parser a
-genericParseJSON_ name = genericParseJSON defaultOptions {fieldLabelModifier = camelTo '_' . drop (length name)}
+genericParseJSON_ name = genericParseJSON defaultOptions {fieldLabelModifier = camelTo '-' . drop (length name)}
 
 newtype List a = List {fromList :: [a]}
   deriving (Eq, Show)

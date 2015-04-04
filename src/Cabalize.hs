@@ -36,6 +36,7 @@ renderExecutableSection Executable{..} = stripEmptyLines [i|
   main-is: #{takeFileName executableMain}
   build-depends:
       #{intercalate "\n    , " $ sort executableDependencies}
+  ghc-options: #{unwords executableGhcOptions}
   default-language: Haskell2010
 |]
 

@@ -1,5 +1,5 @@
 name: cabalize
-
+ghc-options: -Wall
 dependencies:
   - aeson
   - base == 4.*
@@ -9,12 +9,10 @@ dependencies:
   - interpolate
   - unordered-containers
   - yaml
-
 executables:
   cb:
     main: driver/Main.hs
     dependencies: cabalize
-
 tests:
   spec:
     main: test/Spec.hs

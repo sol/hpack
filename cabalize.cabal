@@ -35,12 +35,11 @@ executable cb
     , interpolate
     , unordered-containers
     , yaml
+  ghc-options: -Wall
   default-language: Haskell2010
 
 test-suite spec
   type: exitcode-stdio-1.0
-  ghc-options:
-      -Wall
   hs-source-dirs: test, src
   main-is: Spec.hs
   build-depends:
@@ -54,4 +53,5 @@ test-suite spec
     , temporary
     , unordered-containers
     , yaml
+  ghc-options: -Wall
   default-language: Haskell2010

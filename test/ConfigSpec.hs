@@ -13,6 +13,9 @@ main = hspec spec
 package :: String -> Package
 package name = Package name [0,0,0] (Library [] []) [] []
 
+executable :: String -> String -> Executable
+executable name path = Executable name path [] []
+
 spec :: Spec
 spec = around_ inTempDirectory $ do
   describe "readConfig" $ do
@@ -30,7 +33,27 @@ spec = around_ inTempDirectory $ do
             foo:
               main: test/Spec.hs
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [Executable "foo" "test/Spec.hs" []]}
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [executable "foo" "test/Spec.hs"]}
+
+      it "accepts GHC options" $ do
+        writeFile "package.yaml" [i|
+          name: foo
+          executables:
+            foo:
+              main: test/Spec.hs
+              ghc-options: -Wall
+          |]
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [(executable "foo" "test/Spec.hs") {executableGhcOptions = ["-Wall"]}]}
+
+      it "accepts global GHC options" $ do
+        writeFile "package.yaml" [i|
+          name: foo
+          ghc-options: -Wall
+          executables:
+            foo:
+              main: test/Spec.hs
+          |]
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [(executable "foo" "test/Spec.hs") {executableGhcOptions = ["-Wall"]}]}
 
     context "when reading test section" $ do
       it "reads test section" $ do
@@ -40,7 +63,7 @@ spec = around_ inTempDirectory $ do
             spec:
               main: test/Spec.hs
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [Executable "spec" "test/Spec.hs" []]}
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [executable "spec" "test/Spec.hs"]}
 
       it "accepts single dependency" $ do
         writeFile "package.yaml" [i|
@@ -50,7 +73,7 @@ spec = around_ inTempDirectory $ do
               main: test/Spec.hs
               dependencies: hspec
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [Executable "spec" "test/Spec.hs" ["hspec"]]}
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["hspec"]}]}
 
       it "accepts list of dependencies" $ do
         writeFile "package.yaml" [i|
@@ -62,7 +85,7 @@ spec = around_ inTempDirectory $ do
                 - hspec
                 - QuickCheck
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [Executable "spec" "test/Spec.hs" ["hspec", "QuickCheck"]]}
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["hspec", "QuickCheck"]}]}
 
       context "when both top-level and section specific dependencies are specified" $ do
         it "combines dependencies" $ do
@@ -76,4 +99,4 @@ spec = around_ inTempDirectory $ do
                 main: test/Spec.hs
                 dependencies: hspec
             |]
-          readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [Executable "spec" "test/Spec.hs" ["base", "hspec"]], packageLibrary = Library [] ["base"]}
+          readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["base", "hspec"]}], packageLibrary = Library [] ["base"]}

@@ -21,6 +21,7 @@ import           Util
 data ExecutableSection = ExecutableSection {
   executableSectionMain :: FilePath
 , executableSectionDependencies :: Maybe (List Dependency)
+, executableSectionGhcOptions :: Maybe (List GhcOption)
 } deriving (Eq, Show, Generic)
 
 instance FromJSON ExecutableSection where
@@ -29,6 +30,7 @@ instance FromJSON ExecutableSection where
 data ConfigFile = ConfigFile {
   configFileName :: String
 , configFileDependencies :: Maybe [Dependency]
+, configFileGhcOptions :: Maybe (List GhcOption)
 , configFileExecutables :: Maybe (HashMap String ExecutableSection)
 , configFileTests :: Maybe (HashMap String ExecutableSection)
 } deriving (Eq, Show, Generic)
@@ -44,6 +46,7 @@ readConfig file = do
     Nothing -> return Nothing
 
 type Dependency = String
+type GhcOption = String
 
 data Package = Package {
   packageName :: String
@@ -62,18 +65,20 @@ data Executable = Executable {
   executableName :: String
 , executableMain :: FilePath
 , executableDependencies :: [Dependency]
+, executableGhcOptions :: [GhcOption]
 } deriving (Eq, Show)
 
 mkPackage :: ConfigFile -> IO Package
 mkPackage ConfigFile{..} = do
   let dependencies = fromMaybe [] configFileDependencies
+  let ghcOptions = fromMaybeList configFileGhcOptions
   library <- mkLibrary dependencies
   let package = Package {
         packageName = configFileName
       , packageVersion = [0,0,0]
       , packageLibrary = library
-      , packageExecutables = toExecutables dependencies configFileExecutables
-      , packageTests       = toExecutables dependencies configFileTests
+      , packageExecutables = toExecutables dependencies ghcOptions configFileExecutables
+      , packageTests       = toExecutables dependencies ghcOptions configFileTests
       }
   return package
 
@@ -90,8 +95,11 @@ getModules src = do
     toModules :: [FilePath] -> [String]
     toModules = catMaybes . map toModule
 
-toExecutables :: [Dependency] -> Maybe (HashMap String ExecutableSection) -> [Executable]
-toExecutables dependencies executables = (map (uncurry $ toExecutable dependencies) . Map.toList) (fromMaybe mempty executables)
+toExecutables :: [Dependency] -> [GhcOption] -> Maybe (HashMap String ExecutableSection) -> [Executable]
+toExecutables dependencies ghcOptions executables = (map (uncurry $ toExecutable dependencies ghcOptions) . Map.toList) (fromMaybe mempty executables)
 
-toExecutable :: [Dependency] -> String -> ExecutableSection -> Executable
-toExecutable dependencies name t = Executable name (executableSectionMain t) (dependencies ++ maybe [] fromList (executableSectionDependencies t))
+toExecutable :: [Dependency] -> [GhcOption] -> String -> ExecutableSection -> Executable
+toExecutable dependencies ghcOptions name t = Executable name (executableSectionMain t) (dependencies ++ fromMaybeList (executableSectionDependencies t)) (ghcOptions ++ fromMaybeList (executableSectionGhcOptions t))
+
+fromMaybeList :: Maybe (List a) -> [a]
+fromMaybeList = maybe [] fromList
