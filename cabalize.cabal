@@ -15,6 +15,7 @@ library
       aeson
     , base == 4.*
     , base-compat
+    , base-compat
     , directory
     , filepath
     , interpolate
@@ -39,6 +40,7 @@ test-suite spec
   build-depends:
       aeson
     , base == 4.*
+    , base-compat
     , base-compat
     , directory
     , filepath

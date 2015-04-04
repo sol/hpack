@@ -10,17 +10,20 @@ import           Config
 main :: IO ()
 main = hspec spec
 
+package :: String -> Package
+package name = Package name [0,0,0] (Library [] []) []
+
 spec :: Spec
 spec = around_ inTempDirectory $ do
   describe "readConfig" $ do
     it "reads package config" $ do
       writeFile "package.yaml" [i|
-name: cabalize
-dependencies:
-  - base
+        name: foo
+        dependencies:
+          - base
 
-tests:
-  spec: 
-    main: test/Spec.hs
-      |]
-      readConfig "package.yaml" `shouldReturn` Just (ConfigFile "cabalize" ["base"] [("spec", TestSection "test/Spec.hs" Nothing)])
+        tests:
+          spec:
+            main: test/Spec.hs
+        |]
+      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [Test "spec" "test/Spec.hs" ["base"]], packageLibrary = Library [] ["base"]}
