@@ -5,9 +5,11 @@ import           System.Directory
 import           System.FilePath
 import           System.IO.Temp
 
-inTempDirectory :: IO a -> IO a
-inTempDirectory action = withSystemTempDirectory "hspec" $ \path -> do
+inTempDirectory :: FilePath -> IO a -> IO a
+inTempDirectory name action = withSystemTempDirectory "hspec" $ \p -> do
   bracket getCurrentDirectory setCurrentDirectory $ \_ -> do
+    let path = p </> name
+    createDirectory path
     setCurrentDirectory path
     action
 

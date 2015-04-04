@@ -22,6 +22,7 @@ import           Util
 
 data LibrarySection = LibrarySection {
   librarySectionExposedModules :: Maybe (List Dependency)
+, librarySectionOtherModules :: Maybe (List Dependency)
 , librarySectionDependencies :: Maybe (List Dependency)
 , librarySectionGhcOptions :: Maybe (List GhcOption)
 } deriving (Eq, Show, Generic)
@@ -119,12 +120,21 @@ mkPackage ConfigFile{..} = do
 mkLibrary :: [Dependency] -> [GhcOption] -> LibrarySection -> IO Library
 mkLibrary globalDependencies globalGhcOptions LibrarySection{..} = do
   modules <- getModules "src"
-  let otherModules = modules \\ exposedModules
+
+  let (exposedModules, otherModules) = determineModules modules librarySectionExposedModules librarySectionOtherModules
+
   return (Library exposedModules otherModules dependencies ghcOptions)
   where
-    exposedModules = fromMaybeList librarySectionExposedModules
     dependencies = globalDependencies ++ fromMaybeList librarySectionDependencies
     ghcOptions = globalGhcOptions ++ fromMaybeList librarySectionGhcOptions
+
+determineModules :: [String] -> Maybe (List String) -> Maybe (List String) -> ([String], [String])
+determineModules modules mExposedModules mOtherModules = case (mExposedModules, mOtherModules) of
+  (Nothing, Nothing) -> (modules, [])
+  _ -> (exposedModules, otherModules)
+  where
+    otherModules   = maybe (modules \\ exposedModules) fromList mOtherModules
+    exposedModules = maybe (modules \\ otherModules)   fromList mExposedModules
 
 getModules :: FilePath -> IO [String]
 getModules src = do

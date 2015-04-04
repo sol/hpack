@@ -20,7 +20,7 @@ library :: Library
 library = Library [] [] [] []
 
 spec :: Spec
-spec = around_ inTempDirectory $ do
+spec = around_ (inTempDirectory "foo") $ do
   describe "readConfig" $ do
     it "reads package config" $ do
       writeFile "package.yaml" [i|
@@ -71,7 +71,7 @@ spec = around_ inTempDirectory $ do
       readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLicenseFile = Just "LICENSE"}
 
     context "when reading library section" $ do
-      it "allows to specify exposed modules" $ do
+      it "allows to specify exposed-modules" $ do
         writeFile "package.yaml" [i|
           name: foo
           library:
@@ -80,6 +80,36 @@ spec = around_ inTempDirectory $ do
         touch "src/Foo.hs"
         touch "src/Bar.hs"
         readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
+
+      it "allows to specify other-modules" $ do
+        writeFile "package.yaml" [i|
+          name: foo
+          library:
+            other-modules: Bar
+          |]
+        touch "src/Foo.hs"
+        touch "src/Bar.hs"
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
+
+      it "allows to specify both exposed-modules and other-modules" $ do
+        writeFile "package.yaml" [i|
+          name: foo
+          library:
+            exposed-modules: Foo
+            other-modules: Bar
+          |]
+        touch "src/Baz.hs"
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
+
+      context "when neither exposed-module nor other-module are specified" $ do
+        it "exposes all modules" $ do
+          writeFile "package.yaml" [i|
+            name: foo
+            library: {}
+            |]
+          touch "src/Foo.hs"
+          touch "src/Bar.hs"
+          readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLibrary = Just library {libraryExposedModules = ["Bar", "Foo"]}}
 
     context "when reading executable section" $ do
       it "reads executable section" $ do
