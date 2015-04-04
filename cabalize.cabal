@@ -1,6 +1,7 @@
 -- This file has been generated from package.yaml by Cabalize.
 name: cabalize
 version: 0.0.0
+license: MIT
 build-type: Simple
 cabal-version: >= 1.10
 

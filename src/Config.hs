@@ -40,6 +40,7 @@ instance FromJSON ExecutableSection where
 data ConfigFile = ConfigFile {
   configFileName :: String
 , configFileVersion :: Maybe String
+, configFileLicense :: Maybe String
 , configFileDependencies :: Maybe [Dependency]
 , configFileGhcOptions :: Maybe (List GhcOption)
 , configFileLibrary :: Maybe LibrarySection
@@ -63,6 +64,7 @@ type GhcOption = String
 data Package = Package {
   packageName :: String
 , packageVersion :: String
+, packageLicense :: Maybe String
 , packageLibrary :: Maybe Library
 , packageExecutables :: [Executable]
 , packageTests :: [Executable]
@@ -90,6 +92,7 @@ mkPackage ConfigFile{..} = do
   let package = Package {
         packageName = configFileName
       , packageVersion = fromMaybe "0.0.0" configFileVersion
+      , packageLicense = configFileLicense
       , packageLibrary = mLibrary
       , packageExecutables = toExecutables dependencies ghcOptions configFileExecutables
       , packageTests       = toExecutables dependencies ghcOptions configFileTests

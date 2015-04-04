@@ -1,4 +1,5 @@
 name: cabalize
+license: MIT
 
 ghc-options: -Wall
 
