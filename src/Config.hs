@@ -31,6 +31,7 @@ instance FromJSON LibrarySection where
 
 data ExecutableSection = ExecutableSection {
   executableSectionMain :: FilePath
+, executableSectionSourceDirs :: Maybe (List FilePath)
 , executableSectionDependencies :: Maybe (List Dependency)
 , executableSectionGhcOptions :: Maybe (List GhcOption)
 } deriving (Eq, Show, Generic)
@@ -82,6 +83,7 @@ data Library = Library {
 data Executable = Executable {
   executableName :: String
 , executableMain :: FilePath
+, executableSourceDirs :: [FilePath]
 , executableDependencies :: [Dependency]
 , executableGhcOptions :: [GhcOption]
 } deriving (Eq, Show)
@@ -129,7 +131,11 @@ toExecutables :: [Dependency] -> [GhcOption] -> Maybe (HashMap String Executable
 toExecutables dependencies ghcOptions executables = (map (uncurry $ toExecutable dependencies ghcOptions) . Map.toList) (fromMaybe mempty executables)
 
 toExecutable :: [Dependency] -> [GhcOption] -> String -> ExecutableSection -> Executable
-toExecutable dependencies ghcOptions name t = Executable name (executableSectionMain t) (dependencies ++ fromMaybeList (executableSectionDependencies t)) (ghcOptions ++ fromMaybeList (executableSectionGhcOptions t))
+toExecutable globalDependencies globalGhcOptions name ExecutableSection{..} = Executable name executableSectionMain sourceDirs dependencies ghcOptions
+  where
+    dependencies = globalDependencies ++ fromMaybeList executableSectionDependencies
+    sourceDirs = fromMaybeList executableSectionSourceDirs
+    ghcOptions = globalGhcOptions ++ fromMaybeList executableSectionGhcOptions
 
 fromMaybeList :: Maybe (List a) -> [a]
 fromMaybeList = maybe [] fromList

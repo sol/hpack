@@ -14,7 +14,7 @@ package :: String -> Package
 package name = Package name "0.0.0" Nothing Nothing Nothing [] []
 
 executable :: String -> String -> Executable
-executable name path = Executable name path [] []
+executable name main_ = Executable name main_ [] [] []
 
 library :: Library
 library = Library [] [] [] []
@@ -66,19 +66,19 @@ spec = around_ inTempDirectory $ do
           name: foo
           executables:
             foo:
-              main: test/Spec.hs
+              main: driver/Main.hs
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [executable "foo" "test/Spec.hs"]}
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [executable "foo" "driver/Main.hs"]}
 
       it "accepts GHC options" $ do
         writeFile "package.yaml" [i|
           name: foo
           executables:
             foo:
-              main: test/Spec.hs
+              main: driver/Main.hs
               ghc-options: -Wall
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [(executable "foo" "test/Spec.hs") {executableGhcOptions = ["-Wall"]}]}
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
 
       it "accepts global GHC options" $ do
         writeFile "package.yaml" [i|
@@ -86,9 +86,21 @@ spec = around_ inTempDirectory $ do
           ghc-options: -Wall
           executables:
             foo:
-              main: test/Spec.hs
+              main: driver/Main.hs
           |]
-        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [(executable "foo" "test/Spec.hs") {executableGhcOptions = ["-Wall"]}]}
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
+
+      it "accepts source-dirs" $ do
+        writeFile "package.yaml" [i|
+          name: foo
+          executables:
+            foo:
+              main: Main.hs
+              source-dirs:
+                - src
+                - driver
+          |]
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageExecutables = [(executable "foo" "Main.hs") {executableSourceDirs = ["src", "driver"]}]}
 
     context "when reading test section" $ do
       it "reads test section" $ do

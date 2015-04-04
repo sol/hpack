@@ -4,9 +4,8 @@ module Cabalize (cabalize) where
 import           Prelude ()
 import           Prelude.Compat
 
-import           Data.List
+import           Data.List (sort, intercalate)
 import           Data.String.Interpolate
-import           System.FilePath
 import           System.Exit.Compat
 
 import           Util
@@ -32,8 +31,8 @@ test-suite #{executableName}
 
 renderExecutableSection :: Executable -> String
 renderExecutableSection Executable{..} = stripEmptyLines [i|
-  hs-source-dirs: #{takeDirectory executableMain}
-  main-is: #{takeFileName executableMain}
+#{if null executableSourceDirs then "" else "  hs-source-dirs: " ++ intercalate ", " executableSourceDirs}
+  main-is: #{executableMain}
   build-depends:
       #{intercalate "\n    , " $ sort executableDependencies}
   ghc-options: #{unwords executableGhcOptions}

@@ -24,7 +24,10 @@ executables:
 
 tests:
   spec:
-    main: test/Spec.hs
+    main: Spec.hs
+    source-dirs:
+      - test
+      - src
     dependencies:
       - hspec == 2.*
       - temporary
