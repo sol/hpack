@@ -9,6 +9,7 @@ module Config (
 import           Prelude ()
 import           Prelude.Compat
 
+import           Control.Monad (guard)
 import           Data.List ((\\))
 import           Data.Maybe
 import           Data.Yaml
@@ -65,6 +66,7 @@ data Package = Package {
   packageName :: String
 , packageVersion :: String
 , packageLicense :: Maybe String
+, packageLicenseFile :: Maybe FilePath
 , packageLibrary :: Maybe Library
 , packageExecutables :: [Executable]
 , packageTests :: [Executable]
@@ -89,10 +91,14 @@ mkPackage ConfigFile{..} = do
   let dependencies = fromMaybe [] configFileDependencies
   let ghcOptions = fromMaybeList configFileGhcOptions
   mLibrary <- mapM (mkLibrary dependencies ghcOptions) configFileLibrary
+
+  licenseFileExists <- doesFileExist "LICENSE"
+
   let package = Package {
         packageName = configFileName
       , packageVersion = fromMaybe "0.0.0" configFileVersion
       , packageLicense = configFileLicense
+      , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
       , packageLibrary = mLibrary
       , packageExecutables = toExecutables dependencies ghcOptions configFileExecutables
       , packageTests       = toExecutables dependencies ghcOptions configFileTests

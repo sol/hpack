@@ -2,6 +2,7 @@
 name: cabalize
 version: 0.0.0
 license: MIT
+license-file: LICENSE
 build-type: Simple
 cabal-version: >= 1.10
 

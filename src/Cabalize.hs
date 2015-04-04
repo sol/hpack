@@ -55,7 +55,7 @@ renderPackage :: Package -> String
 renderPackage Package{..} = stripEmptyLines [i|
 -- This file has been generated from #{configFile} by Cabalize.
 name: #{packageName}
-version: #{packageVersion}#{maybe "" ("\nlicense: " ++) packageLicense}
+version: #{packageVersion}#{maybe "" ("\nlicense: " ++) packageLicense}#{maybe "" ("\nlicense-file: " ++) packageLicenseFile}
 build-type: Simple
 cabal-version: >= 1.10
 

@@ -11,7 +11,7 @@ main :: IO ()
 main = hspec spec
 
 package :: String -> Package
-package name = Package name "0.0.0" Nothing Nothing [] []
+package name = Package name "0.0.0" Nothing Nothing Nothing [] []
 
 executable :: String -> String -> Executable
 executable name path = Executable name path [] []
@@ -41,6 +41,13 @@ spec = around_ inTempDirectory $ do
         license: MIT
         |]
       readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLicense = Just "MIT"}
+
+    it "infers license file" $ do
+      writeFile "package.yaml" [i|
+        name: foo
+        |]
+      touch "LICENSE"
+      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLicenseFile = Just "LICENSE"}
 
     context "when reading library section" $ do
       it "allows to specify exposed modules" $ do
