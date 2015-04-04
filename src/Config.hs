@@ -20,7 +20,7 @@ import           Util
 
 data TestSection = TestSection {
   testSectionMain :: FilePath
-, testSectionDependencies :: Maybe [String]
+, testSectionDependencies :: Maybe (List Dependency)
 } deriving (Eq, Show, Generic)
 
 instance FromJSON TestSection where
@@ -28,8 +28,8 @@ instance FromJSON TestSection where
 
 data ConfigFile = ConfigFile {
   configFileName :: String
-, configFileDependencies :: [String]
-, configFileTests :: HashMap String TestSection
+, configFileDependencies :: Maybe [Dependency]
+, configFileTests :: Maybe (HashMap String TestSection)
 } deriving (Eq, Show, Generic)
 
 instance FromJSON ConfigFile where
@@ -64,12 +64,13 @@ data Test = Test {
 
 mkPackage :: ConfigFile -> IO Package
 mkPackage ConfigFile{..} = do
-  library <- mkLibrary configFileDependencies
+  let dependencies = fromMaybe [] configFileDependencies
+  library <- mkLibrary dependencies
   let package = Package {
         packageName = configFileName
       , packageVersion = [0,0,0]
       , packageLibrary = library
-      , packageTests = (map (uncurry $ testConfigToTest configFileDependencies) . Map.toList) configFileTests
+      , packageTests = (map (uncurry $ testConfigToTest dependencies) . Map.toList) (fromMaybe mempty configFileTests)
       }
   return package
 
@@ -87,4 +88,4 @@ getModules src = do
     toModules = catMaybes . map toModule
 
 testConfigToTest :: [Dependency] -> String -> TestSection -> Test
-testConfigToTest dependencies name t = Test name (testSectionMain t) (dependencies ++ fromMaybe [] (testSectionDependencies t))
+testConfigToTest dependencies name t = Test name (testSectionMain t) (dependencies ++ maybe [] fromList (testSectionDependencies t))

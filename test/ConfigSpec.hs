@@ -19,11 +19,51 @@ spec = around_ inTempDirectory $ do
     it "reads package config" $ do
       writeFile "package.yaml" [i|
         name: foo
-        dependencies:
-          - base
-
-        tests:
-          spec:
-            main: test/Spec.hs
         |]
-      readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [Test "spec" "test/Spec.hs" ["base"]], packageLibrary = Library [] ["base"]}
+      readConfig "package.yaml" `shouldReturn` Just (package "foo")
+
+    context "when reading test section" $ do
+      it "reads test section" $ do
+        writeFile "package.yaml" [i|
+          name: foo
+          tests:
+            spec:
+              main: test/Spec.hs
+          |]
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [Test "spec" "test/Spec.hs" []]}
+
+      it "accepts single dependency" $ do
+        writeFile "package.yaml" [i|
+          name: foo
+          tests:
+            spec:
+              main: test/Spec.hs
+              dependencies: hspec
+          |]
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [Test "spec" "test/Spec.hs" ["hspec"]]}
+
+      it "accepts list of dependencies" $ do
+        writeFile "package.yaml" [i|
+          name: foo
+          tests:
+            spec:
+              main: test/Spec.hs
+              dependencies:
+                - hspec
+                - QuickCheck
+          |]
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [Test "spec" "test/Spec.hs" ["hspec", "QuickCheck"]]}
+
+      context "when both top-level and section specific dependencies are specified" $ do
+        it "combines dependencies" $ do
+          writeFile "package.yaml" [i|
+            name: foo
+            dependencies:
+              - base
+
+            tests:
+              spec:
+                main: test/Spec.hs
+                dependencies: hspec
+            |]
+          readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [Test "spec" "test/Spec.hs" ["base", "hspec"]], packageLibrary = Library [] ["base"]}

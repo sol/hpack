@@ -13,6 +13,12 @@ import           Data.Aeson.Types
 genericParseJSON_ :: (Generic a, GFromJSON (Rep a)) => String -> Value -> Parser a
 genericParseJSON_ name = genericParseJSON defaultOptions {fieldLabelModifier = camelTo '_' . drop (length name)}
 
+newtype List a = List {fromList :: [a]}
+  deriving (Eq, Show)
+
+instance FromJSON a => FromJSON (List a) where
+  parseJSON v = List <$> (parseJSON v <|> (return <$> parseJSON v))
+
 toModule :: FilePath -> Maybe String
 toModule = fmap (map f . reverse) . stripPrefix (reverse ".hs") . reverse
   where
