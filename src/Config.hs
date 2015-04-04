@@ -9,6 +9,7 @@ module Config (
 import           Prelude ()
 import           Prelude.Compat
 
+import           Data.List ((\\))
 import           Data.Maybe
 import           Data.Yaml
 import           GHC.Generics
@@ -17,6 +18,15 @@ import qualified Data.HashMap.Lazy as Map
 import           System.Directory
 
 import           Util
+
+data LibrarySection = LibrarySection {
+  librarySectionExposedModules :: Maybe (List Dependency)
+, librarySectionDependencies :: Maybe (List Dependency)
+, librarySectionGhcOptions :: Maybe (List GhcOption)
+} deriving (Eq, Show, Generic)
+
+instance FromJSON LibrarySection where
+  parseJSON = genericParseJSON_ "LibrarySection"
 
 data ExecutableSection = ExecutableSection {
   executableSectionMain :: FilePath
@@ -32,6 +42,7 @@ data ConfigFile = ConfigFile {
 , configFileVersion :: Maybe String
 , configFileDependencies :: Maybe [Dependency]
 , configFileGhcOptions :: Maybe (List GhcOption)
+, configFileLibrary :: Maybe LibrarySection
 , configFileExecutables :: Maybe (HashMap String ExecutableSection)
 , configFileTests :: Maybe (HashMap String ExecutableSection)
 } deriving (Eq, Show, Generic)
@@ -52,14 +63,16 @@ type GhcOption = String
 data Package = Package {
   packageName :: String
 , packageVersion :: String
-, packageLibrary :: Library
+, packageLibrary :: Maybe Library
 , packageExecutables :: [Executable]
 , packageTests :: [Executable]
 } deriving (Eq, Show)
 
 data Library = Library {
   libraryExposedModules :: [String]
+, libraryOtherModules :: [String]
 , libraryDependencies :: [Dependency]
+, libraryGhcOptions :: [GhcOption]
 } deriving (Eq, Show)
 
 data Executable = Executable {
@@ -73,18 +86,25 @@ mkPackage :: ConfigFile -> IO Package
 mkPackage ConfigFile{..} = do
   let dependencies = fromMaybe [] configFileDependencies
   let ghcOptions = fromMaybeList configFileGhcOptions
-  library <- mkLibrary dependencies
+  mLibrary <- mapM (mkLibrary dependencies ghcOptions) configFileLibrary
   let package = Package {
         packageName = configFileName
       , packageVersion = fromMaybe "0.0.0" configFileVersion
-      , packageLibrary = library
+      , packageLibrary = mLibrary
       , packageExecutables = toExecutables dependencies ghcOptions configFileExecutables
       , packageTests       = toExecutables dependencies ghcOptions configFileTests
       }
   return package
 
-mkLibrary :: [Dependency] -> IO Library
-mkLibrary dependencies = Library <$> getModules "src" <*> pure dependencies
+mkLibrary :: [Dependency] -> [GhcOption] -> LibrarySection -> IO Library
+mkLibrary globalDependencies globalGhcOptions LibrarySection{..} = do
+  modules <- getModules "src"
+  let otherModules = modules \\ exposedModules
+  return (Library exposedModules otherModules dependencies ghcOptions)
+  where
+    exposedModules = fromMaybeList librarySectionExposedModules
+    dependencies = globalDependencies ++ fromMaybeList librarySectionDependencies
+    ghcOptions = globalGhcOptions ++ fromMaybeList librarySectionGhcOptions
 
 getModules :: FilePath -> IO [String]
 getModules src = do

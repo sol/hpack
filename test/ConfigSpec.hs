@@ -11,10 +11,13 @@ main :: IO ()
 main = hspec spec
 
 package :: String -> Package
-package name = Package name "0.0.0" (Library [] []) [] []
+package name = Package name "0.0.0" Nothing [] []
 
 executable :: String -> String -> Executable
 executable name path = Executable name path [] []
+
+library :: Library
+library = Library [] [] [] []
 
 spec :: Spec
 spec = around_ inTempDirectory $ do
@@ -31,6 +34,17 @@ spec = around_ inTempDirectory $ do
         version: 0.1.0
         |]
       readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageVersion = "0.1.0"}
+
+    context "when reading library section" $ do
+      it "allows to specify exposed modules" $ do
+        writeFile "package.yaml" [i|
+          name: foo
+          library:
+            exposed-modules: Foo
+          |]
+        touch "src/Foo.hs"
+        touch "src/Bar.hs"
+        readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
 
     context "when reading executable section" $ do
       it "reads executable section" $ do
@@ -106,4 +120,4 @@ spec = around_ inTempDirectory $ do
                 main: test/Spec.hs
                 dependencies: hspec
             |]
-          readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["base", "hspec"]}], packageLibrary = Library [] ["base"]}
+          readConfig "package.yaml" `shouldReturn` Just (package "foo") {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["base", "hspec"]}]}

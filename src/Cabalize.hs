@@ -59,7 +59,7 @@ version: #{packageVersion}
 build-type: Simple
 cabal-version: >= 1.10
 
-#{renderLibrary packageLibrary}
+#{maybe "" renderLibrary packageLibrary}
 #{renderExecutables packageExecutables}
 #{renderTests packageTests}
 |]
@@ -70,6 +70,8 @@ library
   hs-source-dirs: src
   exposed-modules:
 #{intercalate "\n" . map ("      " ++) $ libraryExposedModules}
+  other-modules:
+#{intercalate "\n" . map ("      " ++) $ libraryOtherModules}
   build-depends:
       #{intercalate "\n    , " $ sort libraryDependencies}
   default-language: Haskell2010
