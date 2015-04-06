@@ -51,6 +51,7 @@ data ConfigFile = ConfigFile {
 , configFileMaintainer :: Maybe String
 , configFileCopyright :: Maybe String
 , configFileLicense :: Maybe String
+, configFileGithub :: Maybe String
 , configFileDependencies :: Maybe [Dependency]
 , configFileGhcOptions :: Maybe (List GhcOption)
 , configFileLibrary :: Maybe LibrarySection
@@ -82,6 +83,7 @@ data Package = Package {
 , packageCopyright :: Maybe String
 , packageLicense :: Maybe String
 , packageLicenseFile :: Maybe FilePath
+, packageSourceRepository :: Maybe String
 , packageLibrary :: Maybe Library
 , packageExecutables :: [Executable]
 , packageTests :: [Executable]
@@ -123,6 +125,7 @@ mkPackage ConfigFile{..} = do
       , packageCopyright = configFileCopyright
       , packageLicense = configFileLicense
       , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
+      , packageSourceRepository = ("https://github.com/" ++) <$> configFileGithub
       , packageLibrary = mLibrary
       , packageExecutables = toExecutables dependencies ghcOptions configFileExecutables
       , packageTests       = toExecutables dependencies ghcOptions configFileTests

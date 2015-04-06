@@ -1,5 +1,6 @@
 name: cabalize
 license: MIT
+github: sol/cabalize
 
 ghc-options: -Wall
 

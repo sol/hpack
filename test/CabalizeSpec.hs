@@ -31,3 +31,14 @@ spec = do
         , "build-type: Simple"
         , "cabal-version: >= 1.10"
         ]
+
+    it "includes source repository" $ do
+      renderPackage package {packageSourceRepository = Just "https://github.com/hspec/hspec"} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.10"
+        , "source-repository head"
+        , "  type: git"
+        , "  location: https://github.com/hspec/hspec"
+        ]

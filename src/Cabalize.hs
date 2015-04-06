@@ -90,10 +90,14 @@ renderPackage Package{..} = unlines fields ++ renderExecutables packageExecutabl
       mayField "license-file" packageLicenseFile $
       addField "build-type" "Simple" $
       addField "cabal-version" ">= 1.10" $
+      addWith sourceRepository packageSourceRepository $
       addWith renderLibrary packageLibrary
       []
 
     normalizeDescription = intercalate "\n  ." . map ("\n  " ++) . lines
+
+    sourceRepository :: String -> String
+    sourceRepository = ("\nsource-repository head\n  type: git\n  location: " ++)
 
 renderLibrary :: Library -> String
 renderLibrary Library{..} = [i|
