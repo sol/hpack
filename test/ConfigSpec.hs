@@ -1,5 +1,12 @@
 {-# LANGUAGE QuasiQuotes, OverloadedLists #-}
-module ConfigSpec (main, spec) where
+module ConfigSpec (
+  main
+, spec
+
+, package
+, executable
+, library
+) where
 
 import           Test.Hspec
 import           Helper

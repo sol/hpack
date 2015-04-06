@@ -1,5 +1,9 @@
 {-# LANGUAGE QuasiQuotes, RecordWildCards #-}
-module Cabalize (cabalize) where
+module Cabalize (
+  cabalize
+-- exported for testing
+, renderPackage
+) where
 
 import           Prelude ()
 import           Prelude.Compat
@@ -47,20 +51,43 @@ cabalize = do
   mPackage <- readConfig configFile
   case mPackage of
     Just package -> do
-      return (packageName package ++ ".cabal", renderPackage package)
+      let output = concat [
+              "-- This file has been generated from " ++ configFile ++ " by Cabalize.\n"
+            , renderPackage package
+            ]
+      return (packageName package ++ ".cabal", output)
     Nothing -> die [i|could not parse #{configFile}|]
 
 renderPackage :: Package -> String
-renderPackage Package{..} = stripEmptyLines [i|
--- This file has been generated from #{configFile} by Cabalize.
-name: #{packageName}
-version: #{packageVersion}#{maybe "" ("\nauthor: " ++) packageAuthor}#{maybe "" ("\nmaintainer: " ++) packageMaintainer}#{maybe "" ("\ncopyright: " ++) packageCopyright}#{maybe "" ("\nlicense: " ++) packageLicense}#{maybe "" ("\nlicense-file: " ++) packageLicenseFile}#{maybe "" ("\nsynopsis: " ++) packageSynopsis}#{maybe "" ("\ndescription: " ++) packageDescription}#{maybe "" ("\ncategory: " ++) packageCategory}
-build-type: Simple
-cabal-version: >= 1.10
-#{maybe "" renderLibrary packageLibrary}
-#{renderExecutables packageExecutables}
-#{renderTests packageTests}
-|]
+renderPackage Package{..} = unlines fields ++ renderExecutables packageExecutables ++ renderTests packageTests
+  where
+    formatField :: String -> String -> String
+    formatField name value = name ++ ": " ++ value
+
+    addField :: String -> String -> [String] -> [String]
+    addField name value = (formatField name value :)
+
+    mayField :: String -> Maybe String -> [String] -> [String]
+    mayField name = addWith (formatField name)
+
+    addWith :: (a -> String) -> Maybe a -> [String] -> [String]
+    addWith f value = maybe id ((:) . f) value
+
+    fields =
+      addField "name" packageName $
+      addField "version" packageVersion $
+      mayField "synopsis" packageSynopsis $
+      mayField "description" packageDescription $
+      mayField "category" packageCategory $
+      mayField "author" packageAuthor $
+      mayField "maintainer" packageMaintainer $
+      mayField "copyright" packageCopyright $
+      mayField "license" packageLicense $
+      mayField "license-file" packageLicenseFile $
+      addField "build-type" "Simple" $
+      addField "cabal-version" ">= 1.10" $
+      addWith renderLibrary packageLibrary
+      []
 
 renderLibrary :: Library -> String
 renderLibrary Library{..} = [i|
