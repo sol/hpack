@@ -8,7 +8,7 @@ module Cabalize (
 import           Prelude ()
 import           Prelude.Compat
 
-import           Data.List (sort, intercalate)
+import           Data.List (sort, intercalate, isPrefixOf)
 import           Data.String.Interpolate
 import           System.Exit.Compat
 
@@ -62,7 +62,11 @@ renderPackage :: Package -> String
 renderPackage Package{..} = unlines fields ++ renderExecutables packageExecutables ++ renderTests packageTests
   where
     formatField :: String -> String -> String
-    formatField name value = name ++ ": " ++ value
+    formatField name value = name ++ separator ++ value
+      where
+        separator
+          | "\n" `isPrefixOf` value = ":"
+          | otherwise = ": "
 
     addField :: String -> String -> [String] -> [String]
     addField name value = (formatField name value :)
@@ -77,7 +81,7 @@ renderPackage Package{..} = unlines fields ++ renderExecutables packageExecutabl
       addField "name" packageName $
       addField "version" packageVersion $
       mayField "synopsis" packageSynopsis $
-      mayField "description" packageDescription $
+      mayField "description" (normalizeDescription <$> packageDescription) $
       mayField "category" packageCategory $
       mayField "author" packageAuthor $
       mayField "maintainer" packageMaintainer $
@@ -88,6 +92,8 @@ renderPackage Package{..} = unlines fields ++ renderExecutables packageExecutabl
       addField "cabal-version" ">= 1.10" $
       addWith renderLibrary packageLibrary
       []
+
+    normalizeDescription = intercalate "\n  ." . map ("\n  " ++) . lines
 
 renderLibrary :: Library -> String
 renderLibrary Library{..} = [i|
