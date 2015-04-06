@@ -105,5 +105,6 @@ library
 #{intercalate "\n" . map ("      " ++) $ libraryOtherModules}
   build-depends:
       #{intercalate "\n    , " $ sort libraryDependencies}
+  ghc-options: #{unwords libraryGhcOptions}
   default-language: Haskell2010
 |]
