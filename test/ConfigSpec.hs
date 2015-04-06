@@ -11,7 +11,7 @@ main :: IO ()
 main = hspec spec
 
 package :: Package
-package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] []
+package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing [] []
 
 executable :: String -> String -> Executable
 executable name main_ = Executable name main_ [] [] []
@@ -33,6 +33,24 @@ spec = around_ (inTempDirectory "foo") $ do
         version: 0.1.0
         |]
       readConfig "package.yaml" `shouldReturn` Just package {packageVersion = "0.1.0"}
+
+    it "accepts synopsis" $ do
+      writeFile "package.yaml" [i|
+        synopsis: some synopsis
+        |]
+      readConfig "package.yaml" `shouldReturn` Just package {packageSynopsis = Just "some synopsis"}
+
+    it "accepts description" $ do
+      writeFile "package.yaml" [i|
+        description: some description
+        |]
+      readConfig "package.yaml" `shouldReturn` Just package {packageDescription = Just "some description"}
+
+    it "accepts category" $ do
+      writeFile "package.yaml" [i|
+        category: Data
+        |]
+      readConfig "package.yaml" `shouldReturn` Just package {packageCategory = Just "Data"}
 
     it "accepts author" $ do
       writeFile "package.yaml" [i|
