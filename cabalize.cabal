@@ -16,7 +16,7 @@ library
   build-depends:
       aeson >= 0.8
     , base == 4.*
-    , base-compat
+    , base-compat >= 0.7
     , directory
     , filepath
     , interpolate
@@ -29,7 +29,7 @@ executable cb
   build-depends:
       aeson >= 0.8
     , base == 4.*
-    , base-compat
+    , base-compat >= 0.7
     , cabalize
     , directory
     , filepath
@@ -45,7 +45,7 @@ test-suite spec
   build-depends:
       aeson >= 0.8
     , base == 4.*
-    , base-compat
+    , base-compat >= 0.7
     , directory
     , filepath
     , hspec == 2.*
