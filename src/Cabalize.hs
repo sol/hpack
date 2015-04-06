@@ -50,13 +50,13 @@ cabalize :: IO (FilePath, String)
 cabalize = do
   mPackage <- readConfig configFile
   case mPackage of
-    Just package -> do
+    Right package -> do
       let output = concat [
               "-- This file has been generated from " ++ configFile ++ " by Cabalize.\n"
             , renderPackage package
             ]
       return (packageName package ++ ".cabal", output)
-    Nothing -> die [i|could not parse #{configFile}|]
+    Left err -> die err
 
 renderPackage :: Package -> String
 renderPackage Package{..} = unlines fields ++ renderExecutables packageExecutables ++ renderTests packageTests

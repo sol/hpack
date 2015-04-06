@@ -38,6 +38,7 @@ spec = do
         , "version: 0.0.0"
         , "build-type: Simple"
         , "cabal-version: >= 1.10"
+        , ""
         , "source-repository head"
         , "  type: git"
         , "  location: https://github.com/hspec/hspec"

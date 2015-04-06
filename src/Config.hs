@@ -62,12 +62,15 @@ data ConfigFile = ConfigFile {
 instance FromJSON ConfigFile where
   parseJSON = genericParseJSON_ "ConfigFile"
 
-readConfig :: FilePath -> IO (Maybe Package)
+readConfig :: FilePath -> IO (Either String Package)
 readConfig file = do
-  mConfig <- decodeFile file
-  case mConfig of
-    Just config -> Just <$> mkPackage config
-    Nothing -> return Nothing
+  config <- decodeFileEither file
+  either (return . Left . errToString) (fmap Right . mkPackage) config
+  where
+    errToString err = file ++ case err of
+      AesonException e -> ": " ++ e
+      InvalidYaml (Just e) -> let loc = yamlProblemMark e in ":" ++ show (yamlLine loc) ++ ":" ++ show (yamlColumn loc) ++ ": " ++ yamlProblem e ++ " " ++ yamlContext e
+      _ -> ": " ++ show err
 
 type Dependency = String
 type GhcOption = String
