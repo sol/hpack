@@ -9,7 +9,7 @@ import           Prelude ()
 import           Prelude.Compat
 
 import           Data.Maybe
-import           Data.List (sort, intercalate, isPrefixOf)
+import           Data.List (sort, sortBy, elemIndex, intercalate, isPrefixOf)
 import           Data.String.Interpolate
 import           System.Exit.Compat
 
@@ -62,48 +62,51 @@ cabalize = do
             , "--\n"
             , "-- see: https://github.com/sol/cabalize\n"
             , "\n"
-            , renderPackage alignment package
+            , renderPackage alignment (maybe [] extractFieldOrderHint old) package
             ]
       return (cabalFile, output)
     Left err -> die err
 
-renderPackage :: Int -> Package -> String
-renderPackage alignment Package{..} = unlines fields ++ renderExecutables packageExecutables ++ renderTests packageTests
+renderPackage :: Int -> [String] -> Package -> String
+renderPackage alignment existingFieldOrder Package{..} = unlines output ++ renderExecutables packageExecutables ++ renderTests packageTests
   where
     padding name = replicate (alignment - length name - 2) ' '
 
-    formatField :: String -> String -> String
-    formatField name value = name ++ separator ++ value
+    formatField :: (String, String) -> String
+    formatField (name, value) = name ++ separator ++ value
       where
         separator
           | "\n" `isPrefixOf` value = ":"
           | otherwise = ": " ++ padding name
 
-    addField :: String -> String -> [String] -> [String]
-    addField name value = (formatField name value :)
+    output = map formatField sortedFields ++ catMaybes [
+        sourceRepository <$> packageSourceRepository
+      , renderLibrary <$> packageLibrary
+      ]
 
-    mayField :: String -> Maybe String -> [String] -> [String]
-    mayField name = addWith (formatField name)
+    sortedFields = sortBy orderingForExistingFields fields
 
-    addWith :: (a -> String) -> Maybe a -> [String] -> [String]
-    addWith f value = maybe id ((:) . f) value
+    orderingForExistingFields :: (String, a) -> (String, a) -> Ordering
+    orderingForExistingFields (key1, _) (key2, _) = index key1 `compare` index key2
+      where
+        index :: String -> Maybe Int
+        index = (`elemIndex` existingFieldOrder)
 
-    fields =
-      addField "name" packageName $
-      addField "version" packageVersion $
-      mayField "synopsis" packageSynopsis $
-      mayField "description" (normalizeDescription <$> packageDescription) $
-      mayField "category" packageCategory $
-      mayField "author" packageAuthor $
-      mayField "maintainer" packageMaintainer $
-      mayField "copyright" packageCopyright $
-      mayField "license" packageLicense $
-      mayField "license-file" packageLicenseFile $
-      addField "build-type" "Simple" $
-      addField "cabal-version" ">= 1.10" $
-      addWith sourceRepository packageSourceRepository $
-      addWith renderLibrary packageLibrary
-      []
+    fields :: [(String, String)]
+    fields = catMaybes . map (\(name, value) -> (,) name <$> value) $ [
+        ("name", Just packageName)
+      , ("version", Just packageVersion)
+      , ("synopsis", packageSynopsis)
+      , ("description", (normalizeDescription <$> packageDescription))
+      , ("category", packageCategory)
+      , ("author", packageAuthor)
+      , ("maintainer", packageMaintainer)
+      , ("copyright", packageCopyright)
+      , ("license", packageLicense)
+      , ("license-file", packageLicenseFile)
+      , ("build-type", Just "Simple")
+      , ("cabal-version", Just ">= 1.10")
+      ]
 
     normalizeDescription = intercalate "\n  ." . map ("\n  " ++) . lines
 

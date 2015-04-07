@@ -13,15 +13,15 @@ spec :: Spec
 spec = do
   describe "renderPackage" $ do
     it "renders a package" $ do
-      renderPackage 0 package `shouldBe` unlines [
+      renderPackage 0 [] package `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
         , "cabal-version: >= 1.10"
         ]
 
-    it "renders a package" $ do
-      renderPackage 16 package `shouldBe` unlines [
+    it "aligns fields" $ do
+      renderPackage 16 [] package `shouldBe` unlines [
           "name:           foo"
         , "version:        0.0.0"
         , "build-type:     Simple"
@@ -29,7 +29,7 @@ spec = do
         ]
 
     it "includes description" $ do
-      renderPackage 0 package {packageDescription = Just "foo\nbar\n"} `shouldBe` unlines [
+      renderPackage 0 [] package {packageDescription = Just "foo\nbar\n"} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "description:"
@@ -41,7 +41,7 @@ spec = do
         ]
 
     it "includes source repository" $ do
-      renderPackage 0 package {packageSourceRepository = Just "https://github.com/hspec/hspec"} `shouldBe` unlines [
+      renderPackage 0 [] package {packageSourceRepository = Just "https://github.com/hspec/hspec"} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
@@ -51,3 +51,12 @@ spec = do
         , "  type: git"
         , "  location: https://github.com/hspec/hspec"
         ]
+
+    context "when given list of existing fields" $ do
+      it "retains field order" $ do
+        renderPackage 16 ["cabal-version", "version", "name", "build-type"] package `shouldBe` unlines [
+            "cabal-version:  >= 1.10"
+          , "version:        0.0.0"
+          , "name:           foo"
+          , "build-type:     Simple"
+          ]
