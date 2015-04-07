@@ -9,7 +9,7 @@ import           Prelude ()
 import           Prelude.Compat
 
 import           Data.Maybe
-import           Data.List (sort, sortBy, elemIndex, intercalate, isPrefixOf)
+import           Data.List (partition, sort, sortBy, elemIndex, intercalate, isPrefixOf)
 import           Data.String.Interpolate
 import           System.Exit.Compat
 
@@ -84,7 +84,18 @@ renderPackage alignment existingFieldOrder Package{..} = unlines output ++ rende
       , renderLibrary <$> packageLibrary
       ]
 
-    sortedFields = sortBy orderingForExistingFields fields
+    sortedFields :: [(String, String)]
+    sortedFields = foldr insertByDefaultFieldOrder (sortBy orderingForExistingFields existing) new
+      where
+        (existing, new) = partition ((`elem` existingFieldOrder) . fst) fields
+
+        insertByDefaultFieldOrder :: (String, a) -> [(String, a)] -> [(String, a)]
+        insertByDefaultFieldOrder x@(key1, _) xs = case xs of
+          [] -> [x]
+          y@(key2, _) :ys -> if index key1 < index key2 then x : y : ys else y : insertByDefaultFieldOrder x ys
+          where
+            index :: String -> Maybe Int
+            index = (`elemIndex` defaultFieldOrder)
 
     orderingForExistingFields :: (String, a) -> (String, a) -> Ordering
     orderingForExistingFields (key1, _) (key2, _) = index key1 `compare` index key2
@@ -107,6 +118,9 @@ renderPackage alignment existingFieldOrder Package{..} = unlines output ++ rende
       , ("build-type", Just "Simple")
       , ("cabal-version", Just ">= 1.10")
       ]
+
+    defaultFieldOrder :: [String]
+    defaultFieldOrder = map fst fields
 
     normalizeDescription = intercalate "\n  ." . map ("\n  " ++) . lines
 

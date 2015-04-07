@@ -60,3 +60,11 @@ spec = do
           , "name:           foo"
           , "build-type:     Simple"
           ]
+
+      it "uses default field order for new fields" $ do
+        renderPackage 16 ["name", "version", "cabal-version"] package `shouldBe` unlines [
+            "name:           foo"
+          , "version:        0.0.0"
+          , "build-type:     Simple"
+          , "cabal-version:  >= 1.10"
+          ]
