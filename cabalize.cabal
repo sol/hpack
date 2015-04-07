@@ -1,4 +1,7 @@
 -- This file has been generated from package.yaml by Cabalize.
+--
+-- see: https://github.com/sol/cabalize
+
 name:           cabalize
 version:        0.0.0
 license:        MIT

@@ -53,6 +53,9 @@ cabalize = do
     Right package -> do
       let output = concat [
               "-- This file has been generated from " ++ configFile ++ " by Cabalize.\n"
+            , "--\n"
+            , "-- see: https://github.com/sol/cabalize\n"
+            , "\n"
             , renderPackage 16 package
             ]
       return (packageName package ++ ".cabal", output)
