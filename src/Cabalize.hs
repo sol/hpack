@@ -92,7 +92,7 @@ renderPackage alignment existingFieldOrder Package{..} = unlines output ++ rende
         insertByDefaultFieldOrder :: (String, a) -> [(String, a)] -> [(String, a)]
         insertByDefaultFieldOrder x@(key1, _) xs = case xs of
           [] -> [x]
-          y@(key2, _) :ys -> if index key1 < index key2 then x : y : ys else y : insertByDefaultFieldOrder x ys
+          y@(key2, _) : ys -> if index key1 < index key2 then x : y : ys else y : insertByDefaultFieldOrder x ys
           where
             index :: String -> Maybe Int
             index = (`elemIndex` defaultFieldOrder)
@@ -104,7 +104,7 @@ renderPackage alignment existingFieldOrder Package{..} = unlines output ++ rende
         index = (`elemIndex` existingFieldOrder)
 
     fields :: [(String, String)]
-    fields = catMaybes . map (\(name, value) -> (,) name <$> value) $ [
+    fields = mapMaybe (\(name, value) -> (,) name <$> value) $ [
         ("name", Just packageName)
       , ("version", Just packageVersion)
       , ("synopsis", packageSynopsis)
