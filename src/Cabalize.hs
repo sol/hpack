@@ -53,20 +53,22 @@ cabalize = do
     Right package -> do
       let output = concat [
               "-- This file has been generated from " ++ configFile ++ " by Cabalize.\n"
-            , renderPackage package
+            , renderPackage 16 package
             ]
       return (packageName package ++ ".cabal", output)
     Left err -> die err
 
-renderPackage :: Package -> String
-renderPackage Package{..} = unlines fields ++ renderExecutables packageExecutables ++ renderTests packageTests
+renderPackage :: Int -> Package -> String
+renderPackage alignment Package{..} = unlines fields ++ renderExecutables packageExecutables ++ renderTests packageTests
   where
+    padding name = replicate (alignment - length name - 2) ' '
+
     formatField :: String -> String -> String
     formatField name value = name ++ separator ++ value
       where
         separator
           | "\n" `isPrefixOf` value = ":"
-          | otherwise = ": "
+          | otherwise = ": " ++ padding name
 
     addField :: String -> String -> [String] -> [String]
     addField name value = (formatField name value :)

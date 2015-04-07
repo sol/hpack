@@ -13,15 +13,23 @@ spec :: Spec
 spec = do
   describe "renderPackage" $ do
     it "renders a package" $ do
-      renderPackage package `shouldBe` unlines [
+      renderPackage 0 package `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
         , "cabal-version: >= 1.10"
         ]
 
+    it "renders a package" $ do
+      renderPackage 16 package `shouldBe` unlines [
+          "name:           foo"
+        , "version:        0.0.0"
+        , "build-type:     Simple"
+        , "cabal-version:  >= 1.10"
+        ]
+
     it "includes description" $ do
-      renderPackage package {packageDescription = Just "foo\nbar\n"} `shouldBe` unlines [
+      renderPackage 0 package {packageDescription = Just "foo\nbar\n"} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "description:"
@@ -33,7 +41,7 @@ spec = do
         ]
 
     it "includes source repository" $ do
-      renderPackage package {packageSourceRepository = Just "https://github.com/hspec/hspec"} `shouldBe` unlines [
+      renderPackage 0 package {packageSourceRepository = Just "https://github.com/hspec/hspec"} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
