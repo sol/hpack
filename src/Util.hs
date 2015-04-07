@@ -3,6 +3,10 @@ module Util where
 
 import           Control.Applicative
 import           Control.Monad
+import           Control.Exception
+import           Control.DeepSeq
+import           Data.Char
+import           Data.Maybe
 import           Data.List
 import           System.Directory
 import           System.FilePath
@@ -38,3 +42,25 @@ getFilesRecursive baseDir = sort <$> go []
       dirs <- filterM (doesDirectoryExist . (baseDir </>)) c >>= mapM go
       files <- filterM (doesFileExist . (baseDir </>)) c
       return (files ++ concat dirs)
+
+tryReadFile :: FilePath -> IO (Maybe String)
+tryReadFile file = do
+  r <- try (readFile file) :: IO (Either IOException String)
+  return $!! either (const Nothing) Just r
+
+sniffAlignment :: String -> Maybe Int
+sniffAlignment input = case nub $ map indentation $ catMaybes $ map splitField $ lines input of
+  [n] -> Just n
+  _ -> Nothing
+  where
+
+    indentation :: (String, String) -> Int
+    indentation (name, value) = length (name ++ takeWhile isSpace value)
+
+splitField :: String -> Maybe (String, String)
+splitField field = case span isNameChar field of
+  (xs, ':':y:ys) -> Just (xs ++ ":", y:ys)
+  _ -> Nothing
+  where
+    isNameChar = (`elem` nameChars)
+    nameChars = ['a'..'z'] ++ ['A'..'Z'] ++ "_"

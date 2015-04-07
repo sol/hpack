@@ -8,6 +8,7 @@ module Cabalize (
 import           Prelude ()
 import           Prelude.Compat
 
+import           Data.Maybe
 import           Data.List (sort, intercalate, isPrefixOf)
 import           Data.String.Interpolate
 import           System.Exit.Compat
@@ -51,14 +52,19 @@ cabalize = do
   mPackage <- readConfig configFile
   case mPackage of
     Right package -> do
-      let output = concat [
+      let cabalFile = packageName package ++ ".cabal"
+
+      old <- tryReadFile cabalFile
+
+      let alignment = fromMaybe 16 (old >>= sniffAlignment)
+          output = concat [
               "-- This file has been generated from " ++ configFile ++ " by Cabalize.\n"
             , "--\n"
             , "-- see: https://github.com/sol/cabalize\n"
             , "\n"
-            , renderPackage 16 package
+            , renderPackage alignment package
             ]
-      return (packageName package ++ ".cabal", output)
+      return (cabalFile, output)
     Left err -> die err
 
 renderPackage :: Int -> Package -> String

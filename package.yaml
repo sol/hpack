@@ -8,6 +8,7 @@ dependencies:
   - aeson >= 0.8
   - base == 4.*
   - base-compat >= 0.7
+  - deepseq
   - directory
   - filepath
   - interpolate
