@@ -16,34 +16,6 @@ import           System.Exit.Compat
 import           Util
 import           Config
 
-renderExecutables :: [Executable] -> String
-renderExecutables = intercalate "\n" . map renderExecutable
-
-renderExecutable :: Executable -> String
-renderExecutable executable@Executable{..} = stripEmptyLines [i|
-executable #{executableName}
-|] ++ renderExecutableSection executable
-
-renderTests :: [Executable] -> String
-renderTests = intercalate "\n" . map renderTest
-
-renderTest :: Executable -> String
-renderTest executable@Executable{..} = stripEmptyLines [i|
-test-suite #{executableName}
-  type: exitcode-stdio-1.0
-|] ++ renderExecutableSection executable
-
-
-renderExecutableSection :: Executable -> String
-renderExecutableSection Executable{..} = stripEmptyLines [i|
-#{if null executableSourceDirs then "" else "  hs-source-dirs: " ++ intercalate ", " executableSourceDirs}
-  main-is: #{executableMain}
-  build-depends:
-      #{intercalate "\n    , " $ sort executableDependencies}
-  ghc-options: #{unwords executableGhcOptions}
-  default-language: Haskell2010
-|]
-
 configFile :: FilePath
 configFile = "package.yaml"
 
@@ -126,6 +98,33 @@ renderPackage alignment existingFieldOrder Package{..} = unlines output ++ rende
 
     sourceRepository :: String -> String
     sourceRepository = ("\nsource-repository head\n  type: git\n  location: " ++)
+
+renderExecutables :: [Executable] -> String
+renderExecutables = intercalate "\n" . map renderExecutable
+
+renderExecutable :: Executable -> String
+renderExecutable executable@Executable{..} = stripEmptyLines [i|
+executable #{executableName}
+|] ++ renderExecutableSection executable
+
+renderTests :: [Executable] -> String
+renderTests = intercalate "\n" . map renderTest
+
+renderTest :: Executable -> String
+renderTest executable@Executable{..} = stripEmptyLines [i|
+test-suite #{executableName}
+  type: exitcode-stdio-1.0
+|] ++ renderExecutableSection executable
+
+renderExecutableSection :: Executable -> String
+renderExecutableSection Executable{..} = stripEmptyLines [i|
+#{if null executableSourceDirs then "" else "  hs-source-dirs: " ++ intercalate ", " executableSourceDirs}
+  main-is: #{executableMain}
+  build-depends:
+      #{intercalate "\n    , " $ sort executableDependencies}
+  ghc-options: #{unwords executableGhcOptions}
+  default-language: Haskell2010
+|]
 
 renderLibrary :: Library -> String
 renderLibrary Library{..} = [i|
