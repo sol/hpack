@@ -8,7 +8,6 @@ module Cabalize (
 import           Control.Applicative
 import           Data.Maybe
 import           Data.List
-import           Data.String.Interpolate
 import           System.Exit.Compat
 
 import           Util
@@ -101,47 +100,61 @@ renderExecutables :: [Executable] -> String
 renderExecutables = intercalate "\n" . map renderExecutable
 
 renderExecutable :: Executable -> String
-renderExecutable executable@Executable{..} = stripEmptyLines [i|
-executable #{executableName}
-|] ++ renderExecutableSection executable
+renderExecutable executable@Executable{..} =
+     "executable "
+  ++ executableName ++ "\n"
+  ++ renderExecutableSection executable
 
 renderTests :: [Executable] -> String
 renderTests = intercalate "\n" . map renderTest
 
 renderTest :: Executable -> String
-renderTest executable@Executable{..} = stripEmptyLines [i|
-test-suite #{executableName}
-  type: exitcode-stdio-1.0
-|] ++ renderExecutableSection executable
+renderTest executable@Executable{..} =
+     "test-suite " ++ executableName ++ "\n"
+  ++ "  type: exitcode-stdio-1.0\n"
+  ++ renderExecutableSection executable
 
 renderExecutableSection :: Executable -> String
-renderExecutableSection Executable{..} = unlines . filter (not . null) . lines $ [i|
-#{if null executableSourceDirs then "" else "  hs-source-dirs: " ++ intercalate ", " executableSourceDirs}
-  main-is: #{executableMain}
-#{renderDependencies executableDependencies}
-#{renderGhcOptions executableGhcOptions}
-  default-language: Haskell2010
-|]
+renderExecutableSection Executable{..} = 
+     renderSourceDirs executableSourceDirs
+  ++ "  main-is: " ++ executableMain ++ "\n"
+  ++ renderDependencies executableDependencies 
+  ++ renderGhcOptions executableGhcOptions
+  ++ "  default-language: Haskell2010\n"
 
 renderLibrary :: Library -> String
-renderLibrary Library{..} = unlines . filter (not . null) . lines $ [i|
-library
-  hs-source-dirs: src
-  exposed-modules:
-#{intercalate "\n" . map ("      " ++) $ libraryExposedModules}
-  other-modules:
-#{intercalate "\n" . map ("      " ++) $ libraryOtherModules}
-#{renderDependencies libraryDependencies}
-#{renderGhcOptions libraryGhcOptions}
-  default-language: Haskell2010
-|]
+renderLibrary Library{..} = unlines [
+    "library"
+  , "  hs-source-dirs: src"
+  ]
+  ++ renderExposedModules libraryExposedModules
+  ++ renderOtherModules libraryOtherModules
+  ++ renderDependencies libraryDependencies
+  ++ renderGhcOptions libraryGhcOptions
+  ++ "  default-language: Haskell2010\n"
+
+
+renderSourceDirs :: [String] -> String
+renderSourceDirs dirs
+  | null dirs = ""
+  | otherwise = "  hs-source-dirs: " ++ intercalate ", " dirs ++ "\n"
+
+renderExposedModules :: [String] -> String
+renderExposedModules modules
+  | null modules = ""
+  | otherwise = "  exposed-modules:\n" ++ (unlines $ map ("      " ++) modules)
+
+renderOtherModules :: [String] -> String
+renderOtherModules modules
+  | null modules = ""
+  | otherwise = "  other-modules:\n" ++ (unlines $ map ("      " ++) modules)
 
 renderDependencies :: [[Dependency]] -> String
 renderDependencies dependencies
   | null dependencies = ""
-  | otherwise = "  build-depends:\n      " ++ intercalate "\n    , " (concat dependencies)
+  | otherwise = "  build-depends:\n      " ++ intercalate "\n    , " (concat dependencies) ++ "\n"
 
 renderGhcOptions :: [GhcOption] -> String
 renderGhcOptions ghcOptions
   | null ghcOptions = ""
-  | otherwise = "  ghc-options: " ++ unwords ghcOptions
+  | otherwise = "  ghc-options: " ++ unwords ghcOptions ++ "\n"

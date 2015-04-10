@@ -26,7 +26,6 @@ library
     , deepseq
     , directory
     , filepath
-    , interpolate
     , unordered-containers
     , yaml
   ghc-options: -Wall
@@ -41,7 +40,6 @@ executable cb
     , deepseq
     , directory
     , filepath
-    , interpolate
     , unordered-containers
     , yaml
     , cabalize
@@ -58,10 +56,10 @@ test-suite spec
     , deepseq
     , directory
     , filepath
-    , interpolate
     , unordered-containers
     , yaml
     , hspec == 2.*
     , temporary
+    , interpolate
   ghc-options: -Wall
   default-language: Haskell2010

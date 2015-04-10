@@ -24,8 +24,8 @@ import           System.Directory
 import           Util
 
 data LibrarySection = LibrarySection {
-  librarySectionExposedModules :: Maybe (List Dependency)
-, librarySectionOtherModules :: Maybe (List Dependency)
+  librarySectionExposedModules :: Maybe (List String)
+, librarySectionOtherModules :: Maybe (List String)
 , librarySectionDependencies :: Maybe (List Dependency)
 , librarySectionGhcOptions :: Maybe (List GhcOption)
 } deriving (Eq, Show, Generic)
