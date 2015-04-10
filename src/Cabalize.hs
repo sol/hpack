@@ -37,8 +37,19 @@ cabalize = do
     Left err -> die err
 
 renderPackage :: Int -> [String] -> Package -> String
-renderPackage alignment existingFieldOrder Package{..} = unlines output ++ renderExecutables packageExecutables ++ renderTests packageTests
+renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sections
   where
+    sections :: [String]
+    sections = catMaybes [
+        header
+      , sourceRepository
+      , library
+      ] ++ renderExecutables packageExecutables ++ renderTests packageTests
+
+    header = Just (unlines $ map formatField sortedFields)
+    sourceRepository = renderSourceRepository <$> packageSourceRepository
+    library = renderLibrary <$> packageLibrary
+
     padding name = replicate (alignment - length name - 2) ' '
 
     formatField :: (String, String) -> String
@@ -47,11 +58,6 @@ renderPackage alignment existingFieldOrder Package{..} = unlines output ++ rende
         separator
           | "\n" `isPrefixOf` value = ":"
           | otherwise = ": " ++ padding name
-
-    output = map formatField sortedFields ++ catMaybes [
-        sourceRepository <$> packageSourceRepository
-      , renderLibrary <$> packageLibrary
-      ]
 
     sortedFields :: [(String, String)]
     sortedFields = foldr insertByDefaultFieldOrder (sortBy orderingForExistingFields existing) new
@@ -93,11 +99,11 @@ renderPackage alignment existingFieldOrder Package{..} = unlines output ++ rende
 
     normalizeDescription = intercalate "\n  ." . map ("\n  " ++) . lines
 
-    sourceRepository :: String -> String
-    sourceRepository = ("\nsource-repository head\n  type: git\n  location: " ++)
+    renderSourceRepository :: String -> String
+    renderSourceRepository url = "source-repository head\n  type: git\n  location: " ++ url ++ "\n"
 
-renderExecutables :: [Executable] -> String
-renderExecutables = intercalate "\n" . map renderExecutable
+renderExecutables :: [Executable] -> [String]
+renderExecutables = map renderExecutable
 
 renderExecutable :: Executable -> String
 renderExecutable executable@Executable{..} =
@@ -105,8 +111,8 @@ renderExecutable executable@Executable{..} =
   ++ executableName ++ "\n"
   ++ renderExecutableSection executable
 
-renderTests :: [Executable] -> String
-renderTests = intercalate "\n" . map renderTest
+renderTests :: [Executable] -> [String]
+renderTests = map renderTest
 
 renderTest :: Executable -> String
 renderTest executable@Executable{..} =
