@@ -5,11 +5,9 @@ module Cabalize (
 , renderPackage
 ) where
 
-import           Prelude ()
-import           Prelude.Compat
-
+import           Control.Applicative
 import           Data.Maybe
-import           Data.List (partition, sort, sortBy, elemIndex, intercalate, isPrefixOf)
+import           Data.List
 import           Data.String.Interpolate
 import           System.Exit.Compat
 
@@ -117,25 +115,33 @@ test-suite #{executableName}
 |] ++ renderExecutableSection executable
 
 renderExecutableSection :: Executable -> String
-renderExecutableSection Executable{..} = stripEmptyLines [i|
+renderExecutableSection Executable{..} = unlines . filter (not . null) . lines $ [i|
 #{if null executableSourceDirs then "" else "  hs-source-dirs: " ++ intercalate ", " executableSourceDirs}
   main-is: #{executableMain}
-  build-depends:
-      #{intercalate "\n    , " $ sort executableDependencies}
-  ghc-options: #{unwords executableGhcOptions}
+#{renderDependencies executableDependencies}
+#{renderGhcOptions executableGhcOptions}
   default-language: Haskell2010
 |]
 
 renderLibrary :: Library -> String
-renderLibrary Library{..} = [i|
+renderLibrary Library{..} = unlines . filter (not . null) . lines $ [i|
 library
   hs-source-dirs: src
   exposed-modules:
 #{intercalate "\n" . map ("      " ++) $ libraryExposedModules}
   other-modules:
 #{intercalate "\n" . map ("      " ++) $ libraryOtherModules}
-  build-depends:
-      #{intercalate "\n    , " $ sort libraryDependencies}
-  ghc-options: #{unwords libraryGhcOptions}
+#{renderDependencies libraryDependencies}
+#{renderGhcOptions libraryGhcOptions}
   default-language: Haskell2010
 |]
+
+renderDependencies :: [[Dependency]] -> String
+renderDependencies dependencies
+  | null dependencies = ""
+  | otherwise = "  build-depends:\n      " ++ intercalate "\n    , " (concat dependencies)
+
+renderGhcOptions :: [GhcOption] -> String
+renderGhcOptions ghcOptions
+  | null ghcOptions = ""
+  | otherwise = "  ghc-options: " ++ unwords ghcOptions

@@ -187,7 +187,7 @@ spec = around_ (inTempDirectory "foo") $ do
               main: test/Spec.hs
               dependencies: hspec
           |]
-        readConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["hspec"]}]}
+        readConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["hspec"]]}]}
 
       it "accepts list of dependencies" $ do
         writeFile "package.yaml" [i|
@@ -198,7 +198,7 @@ spec = around_ (inTempDirectory "foo") $ do
                 - hspec
                 - QuickCheck
           |]
-        readConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["hspec", "QuickCheck"]}]}
+        readConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["hspec", "QuickCheck"]]}]}
 
       context "when both top-level and section specific dependencies are specified" $ do
         it "combines dependencies" $ do
@@ -211,7 +211,7 @@ spec = around_ (inTempDirectory "foo") $ do
                 main: test/Spec.hs
                 dependencies: hspec
             |]
-          readConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = ["base", "hspec"]}]}
+          readConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["base"], ["hspec"]]}]}
 
     context "when package.yaml can not be parsed" $ do
       it "returns an error" $ do

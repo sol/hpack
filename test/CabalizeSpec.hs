@@ -68,3 +68,30 @@ spec = do
           , "build-type:     Simple"
           , "cabal-version:  >= 1.10"
           ]
+
+    context "when rendering executable section" $ do
+      it "includes dependencies" $ do
+        renderPackage 0 [] package {packageExecutables = [(executable "foo" "Main.hs") {executableDependencies = [["hspec", "QuickCheck"]]}]} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.10"
+          , "executable foo"
+          , "  main-is: Main.hs"
+          , "  build-depends:"
+          , "      hspec"
+          , "    , QuickCheck"
+          , "  default-language: Haskell2010"
+          ]
+
+      it "includes GHC options" $ do
+        renderPackage 0 [] package {packageExecutables = [(executable "foo" "Main.hs") {executableGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.10"
+          , "executable foo"
+          , "  main-is: Main.hs"
+          , "  ghc-options: -Wall -Werror"
+          , "  default-language: Haskell2010"
+          ]

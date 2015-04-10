@@ -2,6 +2,8 @@
 module Config (
   readConfig
 , Package(..)
+, Dependency
+, GhcOption
 , Library(..)
 , Executable(..)
 ) where
@@ -95,7 +97,7 @@ data Package = Package {
 data Library = Library {
   libraryExposedModules :: [String]
 , libraryOtherModules :: [String]
-, libraryDependencies :: [Dependency]
+, libraryDependencies :: [[Dependency]]
 , libraryGhcOptions :: [GhcOption]
 } deriving (Eq, Show)
 
@@ -103,7 +105,7 @@ data Executable = Executable {
   executableName :: String
 , executableMain :: FilePath
 , executableSourceDirs :: [FilePath]
-, executableDependencies :: [Dependency]
+, executableDependencies :: [[Dependency]]
 , executableGhcOptions :: [GhcOption]
 } deriving (Eq, Show)
 
@@ -143,7 +145,7 @@ mkLibrary globalDependencies globalGhcOptions LibrarySection{..} = do
 
   return (Library exposedModules otherModules dependencies ghcOptions)
   where
-    dependencies = globalDependencies ++ fromMaybeList librarySectionDependencies
+    dependencies = filter (not . null) [globalDependencies, fromMaybeList librarySectionDependencies]
     ghcOptions = globalGhcOptions ++ fromMaybeList librarySectionGhcOptions
 
 determineModules :: [String] -> Maybe (List String) -> Maybe (List String) -> ([String], [String])
@@ -170,7 +172,7 @@ toExecutables dependencies ghcOptions executables = (map (uncurry $ toExecutable
 toExecutable :: [Dependency] -> [GhcOption] -> String -> ExecutableSection -> Executable
 toExecutable globalDependencies globalGhcOptions name ExecutableSection{..} = Executable name executableSectionMain sourceDirs dependencies ghcOptions
   where
-    dependencies = globalDependencies ++ fromMaybeList executableSectionDependencies
+    dependencies = filter (not . null) [globalDependencies, fromMaybeList executableSectionDependencies]
     sourceDirs = fromMaybeList executableSectionSourceDirs
     ghcOptions = globalGhcOptions ++ fromMaybeList executableSectionGhcOptions
 
