@@ -152,7 +152,11 @@ renderOtherModules modules
 renderDependencies :: [[Dependency]] -> String
 renderDependencies dependencies
   | null dependencies = ""
-  | otherwise = "  build-depends:\n      " ++ intercalate "\n    , " (concat dependencies) ++ "\n"
+  | otherwise = concatMap render $ zip (True : repeat False) dependencies
+  where
+    render (isFirst, xs)
+      | isFirst = "  build-depends:\n      " ++ intercalate "\n    , " xs ++ "\n"
+      | otherwise = "\n    , " ++ intercalate "\n    , " xs ++ "\n"
 
 renderGhcOptions :: [GhcOption] -> String
 renderGhcOptions ghcOptions

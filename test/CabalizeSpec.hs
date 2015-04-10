@@ -71,7 +71,7 @@ spec = do
 
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage 0 [] package {packageExecutables = [(executable "foo" "Main.hs") {executableDependencies = [["hspec", "QuickCheck"]]}]} `shouldBe` unlines [
+        renderPackage 0 [] package {packageExecutables = [(executable "foo" "Main.hs") {executableDependencies = [["foo", "bar"], ["foo", "baz"]]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -79,8 +79,11 @@ spec = do
           , "executable foo"
           , "  main-is: Main.hs"
           , "  build-depends:"
-          , "      hspec"
-          , "    , QuickCheck"
+          , "      foo"
+          , "    , bar"
+          , ""
+          , "    , foo"
+          , "    , baz"
           , "  default-language: Haskell2010"
           ]
 
