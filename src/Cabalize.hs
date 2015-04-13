@@ -129,10 +129,9 @@ renderExecutableSection Executable{..} =
   ++ "  default-language: Haskell2010\n"
 
 renderLibrary :: Library -> String
-renderLibrary Library{..} = unlines [
-    "library"
-  , "  hs-source-dirs: src"
-  ]
+renderLibrary Library{..} =
+    "library\n"
+  ++ renderSourceDirs librarySourceDirs
   ++ renderExposedModules libraryExposedModules
   ++ renderOtherModules libraryOtherModules
   ++ renderDependencies libraryDependencies

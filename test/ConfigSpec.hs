@@ -8,8 +8,8 @@ module ConfigSpec (
 , library
 ) where
 
-import           Test.Hspec
 import           Helper
+
 import           Data.String.Interpolate
 
 import           Config
@@ -24,7 +24,7 @@ executable :: String -> String -> Executable
 executable name main_ = Executable name main_ [] [] []
 
 library :: Library
-library = Library [] [] [] []
+library = Library [] [] [] [] []
 
 spec :: Spec
 spec = around_ (inTempDirectory "foo") $ do
@@ -97,6 +97,26 @@ spec = around_ (inTempDirectory "foo") $ do
       readConfig "package.yaml" `shouldReturn` Right package {packageSourceRepository = Just "https://github.com/hspec/hspec"}
 
     context "when reading library section" $ do
+      it "accepts source-dirs" $ do
+        writeFile "package.yaml" [i|
+          library:
+            source-dirs:
+              - foo
+              - bar
+          |]
+        Right c <- readConfig "package.yaml"
+        packageLibrary c `shouldBe` Just library {librarySourceDirs = ["foo", "bar"]}
+
+      it "accepts global source-dirs" $ do
+        writeFile "package.yaml" [i|
+          source-dirs:
+            - foo
+            - bar
+          library: {}
+          |]
+        Right c <- readConfig "package.yaml"
+        packageLibrary c `shouldBe` Just library {librarySourceDirs = ["foo", "bar"]}
+
       it "allows to specify exposed-modules" $ do
         writeFile "package.yaml" [i|
           library:
@@ -134,6 +154,30 @@ spec = around_ (inTempDirectory "foo") $ do
           readConfig "package.yaml" `shouldReturn` Right package {packageLibrary = Just library {libraryExposedModules = ["Bar", "Foo"]}}
 
     context "when reading executable section" $ do
+      it "accepts source-dirs" $ do
+        writeFile "package.yaml" [i|
+          executables:
+            foo:
+              main: Main.hs
+              source-dirs:
+                - foo
+                - bar
+          |]
+        Right c <- readConfig "package.yaml"
+        packageExecutables c `shouldBe` [(executable "foo" "Main.hs") {executableSourceDirs = ["foo", "bar"]}]
+
+      it "accepts global source-dirs" $ do
+        writeFile "package.yaml" [i|
+          source-dirs:
+            - foo
+            - bar
+          executables:
+            foo:
+              main: Main.hs
+          |]
+        Right c <- readConfig "package.yaml"
+        packageExecutables c `shouldBe` [(executable "foo" "Main.hs") {executableSourceDirs = ["foo", "bar"]}]
+
       it "reads executable section" $ do
         writeFile "package.yaml" [i|
           executables:
@@ -159,17 +203,6 @@ spec = around_ (inTempDirectory "foo") $ do
               main: driver/Main.hs
           |]
         readConfig "package.yaml" `shouldReturn` Right package {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
-
-      it "accepts source-dirs" $ do
-        writeFile "package.yaml" [i|
-          executables:
-            foo:
-              main: Main.hs
-              source-dirs:
-                - src
-                - driver
-          |]
-        readConfig "package.yaml" `shouldReturn` Right package {packageExecutables = [(executable "foo" "Main.hs") {executableSourceDirs = ["src", "driver"]}]}
 
     context "when reading test section" $ do
       it "reads test section" $ do

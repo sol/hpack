@@ -15,6 +15,7 @@ dependencies:
   - yaml
 
 library:
+  source-dirs: src
   exposed-modules:
     - Cabalize
 

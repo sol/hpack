@@ -1,5 +1,12 @@
-module Helper where
+module Helper (
+  module Test.Hspec
+, module Control.Applicative
+, inTempDirectory
+, touch
+) where
 
+import           Test.Hspec
+import           Control.Applicative
 import           Control.Exception
 import           System.Directory
 import           System.FilePath
