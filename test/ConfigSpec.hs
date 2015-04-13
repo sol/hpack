@@ -120,38 +120,46 @@ spec = around_ (inTempDirectory "foo") $ do
       it "allows to specify exposed-modules" $ do
         writeFile "package.yaml" [i|
           library:
+            source-dirs: src
             exposed-modules: Foo
           |]
         touch "src/Foo.hs"
         touch "src/Bar.hs"
-        readConfig "package.yaml" `shouldReturn` Right package {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
+        Right c <- readConfig "package.yaml"
+        packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}
 
       it "allows to specify other-modules" $ do
         writeFile "package.yaml" [i|
           library:
+            source-dirs: src
             other-modules: Bar
           |]
         touch "src/Foo.hs"
         touch "src/Bar.hs"
-        readConfig "package.yaml" `shouldReturn` Right package {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
+        Right c <- readConfig "package.yaml"
+        packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}
 
       it "allows to specify both exposed-modules and other-modules" $ do
         writeFile "package.yaml" [i|
           library:
+            source-dirs: src
             exposed-modules: Foo
             other-modules: Bar
           |]
         touch "src/Baz.hs"
-        readConfig "package.yaml" `shouldReturn` Right package {packageLibrary = Just library {libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}}
+        Right c <- readConfig "package.yaml"
+        packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}
 
       context "when neither exposed-module nor other-module are specified" $ do
         it "exposes all modules" $ do
           writeFile "package.yaml" [i|
-            library: {}
+            library:
+              source-dirs: src
             |]
           touch "src/Foo.hs"
           touch "src/Bar.hs"
-          readConfig "package.yaml" `shouldReturn` Right package {packageLibrary = Just library {libraryExposedModules = ["Bar", "Foo"]}}
+          Right c <- readConfig "package.yaml"
+          packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Bar", "Foo"]}
 
     context "when reading executable section" $ do
       it "accepts source-dirs" $ do

@@ -143,7 +143,7 @@ mkPackage ConfigFile{..} = do
 
 mkLibrary :: [FilePath] -> [Dependency] -> [GhcOption] -> LibrarySection -> IO Library
 mkLibrary globalSourceDirs globalDependencies globalGhcOptions LibrarySection{..} = do
-  modules <- getModules "src"
+  modules <- concat <$> mapM getModules sourceDirs
 
   let (exposedModules, otherModules) = determineModules modules librarySectionExposedModules librarySectionOtherModules
 
