@@ -108,6 +108,7 @@ data Executable = Executable {
   executableName :: String
 , executableMain :: FilePath
 , executableSourceDirs :: [FilePath]
+, executableOtherModules :: [String]
 , executableDependencies :: [[Dependency]]
 , executableGhcOptions :: [GhcOption]
 } deriving (Eq, Show)
@@ -118,6 +119,8 @@ mkPackage ConfigFile{..} = do
   let sourceDirs = fromMaybeList configFileSourceDirs
   let ghcOptions = fromMaybeList configFileGhcOptions
   mLibrary <- mapM (mkLibrary sourceDirs dependencies ghcOptions) configFileLibrary
+  executables <- toExecutables sourceDirs dependencies ghcOptions configFileExecutables
+  tests <- toExecutables sourceDirs dependencies ghcOptions configFileTests
 
   name <- maybe (takeBaseName <$> getCurrentDirectory) return configFileName
 
@@ -136,8 +139,8 @@ mkPackage ConfigFile{..} = do
       , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
       , packageSourceRepository = ("https://github.com/" ++) <$> configFileGithub
       , packageLibrary = mLibrary
-      , packageExecutables = toExecutables sourceDirs dependencies ghcOptions configFileExecutables
-      , packageTests       = toExecutables sourceDirs dependencies ghcOptions configFileTests
+      , packageExecutables = executables
+      , packageTests = tests
       }
   return package
 
@@ -171,10 +174,12 @@ getModules src = do
     toModules :: [FilePath] -> [String]
     toModules = catMaybes . map toModule
 
-toExecutables :: [FilePath] -> [Dependency] -> [GhcOption] -> Maybe (HashMap String ExecutableSection) -> [Executable]
-toExecutables globalSourceDirs globalDependencies globalGhcOptions executables = (map toExecutable . Map.toList) (fromMaybe mempty executables)
+toExecutables :: [FilePath] -> [Dependency] -> [GhcOption] -> Maybe (HashMap String ExecutableSection) -> IO [Executable]
+toExecutables globalSourceDirs globalDependencies globalGhcOptions executables = (mapM toExecutable . Map.toList) (fromMaybe mempty executables)
   where
-    toExecutable (name, ExecutableSection{..}) = Executable name executableSectionMain sourceDirs dependencies ghcOptions
+    toExecutable (name, ExecutableSection{..}) = do
+      modules <- concat <$> mapM getModules sourceDirs
+      return $ Executable name executableSectionMain sourceDirs modules dependencies ghcOptions
       where
         dependencies = filter (not . null) [globalDependencies, fromMaybeList executableSectionDependencies]
         sourceDirs = globalSourceDirs ++ fromMaybeList executableSectionSourceDirs

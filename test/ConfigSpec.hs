@@ -21,7 +21,7 @@ package :: Package
 package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing [] []
 
 executable :: String -> String -> Executable
-executable name main_ = Executable name main_ [] [] []
+executable name main_ = Executable name main_ [] [] [] []
 
 library :: Library
 library = Library [] [] [] [] []
@@ -194,6 +194,18 @@ spec = around_ (inTempDirectory "foo") $ do
           |]
         Right c <- readConfig "package.yaml"
         packageExecutables c `shouldBe` [(executable "foo" "Main.hs") {executableSourceDirs = ["foo", "bar"]}]
+
+      it "determines other-modules" $ do
+        touch "src/Foo.hs"
+        touch "src/Bar.hs"
+        writeFile "package.yaml" [i|
+          executables:
+            foo:
+              main: Main.hs
+              source-dirs: src
+          |]
+        Right [r] <- fmap packageExecutables <$> readConfig "package.yaml"
+        executableOtherModules r `shouldBe` ["Bar", "Foo"]
 
       it "accepts GHC options" $ do
         writeFile "package.yaml" [i|

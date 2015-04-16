@@ -124,6 +124,7 @@ renderExecutableSection :: Executable -> String
 renderExecutableSection Executable{..} = 
      renderSourceDirs executableSourceDirs
   ++ "  main-is: " ++ executableMain ++ "\n"
+  ++ renderOtherModules executableOtherModules
   ++ renderDependencies executableDependencies 
   ++ renderGhcOptions executableGhcOptions
   ++ "  default-language: Haskell2010\n"

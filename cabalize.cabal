@@ -52,6 +52,15 @@ test-suite spec
   type: exitcode-stdio-1.0
   hs-source-dirs: test, src
   main-is: Spec.hs
+  other-modules:
+      CabalizeSpec
+      ConfigSpec
+      Helper
+      Spec
+      UtilSpec
+      Cabalize
+      Config
+      Util
   build-depends:
       aeson >= 0.8
     , base == 4.*
