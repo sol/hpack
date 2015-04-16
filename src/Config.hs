@@ -37,6 +37,7 @@ instance FromJSON LibrarySection where
 data ExecutableSection = ExecutableSection {
   executableSectionMain :: FilePath
 , executableSectionSourceDirs :: Maybe (List FilePath)
+, executableSectionOtherModules :: Maybe (List String)
 , executableSectionDependencies :: Maybe (List Dependency)
 , executableSectionGhcOptions :: Maybe (List GhcOption)
 } deriving (Eq, Show, Generic)
@@ -178,7 +179,7 @@ toExecutables :: [FilePath] -> [Dependency] -> [GhcOption] -> Maybe (HashMap Str
 toExecutables globalSourceDirs globalDependencies globalGhcOptions executables = (mapM toExecutable . Map.toList) (fromMaybe mempty executables)
   where
     toExecutable (name, ExecutableSection{..}) = do
-      modules <- concat <$> mapM getModules sourceDirs
+      modules <- maybe (concat <$> mapM getModules sourceDirs) (return . fromList) executableSectionOtherModules
       return $ Executable name executableSectionMain sourceDirs modules dependencies ghcOptions
       where
         dependencies = filter (not . null) [globalDependencies, fromMaybeList executableSectionDependencies]

@@ -207,6 +207,19 @@ spec = around_ (inTempDirectory "foo") $ do
         Right [r] <- fmap packageExecutables <$> readConfig "package.yaml"
         executableOtherModules r `shouldBe` ["Bar", "Foo"]
 
+      it "allows to specify other-modules" $ do
+        touch "src/Foo.hs"
+        touch "src/Bar.hs"
+        writeFile "package.yaml" [i|
+          executables:
+            foo:
+              main: Main.hs
+              source-dirs: src
+              other-modules: Baz
+          |]
+        Right [r] <- fmap packageExecutables <$> readConfig "package.yaml"
+        executableOtherModules r `shouldBe` ["Baz"]
+
       it "accepts GHC options" $ do
         writeFile "package.yaml" [i|
           executables:
