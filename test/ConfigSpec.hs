@@ -162,6 +162,15 @@ spec = around_ (inTempDirectory "foo") $ do
           packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Bar", "Foo"]}
 
     context "when reading executable section" $ do
+      it "reads executable section" $ do
+        writeFile "package.yaml" [i|
+          executables:
+            foo:
+              main: driver/Main.hs
+          |]
+        Right c <- readConfig "package.yaml"
+        packageExecutables c `shouldBe` [executable "foo" "driver/Main.hs"]
+
       it "accepts source-dirs" $ do
         writeFile "package.yaml" [i|
           executables:
@@ -185,14 +194,6 @@ spec = around_ (inTempDirectory "foo") $ do
           |]
         Right c <- readConfig "package.yaml"
         packageExecutables c `shouldBe` [(executable "foo" "Main.hs") {executableSourceDirs = ["foo", "bar"]}]
-
-      it "reads executable section" $ do
-        writeFile "package.yaml" [i|
-          executables:
-            foo:
-              main: driver/Main.hs
-          |]
-        readConfig "package.yaml" `shouldReturn` Right package {packageExecutables = [executable "foo" "driver/Main.hs"]}
 
       it "accepts GHC options" $ do
         writeFile "package.yaml" [i|
