@@ -202,7 +202,8 @@ spec = around_ (inTempDirectory "foo") $ do
         Right c <- readConfig "package.yaml"
         packageExecutables c `shouldBe` [(executable "foo" "Main.hs") {executableSourceDirs = ["foo", "bar"]}]
 
-      it "determines other-modules" $ do
+      it "infers other-modules" $ do
+        touch "src/Main.hs"
         touch "src/Foo.hs"
         touch "src/Bar.hs"
         writeFile "package.yaml" [i|

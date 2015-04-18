@@ -182,12 +182,15 @@ toExecutables :: [FilePath] -> [Dependency] -> [GhcOption] -> Maybe (HashMap Str
 toExecutables globalSourceDirs globalDependencies globalGhcOptions executables = (mapM toExecutable . Map.toList) (fromMaybe mempty executables)
   where
     toExecutable (name, ExecutableSection{..}) = do
-      modules <- maybe (concat <$> mapM getModules sourceDirs) (return . fromList) executableSectionOtherModules
+      modules <- maybe (filterMain . concat <$> mapM getModules sourceDirs) (return . fromList) executableSectionOtherModules
       return $ Executable name executableSectionMain sourceDirs modules dependencies ghcOptions
       where
         dependencies = filter (not . null) [globalDependencies, fromMaybeList executableSectionDependencies]
         sourceDirs = globalSourceDirs ++ fromMaybeList executableSectionSourceDirs
         ghcOptions = globalGhcOptions ++ fromMaybeList executableSectionGhcOptions
+
+        filterMain :: [String] -> [String]
+        filterMain = maybe id (filter . (/=)) (toModule executableSectionMain)
 
 fromMaybeList :: Maybe (List a) -> [a]
 fromMaybeList = maybe [] fromList
