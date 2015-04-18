@@ -40,6 +40,15 @@ spec = do
         , "cabal-version: >= 1.10"
         ]
 
+    it "includes stability" $ do
+      renderPackage 0 [] package {packageStability = Just "experimental"} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "stability: experimental"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.10"
+        ]
+
     it "includes copyright holder" $ do
       renderPackage 0 [] package {packageCopyright = ["(c) 2015 Simon Hengel"]} `shouldBe` unlines [
           "name: foo"

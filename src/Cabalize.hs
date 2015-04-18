@@ -86,6 +86,7 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
       , ("synopsis", packageSynopsis)
       , ("description", (normalizeDescription <$> packageDescription))
       , ("category", packageCategory)
+      , ("stability", packageStability)
       , ("author", packageAuthor)
       , ("maintainer", packageMaintainer)
       , ("copyright", formatList packageCopyright)

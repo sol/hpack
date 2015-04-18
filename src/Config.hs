@@ -51,6 +51,7 @@ data ConfigFile = ConfigFile {
 , configFileSynopsis :: Maybe String
 , configFileDescription :: Maybe String
 , configFileCategory :: Maybe String
+, configFileStability :: Maybe String
 , configFileAuthor :: Maybe String
 , configFileMaintainer :: Maybe String
 , configFileCopyright :: Maybe (List String)
@@ -86,6 +87,7 @@ data Package = Package {
 , packageSynopsis :: Maybe String
 , packageDescription :: Maybe String
 , packageCategory :: Maybe String
+, packageStability :: Maybe String
 , packageAuthor :: Maybe String
 , packageMaintainer :: Maybe String
 , packageCopyright :: [String]
@@ -133,6 +135,7 @@ mkPackage ConfigFile{..} = do
       , packageSynopsis = configFileSynopsis
       , packageDescription = configFileDescription
       , packageCategory = configFileCategory
+      , packageStability = configFileStability
       , packageAuthor = configFileAuthor
       , packageMaintainer = configFileMaintainer
       , packageCopyright = fromMaybeList configFileCopyright

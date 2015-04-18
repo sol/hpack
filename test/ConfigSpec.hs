@@ -18,7 +18,7 @@ main :: IO ()
 main = hspec spec
 
 package :: Package
-package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing [] Nothing Nothing Nothing Nothing [] []
+package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] Nothing Nothing Nothing Nothing [] []
 
 executable :: String -> String -> Executable
 executable name main_ = Executable name main_ [] [] [] []
@@ -76,6 +76,13 @@ spec = around_ (inTempDirectory "foo") $ do
         copyright: (c) 2015 John Doe
         |]
       readConfig "package.yaml" `shouldReturn` Right package {packageCopyright = ["(c) 2015 John Doe"]}
+
+    it "accepts stability" $ do
+      writeFile "package.yaml" [i|
+        stability: experimental
+        |]
+      Right c <- readConfig "package.yaml"
+      packageStability c `shouldBe` Just "experimental"
 
     it "accepts license" $ do
       writeFile "package.yaml" [i|
