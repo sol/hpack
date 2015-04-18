@@ -6,6 +6,7 @@ module Cabalize (
 ) where
 
 import           Control.Applicative
+import           Control.Monad
 import           Data.Maybe
 import           Data.List
 import           System.Exit.Compat
@@ -87,12 +88,17 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
       , ("category", packageCategory)
       , ("author", packageAuthor)
       , ("maintainer", packageMaintainer)
-      , ("copyright", packageCopyright)
+      , ("copyright", formatList packageCopyright)
       , ("license", packageLicense)
       , ("license-file", packageLicenseFile)
       , ("build-type", Just "Simple")
       , ("cabal-version", Just ">= 1.10")
       ]
+
+    formatList :: [String] -> Maybe String
+    formatList xs = guard (not $ null xs) >> (Just $ intercalate separator xs)
+      where
+        separator = ",\n" ++ replicate alignment ' '
 
     defaultFieldOrder :: [String]
     defaultFieldOrder = map fst fields

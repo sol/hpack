@@ -53,7 +53,7 @@ data ConfigFile = ConfigFile {
 , configFileCategory :: Maybe String
 , configFileAuthor :: Maybe String
 , configFileMaintainer :: Maybe String
-, configFileCopyright :: Maybe String
+, configFileCopyright :: Maybe (List String)
 , configFileLicense :: Maybe String
 , configFileGithub :: Maybe String
 , configFileSourceDirs :: Maybe (List FilePath)
@@ -88,7 +88,7 @@ data Package = Package {
 , packageCategory :: Maybe String
 , packageAuthor :: Maybe String
 , packageMaintainer :: Maybe String
-, packageCopyright :: Maybe String
+, packageCopyright :: [String]
 , packageLicense :: Maybe String
 , packageLicenseFile :: Maybe FilePath
 , packageSourceRepository :: Maybe String
@@ -135,7 +135,7 @@ mkPackage ConfigFile{..} = do
       , packageCategory = configFileCategory
       , packageAuthor = configFileAuthor
       , packageMaintainer = configFileMaintainer
-      , packageCopyright = configFileCopyright
+      , packageCopyright = fromMaybeList configFileCopyright
       , packageLicense = configFileLicense
       , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
       , packageSourceRepository = ("https://github.com/" ++) <$> configFileGithub

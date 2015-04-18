@@ -40,6 +40,25 @@ spec = do
         , "cabal-version: >= 1.10"
         ]
 
+    it "includes copyright holder" $ do
+      renderPackage 0 [] package {packageCopyright = ["(c) 2015 Simon Hengel"]} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "copyright: (c) 2015 Simon Hengel"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.10"
+        ]
+
+    it "aligns copyright holders" $ do
+      renderPackage 16 [] package {packageCopyright = ["(c) 2015 Foo", "(c) 2015 Bar"]} `shouldBe` unlines [
+          "name:           foo"
+        , "version:        0.0.0"
+        , "copyright:      (c) 2015 Foo,"
+        , "                (c) 2015 Bar"
+        , "build-type:     Simple"
+        , "cabal-version:  >= 1.10"
+        ]
+
     it "includes source repository" $ do
       renderPackage 0 [] package {packageSourceRepository = Just "https://github.com/hspec/hspec"} `shouldBe` unlines [
           "name: foo"
