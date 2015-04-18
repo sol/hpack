@@ -56,7 +56,6 @@ test-suite spec
       CabalizeSpec
       ConfigSpec
       Helper
-      Spec
       UtilSpec
       Cabalize
       Config
