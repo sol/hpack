@@ -34,22 +34,28 @@ newtype List a = List {fromList :: [a]}
 instance FromJSON a => FromJSON (List a) where
   parseJSON v = List <$> (parseJSON v <|> (return <$> parseJSON v))
 
-toModule :: FilePath -> Maybe String
-toModule = fmap (map f . reverse) . stripPrefix (reverse ".hs") . reverse
+toModule :: [FilePath] -> Maybe String
+toModule path = case reverse path of
+  [] -> Nothing
+  x : xs -> do
+    m <- stripSuffix ".hs" x
+    return (intercalate "." . reverse $ m : xs)
   where
-    f c
-      | isPathSeparator c = '.'
-      | otherwise = c
+    stripSuffix :: String -> String -> Maybe String
+    stripSuffix suffix x = reverse <$> stripPrefix (reverse suffix) (reverse x)
 
-getFilesRecursive :: FilePath -> IO [FilePath]
+getFilesRecursive :: FilePath -> IO [[FilePath]]
 getFilesRecursive baseDir = sort <$> go []
   where
-    go :: FilePath -> IO [FilePath]
+    go :: [FilePath] -> IO [[FilePath]]
     go dir = do
-      c <- map (dir </>) . filter (`notElem` [".", ".."]) <$> getDirectoryContents (baseDir </> dir)
-      dirs <- filterM (doesDirectoryExist . (baseDir </>)) c >>= mapM go
-      files <- filterM (doesFileExist . (baseDir </>)) c
-      return (files ++ concat dirs)
+      c <- map ((dir ++) . return) . filter (`notElem` [".", ".."]) <$> getDirectoryContents (pathTo dir)
+      subdirsFiles  <- filterM (doesDirectoryExist . pathTo) c >>= mapM go
+      files <- filterM (doesFileExist . pathTo) c
+      return (files ++ concat subdirsFiles)
+      where
+        pathTo :: [FilePath] -> FilePath
+        pathTo p = baseDir </> joinPath p
 
 tryReadFile :: FilePath -> IO (Maybe String)
 tryReadFile file = do

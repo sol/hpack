@@ -185,7 +185,7 @@ getModules src = do
     then toModules <$> getFilesRecursive src
     else return []
   where
-    toModules :: [FilePath] -> [String]
+    toModules :: [[FilePath]] -> [String]
     toModules = catMaybes . map toModule
 
 toExecutables :: [FilePath] -> [Dependency] -> [GhcOption] -> Maybe (HashMap String ExecutableSection) -> IO [Executable]
@@ -200,7 +200,7 @@ toExecutables globalSourceDirs globalDependencies globalGhcOptions executables =
         ghcOptions = globalGhcOptions ++ fromMaybeList executableSectionGhcOptions
 
         filterMain :: [String] -> [String]
-        filterMain = maybe id (filter . (/=)) (toModule executableSectionMain)
+        filterMain = maybe id (filter . (/=)) (toModule $ splitDirectories executableSectionMain)
 
 fromMaybeList :: Maybe (List a) -> [a]
 fromMaybeList = maybe [] fromList

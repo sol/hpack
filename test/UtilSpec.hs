@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module UtilSpec (main, spec) where
 
-import           Test.Hspec
+import           Helper
 import           Data.Aeson
 
 import           Util
@@ -12,8 +12,20 @@ main = hspec spec
 spec :: Spec
 spec = do
   describe "toModule" $ do
-    it "maps a path to a module name" $ do
-      toModule "Foo/Bar/Baz.hs" `shouldBe` Just "Foo.Bar.Baz"
+    it "maps paths to module names" $ do
+      toModule ["Foo", "Bar", "Baz.hs"] `shouldBe` Just "Foo.Bar.Baz"
+
+  describe "getFilesRecursive" $ do
+    it "gets all files from given directory and all its subdirectories" $ do
+      inTempDirectory "test" $ do
+        touch "foo/bar"
+        touch "foo/baz"
+        touch "foo/foobar/baz"
+        getFilesRecursive "foo" `shouldReturn` [
+            ["bar"]
+          , ["baz"]
+          , ["foobar", "baz"]
+          ]
 
   describe "List" $ do
     it "can be a single value" $ do
