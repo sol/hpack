@@ -21,10 +21,10 @@ package :: Package
 package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing Nothing [] Nothing Nothing Nothing Nothing [] []
 
 executable :: String -> String -> Executable
-executable name main_ = Executable name main_ [] [] [] []
+executable name main_ = Executable name main_ [] [] [] [] []
 
 library :: Library
-library = Library [] [] [] [] []
+library = Library [] [] [] [] [] []
 
 spec :: Spec
 spec = around_ (inTempDirectory "foo") $ do
@@ -137,6 +137,26 @@ spec = around_ (inTempDirectory "foo") $ do
           |]
         Right c <- readPackageConfig "package.yaml"
         packageLibrary c `shouldBe` Just library {librarySourceDirs = ["foo", "bar"]}
+
+      it "accepts default-extensions" $ do
+        writeFile "package.yaml" [i|
+          library:
+            default-extensions:
+              - Foo
+              - Bar
+          |]
+        Right c <- readPackageConfig "package.yaml"
+        packageLibrary c `shouldBe` Just library {libraryDefaultExtensions = ["Foo", "Bar"]}
+
+      it "accepts global default-extensions" $ do
+        writeFile "package.yaml" [i|
+          default-extensions:
+            - Foo
+            - Bar
+          library: {}
+          |]
+        Right c <- readPackageConfig "package.yaml"
+        packageLibrary c `shouldBe` Just library {libraryDefaultExtensions = ["Foo", "Bar"]}
 
       it "accepts global source-dirs" $ do
         writeFile "package.yaml" [i|
@@ -251,6 +271,30 @@ spec = around_ (inTempDirectory "foo") $ do
           |]
         Right [r] <- fmap packageExecutables <$> readPackageConfig "package.yaml"
         executableOtherModules r `shouldBe` ["Baz"]
+
+      it "accepts default-extensions" $ do
+        writeFile "package.yaml" [i|
+          executables:
+            foo:
+              main: driver/Main.hs
+              default-extensions:
+                - Foo
+                - Bar
+          |]
+        Right c <- readPackageConfig "package.yaml"
+        packageExecutables c `shouldBe` [(executable "foo" "driver/Main.hs") {executableDefaultExtensions = ["Foo", "Bar"]}]
+
+      it "accepts global default-extensions" $ do
+        writeFile "package.yaml" [i|
+          default-extensions:
+            - Foo
+            - Bar
+          executables:
+            foo:
+              main: driver/Main.hs
+          |]
+        Right c <- readPackageConfig "package.yaml"
+        packageExecutables c `shouldBe` [(executable "foo" "driver/Main.hs") {executableDefaultExtensions = ["Foo", "Bar"]}]
 
       it "accepts GHC options" $ do
         writeFile "package.yaml" [i|
