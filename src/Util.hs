@@ -1,5 +1,16 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Util where
+module Util (
+  List(..)
+, toModule
+, genericParseJSON_
+, getFilesRecursive
+, tryReadFile
+, sniffAlignment
+, extractFieldOrderHint
+
+-- exported for testing
+, splitField
+) where
 
 import           Control.Applicative
 import           Control.Monad
@@ -29,9 +40,6 @@ toModule = fmap (map f . reverse) . stripPrefix (reverse ".hs") . reverse
     f c
       | isPathSeparator c = '.'
       | otherwise = c
-
-stripEmptyLines :: String -> String
-stripEmptyLines = unlines . reverse . dropWhile null . reverse . dropWhile null . lines
 
 getFilesRecursive :: FilePath -> IO [FilePath]
 getFilesRecursive baseDir = sort <$> go []

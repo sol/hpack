@@ -10,7 +10,7 @@ module Config (
 
 import           Prelude ()
 import           Prelude.Compat
-
+import           Control.Applicative.Compat
 import           Control.Monad (guard)
 import           Data.List ((\\))
 import           Data.Maybe
@@ -50,6 +50,7 @@ data ConfigFile = ConfigFile {
 , configFileVersion :: Maybe String
 , configFileSynopsis :: Maybe String
 , configFileDescription :: Maybe String
+, configFileBugReports :: Maybe String
 , configFileCategory :: Maybe String
 , configFileStability :: Maybe String
 , configFileAuthor :: Maybe String
@@ -86,6 +87,7 @@ data Package = Package {
 , packageVersion :: String
 , packageSynopsis :: Maybe String
 , packageDescription :: Maybe String
+, packageBugReports :: Maybe String
 , packageCategory :: Maybe String
 , packageStability :: Maybe String
 , packageAuthor :: Maybe String
@@ -134,6 +136,7 @@ mkPackage ConfigFile{..} = do
       , packageVersion = fromMaybe "0.0.0" configFileVersion
       , packageSynopsis = configFileSynopsis
       , packageDescription = configFileDescription
+      , packageBugReports = bugReports
       , packageCategory = configFileCategory
       , packageStability = configFileStability
       , packageAuthor = configFileAuthor
@@ -141,12 +144,19 @@ mkPackage ConfigFile{..} = do
       , packageCopyright = fromMaybeList configFileCopyright
       , packageLicense = configFileLicense
       , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
-      , packageSourceRepository = ("https://github.com/" ++) <$> configFileGithub
+      , packageSourceRepository = github
       , packageLibrary = mLibrary
       , packageExecutables = executables
       , packageTests = tests
       }
   return package
+  where
+    github = ("https://github.com/" ++) <$> configFileGithub
+
+    bugReports :: Maybe String
+    bugReports = guard (configFileBugReports /= Just "") >> (configFileBugReports <|> fromGithub)
+      where
+        fromGithub = ((++ "/issues") <$> github)
 
 mkLibrary :: [FilePath] -> [Dependency] -> [GhcOption] -> LibrarySection -> IO Library
 mkLibrary globalSourceDirs globalDependencies globalGhcOptions LibrarySection{..} = do
