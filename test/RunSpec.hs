@@ -32,12 +32,22 @@ spec = do
       renderPackage 0 [] package {packageDescription = Just "foo\nbar\n"} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
-        , "description:"
-        , "  foo"
-        , "  ."
-        , "  bar"
+        , "description: foo"
+        , "             ."
+        , "             bar"
         , "build-type: Simple"
         , "cabal-version: >= 1.10"
+        ]
+
+    it "aligns description" $ do
+      renderPackage 16 [] package {packageDescription = Just "foo\nbar\n"} `shouldBe` unlines [
+          "name:           foo"
+        , "version:        0.0.0"
+        , "description:    foo"
+        , "                ."
+        , "                bar"
+        , "build-type:     Simple"
+        , "cabal-version:  >= 1.10"
         ]
 
     it "includes stability" $ do

@@ -54,11 +54,7 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
     padding name = replicate (alignment - length name - 2) ' '
 
     formatField :: (String, String) -> String
-    formatField (name, value) = name ++ separator ++ value
-      where
-        separator
-          | "\n" `isPrefixOf` value = ":"
-          | otherwise = ": " ++ padding name
+    formatField (name, value) = name ++ ": " ++ padding name ++ value
 
     sortedFields :: [(String, String)]
     sortedFields = foldr insertByDefaultFieldOrder (sortBy orderingForExistingFields existing) new
@@ -84,7 +80,7 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
         ("name", Just packageName)
       , ("version", Just packageVersion)
       , ("synopsis", packageSynopsis)
-      , ("description", (normalizeDescription <$> packageDescription))
+      , ("description", (formatDescription <$> packageDescription))
       , ("category", packageCategory)
       , ("stability", packageStability)
       , ("bug-reports", packageBugReports)
@@ -105,7 +101,10 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
     defaultFieldOrder :: [String]
     defaultFieldOrder = map fst fields
 
-    normalizeDescription = intercalate "\n  ." . map ("\n  " ++) . lines
+    formatDescription = intercalate separator . intersperse "." . lines
+      where
+        n = max alignment $ length ("description: ")
+        separator = "\n" ++ replicate n ' '
 
     renderSourceRepository :: String -> String
     renderSourceRepository url = "source-repository head\n  type: git\n  location: " ++ url ++ "\n"
