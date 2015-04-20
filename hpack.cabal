@@ -1,8 +1,8 @@
--- This file has been generated from package.yaml by Cabalize.
+-- This file has been generated from package.yaml by hpack.
 --
--- see: https://github.com/sol/cabalize
+-- see: https://github.com/sol/hpack
 
-name:           cabalize
+name:           hpack
 version:        0.0.0
 license:        MIT
 license-file:   LICENSE
@@ -11,15 +11,11 @@ cabal-version:  >= 1.10
 
 source-repository head
   type: git
-  location: https://github.com/sol/cabalize
+  location: https://github.com/sol/hpack
 
-library
-  hs-source-dirs: src
-  exposed-modules:
-      Cabalize
-  other-modules:
-      Config
-      Util
+executable hpack
+  hs-source-dirs: driver, src
+  main-is: Main.hs
   build-depends:
       aeson >= 0.8
     , base == 4.*
@@ -29,22 +25,6 @@ library
     , filepath
     , unordered-containers
     , yaml
-  ghc-options: -Wall
-  default-language: Haskell2010
-
-executable cb
-  main-is: driver/Main.hs
-  build-depends:
-      aeson >= 0.8
-    , base == 4.*
-    , base-compat >= 0.7
-    , deepseq
-    , directory
-    , filepath
-    , unordered-containers
-    , yaml
-
-    , cabalize
   ghc-options: -Wall
   default-language: Haskell2010
 
@@ -53,12 +33,12 @@ test-suite spec
   hs-source-dirs: test, src
   main-is: Spec.hs
   other-modules:
-      CabalizeSpec
       ConfigSpec
       Helper
+      RunSpec
       UtilSpec
-      Cabalize
       Config
+      Run
       Util
   build-depends:
       aeson >= 0.8

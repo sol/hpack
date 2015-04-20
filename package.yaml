@@ -1,6 +1,6 @@
-name: cabalize
+name: hpack
 license: MIT
-github: sol/cabalize
+github: sol/hpack
 
 ghc-options: -Wall
 
@@ -14,15 +14,10 @@ dependencies:
   - unordered-containers
   - yaml
 
-library:
-  source-dirs: src
-  exposed-modules:
-    - Cabalize
-
 executables:
-  cb:
-    main: driver/Main.hs
-    dependencies: cabalize
+  hpack:
+    main: Main.hs
+    source-dirs: driver, src
 
 tests:
   spec:

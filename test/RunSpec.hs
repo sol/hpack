@@ -1,10 +1,10 @@
-module CabalizeSpec (main, spec) where
+module RunSpec (main, spec) where
 
 import           Test.Hspec
 
 import           ConfigSpec hiding (main, spec)
 import           Config
-import           Cabalize
+import           Run
 
 main :: IO ()
 main = hspec spec

@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes, RecordWildCards #-}
-module Cabalize (
-  cabalize
+module Run (
+  run
 -- exported for testing
 , renderPackage
 ) where
@@ -17,8 +17,8 @@ import           Config
 configFile :: FilePath
 configFile = "package.yaml"
 
-cabalize :: IO (FilePath, String)
-cabalize = do
+run :: IO (FilePath, String)
+run = do
   mPackage <- readConfig configFile
   case mPackage of
     Right package -> do
@@ -28,9 +28,9 @@ cabalize = do
 
       let alignment = fromMaybe 16 (old >>= sniffAlignment)
           output = concat [
-              "-- This file has been generated from " ++ configFile ++ " by Cabalize.\n"
+              "-- This file has been generated from " ++ configFile ++ " by hpack.\n"
             , "--\n"
-            , "-- see: https://github.com/sol/cabalize\n"
+            , "-- see: https://github.com/sol/hpack\n"
             , "\n"
             , renderPackage alignment (maybe [] extractFieldOrderHint old) package
             ]

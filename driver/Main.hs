@@ -1,6 +1,6 @@
 module Main (main) where
 
-import           Cabalize
+import           Run
 
 main :: IO ()
-main = cabalize >>= uncurry writeFile
+main = run >>= uncurry writeFile
