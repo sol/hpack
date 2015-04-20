@@ -39,10 +39,19 @@ toModule path = case reverse path of
   [] -> Nothing
   x : xs -> do
     m <- stripSuffix ".hs" x
-    return (intercalate "." . reverse $ m : xs)
+    let name = reverse (m : xs)
+    guard (all isValidModuleName name) >> return (intercalate "." name)
   where
     stripSuffix :: String -> String -> Maybe String
     stripSuffix suffix x = reverse <$> stripPrefix (reverse suffix) (reverse x)
+
+-- See `Cabal.Distribution.ModuleName` (http://git.io/bj34)
+isValidModuleName :: String -> Bool
+isValidModuleName [] = False
+isValidModuleName (c:cs) = isUpper c && all isValidModuleChar cs
+
+isValidModuleChar :: Char -> Bool
+isValidModuleChar c = isAlphaNum c || c == '_' || c == '\''
 
 getFilesRecursive :: FilePath -> IO [[FilePath]]
 getFilesRecursive baseDir = sort <$> go []

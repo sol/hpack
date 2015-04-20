@@ -15,6 +15,9 @@ spec = do
     it "maps paths to module names" $ do
       toModule ["Foo", "Bar", "Baz.hs"] `shouldBe` Just "Foo.Bar.Baz"
 
+    it "rejects invalid module names" $ do
+      toModule ["resources", "hello.hs"] `shouldBe` Nothing
+
   describe "getFilesRecursive" $ do
     it "gets all files from given directory and all its subdirectories" $ do
       inTempDirectory "test" $ do
