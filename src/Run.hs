@@ -19,7 +19,7 @@ configFile = "package.yaml"
 
 run :: IO (FilePath, String)
 run = do
-  mPackage <- readConfig configFile
+  mPackage <- readPackageConfig configFile
   case mPackage of
     Right package -> do
       let cabalFile = packageName package ++ ".cabal"

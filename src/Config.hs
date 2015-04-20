@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric, RecordWildCards #-}
 module Config (
-  readConfig
+  readPackageConfig
 , Package(..)
 , Dependency
 , GhcOption
@@ -45,32 +45,32 @@ data ExecutableSection = ExecutableSection {
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_ "ExecutableSection"
 
-data ConfigFile = ConfigFile {
-  configFileName :: Maybe String
-, configFileVersion :: Maybe String
-, configFileSynopsis :: Maybe String
-, configFileDescription :: Maybe String
-, configFileBugReports :: Maybe String
-, configFileCategory :: Maybe String
-, configFileStability :: Maybe String
-, configFileAuthor :: Maybe String
-, configFileMaintainer :: Maybe String
-, configFileCopyright :: Maybe (List String)
-, configFileLicense :: Maybe String
-, configFileGithub :: Maybe String
-, configFileSourceDirs :: Maybe (List FilePath)
-, configFileDependencies :: Maybe (List Dependency)
-, configFileGhcOptions :: Maybe (List GhcOption)
-, configFileLibrary :: Maybe LibrarySection
-, configFileExecutables :: Maybe (HashMap String ExecutableSection)
-, configFileTests :: Maybe (HashMap String ExecutableSection)
+data PackageConfig = PackageConfig {
+  packageConfigName :: Maybe String
+, packageConfigVersion :: Maybe String
+, packageConfigSynopsis :: Maybe String
+, packageConfigDescription :: Maybe String
+, packageConfigBugReports :: Maybe String
+, packageConfigCategory :: Maybe String
+, packageConfigStability :: Maybe String
+, packageConfigAuthor :: Maybe String
+, packageConfigMaintainer :: Maybe String
+, packageConfigCopyright :: Maybe (List String)
+, packageConfigLicense :: Maybe String
+, packageConfigGithub :: Maybe String
+, packageConfigSourceDirs :: Maybe (List FilePath)
+, packageConfigDependencies :: Maybe (List Dependency)
+, packageConfigGhcOptions :: Maybe (List GhcOption)
+, packageConfigLibrary :: Maybe LibrarySection
+, packageConfigExecutables :: Maybe (HashMap String ExecutableSection)
+, packageConfigTests :: Maybe (HashMap String ExecutableSection)
 } deriving (Eq, Show, Generic)
 
-instance FromJSON ConfigFile where
-  parseJSON = genericParseJSON_ "ConfigFile"
+instance FromJSON PackageConfig where
+  parseJSON = genericParseJSON_ "PackageConfig"
 
-readConfig :: FilePath -> IO (Either String Package)
-readConfig file = do
+readPackageConfig :: FilePath -> IO (Either String Package)
+readPackageConfig file = do
   config <- decodeFileEither file
   either (return . Left . errToString) (fmap Right . mkPackage) config
   where
@@ -118,31 +118,31 @@ data Executable = Executable {
 , executableGhcOptions :: [GhcOption]
 } deriving (Eq, Show)
 
-mkPackage :: ConfigFile -> IO Package
-mkPackage ConfigFile{..} = do
-  let dependencies = fromMaybeList configFileDependencies
-  let sourceDirs = fromMaybeList configFileSourceDirs
-  let ghcOptions = fromMaybeList configFileGhcOptions
-  mLibrary <- mapM (mkLibrary sourceDirs dependencies ghcOptions) configFileLibrary
-  executables <- toExecutables sourceDirs dependencies ghcOptions configFileExecutables
-  tests <- toExecutables sourceDirs dependencies ghcOptions configFileTests
+mkPackage :: PackageConfig -> IO Package
+mkPackage PackageConfig{..} = do
+  let dependencies = fromMaybeList packageConfigDependencies
+  let sourceDirs = fromMaybeList packageConfigSourceDirs
+  let ghcOptions = fromMaybeList packageConfigGhcOptions
+  mLibrary <- mapM (mkLibrary sourceDirs dependencies ghcOptions) packageConfigLibrary
+  executables <- toExecutables sourceDirs dependencies ghcOptions packageConfigExecutables
+  tests <- toExecutables sourceDirs dependencies ghcOptions packageConfigTests
 
-  name <- maybe (takeBaseName <$> getCurrentDirectory) return configFileName
+  name <- maybe (takeBaseName <$> getCurrentDirectory) return packageConfigName
 
   licenseFileExists <- doesFileExist "LICENSE"
 
   let package = Package {
         packageName = name
-      , packageVersion = fromMaybe "0.0.0" configFileVersion
-      , packageSynopsis = configFileSynopsis
-      , packageDescription = configFileDescription
+      , packageVersion = fromMaybe "0.0.0" packageConfigVersion
+      , packageSynopsis = packageConfigSynopsis
+      , packageDescription = packageConfigDescription
       , packageBugReports = bugReports
-      , packageCategory = configFileCategory
-      , packageStability = configFileStability
-      , packageAuthor = configFileAuthor
-      , packageMaintainer = configFileMaintainer
-      , packageCopyright = fromMaybeList configFileCopyright
-      , packageLicense = configFileLicense
+      , packageCategory = packageConfigCategory
+      , packageStability = packageConfigStability
+      , packageAuthor = packageConfigAuthor
+      , packageMaintainer = packageConfigMaintainer
+      , packageCopyright = fromMaybeList packageConfigCopyright
+      , packageLicense = packageConfigLicense
       , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
       , packageSourceRepository = github
       , packageLibrary = mLibrary
@@ -151,10 +151,10 @@ mkPackage ConfigFile{..} = do
       }
   return package
   where
-    github = ("https://github.com/" ++) <$> configFileGithub
+    github = ("https://github.com/" ++) <$> packageConfigGithub
 
     bugReports :: Maybe String
-    bugReports = guard (configFileBugReports /= Just "") >> (configFileBugReports <|> fromGithub)
+    bugReports = guard (packageConfigBugReports /= Just "") >> (packageConfigBugReports <|> fromGithub)
       where
         fromGithub = ((++ "/issues") <$> github)
 

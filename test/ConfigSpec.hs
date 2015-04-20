@@ -28,60 +28,60 @@ library = Library [] [] [] [] []
 
 spec :: Spec
 spec = around_ (inTempDirectory "foo") $ do
-  describe "readConfig" $ do
+  describe "readPackageConfig" $ do
     it "accepts name" $ do
       writeFile "package.yaml" [i|
         name: bar
         |]
-      readConfig "package.yaml" `shouldReturn` Right package {packageName = "bar"}
+      readPackageConfig "package.yaml" `shouldReturn` Right package {packageName = "bar"}
 
     it "accepts version" $ do
       writeFile "package.yaml" [i|
         version: 0.1.0
         |]
-      readConfig "package.yaml" `shouldReturn` Right package {packageVersion = "0.1.0"}
+      readPackageConfig "package.yaml" `shouldReturn` Right package {packageVersion = "0.1.0"}
 
     it "accepts synopsis" $ do
       writeFile "package.yaml" [i|
         synopsis: some synopsis
         |]
-      readConfig "package.yaml" `shouldReturn` Right package {packageSynopsis = Just "some synopsis"}
+      readPackageConfig "package.yaml" `shouldReturn` Right package {packageSynopsis = Just "some synopsis"}
 
     it "accepts description" $ do
       writeFile "package.yaml" [i|
         description: some description
         |]
-      readConfig "package.yaml" `shouldReturn` Right package {packageDescription = Just "some description"}
+      readPackageConfig "package.yaml" `shouldReturn` Right package {packageDescription = Just "some description"}
 
     it "accepts category" $ do
       writeFile "package.yaml" [i|
         category: Data
         |]
-      readConfig "package.yaml" `shouldReturn` Right package {packageCategory = Just "Data"}
+      readPackageConfig "package.yaml" `shouldReturn` Right package {packageCategory = Just "Data"}
 
     it "accepts author" $ do
       writeFile "package.yaml" [i|
         author: John Doe
         |]
-      readConfig "package.yaml" `shouldReturn` Right package {packageAuthor = Just "John Doe"}
+      readPackageConfig "package.yaml" `shouldReturn` Right package {packageAuthor = Just "John Doe"}
 
     it "accepts maintainer" $ do
       writeFile "package.yaml" [i|
         maintainer: John Doe <john.doe@example.com>
         |]
-      readConfig "package.yaml" `shouldReturn` Right package {packageMaintainer = Just "John Doe <john.doe@example.com>"}
+      readPackageConfig "package.yaml" `shouldReturn` Right package {packageMaintainer = Just "John Doe <john.doe@example.com>"}
 
     it "accepts copyright" $ do
       writeFile "package.yaml" [i|
         copyright: (c) 2015 John Doe
         |]
-      readConfig "package.yaml" `shouldReturn` Right package {packageCopyright = ["(c) 2015 John Doe"]}
+      readPackageConfig "package.yaml" `shouldReturn` Right package {packageCopyright = ["(c) 2015 John Doe"]}
 
     it "accepts stability" $ do
       writeFile "package.yaml" [i|
         stability: experimental
         |]
-      Right c <- readConfig "package.yaml"
+      Right c <- readPackageConfig "package.yaml"
       packageStability c `shouldBe` Just "experimental"
 
     it "accepts bug-reports URL" $ do
@@ -89,14 +89,14 @@ spec = around_ (inTempDirectory "foo") $ do
         github: hspec/hspec
         bug-reports: https://example.com/issues
         |]
-      Right c <- readConfig "package.yaml"
+      Right c <- readPackageConfig "package.yaml"
       packageBugReports c `shouldBe` Just "https://example.com/issues"
 
     it "infers bug-reports URL from github" $ do
       writeFile "package.yaml" [i|
         github: hspec/hspec
         |]
-      Right c <- readConfig "package.yaml"
+      Right c <- readPackageConfig "package.yaml"
       packageBugReports c `shouldBe` Just "https://github.com/hspec/hspec/issues"
 
     it "omits bug-reports URL if it is the empty string" $ do
@@ -104,27 +104,27 @@ spec = around_ (inTempDirectory "foo") $ do
         github: hspec/hspec
         bug-reports: ""
         |]
-      Right c <- readConfig "package.yaml"
+      Right c <- readPackageConfig "package.yaml"
       packageBugReports c `shouldBe` Nothing
 
     it "accepts license" $ do
       writeFile "package.yaml" [i|
         license: MIT
         |]
-      readConfig "package.yaml" `shouldReturn` Right package {packageLicense = Just "MIT"}
+      readPackageConfig "package.yaml" `shouldReturn` Right package {packageLicense = Just "MIT"}
 
     it "infers license file" $ do
       writeFile "package.yaml" [i|
         name: foo
         |]
       touch "LICENSE"
-      readConfig "package.yaml" `shouldReturn` Right package {packageLicenseFile = Just "LICENSE"}
+      readPackageConfig "package.yaml" `shouldReturn` Right package {packageLicenseFile = Just "LICENSE"}
 
     it "accepts github" $ do
       writeFile "package.yaml" [i|
         github: hspec/hspec
         |]
-      Right c <- readConfig "package.yaml"
+      Right c <- readPackageConfig "package.yaml"
       packageSourceRepository c `shouldBe` Just "https://github.com/hspec/hspec"
 
     context "when reading library section" $ do
@@ -135,7 +135,7 @@ spec = around_ (inTempDirectory "foo") $ do
               - foo
               - bar
           |]
-        Right c <- readConfig "package.yaml"
+        Right c <- readPackageConfig "package.yaml"
         packageLibrary c `shouldBe` Just library {librarySourceDirs = ["foo", "bar"]}
 
       it "accepts global source-dirs" $ do
@@ -145,7 +145,7 @@ spec = around_ (inTempDirectory "foo") $ do
             - bar
           library: {}
           |]
-        Right c <- readConfig "package.yaml"
+        Right c <- readPackageConfig "package.yaml"
         packageLibrary c `shouldBe` Just library {librarySourceDirs = ["foo", "bar"]}
 
       it "allows to specify exposed-modules" $ do
@@ -156,7 +156,7 @@ spec = around_ (inTempDirectory "foo") $ do
           |]
         touch "src/Foo.hs"
         touch "src/Bar.hs"
-        Right c <- readConfig "package.yaml"
+        Right c <- readPackageConfig "package.yaml"
         packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}
 
       it "allows to specify other-modules" $ do
@@ -167,7 +167,7 @@ spec = around_ (inTempDirectory "foo") $ do
           |]
         touch "src/Foo.hs"
         touch "src/Bar.hs"
-        Right c <- readConfig "package.yaml"
+        Right c <- readPackageConfig "package.yaml"
         packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}
 
       it "allows to specify both exposed-modules and other-modules" $ do
@@ -178,7 +178,7 @@ spec = around_ (inTempDirectory "foo") $ do
             other-modules: Bar
           |]
         touch "src/Baz.hs"
-        Right c <- readConfig "package.yaml"
+        Right c <- readPackageConfig "package.yaml"
         packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}
 
       context "when neither exposed-module nor other-module are specified" $ do
@@ -189,7 +189,7 @@ spec = around_ (inTempDirectory "foo") $ do
             |]
           touch "src/Foo.hs"
           touch "src/Bar.hs"
-          Right c <- readConfig "package.yaml"
+          Right c <- readPackageConfig "package.yaml"
           packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Bar", "Foo"]}
 
     context "when reading executable section" $ do
@@ -199,7 +199,7 @@ spec = around_ (inTempDirectory "foo") $ do
             foo:
               main: driver/Main.hs
           |]
-        Right c <- readConfig "package.yaml"
+        Right c <- readPackageConfig "package.yaml"
         packageExecutables c `shouldBe` [executable "foo" "driver/Main.hs"]
 
       it "accepts source-dirs" $ do
@@ -211,7 +211,7 @@ spec = around_ (inTempDirectory "foo") $ do
                 - foo
                 - bar
           |]
-        Right c <- readConfig "package.yaml"
+        Right c <- readPackageConfig "package.yaml"
         packageExecutables c `shouldBe` [(executable "foo" "Main.hs") {executableSourceDirs = ["foo", "bar"]}]
 
       it "accepts global source-dirs" $ do
@@ -223,7 +223,7 @@ spec = around_ (inTempDirectory "foo") $ do
             foo:
               main: Main.hs
           |]
-        Right c <- readConfig "package.yaml"
+        Right c <- readPackageConfig "package.yaml"
         packageExecutables c `shouldBe` [(executable "foo" "Main.hs") {executableSourceDirs = ["foo", "bar"]}]
 
       it "infers other-modules" $ do
@@ -236,7 +236,7 @@ spec = around_ (inTempDirectory "foo") $ do
               main: Main.hs
               source-dirs: src
           |]
-        Right [r] <- fmap packageExecutables <$> readConfig "package.yaml"
+        Right [r] <- fmap packageExecutables <$> readPackageConfig "package.yaml"
         executableOtherModules r `shouldBe` ["Bar", "Foo"]
 
       it "allows to specify other-modules" $ do
@@ -249,7 +249,7 @@ spec = around_ (inTempDirectory "foo") $ do
               source-dirs: src
               other-modules: Baz
           |]
-        Right [r] <- fmap packageExecutables <$> readConfig "package.yaml"
+        Right [r] <- fmap packageExecutables <$> readPackageConfig "package.yaml"
         executableOtherModules r `shouldBe` ["Baz"]
 
       it "accepts GHC options" $ do
@@ -259,7 +259,7 @@ spec = around_ (inTempDirectory "foo") $ do
               main: driver/Main.hs
               ghc-options: -Wall
           |]
-        readConfig "package.yaml" `shouldReturn` Right package {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
+        readPackageConfig "package.yaml" `shouldReturn` Right package {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
 
       it "accepts global GHC options" $ do
         writeFile "package.yaml" [i|
@@ -268,7 +268,7 @@ spec = around_ (inTempDirectory "foo") $ do
             foo:
               main: driver/Main.hs
           |]
-        readConfig "package.yaml" `shouldReturn` Right package {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
+        readPackageConfig "package.yaml" `shouldReturn` Right package {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
 
     context "when reading test section" $ do
       it "reads test section" $ do
@@ -277,7 +277,7 @@ spec = around_ (inTempDirectory "foo") $ do
             spec:
               main: test/Spec.hs
           |]
-        readConfig "package.yaml" `shouldReturn` Right package {packageTests = [executable "spec" "test/Spec.hs"]}
+        readPackageConfig "package.yaml" `shouldReturn` Right package {packageTests = [executable "spec" "test/Spec.hs"]}
 
       it "accepts single dependency" $ do
         writeFile "package.yaml" [i|
@@ -286,7 +286,7 @@ spec = around_ (inTempDirectory "foo") $ do
               main: test/Spec.hs
               dependencies: hspec
           |]
-        readConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["hspec"]]}]}
+        readPackageConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["hspec"]]}]}
 
       it "accepts list of dependencies" $ do
         writeFile "package.yaml" [i|
@@ -297,7 +297,7 @@ spec = around_ (inTempDirectory "foo") $ do
                 - hspec
                 - QuickCheck
           |]
-        readConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["hspec", "QuickCheck"]]}]}
+        readPackageConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["hspec", "QuickCheck"]]}]}
 
       context "when both top-level and section specific dependencies are specified" $ do
         it "combines dependencies" $ do
@@ -310,7 +310,7 @@ spec = around_ (inTempDirectory "foo") $ do
                 main: test/Spec.hs
                 dependencies: hspec
             |]
-          readConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["base"], ["hspec"]]}]}
+          readPackageConfig "package.yaml" `shouldReturn` Right package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["base"], ["hspec"]]}]}
 
     context "when package.yaml can not be parsed" $ do
       it "returns an error" $ do
@@ -318,7 +318,7 @@ spec = around_ (inTempDirectory "foo") $ do
           foo: bar
           foo baz
           |]
-        readConfig "package.yaml" `shouldReturn` Left "package.yaml:3:10: could not find expected ':' while scanning a simple key"
+        readPackageConfig "package.yaml" `shouldReturn` Left "package.yaml:3:10: could not find expected ':' while scanning a simple key"
 
     context "when package.yaml is invalid" $ do
       it "returns an error" $ do
@@ -327,4 +327,4 @@ spec = around_ (inTempDirectory "foo") $ do
             foo:
               ain: driver/Main.hs
           |]
-        readConfig "package.yaml" `shouldReturn` Left "package.yaml: The key \"main\" was not found"
+        readPackageConfig "package.yaml" `shouldReturn` Left "package.yaml: The key \"main\" was not found"
