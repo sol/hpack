@@ -133,6 +133,7 @@ renderExecutableSection Executable{..} =
   ++ "  main-is: " ++ executableMain ++ "\n"
   ++ renderOtherModules executableOtherModules
   ++ renderDependencies executableDependencies 
+  ++ renderDefaultExtensions executableDefaultExtensions
   ++ renderGhcOptions executableGhcOptions
   ++ "  default-language: Haskell2010\n"
 
@@ -143,6 +144,7 @@ renderLibrary Library{..} =
   ++ renderExposedModules libraryExposedModules
   ++ renderOtherModules libraryOtherModules
   ++ renderDependencies libraryDependencies
+  ++ renderDefaultExtensions libraryDefaultExtensions
   ++ renderGhcOptions libraryGhcOptions
   ++ "  default-language: Haskell2010\n"
 
@@ -175,3 +177,8 @@ renderGhcOptions :: [GhcOption] -> String
 renderGhcOptions ghcOptions
   | null ghcOptions = ""
   | otherwise = "  ghc-options: " ++ unwords ghcOptions ++ "\n"
+
+renderDefaultExtensions :: [String] -> String
+renderDefaultExtensions defaultExtensions
+  | null defaultExtensions = ""
+  | otherwise = "  default-extensions: " ++ unwords defaultExtensions ++ "\n"
