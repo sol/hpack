@@ -55,8 +55,8 @@ data PackageConfig = PackageConfig {
 , packageConfigBugReports :: Maybe String
 , packageConfigCategory :: Maybe String
 , packageConfigStability :: Maybe String
-, packageConfigAuthor :: Maybe String
-, packageConfigMaintainer :: Maybe String
+, packageConfigAuthor :: Maybe (List String)
+, packageConfigMaintainer :: Maybe (List String)
 , packageConfigCopyright :: Maybe (List String)
 , packageConfigLicense :: Maybe String
 , packageConfigGithub :: Maybe String
@@ -93,8 +93,8 @@ data Package = Package {
 , packageBugReports :: Maybe String
 , packageCategory :: Maybe String
 , packageStability :: Maybe String
-, packageAuthor :: Maybe String
-, packageMaintainer :: Maybe String
+, packageAuthor :: [String]
+, packageMaintainer :: [String]
 , packageCopyright :: [String]
 , packageLicense :: Maybe String
 , packageLicenseFile :: Maybe FilePath
@@ -145,8 +145,8 @@ mkPackage PackageConfig{..} = do
       , packageBugReports = bugReports
       , packageCategory = packageConfigCategory
       , packageStability = packageConfigStability
-      , packageAuthor = packageConfigAuthor
-      , packageMaintainer = packageConfigMaintainer
+      , packageAuthor = fromMaybeList packageConfigAuthor
+      , packageMaintainer = fromMaybeList packageConfigMaintainer
       , packageCopyright = fromMaybeList packageConfigCopyright
       , packageLicense = packageConfigLicense
       , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
