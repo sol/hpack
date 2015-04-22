@@ -10,7 +10,7 @@ module Config (
 
 import           Prelude ()
 import           Prelude.Compat
-import           Control.Applicative.Compat
+import           Control.Applicative
 import           Control.Monad (guard)
 import           Data.List ((\\))
 import           Data.Maybe
