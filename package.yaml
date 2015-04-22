@@ -27,5 +27,5 @@ tests:
       - src
     dependencies:
       - hspec == 2.*
-      - temporary
+      - mockery
       - interpolate

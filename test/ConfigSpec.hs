@@ -9,6 +9,7 @@ module ConfigSpec (
 ) where
 
 import           Helper
+import           Test.Mockery.Directory
 
 import           Data.String.Interpolate
 
@@ -27,7 +28,7 @@ library :: Library
 library = Library [] [] [] [] [] []
 
 spec :: Spec
-spec = around_ (inTempDirectory "foo") $ do
+spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "readPackageConfig" $ do
     it "accepts name" $ do
       writeFile "package.yaml" [i|

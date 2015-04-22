@@ -2,6 +2,7 @@
 module UtilSpec (main, spec) where
 
 import           Helper
+import           Test.Mockery.Directory
 import           Data.Aeson
 
 import           Util
@@ -20,7 +21,7 @@ spec = do
 
   describe "getFilesRecursive" $ do
     it "gets all files from given directory and all its subdirectories" $ do
-      inTempDirectory "test" $ do
+      inTempDirectoryNamed "test" $ do
         touch "foo/bar"
         touch "foo/baz"
         touch "foo/foobar/baz"

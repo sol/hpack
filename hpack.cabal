@@ -52,7 +52,7 @@ test-suite spec
     , yaml
 
     , hspec == 2.*
-    , temporary
+    , mockery
     , interpolate
   ghc-options: -Wall
   default-language: Haskell2010
