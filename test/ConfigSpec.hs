@@ -251,6 +251,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         touch "src/Main.hs"
         touch "src/Foo.hs"
         touch "src/Bar.hs"
+        touch "src/Baz.lhs"
         writeFile "package.yaml" [i|
           executables:
             foo:
@@ -258,7 +259,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               source-dirs: src
           |]
         Right [r] <- fmap packageExecutables <$> readPackageConfig "package.yaml"
-        executableOtherModules r `shouldBe` ["Bar", "Foo"]
+        executableOtherModules r `shouldBe` ["Bar", "Baz", "Foo"]
 
       it "allows to specify other-modules" $ do
         touch "src/Foo.hs"
