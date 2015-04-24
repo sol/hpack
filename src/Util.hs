@@ -38,7 +38,7 @@ toModule :: [FilePath] -> Maybe String
 toModule path = case reverse path of
   [] -> Nothing
   x : xs -> do
-    m <- stripSuffix ".hs" x
+    m <- stripSuffix ".hs" x <|> stripSuffix ".lhs" x
     let name = reverse (m : xs)
     guard (all isValidModuleName name) >> return (intercalate "." name)
   where
