@@ -20,7 +20,7 @@ executable hpack
   build-depends:
       aeson >= 0.8
     , base == 4.*
-    , base-compat >= 0.7
+    , base-compat >= 0.8
     , deepseq
     , directory
     , filepath
@@ -44,7 +44,7 @@ test-suite spec
   build-depends:
       aeson >= 0.8
     , base == 4.*
-    , base-compat >= 0.7
+    , base-compat >= 0.8
     , deepseq
     , directory
     , filepath
