@@ -19,7 +19,7 @@ main :: IO ()
 main = hspec spec
 
 package :: Package
-package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing Nothing [] []
+package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing Nothing [] []
 
 executable :: String -> String -> Executable
 executable name main_ = Executable name main_ [] [] [] [] []
@@ -84,6 +84,29 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |]
       Right c <- readPackageConfig "package.yaml"
       packageStability c `shouldBe` Just "experimental"
+
+    it "accepts homepage URL" $ do
+      writeFile "package.yaml" [i|
+        github: hspec/hspec
+        homepage: https://example.com/
+        |]
+      Right c <- readPackageConfig "package.yaml"
+      packageHomepage c `shouldBe` Just "https://example.com/"
+
+    it "infers homepage URL from github" $ do
+      writeFile "package.yaml" [i|
+        github: hspec/hspec
+        |]
+      Right c <- readPackageConfig "package.yaml"
+      packageHomepage c `shouldBe` Just "https://github.com/hspec/hspec#readme"
+
+    it "omits homepage URL if it is the empty string" $ do
+      writeFile "package.yaml" [i|
+        github: hspec/hspec
+        homepage: ""
+        |]
+      Right c <- readPackageConfig "package.yaml"
+      packageHomepage c `shouldBe` Nothing
 
     it "accepts bug-reports URL" $ do
       writeFile "package.yaml" [i|

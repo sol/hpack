@@ -4,6 +4,7 @@
 
 name:           hpack
 version:        0.0.0
+homepage:       https://github.com/sol/hpack#readme
 bug-reports:    https://github.com/sol/hpack/issues
 license:        MIT
 license-file:   LICENSE

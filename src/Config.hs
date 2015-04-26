@@ -52,6 +52,7 @@ data PackageConfig = PackageConfig {
 , packageConfigVersion :: Maybe String
 , packageConfigSynopsis :: Maybe String
 , packageConfigDescription :: Maybe String
+, packageConfigHomepage :: Maybe String
 , packageConfigBugReports :: Maybe String
 , packageConfigCategory :: Maybe String
 , packageConfigStability :: Maybe String
@@ -90,6 +91,7 @@ data Package = Package {
 , packageVersion :: String
 , packageSynopsis :: Maybe String
 , packageDescription :: Maybe String
+, packageHomepage :: Maybe String
 , packageBugReports :: Maybe String
 , packageCategory :: Maybe String
 , packageStability :: Maybe String
@@ -142,6 +144,7 @@ mkPackage PackageConfig{..} = do
       , packageVersion = fromMaybe "0.0.0" packageConfigVersion
       , packageSynopsis = packageConfigSynopsis
       , packageDescription = packageConfigDescription
+      , packageHomepage = homepage
       , packageBugReports = bugReports
       , packageCategory = packageConfigCategory
       , packageStability = packageConfigStability
@@ -158,6 +161,10 @@ mkPackage PackageConfig{..} = do
   return package
   where
     github = ("https://github.com/" ++) <$> packageConfigGithub
+
+    homepage = guard (packageConfigHomepage /= Just "") >> (packageConfigHomepage <|> fromGithub)
+      where
+        fromGithub = ((++ "#readme") <$> github)
 
     bugReports :: Maybe String
     bugReports = guard (packageConfigBugReports /= Just "") >> (packageConfigBugReports <|> fromGithub)
