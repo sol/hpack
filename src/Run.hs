@@ -43,12 +43,17 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
     sections :: [String]
     sections = catMaybes [
         header
+      , extraSourceFiles
       , sourceRepository
       , library
       ] ++ renderExecutables packageExecutables ++ renderTests packageTests
 
     header = Just (unlines $ map formatField sortedFields)
+
+    extraSourceFiles = guard (not . null $ packageExtraSourceFiles) >> Just (unlines $ "extra-source-files:" : map ("  " ++) packageExtraSourceFiles)
+
     sourceRepository = renderSourceRepository <$> packageSourceRepository
+
     library = renderLibrary <$> packageLibrary
 
     padding name = replicate (alignment - length name - 2) ' '

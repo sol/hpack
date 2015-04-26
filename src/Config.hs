@@ -60,6 +60,7 @@ data PackageConfig = PackageConfig {
 , packageConfigMaintainer :: Maybe (List String)
 , packageConfigCopyright :: Maybe (List String)
 , packageConfigLicense :: Maybe String
+, packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigGithub :: Maybe String
 , packageConfigSourceDirs :: Maybe (List FilePath)
 , packageConfigDependencies :: Maybe (List Dependency)
@@ -100,6 +101,7 @@ data Package = Package {
 , packageCopyright :: [String]
 , packageLicense :: Maybe String
 , packageLicenseFile :: Maybe FilePath
+, packageExtraSourceFiles :: [FilePath]
 , packageSourceRepository :: Maybe String
 , packageLibrary :: Maybe Library
 , packageExecutables :: [Executable]
@@ -153,6 +155,7 @@ mkPackage PackageConfig{..} = do
       , packageCopyright = fromMaybeList packageConfigCopyright
       , packageLicense = packageConfigLicense
       , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
+      , packageExtraSourceFiles = fromMaybeList packageConfigExtraSourceFiles
       , packageSourceRepository = github
       , packageLibrary = mLibrary
       , packageExecutables = executables

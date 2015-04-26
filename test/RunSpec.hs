@@ -78,6 +78,18 @@ spec = do
         , "cabal-version:  >= 1.10"
         ]
 
+    it "includes extra-source-files" $ do
+      renderPackage 0 [] package {packageExtraSourceFiles = ["foo", "bar"]} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.10"
+        , ""
+        , "extra-source-files:"
+        , "  foo"
+        , "  bar"
+        ]
+
     it "includes source repository" $ do
       renderPackage 0 [] package {packageSourceRepository = Just "https://github.com/hspec/hspec"} `shouldBe` unlines [
           "name: foo"

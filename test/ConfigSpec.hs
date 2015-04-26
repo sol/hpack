@@ -19,7 +19,7 @@ main :: IO ()
 main = hspec spec
 
 package :: Package
-package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing Nothing [] []
+package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing [] Nothing Nothing [] []
 
 executable :: String -> String -> Executable
 executable name main_ = Executable name main_ [] [] [] [] []
@@ -143,6 +143,15 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |]
       touch "LICENSE"
       readPackageConfig "package.yaml" `shouldReturn` Right package {packageLicenseFile = Just "LICENSE"}
+
+    it "accepts extra-source-files" $ do
+      writeFile "package.yaml" [i|
+        extra-source-files:
+          - CHANGES.markdown
+          - README.markdown
+        |]
+      Right c <- readPackageConfig "package.yaml"
+      packageExtraSourceFiles c `shouldBe` ["CHANGES.markdown", "README.markdown"]
 
     it "accepts github" $ do
       writeFile "package.yaml" [i|
