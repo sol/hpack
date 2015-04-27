@@ -100,10 +100,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       Right c <- readPackageConfig "package.yaml"
       packageHomepage c `shouldBe` Just "https://github.com/hspec/hspec#readme"
 
-    it "omits homepage URL if it is the empty string" $ do
+    it "omits homepage URL if it is null" $ do
       writeFile "package.yaml" [i|
         github: hspec/hspec
-        homepage: ""
+        homepage: null
         |]
       Right c <- readPackageConfig "package.yaml"
       packageHomepage c `shouldBe` Nothing
@@ -123,10 +123,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       Right c <- readPackageConfig "package.yaml"
       packageBugReports c `shouldBe` Just "https://github.com/hspec/hspec/issues"
 
-    it "omits bug-reports URL if it is the empty string" $ do
+    it "omits bug-reports URL if it is null" $ do
       writeFile "package.yaml" [i|
         github: hspec/hspec
-        bug-reports: ""
+        bug-reports: null
         |]
       Right c <- readPackageConfig "package.yaml"
       packageBugReports c `shouldBe` Nothing

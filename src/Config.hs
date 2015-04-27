@@ -11,8 +11,9 @@ module Config (
 import           Prelude ()
 import           Prelude.Compat
 import           Control.Applicative
-import           Control.Monad (guard)
+import           Control.Monad.Compat
 import           Data.List ((\\))
+import           Data.String
 import           Data.Maybe
 import           Data.Yaml
 import           GHC.Generics
@@ -52,8 +53,8 @@ data PackageConfig = PackageConfig {
 , packageConfigVersion :: Maybe String
 , packageConfigSynopsis :: Maybe String
 , packageConfigDescription :: Maybe String
-, packageConfigHomepage :: Maybe String
-, packageConfigBugReports :: Maybe String
+, packageConfigHomepage :: Maybe (Maybe String)
+, packageConfigBugReports :: Maybe (Maybe String)
 , packageConfigCategory :: Maybe String
 , packageConfigStability :: Maybe String
 , packageConfigAuthor :: Maybe (List String)
@@ -72,7 +73,24 @@ data PackageConfig = PackageConfig {
 } deriving (Eq, Show, Generic)
 
 instance FromJSON PackageConfig where
-  parseJSON = genericParseJSON_ "PackageConfig"
+  parseJSON value = handleNullValues <$> genericParseJSON_ "PackageConfig" value
+    where
+      handleNullValues :: PackageConfig -> PackageConfig
+      handleNullValues =
+          ifNull "homepage" (\p -> p {packageConfigHomepage = Just Nothing})
+        . ifNull "bug-reports" (\p -> p {packageConfigBugReports = Just Nothing})
+
+      ifNull :: String -> (a -> a) -> a -> a
+      ifNull name f
+        | isNull name value = f
+        | otherwise = id
+
+isNull :: String -> Value -> Bool
+isNull name value = case parseMaybe p value of
+  Just Null -> True
+  _ -> False
+  where
+    p = parseJSON >=> (.: fromString name)
 
 readPackageConfig :: FilePath -> IO (Either String Package)
 readPackageConfig file = do
@@ -165,12 +183,17 @@ mkPackage PackageConfig{..} = do
   where
     github = ("https://github.com/" ++) <$> packageConfigGithub
 
-    homepage = guard (packageConfigHomepage /= Just "") >> (packageConfigHomepage <|> fromGithub)
+    homepage :: Maybe String
+    homepage = case packageConfigHomepage of
+      Just Nothing -> Nothing
+      _ -> join packageConfigHomepage <|> fromGithub
       where
         fromGithub = ((++ "#readme") <$> github)
 
     bugReports :: Maybe String
-    bugReports = guard (packageConfigBugReports /= Just "") >> (packageConfigBugReports <|> fromGithub)
+    bugReports = case packageConfigBugReports of
+      Just Nothing -> Nothing
+      _ -> join packageConfigBugReports <|> fromGithub
       where
         fromGithub = ((++ "/issues") <$> github)
 
