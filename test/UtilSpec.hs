@@ -2,7 +2,6 @@
 module UtilSpec (main, spec) where
 
 import           Helper
-import           Test.Mockery.Directory
 import           Data.Aeson
 
 import           Util
@@ -40,10 +39,13 @@ spec = do
 
   describe "tryReadFile" $ do
     it "reads file" $ do
-      tryReadFile "test/asset/foo" `shouldReturn` Just "foo\n"
+      inTempDirectory $ do
+        writeFile "foo" "bar"
+        tryReadFile "foo" `shouldReturn` Just "bar"
 
     it "returns Nothing if file does not exist" $ do
-      tryReadFile "test/asset/bar" `shouldReturn` Nothing
+      inTempDirectory $ do
+        tryReadFile "foo" `shouldReturn` Nothing
 
   describe "extractFieldOrderHint" $ do
     it "extracts field order hints" $ do

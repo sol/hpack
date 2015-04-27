@@ -9,7 +9,6 @@ module ConfigSpec (
 ) where
 
 import           Helper
-import           Test.Mockery.Directory
 
 import           Data.String.Interpolate
 
