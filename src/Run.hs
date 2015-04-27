@@ -1,6 +1,7 @@
 {-# LANGUAGE QuasiQuotes, RecordWildCards #-}
 module Run (
   run
+, configFile
 -- exported for testing
 , renderPackage
 ) where
@@ -10,9 +11,7 @@ import           Control.Monad
 import           Data.Maybe
 import           Data.List
 import           System.Exit.Compat
-import           Data.Version (showVersion)
 
-import           Paths_hpack (version)
 import           Util
 import           Config
 
@@ -29,13 +28,7 @@ run = do
       old <- tryReadFile cabalFile
 
       let alignment = fromMaybe 16 (old >>= sniffAlignment)
-          output = concat [
-              "-- This file has been generated from " ++ configFile ++ " by hpack version " ++ showVersion version ++ ".\n"
-            , "--\n"
-            , "-- see: https://github.com/sol/hpack\n"
-            , "\n"
-            , renderPackage alignment (maybe [] extractFieldOrderHint old) package
-            ]
+          output = renderPackage alignment (maybe [] extractFieldOrderHint old) package
       return (cabalFile, output)
     Left err -> die err
 
