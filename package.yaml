@@ -1,5 +1,6 @@
 name: hpack
 version: 0.1.0
+synopsis: An alternative format for Haskell packages
 license: MIT
 github: sol/hpack
 
