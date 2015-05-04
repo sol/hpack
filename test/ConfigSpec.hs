@@ -11,6 +11,7 @@ module ConfigSpec (
 import           Helper
 
 import           Data.String.Interpolate
+import           System.IO.Silently
 
 import           Config
 
@@ -167,8 +168,16 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               - foo
               - bar
           |]
-        Right c <- readPackageConfig "package.yaml"
+        Right c <- silence $ readPackageConfig "package.yaml"
         packageLibrary c `shouldBe` Just library {librarySourceDirs = ["foo", "bar"]}
+
+      it "warns when source-dirs don't exist on the system" $ do
+        writeFile "package.yaml" [i|
+        library:
+          source-dirs: foo, bar
+        |]
+        capture_ (readPackageConfig "package.yaml") `shouldReturn`
+         "The source-dir ‘foo, bar’ does not exist, check if you really meant it.\n"
 
       it "accepts default-extensions" $ do
         writeFile "package.yaml" [i|
@@ -197,7 +206,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             - bar
           library: {}
           |]
-        Right c <- readPackageConfig "package.yaml"
+        Right c <- silence $ readPackageConfig "package.yaml"
         packageLibrary c `shouldBe` Just library {librarySourceDirs = ["foo", "bar"]}
 
       it "allows to specify exposed-modules" $ do
@@ -263,7 +272,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 - foo
                 - bar
           |]
-        Right c <- readPackageConfig "package.yaml"
+        Right c <- silence $ readPackageConfig "package.yaml"
         packageExecutables c `shouldBe` [(executable "foo" "Main.hs") {executableSourceDirs = ["foo", "bar"]}]
 
       it "accepts global source-dirs" $ do
@@ -275,7 +284,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             foo:
               main: Main.hs
           |]
-        Right c <- readPackageConfig "package.yaml"
+        Right c <- silence $ readPackageConfig "package.yaml"
         packageExecutables c `shouldBe` [(executable "foo" "Main.hs") {executableSourceDirs = ["foo", "bar"]}]
 
       it "infers other-modules" $ do
