@@ -32,3 +32,4 @@ tests:
       - hspec == 2.*
       - mockery
       - interpolate
+      - silently

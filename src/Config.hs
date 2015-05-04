@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric, RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
 module Config (
   readPackageConfig
 , Package(..)
@@ -93,14 +94,27 @@ isNull name value = case parseMaybe p value of
     p = parseJSON >=> (.: fromString name)
 
 readPackageConfig :: FilePath -> IO (Either String Package)
-readPackageConfig file = do
-  config <- decodeFileEither file
-  either (return . Left . errToString) (fmap Right . mkPackage) config
+readPackageConfig file = decodeFileEither file >>= \case
+  Left s -> return . Left $ errToString s
+  Right p -> mkPackage p >>= \p' -> printWarnings p' >> return (Right p')
   where
     errToString err = file ++ case err of
       AesonException e -> ": " ++ e
       InvalidYaml (Just e) -> let loc = yamlProblemMark e in ":" ++ show (yamlLine loc) ++ ":" ++ show (yamlColumn loc) ++ ": " ++ yamlProblem e ++ " " ++ yamlContext e
       _ -> ": " ++ show err
+
+-- | Inspect the resulting 'Package' and print any warnings if
+-- necessary
+printWarnings :: Package -> IO ()
+printWarnings Package{..} = do
+  mapM_ warnSourceDirectory (maybe [] librarySourceDirs packageLibrary)
+  mapM_ warnSourceDirectory (concatMap executableSourceDirs packageExecutables)
+  where
+    warnSourceDirectory :: FilePath -> IO ()
+    warnSourceDirectory p = doesDirectoryExist p >>= \case
+      True -> return ()
+      False -> putStrLn $ mconcat [ "The source-dir ‘" , p , "’ does not exist,"
+                                  , " check if you really meant it." ]
 
 type Dependency = String
 type GhcOption = String
