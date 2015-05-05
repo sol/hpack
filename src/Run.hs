@@ -22,7 +22,7 @@ run :: IO (FilePath, String)
 run = do
   mPackage <- readPackageConfig configFile
   case mPackage of
-    Right package -> do
+    Right (_warnings, package) -> do
       let cabalFile = packageName package ++ ".cabal"
 
       old <- tryReadFile cabalFile

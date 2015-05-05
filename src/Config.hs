@@ -92,7 +92,7 @@ isNull name value = case parseMaybe p value of
   where
     p = parseJSON >=> (.: fromString name)
 
-readPackageConfig :: FilePath -> IO (Either String Package)
+readPackageConfig :: FilePath -> IO (Either String ([String], Package))
 readPackageConfig file = do
   config <- decodeFileEither file
   either (return . Left . errToString) (fmap Right . mkPackage) config
@@ -145,7 +145,7 @@ data Executable = Executable {
 , executableGhcOptions :: [GhcOption]
 } deriving (Eq, Show)
 
-mkPackage :: PackageConfig -> IO Package
+mkPackage :: PackageConfig -> IO ([String], Package)
 mkPackage PackageConfig{..} = do
   let dependencies = fromMaybeList packageConfigDependencies
   let sourceDirs = fromMaybeList packageConfigSourceDirs
@@ -179,7 +179,7 @@ mkPackage PackageConfig{..} = do
       , packageExecutables = executables
       , packageTests = tests
       }
-  return package
+  return ([], package)
   where
     github = ("https://github.com/" ++) <$> packageConfigGithub
 
