@@ -1,8 +1,10 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Util (
   List(..)
 , toModule
 , genericParseJSON_
+, hyphenize
 , getFilesRecursive
 , tryReadFile
 , sniffAlignment
@@ -21,15 +23,19 @@ import           Data.Maybe
 import           Data.List
 import           System.Directory
 import           System.FilePath
+import           Data.Data
 
 import           GHC.Generics
 import           Data.Aeson.Types
 
 genericParseJSON_ :: (Generic a, GFromJSON (Rep a)) => String -> Value -> Parser a
-genericParseJSON_ name = genericParseJSON defaultOptions {fieldLabelModifier = camelTo '-' . drop (length name)}
+genericParseJSON_ name = genericParseJSON defaultOptions {fieldLabelModifier = hyphenize name}
+
+hyphenize :: String -> String -> String
+hyphenize name = camelTo '-' . drop (length name)
 
 newtype List a = List {fromList :: [a]}
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data, Typeable)
 
 instance FromJSON a => FromJSON (List a) where
   parseJSON v = List <$> (parseJSON v <|> (return <$> parseJSON v))

@@ -4,6 +4,7 @@ import           Prelude ()
 import           Prelude.Compat
 import           Control.Monad.Compat
 import           Control.Exception
+import           System.IO
 import           System.IO.Error
 import           Data.List.Compat
 import           Data.Version (showVersion)
@@ -22,7 +23,8 @@ header = unlines [
 
 main :: IO ()
 main = do
-  (name, new) <- run
+  (warnings, name, new) <- run
+  forM_ warnings $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
   old <- force . either (const Nothing) (Just . stripHeader) <$> tryJust (guard . isDoesNotExistError) (readFile name)
   unless (old == Just (lines new)) (writeFile name $ header ++ new)
   where

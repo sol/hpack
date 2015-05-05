@@ -1,4 +1,6 @@
-{-# LANGUAGE DeriveGeneric, RecordWildCards #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Config (
   readPackageConfig
 , Package(..)
@@ -19,10 +21,27 @@ import           Data.Yaml
 import           GHC.Generics
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as Map
+import qualified Data.Text as T
 import           System.FilePath
 import           System.Directory
+import           Data.Data
 
 import           Util
+
+data CaptureUnknownFields a = CaptureUnknownFields [String] a
+
+instance (Data a, FromJSON a) => FromJSON (CaptureUnknownFields a) where
+  parseJSON v = captureUnknownFields <$> parseJSON v
+    where
+      captureUnknownFields a = case v of
+        Object o -> CaptureUnknownFields unknown a
+          where
+            unknown = keys \\ fields
+            keys = map T.unpack (Map.keys o)
+            constr = toConstr a
+            name = showConstr constr
+            fields = map (hyphenize name) (constrFields constr)
+        _ -> CaptureUnknownFields [] a
 
 data LibrarySection = LibrarySection {
   librarySectionSourceDirs :: Maybe (List FilePath)
@@ -31,7 +50,7 @@ data LibrarySection = LibrarySection {
 , librarySectionDependencies :: Maybe (List Dependency)
 , librarySectionDefaultExtensions :: Maybe (List String)
 , librarySectionGhcOptions :: Maybe (List GhcOption)
-} deriving (Eq, Show, Generic)
+} deriving (Eq, Show, Generic, Data, Typeable)
 
 instance FromJSON LibrarySection where
   parseJSON = genericParseJSON_ "LibrarySection"
@@ -43,7 +62,7 @@ data ExecutableSection = ExecutableSection {
 , executableSectionDependencies :: Maybe (List Dependency)
 , executableSectionDefaultExtensions :: Maybe (List String)
 , executableSectionGhcOptions :: Maybe (List GhcOption)
-} deriving (Eq, Show, Generic)
+} deriving (Eq, Show, Generic, Data, Typeable)
 
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_ "ExecutableSection"
@@ -70,7 +89,7 @@ data PackageConfig = PackageConfig {
 , packageConfigLibrary :: Maybe LibrarySection
 , packageConfigExecutables :: Maybe (HashMap String ExecutableSection)
 , packageConfigTests :: Maybe (HashMap String ExecutableSection)
-} deriving (Eq, Show, Generic)
+} deriving (Eq, Show, Generic, Data, Typeable)
 
 instance FromJSON PackageConfig where
   parseJSON value = handleNullValues <$> genericParseJSON_ "PackageConfig" value
@@ -145,8 +164,8 @@ data Executable = Executable {
 , executableGhcOptions :: [GhcOption]
 } deriving (Eq, Show)
 
-mkPackage :: PackageConfig -> IO ([String], Package)
-mkPackage PackageConfig{..} = do
+mkPackage :: (CaptureUnknownFields PackageConfig) -> IO ([String], Package)
+mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
   let dependencies = fromMaybeList packageConfigDependencies
   let sourceDirs = fromMaybeList packageConfigSourceDirs
   let defaultExtensions = fromMaybeList packageConfigDefaultExtensions
@@ -179,8 +198,10 @@ mkPackage PackageConfig{..} = do
       , packageExecutables = executables
       , packageTests = tests
       }
-  return ([], package)
+  return (map formatUnknownFields unknownFields, package)
   where
+    formatUnknownFields field = "Ignoring unknown field " ++ show field ++ " in package description"
+
     github = ("https://github.com/" ++) <$> packageConfigGithub
 
     homepage :: Maybe String

@@ -169,6 +169,16 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       Right (_, c) <- readPackageConfig "package.yaml"
       packageSourceRepository c `shouldBe` Just "https://github.com/hspec/hspec"
 
+    it "warns on unknown fields" $ do
+      writeFile "package.yaml" [i|
+        foo: 23
+        bar: 42
+        |]
+      fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
+          "Ignoring unknown field \"foo\" in package description"
+        , "Ignoring unknown field \"bar\" in package description"
+        ]
+
     context "when reading library section" $ do
       it "accepts source-dirs" $ do
         writeFile "package.yaml" [i|

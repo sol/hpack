@@ -18,18 +18,18 @@ import           Config
 configFile :: FilePath
 configFile = "package.yaml"
 
-run :: IO (FilePath, String)
+run :: IO ([String], FilePath, String)
 run = do
   mPackage <- readPackageConfig configFile
   case mPackage of
-    Right (_warnings, package) -> do
+    Right (warnings, package) -> do
       let cabalFile = packageName package ++ ".cabal"
 
       old <- tryReadFile cabalFile
 
       let alignment = fromMaybe 16 (old >>= sniffAlignment)
           output = renderPackage alignment (maybe [] extractFieldOrderHint old) package
-      return (cabalFile, output)
+      return (warnings, cabalFile, output)
     Left err -> die err
 
 renderPackage :: Int -> [String] -> Package -> String
