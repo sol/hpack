@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Config (
   readPackageConfig
 , Package(..)
@@ -25,8 +27,17 @@ import qualified Data.Text as T
 import           System.FilePath
 import           System.Directory
 import           Data.Data
+import           Data.Aeson.Types
 
 import           Util
+
+genericParseJSON_ :: forall a. (Typeable a, Generic a, GFromJSON (Rep a)) => Value -> Parser a
+genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphenize name}
+  where
+    name = (tyConName . typeRepTyCon . typeRep) (Proxy :: Proxy a)
+
+hyphenize :: String -> String -> String
+hyphenize name = camelTo '-' . drop (length name)
 
 data CaptureUnknownFields a = CaptureUnknownFields [String] a
 
@@ -53,7 +64,7 @@ data LibrarySection = LibrarySection {
 } deriving (Eq, Show, Generic, Data, Typeable)
 
 instance FromJSON LibrarySection where
-  parseJSON = genericParseJSON_ "LibrarySection"
+  parseJSON = genericParseJSON_
 
 data ExecutableSection = ExecutableSection {
   executableSectionMain :: FilePath
@@ -65,7 +76,7 @@ data ExecutableSection = ExecutableSection {
 } deriving (Eq, Show, Generic, Data, Typeable)
 
 instance FromJSON ExecutableSection where
-  parseJSON = genericParseJSON_ "ExecutableSection"
+  parseJSON = genericParseJSON_
 
 data PackageConfig = PackageConfig {
   packageConfigName :: Maybe String
@@ -92,7 +103,7 @@ data PackageConfig = PackageConfig {
 } deriving (Eq, Show, Generic, Data, Typeable)
 
 instance FromJSON PackageConfig where
-  parseJSON value = handleNullValues <$> genericParseJSON_ "PackageConfig" value
+  parseJSON value = handleNullValues <$> genericParseJSON_ value
     where
       handleNullValues :: PackageConfig -> PackageConfig
       handleNullValues =
