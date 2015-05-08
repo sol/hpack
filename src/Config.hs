@@ -16,7 +16,7 @@ import           Prelude ()
 import           Prelude.Compat
 import           Control.Applicative
 import           Control.Monad.Compat
-import           Data.List ((\\))
+import           Data.List (sort, (\\))
 import           Data.String
 import           Data.Maybe
 import           Data.Yaml
@@ -39,7 +39,8 @@ genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphen
 hyphenize :: String -> String -> String
 hyphenize name = camelTo '-' . drop (length name)
 
-data CaptureUnknownFields a = CaptureUnknownFields [String] a
+data CaptureUnknownFields a = CaptureUnknownFields {captureUnknownFieldsFields :: [String], captureUnknownFieldsValue :: a}
+  deriving (Eq, Show, Generic, Data, Typeable)
 
 instance (Data a, FromJSON a) => FromJSON (CaptureUnknownFields a) where
   parseJSON v = captureUnknownFields <$> parseJSON v
@@ -97,9 +98,9 @@ data PackageConfig = PackageConfig {
 , packageConfigDependencies :: Maybe (List Dependency)
 , packageConfigDefaultExtensions :: Maybe (List String)
 , packageConfigGhcOptions :: Maybe (List GhcOption)
-, packageConfigLibrary :: Maybe LibrarySection
-, packageConfigExecutables :: Maybe (HashMap String ExecutableSection)
-, packageConfigTests :: Maybe (HashMap String ExecutableSection)
+, packageConfigLibrary :: Maybe (CaptureUnknownFields LibrarySection)
+, packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields ExecutableSection))
+, packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields ExecutableSection))
 } deriving (Eq, Show, Generic, Data, Typeable)
 
 instance FromJSON PackageConfig where
@@ -181,9 +182,9 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
   let sourceDirs = fromMaybeList packageConfigSourceDirs
   let defaultExtensions = fromMaybeList packageConfigDefaultExtensions
   let ghcOptions = fromMaybeList packageConfigGhcOptions
-  mLibrary <- mapM (mkLibrary sourceDirs dependencies defaultExtensions ghcOptions) packageConfigLibrary
-  executables <- toExecutables sourceDirs dependencies defaultExtensions ghcOptions packageConfigExecutables
-  tests <- toExecutables sourceDirs dependencies defaultExtensions ghcOptions packageConfigTests
+  mLibrary <- mapM (mkLibrary sourceDirs dependencies defaultExtensions ghcOptions) (captureUnknownFieldsValue <$> packageConfigLibrary)
+  executables <- toExecutables sourceDirs dependencies defaultExtensions ghcOptions (fmap captureUnknownFieldsValue <$> packageConfigExecutables)
+  tests <- toExecutables sourceDirs dependencies defaultExtensions ghcOptions (fmap captureUnknownFieldsValue <$> packageConfigTests)
 
   name <- maybe (takeBaseName <$> getCurrentDirectory) return packageConfigName
 
@@ -209,9 +210,23 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
       , packageExecutables = executables
       , packageTests = tests
       }
-  return (map formatUnknownFields unknownFields, package)
+
+      warnings =
+           formatUnknownFields "package description" unknownFields
+        ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary)
+        ++ formatUnknownSectionFields "executable" packageConfigExecutables
+        ++ formatUnknownSectionFields "test" packageConfigTests
+
+  return (warnings, package)
   where
-    formatUnknownFields field = "Ignoring unknown field " ++ show field ++ " in package description"
+    formatUnknownFields name = map f . sort
+      where
+        f field = "Ignoring unknown field " ++ show field ++ " in " ++ name
+
+    formatUnknownSectionFields sectionType = maybe [] (concatMap f . Map.toList . fmap captureUnknownFieldsFields)
+      where
+        f :: (String, [String]) -> [String]
+        f (section, fields) = formatUnknownFields (sectionType ++ " section " ++ show section) fields
 
     github = ("https://github.com/" ++) <$> packageConfigGithub
 

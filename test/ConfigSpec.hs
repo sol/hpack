@@ -29,6 +29,16 @@ library = Library [] [] [] [] [] []
 spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "readPackageConfig" $ do
+    it "warns on unknown fields" $ do
+      writeFile "package.yaml" [i|
+        bar: 23
+        baz: 42
+        |]
+      fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
+          "Ignoring unknown field \"bar\" in package description"
+        , "Ignoring unknown field \"baz\" in package description"
+        ]
+
     it "accepts name" $ do
       writeFile "package.yaml" [i|
         name: bar
@@ -169,17 +179,19 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       Right (_, c) <- readPackageConfig "package.yaml"
       packageSourceRepository c `shouldBe` Just "https://github.com/hspec/hspec"
 
-    it "warns on unknown fields" $ do
-      writeFile "package.yaml" [i|
-        foo: 23
-        bar: 42
-        |]
-      fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
-          "Ignoring unknown field \"foo\" in package description"
-        , "Ignoring unknown field \"bar\" in package description"
-        ]
-
     context "when reading library section" $ do
+      it "warns on unknown fields" $ do
+        writeFile "package.yaml" [i|
+          library:
+            bar: 23
+            baz: 42
+          |]
+
+        fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
+            "Ignoring unknown field \"bar\" in library section"
+          , "Ignoring unknown field \"baz\" in library section"
+          ]
+
       it "accepts source-dirs" $ do
         writeFile "package.yaml" [i|
           library:
@@ -265,6 +277,20 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Bar", "Foo"]}
 
     context "when reading executable section" $ do
+      it "warns on unknown fields" $ do
+        writeFile "package.yaml" [i|
+          executables:
+            foo:
+              main: Main.hs
+              bar: 42
+              baz: 23
+          |]
+
+        fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
+            "Ignoring unknown field \"bar\" in executable section \"foo\""
+          , "Ignoring unknown field \"baz\" in executable section \"foo\""
+          ]
+
       it "reads executable section" $ do
         writeFile "package.yaml" [i|
           executables:
@@ -370,6 +396,20 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         c `shouldBe` package {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
 
     context "when reading test section" $ do
+      it "warns on unknown fields" $ do
+        writeFile "package.yaml" [i|
+          tests:
+            foo:
+              main: Main.hs
+              bar: 42
+              baz: 23
+          |]
+
+        fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
+            "Ignoring unknown field \"bar\" in test section \"foo\""
+          , "Ignoring unknown field \"baz\" in test section \"foo\""
+          ]
+
       it "reads test section" $ do
         writeFile "package.yaml" [i|
           tests:
