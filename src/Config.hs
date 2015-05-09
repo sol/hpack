@@ -39,8 +39,10 @@ genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphen
 hyphenize :: String -> String -> String
 hyphenize name = camelTo '-' . drop (length name)
 
-data CaptureUnknownFields a = CaptureUnknownFields {captureUnknownFieldsFields :: [String], captureUnknownFieldsValue :: a}
-  deriving (Eq, Show, Generic, Data, Typeable)
+data CaptureUnknownFields a = CaptureUnknownFields {
+  captureUnknownFieldsFields :: [String]
+, captureUnknownFieldsValue :: a
+} deriving (Eq, Show, Generic, Data, Typeable)
 
 instance (Data a, FromJSON a) => FromJSON (CaptureUnknownFields a) where
   parseJSON v = captureUnknownFields <$> parseJSON v
@@ -179,12 +181,14 @@ data Executable = Executable {
 mkPackage :: (CaptureUnknownFields PackageConfig) -> IO ([String], Package)
 mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
   let dependencies = fromMaybeList packageConfigDependencies
-  let sourceDirs = fromMaybeList packageConfigSourceDirs
-  let defaultExtensions = fromMaybeList packageConfigDefaultExtensions
-  let ghcOptions = fromMaybeList packageConfigGhcOptions
-  mLibrary <- mapM (mkLibrary sourceDirs dependencies defaultExtensions ghcOptions) (captureUnknownFieldsValue <$> packageConfigLibrary)
-  executables <- toExecutables sourceDirs dependencies defaultExtensions ghcOptions (fmap captureUnknownFieldsValue <$> packageConfigExecutables)
-  tests <- toExecutables sourceDirs dependencies defaultExtensions ghcOptions (fmap captureUnknownFieldsValue <$> packageConfigTests)
+      sourceDirs = fromMaybeList packageConfigSourceDirs
+      defaultExtensions = fromMaybeList packageConfigDefaultExtensions
+      ghcOptions = fromMaybeList packageConfigGhcOptions
+      convert f = f sourceDirs dependencies defaultExtensions ghcOptions
+
+  mLibrary <- mapM (convert toLibrary) mLibrarySection
+  executables <- convert toExecutables mExecutableSections
+  tests <- convert toExecutables mTestSections
 
   name <- maybe (takeBaseName <$> getCurrentDirectory) return packageConfigName
 
@@ -219,6 +223,15 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
 
   return (warnings, package)
   where
+    mLibrarySection :: Maybe LibrarySection
+    mLibrarySection = captureUnknownFieldsValue <$> packageConfigLibrary
+
+    mExecutableSections :: Maybe (HashMap String ExecutableSection)
+    mExecutableSections = fmap captureUnknownFieldsValue <$> packageConfigExecutables
+
+    mTestSections :: Maybe (HashMap String ExecutableSection)
+    mTestSections = fmap captureUnknownFieldsValue <$> packageConfigTests
+
     formatUnknownFields name = map f . sort
       where
         f field = "Ignoring unknown field " ++ show field ++ " in " ++ name
@@ -244,8 +257,8 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
       where
         fromGithub = ((++ "/issues") <$> github)
 
-mkLibrary :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> LibrarySection -> IO Library
-mkLibrary globalSourceDirs globalDependencies globalDefaultExtensions globalGhcOptions LibrarySection{..} = do
+toLibrary :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> LibrarySection -> IO Library
+toLibrary globalSourceDirs globalDependencies globalDefaultExtensions globalGhcOptions LibrarySection{..} = do
   modules <- concat <$> mapM getModules sourceDirs
 
   let (exposedModules, otherModules) = determineModules modules librarySectionExposedModules librarySectionOtherModules
