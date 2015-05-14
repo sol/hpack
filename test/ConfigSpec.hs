@@ -455,6 +455,31 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           Right (_, c) <- readPackageConfig "package.yaml"
           c `shouldBe` package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["base"], ["hspec"]]}]}
 
+    context "when a specified source directory does not exist" $ do
+      it "warns" $ do
+        writeFile "package.yaml" [i|
+          source-dirs:
+            - some-dir
+            - some-existing-dir
+          library:
+            source-dirs: some-lib-dir
+          executables:
+            main:
+              main: Main.hs
+              source-dirs: some-exec-dir
+          tests:
+            spec:
+              main: Main.hs
+              source-dirs: some-test-dir
+          |]
+        touch "some-existing-dir/foo"
+        fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
+            "Specified source-dir " ++ show "some-dir" ++ " does not exist"
+          , "Specified source-dir " ++ show "some-exec-dir" ++ " does not exist"
+          , "Specified source-dir " ++ show "some-lib-dir" ++ " does not exist"
+          , "Specified source-dir " ++ show "some-test-dir" ++ " does not exist"
+          ]
+
     context "when package.yaml can not be parsed" $ do
       it "returns an error" $ do
         writeFile "package.yaml" [i|

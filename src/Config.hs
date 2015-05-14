@@ -16,7 +16,7 @@ import           Prelude ()
 import           Prelude.Compat
 import           Control.Applicative
 import           Control.Monad.Compat
-import           Data.List (sort, (\\))
+import           Data.List (nub, sort, (\\))
 import           Data.String
 import           Data.Maybe
 import           Data.Yaml
@@ -194,6 +194,12 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
 
   licenseFileExists <- doesFileExist "LICENSE"
 
+  missingSourceDirs <- nub . sort <$> filterM (fmap not <$> doesDirectoryExist) (
+       maybe [] librarySourceDirs mLibrary
+    ++ concatMap executableSourceDirs executables
+    ++ concatMap executableSourceDirs tests
+    )
+
   let package = Package {
         packageName = name
       , packageVersion = fromMaybe "0.0.0" packageConfigVersion
@@ -220,6 +226,7 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
         ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary)
         ++ formatUnknownSectionFields "executable" packageConfigExecutables
         ++ formatUnknownSectionFields "test" packageConfigTests
+        ++ formatMissingSourceDirs missingSourceDirs
 
   return (warnings, package)
   where
@@ -240,6 +247,10 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
       where
         f :: (String, [String]) -> [String]
         f (section, fields) = formatUnknownFields (sectionType ++ " section " ++ show section) fields
+
+    formatMissingSourceDirs = map f
+      where
+        f name = "Specified source-dir " ++ show name ++ " does not exist"
 
     github = ("https://github.com/" ++) <$> packageConfigGithub
 
