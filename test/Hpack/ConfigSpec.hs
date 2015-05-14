@@ -395,6 +395,17 @@ spec = do
         Right (_, c) <- readPackageConfig "package.yaml"
         packageExecutables c `shouldBe` [section $ executable "foo" "driver/Main.hs"]
 
+      it "accepts arbitrary entry points as main" $ do
+        writeFile "package.yaml" [i|
+          executables:
+            foo:
+              main: Foo
+          |]
+        Right (_, c) <- readPackageConfig "package.yaml"
+        packageExecutables c `shouldBe` [
+            (section $ executable "foo" "Foo.hs") {sectionGhcOptions = ["-main-is Foo"]}
+          ]
+
       it "accepts source-dirs" $ do
         writeFile "package.yaml" [i|
           executables:

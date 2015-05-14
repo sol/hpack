@@ -210,7 +210,6 @@ data GitRef = GitRef {
 , gitRefRef :: String
 } deriving (Eq, Show, Ord, Generic)
 
-type GhcOption = String
 type CppOption = String
 
 data Package = Package {
@@ -393,18 +392,19 @@ toExecutables globalOptions executables = mapM toExecutable sections
     sections = map (fmap $ mergeSections globalOptions) executables
 
     toExecutable :: (String, Section ExecutableSection) -> IO (Section Executable)
-    toExecutable (name, section) = traverse fromExecutableSection section
+    toExecutable (name, section@Section{..}) = do
+      (executable, ghcOptions) <- fromExecutableSection sectionData
+      return (section {sectionData = executable, sectionGhcOptions = sectionGhcOptions ++ ghcOptions})
       where
-        sourceDirs :: [FilePath]
-        sourceDirs = sectionSourceDirs section
-
-        fromExecutableSection :: ExecutableSection -> IO Executable
+        fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
         fromExecutableSection ExecutableSection{..} = do
-          modules <- maybe (filterMain . concat <$> mapM getModules sourceDirs) (return . fromList) executableSectionOtherModules
-          return (Executable name executableSectionMain modules)
+          modules <- maybe (filterMain . concat <$> mapM getModules sectionSourceDirs) (return . fromList) executableSectionOtherModules
+          return (Executable name mainSrcFile modules, ghcOptions)
           where
             filterMain :: [String] -> [String]
             filterMain = maybe id (filter . (/=)) (toModule $ splitDirectories executableSectionMain)
+
+            (mainSrcFile, ghcOptions) = parseMain executableSectionMain
 
 mergeSections :: Section global -> Section a -> Section a
 mergeSections globalOptions options

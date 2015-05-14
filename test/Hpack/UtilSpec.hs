@@ -16,6 +16,22 @@ spec = do
     it "sorts lexicographically" $ do
       sort ["foo", "Foo"] `shouldBe` ["Foo", "foo" :: String]
 
+  describe "parseMain" $ do
+    it "accepts source file" $ do
+      parseMain "Main.hs" `shouldBe` ("Main.hs", [])
+
+    it "accepts literate source file" $ do
+      parseMain "Main.lhs" `shouldBe` ("Main.lhs", [])
+
+    it "accepts module" $ do
+      parseMain "Foo" `shouldBe` ("Foo.hs", ["-main-is Foo"])
+
+    it "accepts hierarchical module" $ do
+      parseMain "Foo.Bar.Baz" `shouldBe` ("Foo/Bar/Baz.hs", ["-main-is Foo.Bar.Baz"])
+
+    it "accepts qualified identifier" $ do
+      parseMain "Foo.bar" `shouldBe` ("Foo.hs", ["-main-is Foo.bar"])
+
   describe "toModule" $ do
     it "maps paths to module names" $ do
       toModule ["Foo", "Bar", "Baz.hs"] `shouldBe` Just "Foo.Bar.Baz"

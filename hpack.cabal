@@ -37,6 +37,7 @@ library
       Hpack.Run
   other-modules:
       Hpack.GenericsUtil
+      Hpack.Haskell
       Hpack.Render
       Hpack.Util
   default-language: Haskell2010
@@ -86,11 +87,13 @@ test-suite spec
       Helper
       Hpack.ConfigSpec
       Hpack.GenericsUtilSpec
+      Hpack.HaskellSpec
       Hpack.RenderSpec
       Hpack.RunSpec
       Hpack.UtilSpec
       Hpack.Config
       Hpack.GenericsUtil
+      Hpack.Haskell
       Hpack.Render
       Hpack.Run
       Hpack.Util

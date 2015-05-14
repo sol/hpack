@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Hpack.Util (
   List(..)
+, GhcOption
+, parseMain
 , toModule
 , getFilesRecursive
 , tryReadFile
@@ -28,6 +30,8 @@ import           System.Directory
 import           System.FilePath
 import           System.FilePath.Glob
 
+import           Hpack.Haskell
+
 sort :: [String] -> [String]
 sort = sortBy (comparing lexicographically)
 
@@ -40,24 +44,33 @@ newtype List a = List {fromList :: [a]}
 instance FromJSON a => FromJSON (List a) where
   parseJSON v = List <$> (parseJSON v <|> (return <$> parseJSON v))
 
+type GhcOption = String
+
+parseMain :: String -> (FilePath, [GhcOption])
+parseMain main = case reverse name of
+  x : _ | isQualifiedIdentifier name && x `notElem` ["hs", "lhs"] -> (intercalate "/" (init name) ++ ".hs", ["-main-is " ++ main])
+  _ | isModule name -> (intercalate "/" name ++ ".hs", ["-main-is " ++ main])
+  _ -> (main, [])
+  where
+    name = splitOn '.' main
+
+splitOn :: Char -> String -> [String]
+splitOn c = go
+  where
+    go xs = case break (== c) xs of
+      (ys, "") -> [ys]
+      (ys, _:zs) -> ys : go zs
+
 toModule :: [FilePath] -> Maybe String
 toModule path = case reverse path of
   [] -> Nothing
   x : xs -> do
     m <- stripSuffix ".hs" x <|> stripSuffix ".lhs" x
     let name = reverse (m : xs)
-    guard (all isValidModuleName name) >> return (intercalate "." name)
+    guard (isModule name) >> return (intercalate "." name)
   where
     stripSuffix :: String -> String -> Maybe String
     stripSuffix suffix x = reverse <$> stripPrefix (reverse suffix) (reverse x)
-
--- See `Cabal.Distribution.ModuleName` (http://git.io/bj34)
-isValidModuleName :: String -> Bool
-isValidModuleName [] = False
-isValidModuleName (c:cs) = isUpper c && all isValidModuleChar cs
-
-isValidModuleChar :: Char -> Bool
-isValidModuleChar c = isAlphaNum c || c == '_' || c == '\''
 
 getFilesRecursive :: FilePath -> IO [[String]]
 getFilesRecursive baseDir = go []
