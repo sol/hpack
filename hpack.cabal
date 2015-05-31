@@ -1,9 +1,9 @@
--- This file has been generated from package.yml by hpack version 0.1.2.
+-- This file has been generated from package.yml by hpack version 0.2.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.1.2
+version:        0.2.0
 synopsis:       An alternative format for Haskell packages
 homepage:       https://github.com/sol/hpack#readme
 bug-reports:    https://github.com/sol/hpack/issues
