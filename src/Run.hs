@@ -1,7 +1,6 @@
 {-# LANGUAGE QuasiQuotes, RecordWildCards #-}
 module Run (
   run
-, configFile
 -- exported for testing
 , renderPackage
 ) where
@@ -18,7 +17,7 @@ import           Config
 configFile :: FilePath
 configFile = "package.yml"
 
-run :: IO ([String], FilePath, String)
+run :: IO (FilePath, [String], FilePath, String)
 run = do
   mPackage <- readPackageConfig configFile
   case mPackage of
@@ -29,7 +28,7 @@ run = do
 
       let alignment = fromMaybe 16 (old >>= sniffAlignment)
           output = renderPackage alignment (maybe [] extractFieldOrderHint old) package
-      return (warnings, cabalFile, output)
+      return (configFile, warnings, cabalFile, output)
     Left err -> die err
 
 renderPackage :: Int -> [String] -> Package -> String

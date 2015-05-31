@@ -13,8 +13,8 @@ import           Control.DeepSeq
 import           Paths_hpack (version)
 import           Run
 
-header :: String
-header = unlines [
+header :: String -> String
+header configFile = unlines [
     "-- This file has been generated from " ++ configFile ++ " by hpack version " ++ showVersion version ++ "."
   , "--"
   , "-- see: https://github.com/sol/hpack"
@@ -23,10 +23,10 @@ header = unlines [
 
 main :: IO ()
 main = do
-  (warnings, name, new) <- run
+  (configFile, warnings, name, new) <- run
   forM_ warnings $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
   old <- force . either (const Nothing) (Just . stripHeader) <$> tryJust (guard . isDoesNotExistError) (readFile name)
-  unless (old == Just (lines new)) (writeFile name $ header ++ new)
+  unless (old == Just (lines new)) (writeFile name $ header configFile ++ new)
   where
     stripHeader :: String -> [String]
     stripHeader = dropWhile null . dropWhile ("--" `isPrefixOf`) . lines
