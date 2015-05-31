@@ -18,17 +18,17 @@ dependencies:
   - unordered-containers
   - yaml
 
+source-dirs: src
+
 executables:
   hpack:
     main: Main.hs
-    source-dirs: driver, src
+    source-dirs: driver
 
 tests:
   spec:
     main: Spec.hs
-    source-dirs:
-      - test
-      - src
+    source-dirs: test
     dependencies:
       - hspec == 2.*
       - mockery

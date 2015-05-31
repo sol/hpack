@@ -16,7 +16,7 @@ import           Util
 import           Config
 
 configFile :: FilePath
-configFile = "package.yaml"
+configFile = "package.yml"
 
 run :: IO ([String], FilePath, String)
 run = do

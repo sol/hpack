@@ -1,4 +1,4 @@
--- This file has been generated from package.yaml by hpack version 0.1.2.
+-- This file has been generated from package.yml by hpack version 0.1.2.
 --
 -- see: https://github.com/sol/hpack
 
@@ -18,8 +18,12 @@ source-repository head
   location: https://github.com/sol/hpack
 
 executable hpack
-  hs-source-dirs: driver, src
+  hs-source-dirs: src, driver
   main-is: Main.hs
+  other-modules:
+      Config
+      Run
+      Util
   build-depends:
       aeson >= 0.8
     , base == 4.*
@@ -35,16 +39,16 @@ executable hpack
 
 test-suite spec
   type: exitcode-stdio-1.0
-  hs-source-dirs: test, src
+  hs-source-dirs: src, test
   main-is: Spec.hs
   other-modules:
+      Config
+      Run
+      Util
       ConfigSpec
       Helper
       RunSpec
       UtilSpec
-      Config
-      Run
-      Util
   build-depends:
       aeson >= 0.8
     , base == 4.*

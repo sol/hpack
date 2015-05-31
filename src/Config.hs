@@ -132,7 +132,9 @@ readPackageConfig file = do
   where
     errToString err = file ++ case err of
       AesonException e -> ": " ++ e
-      InvalidYaml (Just e) -> let loc = yamlProblemMark e in ":" ++ show (yamlLine loc) ++ ":" ++ show (yamlColumn loc) ++ ": " ++ yamlProblem e ++ " " ++ yamlContext e
+      InvalidYaml (Just (YamlException s)) -> ": " ++ s
+      InvalidYaml (Just (YamlParseException{..})) -> ":" ++ show yamlLine ++ ":" ++ show yamlColumn ++ ": " ++ yamlProblem ++ " " ++ yamlContext
+        where YamlMark{..} = yamlProblemMark
       _ -> ": " ++ show err
 
 type Dependency = String
