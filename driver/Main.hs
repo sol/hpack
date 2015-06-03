@@ -55,7 +55,7 @@ main = do
 
 printUsage :: [String] -> IO ()
 printUsage errors = do
-  hPutStrLn stderr (intercalate "\n" (usage : errors))
+  hPutStr stderr (concat (usage : errors))
   exitFailure
 
 printHelp :: IO ()
