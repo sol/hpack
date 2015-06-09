@@ -441,7 +441,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         Right (_, c) <- readPackageConfig "package.yml"
         c `shouldBe` package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["hspec", "QuickCheck"]]}]}
 
-      context "when both top-level and section specific dependencies are specified" $ do
+      context "when both global and section specific dependencies are specified" $ do
         it "combines dependencies" $ do
           writeFile "package.yml" [i|
             dependencies:
