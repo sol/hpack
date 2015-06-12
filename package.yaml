@@ -31,5 +31,5 @@ tests:
     source-dirs: test
     dependencies:
       - hspec == 2.*
-      - mockery
+      - mockery >= 0.3
       - interpolate

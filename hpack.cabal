@@ -61,7 +61,7 @@ test-suite spec
     , yaml
 
     , hspec == 2.*
-    , mockery
+    , mockery >= 0.3
     , interpolate
   ghc-options: -Wall
   default-language: Haskell2010
