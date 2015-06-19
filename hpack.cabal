@@ -3,10 +3,10 @@
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.3.1
+version:        0.3.2
 synopsis:       An alternative format for Haskell packages
-homepage:       https://github.com/sol/hpack#readme
-bug-reports:    https://github.com/sol/hpack/issues
+homepage:       https://github.com/haskell-tinc/hpack#readme
+bug-reports:    https://github.com/haskell-tinc/hpack/issues
 maintainer:     Simon Hengel <sol@typeful.net>
 license:        MIT
 license-file:   LICENSE
@@ -15,7 +15,7 @@ cabal-version:  >= 1.10
 
 source-repository head
   type: git
-  location: https://github.com/sol/hpack
+  location: https://github.com/haskell-tinc/hpack
 
 executable hpack
   hs-source-dirs: src, driver
