@@ -136,6 +136,7 @@ renderExecutableSection Executable{..} =
   ++ renderDependencies executableDependencies 
   ++ renderDefaultExtensions executableDefaultExtensions
   ++ renderGhcOptions executableGhcOptions
+  ++ renderCppOptions executableCppOptions
   ++ "  default-language: Haskell2010\n"
 
 renderLibrary :: Library -> String
@@ -147,6 +148,7 @@ renderLibrary Library{..} =
   ++ renderDependencies libraryDependencies
   ++ renderDefaultExtensions libraryDefaultExtensions
   ++ renderGhcOptions libraryGhcOptions
+  ++ renderCppOptions libraryCppOptions
   ++ "  default-language: Haskell2010\n"
 
 
@@ -175,11 +177,15 @@ renderDependencies dependencies
       | otherwise = "\n    , " ++ intercalate "\n    , " xs ++ "\n"
 
 renderGhcOptions :: [GhcOption] -> String
-renderGhcOptions ghcOptions
-  | null ghcOptions = ""
-  | otherwise = "  ghc-options: " ++ unwords ghcOptions ++ "\n"
+renderGhcOptions = renderOptions "ghc-options"
+
+renderCppOptions :: [GhcOption] -> String
+renderCppOptions = renderOptions "cpp-options"
 
 renderDefaultExtensions :: [String] -> String
-renderDefaultExtensions defaultExtensions
-  | null defaultExtensions = ""
-  | otherwise = "  default-extensions: " ++ unwords defaultExtensions ++ "\n"
+renderDefaultExtensions = renderOptions "default-extensions"
+
+renderOptions :: String -> [String] -> String
+renderOptions field options
+  | null options = ""
+  | otherwise = "  " ++ field ++ ": " ++ unwords options ++ "\n"

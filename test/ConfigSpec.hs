@@ -21,10 +21,10 @@ package :: Package
 package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing [] Nothing Nothing [] []
 
 executable :: String -> String -> Executable
-executable name main_ = Executable name main_ [] [] [] [] []
+executable name main_ = Executable name main_ [] [] [] [] [] []
 
 library :: Library
-library = Library [] [] [] [] [] []
+library = Library [] [] [] [] [] [] []
 
 spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
@@ -178,6 +178,30 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |]
       Right (_, c) <- readPackageConfig "package.yml"
       packageSourceRepository c `shouldBe` Just "https://github.com/hspec/hspec"
+
+    it "accepts CPP options" $ do
+      writeFile "package.yml" [i|
+        cpp-options: -DFOO
+        library:
+          cpp-options: -DLIB
+
+        executables:
+          foo:
+            main: Main.hs
+            cpp-options: -DFOO
+
+
+        tests:
+          spec:
+            main: Spec.hs
+            cpp-options: -DTEST
+        |]
+      Right (_, c) <- readPackageConfig "package.yml"
+      c `shouldBe` package {
+          packageLibrary = Just library {libraryCppOptions = ["-DFOO", "-DLIB"]}
+        , packageExecutables = [(executable "foo" "Main.hs") {executableCppOptions = ["-DFOO", "-DFOO"]}]
+        , packageTests = [(executable "spec" "Spec.hs") {executableCppOptions = ["-DFOO", "-DTEST"]}]
+        }
 
     context "when reading library section" $ do
       it "warns on unknown fields" $ do
