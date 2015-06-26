@@ -219,6 +219,8 @@ spec = do
           - CHANGES.markdown
           - README.markdown
         |]
+      touch "CHANGES.markdown"
+      touch "README.markdown"
       Right (_, c) <- readPackageConfig "package.yaml"
       packageExtraSourceFiles c `shouldBe` ["CHANGES.markdown", "README.markdown"]
 
