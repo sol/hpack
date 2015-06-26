@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE LambdaCase #-}
 module Hpack.Util (
   List(..)
 , toModule
@@ -6,7 +7,8 @@ module Hpack.Util (
 , tryReadFile
 , sniffAlignment
 , extractFieldOrderHint
-
+, fromMaybeList
+, expandGlobs
 -- exported for testing
 , splitField
 ) where
@@ -16,10 +18,12 @@ import           Control.Monad
 import           Control.Exception
 import           Control.DeepSeq
 import           Data.Char
+import           Data.Either (partitionEithers)
 import           Data.Maybe
 import           Data.List
 import           System.Directory
 import           System.FilePath
+import           System.FilePath.Glob (namesMatching)
 import           Data.Data
 
 import           Data.Aeson.Types
@@ -88,3 +92,33 @@ splitField field = case span isNameChar field of
   where
     isNameChar = (`elem` nameChars)
     nameChars = ['a'..'z'] ++ ['A'..'Z'] ++ "-"
+
+
+fromMaybeList :: Maybe (List a) -> [a]
+fromMaybeList = maybe [] fromList
+
+-- | Expand glob files relative to the given path.
+--
+-- The globs only support a simple @*@. Notably, the @**@ style for
+-- nested-directories is not supported.
+expandGlobs :: FilePath -- ^ File path of the config file we are
+                        -- reading. The globs are expanded relative to
+                        -- the directory the config file is in.
+            -> [String] -- ^ A list of globs to expand
+            -> IO ([String], [FilePath])
+            -- ^ A tuple of warnings and expanded globs
+expandGlobs config globs = do
+  configDir <- takeDirectory <$> canonicalizePath config
+  let -- If the file doesn't match anything, leave it as-is and warn later
+      matchOrPreserve f = namesMatching (configDir </> f) >>= return . \case
+        [] -> Left f
+        xs -> Right xs
+
+  (missing, expanded) <- partitionEithers <$> mapM matchOrPreserve globs
+  let allFiles = map (makeRelative configDir) $ missing ++ concat expanded
+  return . (,) (formatMissingExtras missing) . nub $ sort allFiles
+  where
+    formatMissingExtras = map f
+      where
+        f name = "Specified extra-source-file " ++ show name
+                 ++ " does not exist, leaving as-is"

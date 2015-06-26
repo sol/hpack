@@ -30,6 +30,7 @@ library
     , base-compat >= 0.8
     , deepseq
     , directory
+    , filemanip
     , filepath
     , text
     , unordered-containers
@@ -46,6 +47,7 @@ executable hpack
     , base-compat >= 0.8
     , deepseq
     , directory
+    , filemanip
     , filepath
     , text
     , unordered-containers
@@ -73,6 +75,7 @@ test-suite spec
     , base-compat >= 0.8
     , deepseq
     , directory
+    , filemanip
     , filepath
     , text
     , unordered-containers

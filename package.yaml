@@ -13,6 +13,7 @@ dependencies:
   - base-compat >= 0.8
   - deepseq
   - directory
+  - filemanip
   - filepath
   - text
   - unordered-containers
