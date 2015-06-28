@@ -107,8 +107,10 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
         n = max alignment $ length ("description: ")
         separator = "\n" ++ replicate n ' '
 
-    renderSourceRepository :: String -> String
-    renderSourceRepository url = "source-repository head\n  type: git\n  location: " ++ url ++ "\n"
+    renderSourceRepository :: (String, Maybe String) -> String
+    renderSourceRepository (url, subdir) =
+      "source-repository head\n  type: git\n  location: " ++ url ++ "\n"
+      ++ maybe "" undefined subdir
 
 renderExecutables :: [Executable] -> [String]
 renderExecutables = map renderExecutable
@@ -129,11 +131,11 @@ renderTest executable@Executable{..} =
   ++ renderExecutableSection executable
 
 renderExecutableSection :: Executable -> String
-renderExecutableSection Executable{..} = 
+renderExecutableSection Executable{..} =
      renderSourceDirs executableSourceDirs
   ++ "  main-is: " ++ executableMain ++ "\n"
   ++ renderOtherModules executableOtherModules
-  ++ renderDependencies executableDependencies 
+  ++ renderDependencies executableDependencies
   ++ renderDefaultExtensions executableDefaultExtensions
   ++ renderGhcOptions executableGhcOptions
   ++ renderCppOptions executableCppOptions

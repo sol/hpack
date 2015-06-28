@@ -91,7 +91,7 @@ spec = do
         ]
 
     it "includes source repository" $ do
-      renderPackage 0 [] package {packageSourceRepository = Just "https://github.com/hspec/hspec"} `shouldBe` unlines [
+      renderPackage 0 [] package {packageSourceRepository = Just ("https://github.com/hspec/hspec", Nothing)} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
@@ -100,6 +100,19 @@ spec = do
         , "source-repository head"
         , "  type: git"
         , "  location: https://github.com/hspec/hspec"
+        ]
+
+    it "includes source repository with subdir" $ do
+      renderPackage 0 [] package {packageSourceRepository = Just ("https://github.com/hspec/hspec", Just "driver")} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.10"
+        , ""
+        , "source-repository head"
+        , "  type: git"
+        , "  location: https://github.com/hspec/hspec"
+        , "  subdir: driver"
         ]
 
     context "when given list of existing fields" $ do

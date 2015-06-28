@@ -15,8 +15,10 @@ module Config (
 import           Prelude ()
 import           Prelude.Compat
 import           Control.Applicative
+import           Control.Arrow (first)
 import           Control.Monad.Compat
 import           Data.List (nub, sort, (\\))
+import           Data.List.Split (splitOn)
 import           Data.String
 import           Data.Maybe
 import           Data.Yaml
@@ -159,7 +161,7 @@ data Package = Package {
 , packageLicense :: Maybe String
 , packageLicenseFile :: Maybe FilePath
 , packageExtraSourceFiles :: [FilePath]
-, packageSourceRepository :: Maybe String
+, packageSourceRepository :: Maybe (String, Maybe String)
 , packageLibrary :: Maybe Library
 , packageExecutables :: [Executable]
 , packageTests :: [Executable]
@@ -261,21 +263,25 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
       where
         f name = "Specified source-dir " ++ show name ++ " does not exist"
 
-    github = ("https://github.com/" ++) <$> packageConfigGithub
+    github = first ("https://github.com/" ++) <$> splitGithub
+      where
+        splitGithub = case packageConfigGithub of
+          Nothing -> Nothing
+          Just xs -> Just (xs, Nothing)
 
     homepage :: Maybe String
     homepage = case packageConfigHomepage of
       Just Nothing -> Nothing
       _ -> join packageConfigHomepage <|> fromGithub
       where
-        fromGithub = ((++ "#readme") <$> github)
+        fromGithub = (++ "#readme") . fst <$> github
 
     bugReports :: Maybe String
     bugReports = case packageConfigBugReports of
       Just Nothing -> Nothing
       _ -> join packageConfigBugReports <|> fromGithub
       where
-        fromGithub = ((++ "/issues") <$> github)
+        fromGithub = (++ "/issues") . fst <$> github
 
 toLibrary :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> [CppOption] -> LibrarySection -> IO Library
 toLibrary globalSourceDirs globalDependencies globalDefaultExtensions globalGhcOptions globalCppOptions LibrarySection{..} = do
