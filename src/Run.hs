@@ -4,6 +4,7 @@ module Run (
 , configFile
 -- exported for testing
 , renderPackage
+, renderSourceRepository
 ) where
 
 import           Control.Applicative
@@ -107,8 +108,13 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
         n = max alignment $ length ("description: ")
         separator = "\n" ++ replicate n ' '
 
-    renderSourceRepository :: String -> String
-    renderSourceRepository url = "source-repository head\n  type: git\n  location: " ++ url ++ "\n"
+renderSourceRepository :: SourceRepository -> String
+renderSourceRepository SourceRepository{..} = concat
+  [ "source-repository head\n"
+  , "  type: git\n"
+  , "  location: " ++ githubConfigUrl ++ "\n"
+  , maybe "" (\s -> "  subdir: " ++ s ++ "\n") githubConfigSubdir
+  ]
 
 renderExecutables :: [Executable] -> [String]
 renderExecutables = map renderExecutable
@@ -129,11 +135,11 @@ renderTest executable@Executable{..} =
   ++ renderExecutableSection executable
 
 renderExecutableSection :: Executable -> String
-renderExecutableSection Executable{..} = 
+renderExecutableSection Executable{..} =
      renderSourceDirs executableSourceDirs
   ++ "  main-is: " ++ executableMain ++ "\n"
   ++ renderOtherModules executableOtherModules
-  ++ renderDependencies executableDependencies 
+  ++ renderDependencies executableDependencies
   ++ renderDefaultExtensions executableDefaultExtensions
   ++ renderGhcOptions executableGhcOptions
   ++ renderCppOptions executableCppOptions

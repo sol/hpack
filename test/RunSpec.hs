@@ -90,18 +90,6 @@ spec = do
         , "  bar"
         ]
 
-    it "includes source repository" $ do
-      renderPackage 0 [] package {packageSourceRepository = Just "https://github.com/hspec/hspec"} `shouldBe` unlines [
-          "name: foo"
-        , "version: 0.0.0"
-        , "build-type: Simple"
-        , "cabal-version: >= 1.10"
-        , ""
-        , "source-repository head"
-        , "  type: git"
-        , "  location: https://github.com/hspec/hspec"
-        ]
-
     context "when given list of existing fields" $ do
       it "retains field order" $ do
         renderPackage 16 ["cabal-version", "version", "name", "build-type"] package `shouldBe` unlines [
@@ -149,4 +137,22 @@ spec = do
           , "  main-is: Main.hs"
           , "  ghc-options: -Wall -Werror"
           , "  default-language: Haskell2010"
+          ]
+
+  describe "renderSourceRepository" $ do
+    it "renders source-repository without subdir correctly" $ do
+      renderSourceRepository (SourceRepository "https://github.com/hspec/hspec" Nothing)
+        `shouldBe` unlines [
+            "source-repository head"
+          , "  type: git"
+          , "  location: https://github.com/hspec/hspec"
+          ]
+
+    it "renders source-repository with subdir" $ do
+      renderSourceRepository (SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core"))
+        `shouldBe` unlines [
+            "source-repository head"
+          , "  type: git"
+          , "  location: https://github.com/hspec/hspec"
+          , "  subdir: hspec-core"
           ]
