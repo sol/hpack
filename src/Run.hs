@@ -110,7 +110,7 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
     renderSourceRepository :: (String, Maybe String) -> String
     renderSourceRepository (url, subdir) =
       "source-repository head\n  type: git\n  location: " ++ url ++ "\n"
-      ++ maybe "" undefined subdir
+      ++ maybe "" (\s -> "  subdir: " ++ s ++ "\n") subdir
 
 renderExecutables :: [Executable] -> [String]
 renderExecutables = map renderExecutable

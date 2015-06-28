@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 module Config (
   readPackageConfig
 , Package(..)
@@ -265,9 +266,10 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
 
     github = first ("https://github.com/" ++) <$> splitGithub
       where
-        splitGithub = case packageConfigGithub of
+        splitGithub = case splitOn "/" <$> packageConfigGithub of
           Nothing -> Nothing
-          Just xs -> Just (xs, Nothing)
+          Just [user, repo, subdir] -> Just (user ++ "/" ++ repo, Just subdir)
+          _ -> (,Nothing) <$> packageConfigGithub
 
     homepage :: Maybe String
     homepage = case packageConfigHomepage of
