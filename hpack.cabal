@@ -31,7 +31,6 @@ executable hpack
     , deepseq
     , directory
     , filepath
-    , split
     , text
     , unordered-containers
     , yaml
@@ -57,7 +56,6 @@ test-suite spec
     , deepseq
     , directory
     , filepath
-    , split
     , text
     , unordered-containers
     , yaml

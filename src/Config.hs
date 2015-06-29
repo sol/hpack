@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 module Config (
   readPackageConfig
 , Package(..)
@@ -17,12 +16,11 @@ module Config (
 import           Prelude ()
 import           Prelude.Compat
 import           Control.Applicative
-import           Control.Arrow (first)
 import           Control.Monad.Compat
 import           Data.List (nub, sort, (\\))
-import           Data.List.Split (splitOn)
 import           Data.String
 import           Data.Maybe
+import           Data.Monoid ((<>))
 import           Data.Yaml
 import           GHC.Generics
 import           Data.HashMap.Lazy (HashMap)
@@ -101,7 +99,7 @@ data PackageConfig = PackageConfig {
 , packageConfigCopyright :: Maybe (List String)
 , packageConfigLicense :: Maybe String
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
-, packageConfigGithub :: Maybe String
+, packageConfigGithub :: Maybe T.Text
 , packageConfigSourceDirs :: Maybe (List FilePath)
 , packageConfigDependencies :: Maybe (List Dependency)
 , packageConfigDefaultExtensions :: Maybe (List String)
@@ -276,27 +274,27 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
         f name = "Specified source-dir " ++ show name ++ " does not exist"
 
     github :: Maybe GithubConfig
-    github = modifyGithubUrl ("https://github.com/" ++) <$>
+    github = modifyGithubUrl ("https://github.com/" <>) <$>
              maybe Nothing (Just . splitGithub) packageConfigGithub
       where
-        splitGithub str = case splitOn "/" str of
+        splitGithub str = case T.unpack <$> T.split (== '/') str of
           [user, repo, subdir] ->
-            GithubConfig (user ++ "/" ++ repo) (Just subdir)
-          _ -> GithubConfig str Nothing
+            GithubConfig (user <> "/" <> repo) (Just subdir)
+          _ -> GithubConfig (T.unpack str) Nothing
 
     homepage :: Maybe String
     homepage = case packageConfigHomepage of
       Just Nothing -> Nothing
       _ -> join packageConfigHomepage <|> fromGithub
       where
-        fromGithub = (++ "#readme") . githubConfigUrl <$> github
+        fromGithub = (<> "#readme") . githubConfigUrl <$> github
 
     bugReports :: Maybe String
     bugReports = case packageConfigBugReports of
       Just Nothing -> Nothing
       _ -> join packageConfigBugReports <|> fromGithub
       where
-        fromGithub = (++ "/issues") . githubConfigUrl <$> github
+        fromGithub = (<> "/issues") . githubConfigUrl <$> github
 
 toLibrary :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> [CppOption] -> LibrarySection -> IO Library
 toLibrary globalSourceDirs globalDependencies globalDefaultExtensions globalGhcOptions globalCppOptions LibrarySection{..} = do
