@@ -4,6 +4,7 @@ module Run (
 , configFile
 -- exported for testing
 , renderPackage
+, renderSourceRepository
 ) where
 
 import           Control.Applicative
@@ -107,10 +108,10 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
         n = max alignment $ length ("description: ")
         separator = "\n" ++ replicate n ' '
 
-    renderSourceRepository :: (String, Maybe String) -> String
-    renderSourceRepository (url, subdir) =
-      "source-repository head\n  type: git\n  location: " ++ url ++ "\n"
-      ++ maybe "" (\s -> "  subdir: " ++ s ++ "\n") subdir
+renderSourceRepository :: (String, Maybe String) -> String
+renderSourceRepository (url, subdir) =
+  "source-repository head\n  type: git\n  location: " ++ url ++ "\n"
+  ++ maybe "" (\s -> "  subdir: " ++ s ++ "\n") subdir
 
 renderExecutables :: [Executable] -> [String]
 renderExecutables = map renderExecutable
