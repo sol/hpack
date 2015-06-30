@@ -108,8 +108,8 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
         n = max alignment $ length ("description: ")
         separator = "\n" ++ replicate n ' '
 
-renderSourceRepository :: GithubConfig -> String
-renderSourceRepository GithubConfig{..} = concat
+renderSourceRepository :: SourceRepository -> String
+renderSourceRepository SourceRepository{..} = concat
   [ "source-repository head\n"
   , "  type: git\n"
   , "  location: " ++ githubConfigUrl ++ "\n"

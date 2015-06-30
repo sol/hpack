@@ -139,17 +139,20 @@ spec = do
           , "  default-language: Haskell2010"
           ]
 
+  describe "renderSourceRepository" $ do
     it "renders source-repository without subdir correctly" $ do
-      renderSourceRepository (GithubConfig "https://github.com/hspec/hspec" Nothing)
-        `shouldBe` unlines [ "source-repository head"
-                           , "  type: git"
-                           , "  location: https://github.com/hspec/hspec"
-                           ]
+      renderSourceRepository (SourceRepository "https://github.com/hspec/hspec" Nothing)
+        `shouldBe` unlines [
+            "source-repository head"
+          , "  type: git"
+          , "  location: https://github.com/hspec/hspec"
+          ]
 
     it "renders source-repository with subdir" $ do
-      renderSourceRepository (GithubConfig "https://github.com/hspec/hspec" (Just "hspec-core"))
-        `shouldBe` unlines [ "source-repository head"
-                           , "  type: git"
-                           , "  location: https://github.com/hspec/hspec"
-                           , "  subdir: hspec-core"
-                           ]
+      renderSourceRepository (SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core"))
+        `shouldBe` unlines [
+            "source-repository head"
+          , "  type: git"
+          , "  location: https://github.com/hspec/hspec"
+          , "  subdir: hspec-core"
+          ]

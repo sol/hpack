@@ -178,7 +178,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |]
       Right (_, c) <- readPackageConfig "package.yaml"
       packageSourceRepository c `shouldBe`
-        Just (GithubConfig "https://github.com/hspec/hspec" Nothing)
+        Just (SourceRepository "https://github.com/hspec/hspec" Nothing)
 
     it "accepts third part of github URL as subdir" $ do
       writeFile "package.yaml" [i|
@@ -186,7 +186,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |]
       Right (_, c) <- readPackageConfig "package.yaml"
       packageSourceRepository c `shouldBe`
-        Just (GithubConfig "https://github.com/hspec/hspec" (Just "hspec-core"))
+        Just (SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core"))
 
     it "accepts CPP options" $ do
       writeFile "package.yaml" [i|

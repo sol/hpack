@@ -10,7 +10,7 @@ module Config (
 , GhcOption
 , Library(..)
 , Executable(..)
-, GithubConfig(..)
+, SourceRepository(..)
 ) where
 
 import           Prelude ()
@@ -20,7 +20,6 @@ import           Control.Monad.Compat
 import           Data.List (nub, sort, (\\))
 import           Data.String
 import           Data.Maybe
-import           Data.Monoid ((<>))
 import           Data.Yaml
 import           GHC.Generics
 import           Data.HashMap.Lazy (HashMap)
@@ -161,7 +160,7 @@ data Package = Package {
 , packageLicense :: Maybe String
 , packageLicenseFile :: Maybe FilePath
 , packageExtraSourceFiles :: [FilePath]
-, packageSourceRepository :: Maybe GithubConfig
+, packageSourceRepository :: Maybe SourceRepository
 , packageLibrary :: Maybe Library
 , packageExecutables :: [Executable]
 , packageTests :: [Executable]
@@ -188,14 +187,14 @@ data Executable = Executable {
 , executableCppOptions :: [CppOption]
 } deriving (Eq, Show)
 
-data GithubConfig = GithubConfig {
+data SourceRepository = SourceRepository {
   githubConfigUrl :: String
 , githubConfigSubdir :: Maybe String
 } deriving (Eq, Show)
 
--- | Modify the 'githubConfigUrl' of the given 'GithubConfig'.
-modifyGithubUrl :: (String -> String) -> GithubConfig -> GithubConfig
-modifyGithubUrl f g@(GithubConfig{..}) =
+-- | Modify the 'githubConfigUrl' of the given 'SourceRepository'.
+modifyGithubUrl :: (String -> String) -> SourceRepository -> SourceRepository
+modifyGithubUrl f g@(SourceRepository{..}) =
   g { githubConfigUrl = f githubConfigUrl }
 
 mkPackage :: (CaptureUnknownFields PackageConfig) -> IO ([String], Package)
@@ -273,28 +272,27 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
       where
         f name = "Specified source-dir " ++ show name ++ " does not exist"
 
-    github :: Maybe GithubConfig
-    github = modifyGithubUrl ("https://github.com/" <>) <$>
-             maybe Nothing (Just . splitGithub) packageConfigGithub
+    github :: Maybe SourceRepository
+    github = modifyGithubUrl ("https://github.com/" ++) <$> maybe Nothing (Just . splitGithub) packageConfigGithub
       where
-        splitGithub str = case T.unpack <$> T.split (== '/') str of
+        splitGithub str = case map T.unpack $ T.split (== '/') str of
           [user, repo, subdir] ->
-            GithubConfig (user <> "/" <> repo) (Just subdir)
-          _ -> GithubConfig (T.unpack str) Nothing
+            SourceRepository (user ++ "/" ++ repo) (Just subdir)
+          _ -> SourceRepository (T.unpack str) Nothing
 
     homepage :: Maybe String
     homepage = case packageConfigHomepage of
       Just Nothing -> Nothing
       _ -> join packageConfigHomepage <|> fromGithub
       where
-        fromGithub = (<> "#readme") . githubConfigUrl <$> github
+        fromGithub = (++ "#readme") . githubConfigUrl <$> github
 
     bugReports :: Maybe String
     bugReports = case packageConfigBugReports of
       Just Nothing -> Nothing
       _ -> join packageConfigBugReports <|> fromGithub
       where
-        fromGithub = (<> "/issues") . githubConfigUrl <$> github
+        fromGithub = (++ "/issues") . githubConfigUrl <$> github
 
 toLibrary :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> [CppOption] -> LibrarySection -> IO Library
 toLibrary globalSourceDirs globalDependencies globalDefaultExtensions globalGhcOptions globalCppOptions LibrarySection{..} = do
