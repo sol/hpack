@@ -109,11 +109,11 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
         separator = "\n" ++ replicate n ' '
 
 renderSourceRepository :: SourceRepository -> String
-renderSourceRepository SourceRepository{..} = concat
-  [ "source-repository head\n"
+renderSourceRepository SourceRepository{..} = concat [
+    "source-repository head\n"
   , "  type: git\n"
-  , "  location: " ++ githubConfigUrl ++ "\n"
-  , maybe "" (\s -> "  subdir: " ++ s ++ "\n") githubConfigSubdir
+  , "  location: " ++ sourceRepositoryUrl ++ "\n"
+  , maybe "" (("  subdir: " ++) . (++ "\n")) sourceRepositorySubdir
   ]
 
 renderExecutables :: [Executable] -> [String]

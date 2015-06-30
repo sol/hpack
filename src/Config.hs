@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Config (
   readPackageConfig
 , Package(..)
@@ -24,6 +25,7 @@ import           Data.Yaml
 import           GHC.Generics
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as Map
+import           Data.Text (Text)
 import qualified Data.Text as T
 import           System.FilePath
 import           System.Directory
@@ -98,7 +100,7 @@ data PackageConfig = PackageConfig {
 , packageConfigCopyright :: Maybe (List String)
 , packageConfigLicense :: Maybe String
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
-, packageConfigGithub :: Maybe T.Text
+, packageConfigGithub :: Maybe Text
 , packageConfigSourceDirs :: Maybe (List FilePath)
 , packageConfigDependencies :: Maybe (List Dependency)
 , packageConfigDefaultExtensions :: Maybe (List String)
@@ -188,14 +190,9 @@ data Executable = Executable {
 } deriving (Eq, Show)
 
 data SourceRepository = SourceRepository {
-  githubConfigUrl :: String
-, githubConfigSubdir :: Maybe String
+  sourceRepositoryUrl :: String
+, sourceRepositorySubdir :: Maybe String
 } deriving (Eq, Show)
-
--- | Modify the 'githubConfigUrl' of the given 'SourceRepository'.
-modifyGithubUrl :: (String -> String) -> SourceRepository -> SourceRepository
-modifyGithubUrl f g@(SourceRepository{..}) =
-  g { githubConfigUrl = f githubConfigUrl }
 
 mkPackage :: (CaptureUnknownFields PackageConfig) -> IO ([String], Package)
 mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
@@ -235,7 +232,7 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
       , packageLicense = packageConfigLicense
       , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
       , packageExtraSourceFiles = fromMaybeList packageConfigExtraSourceFiles
-      , packageSourceRepository = github
+      , packageSourceRepository = sourceRepository
       , packageLibrary = mLibrary
       , packageExecutables = executables
       , packageTests = tests
@@ -272,27 +269,30 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
       where
         f name = "Specified source-dir " ++ show name ++ " does not exist"
 
-    github :: Maybe SourceRepository
-    github = modifyGithubUrl ("https://github.com/" ++) <$> maybe Nothing (Just . splitGithub) packageConfigGithub
+    sourceRepository :: Maybe SourceRepository
+    sourceRepository = parseGithub <$> packageConfigGithub
       where
-        splitGithub str = case map T.unpack $ T.split (== '/') str of
+        parseGithub :: Text -> SourceRepository
+        parseGithub input = case map T.unpack $ T.splitOn "/" input of
           [user, repo, subdir] ->
-            SourceRepository (user ++ "/" ++ repo) (Just subdir)
-          _ -> SourceRepository (T.unpack str) Nothing
+            SourceRepository (githubBaseUrl ++ user ++ "/" ++ repo) (Just subdir)
+          _ -> SourceRepository (githubBaseUrl ++ T.unpack input) Nothing
+
+        githubBaseUrl = "https://github.com/"
 
     homepage :: Maybe String
     homepage = case packageConfigHomepage of
       Just Nothing -> Nothing
       _ -> join packageConfigHomepage <|> fromGithub
       where
-        fromGithub = (++ "#readme") . githubConfigUrl <$> github
+        fromGithub = (++ "#readme") . sourceRepositoryUrl <$> sourceRepository
 
     bugReports :: Maybe String
     bugReports = case packageConfigBugReports of
       Just Nothing -> Nothing
       _ -> join packageConfigBugReports <|> fromGithub
       where
-        fromGithub = (++ "/issues") . githubConfigUrl <$> github
+        fromGithub = (++ "/issues") . sourceRepositoryUrl <$> sourceRepository
 
 toLibrary :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> [CppOption] -> LibrarySection -> IO Library
 toLibrary globalSourceDirs globalDependencies globalDefaultExtensions globalGhcOptions globalCppOptions LibrarySection{..} = do
