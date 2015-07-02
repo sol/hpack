@@ -8,7 +8,8 @@ module Hpack.Config (
   packageConfig
 , readPackageConfig
 , Package(..)
-, Dependency
+, Dependency(..)
+, GitRef(..)
 , packageDependencies
 , GhcOption
 , Library(..)
@@ -38,6 +39,9 @@ import           Hpack.Util
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
+
+githubBaseUrl :: String
+githubBaseUrl = "https://github.com/"
 
 genericParseJSON_ :: forall a. (Typeable a, Generic a, GFromJSON (Rep a)) => Value -> Parser a
 genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphenize name}
@@ -154,7 +158,42 @@ readPackageConfig file = do
         where YamlMark{..} = yamlProblemMark
       _ -> ": " ++ show err
 
-type Dependency = String
+data Dependency = Dependency {
+  dependencyName :: String
+, dependencyGitRef :: Maybe GitRef
+} deriving (Eq, Show, Ord, Generic, Data, Typeable)
+
+instance IsString Dependency where
+  fromString name = Dependency name Nothing
+
+instance FromJSON Dependency where
+  parseJSON v = case v of
+    String _ -> fromString <$> parseJSON v
+    Object o -> gitDependency o
+    _ -> typeMismatch "String or an Object" v
+    where
+      gitDependency o = Dependency <$> name <*> (Just <$> git)
+        where
+          name :: Parser String
+          name = o .: "name"
+
+          git :: Parser GitRef
+          git = GitRef <$> url <*> ref
+
+          url :: Parser String
+          url =
+                ((githubBaseUrl ++) <$> o .: "github")
+            <|> (o .: "git")
+            <|> fail "neither key \"git\" nor key \"github\" present"
+
+          ref :: Parser String
+          ref = o .: "ref"
+
+data GitRef = GitRef {
+  gitRefUrl :: String
+, gitRefRef :: String
+} deriving (Eq, Show, Ord, Generic, Data, Typeable)
+
 type GhcOption = String
 type CppOption = String
 
@@ -288,8 +327,6 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
           [user, repo, subdir] ->
             SourceRepository (githubBaseUrl ++ user ++ "/" ++ repo) (Just subdir)
           _ -> SourceRepository (githubBaseUrl ++ T.unpack input) Nothing
-
-        githubBaseUrl = "https://github.com/"
 
     homepage :: Maybe String
     homepage = case packageConfigHomepage of

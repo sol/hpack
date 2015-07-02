@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Hpack.RunSpec (main, spec) where
 
 import           Test.Hspec

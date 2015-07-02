@@ -172,7 +172,7 @@ renderOtherModules modules
 renderDependencies :: [[Dependency]] -> String
 renderDependencies dependencies
   | null dependencies = ""
-  | otherwise = concatMap render $ zip (True : repeat False) dependencies
+  | otherwise = concatMap render $ zip (True : repeat False) (map (map dependencyName) dependencies)
   where
     render (isFirst, xs)
       | isFirst = "  build-depends:\n      " ++ intercalate "\n    , " xs ++ "\n"

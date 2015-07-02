@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 module Hpack.ConfigSpec (
   main
@@ -11,6 +12,8 @@ module Hpack.ConfigSpec (
 
 import           Helper
 
+import           Data.Aeson.Types
+import           Data.Aeson.QQ
 import           Data.String.Interpolate
 
 import           Hpack.Config
@@ -28,8 +31,54 @@ library :: Library
 library = Library [] [] [] [] [] [] []
 
 spec :: Spec
-spec = around_ (inTempDirectoryNamed "foo") $ do
-  describe "readPackageConfig" $ do
+spec = do
+  describe "parseJSON" $ do
+    context "when parsing a Dependency" $ do
+      it "accepts simple dependencies" $ do
+        parseEither parseJSON "hpack" `shouldBe` Right (Dependency "hpack" Nothing)
+
+      it "accepts git dependencies" $ do
+        let value = [aesonQQ|{
+              name: "hpack",
+              git: "https://github.com/sol/hpack",
+              ref: "master"
+            }|]
+            git = GitRef "https://github.com/sol/hpack" "master"
+        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just git))
+
+      it "accepts github dependencies" $ do
+        let value = [aesonQQ|{
+              name: "hpack",
+              github: "sol/hpack",
+              ref: "master"
+            }|]
+            git = GitRef "https://github.com/sol/hpack" "master"
+        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just git))
+
+      context "when parsing fails" $ do
+        it "returns an error message" $ do
+          let value = Number 23
+          parseEither parseJSON value `shouldBe` (Left "when expecting a String or an Object, encountered Number instead" :: Either String Dependency)
+
+        context "when ref is missing" $ do
+          it "produces accurate error messages" $ do
+            let value = [aesonQQ|{
+                  name: "hpack",
+                  git: "sol/hpack",
+                  ef: "master"
+                }|]
+            parseEither parseJSON value `shouldBe` (Left "key \"ref\" not present" :: Either String Dependency)
+
+        context "when both git and github are missing" $ do
+          it "produces accurate error messages" $ do
+            let value = [aesonQQ|{
+                  name: "hpack",
+                  gi: "sol/hpack",
+                  ref: "master"
+                }|]
+            parseEither parseJSON value `shouldBe` (Left "neither key \"git\" nor key \"github\" present" :: Either String Dependency)
+
+  describe "readPackageConfig" $ around_ (inTempDirectoryNamed "foo") $ do
     it "warns on unknown fields" $ do
       writeFile "package.yaml" [i|
         bar: 23

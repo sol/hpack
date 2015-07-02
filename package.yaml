@@ -40,3 +40,4 @@ tests:
       - hspec == 2.*
       - mockery >= 0.3
       - interpolate
+      - aeson-qq
