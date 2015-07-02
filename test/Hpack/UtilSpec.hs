@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
-module UtilSpec (main, spec) where
+module Hpack.UtilSpec (main, spec) where
 
 import           Helper
 import           Data.Aeson
 
-import           Util
+import           Hpack.Util
 
 main :: IO ()
 main = hspec spec

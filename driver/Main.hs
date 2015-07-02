@@ -12,7 +12,7 @@ import           Control.DeepSeq
 import           System.Environment
 
 import           Paths_hpack (version)
-import           Run
+import           Hpack.Run
 
 programVersion :: String
 programVersion = "hpack version " ++ showVersion version

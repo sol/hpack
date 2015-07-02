@@ -21,9 +21,9 @@ executable hpack
   hs-source-dirs: src, driver
   main-is: Main.hs
   other-modules:
-      Config
-      Run
-      Util
+      Hpack.Config
+      Hpack.Run
+      Hpack.Util
   build-depends:
       aeson >= 0.8
     , base == 4.*
@@ -42,13 +42,13 @@ test-suite spec
   hs-source-dirs: src, test
   main-is: Spec.hs
   other-modules:
-      Config
-      Run
-      Util
-      ConfigSpec
+      Hpack.Config
+      Hpack.Run
+      Hpack.Util
       Helper
-      RunSpec
-      UtilSpec
+      Hpack.ConfigSpec
+      Hpack.RunSpec
+      Hpack.UtilSpec
   build-depends:
       aeson >= 0.8
     , base == 4.*

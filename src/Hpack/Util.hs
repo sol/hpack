@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module Util (
+module Hpack.Util (
   List(..)
 , toModule
 , getFilesRecursive

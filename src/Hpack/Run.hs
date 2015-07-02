@@ -1,5 +1,5 @@
 {-# LANGUAGE QuasiQuotes, RecordWildCards #-}
-module Run (
+module Hpack.Run (
   run
 , configFile
 -- exported for testing
@@ -13,8 +13,8 @@ import           Data.Maybe
 import           Data.List
 import           System.Exit.Compat
 
-import           Util
-import           Config
+import           Hpack.Util
+import           Hpack.Config
 
 configFile :: FilePath
 configFile = "package.yaml"

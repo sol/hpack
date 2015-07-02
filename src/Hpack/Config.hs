@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Config (
+module Hpack.Config (
   readPackageConfig
 , Package(..)
 , Dependency
@@ -32,7 +32,7 @@ import           System.Directory
 import           Data.Data
 import           Data.Aeson.Types
 
-import           Util
+import           Hpack.Util
 
 genericParseJSON_ :: forall a. (Typeable a, Generic a, GFromJSON (Rep a)) => Value -> Parser a
 genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphenize name}

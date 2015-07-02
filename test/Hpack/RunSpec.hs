@@ -1,10 +1,10 @@
-module RunSpec (main, spec) where
+module Hpack.RunSpec (main, spec) where
 
 import           Test.Hspec
 
-import           ConfigSpec hiding (main, spec)
-import           Config
-import           Run
+import           Hpack.ConfigSpec hiding (main, spec)
+import           Hpack.Config
+import           Hpack.Run
 
 main :: IO ()
 main = hspec spec

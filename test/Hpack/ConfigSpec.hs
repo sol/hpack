@@ -1,5 +1,5 @@
 {-# LANGUAGE QuasiQuotes, OverloadedLists #-}
-module ConfigSpec (
+module Hpack.ConfigSpec (
   main
 , spec
 
@@ -12,7 +12,7 @@ import           Helper
 
 import           Data.String.Interpolate
 
-import           Config
+import           Hpack.Config
 
 main :: IO ()
 main = hspec spec
