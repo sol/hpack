@@ -1,5 +1,5 @@
 name: hpack
-version: 0.3.2
+version: 0.4.0
 synopsis: An alternative format for Haskell packages
 maintainer: Simon Hengel <sol@typeful.net>
 license: MIT
@@ -17,6 +17,10 @@ dependencies:
   - text
   - unordered-containers
   - yaml
+
+library:
+  exposed-modules:
+    - Hpack.Config
 
 source-dirs: src
 

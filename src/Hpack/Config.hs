@@ -5,9 +5,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Hpack.Config (
-  readPackageConfig
+  packageConfig
+, readPackageConfig
 , Package(..)
 , Dependency
+, packageDependencies
 , GhcOption
 , Library(..)
 , Executable(..)
@@ -33,6 +35,9 @@ import           Data.Data
 import           Data.Aeson.Types
 
 import           Hpack.Util
+
+packageConfig :: FilePath
+packageConfig = "package.yaml"
 
 genericParseJSON_ :: forall a. (Typeable a, Generic a, GFromJSON (Rep a)) => Value -> Parser a
 genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphenize name}
@@ -110,6 +115,12 @@ data PackageConfig = PackageConfig {
 , packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields ExecutableSection))
 , packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields ExecutableSection))
 } deriving (Eq, Show, Generic, Data, Typeable)
+
+packageDependencies :: Package -> [Dependency]
+packageDependencies Package{..} = nub . sort $
+     (concat $ concatMap executableDependencies packageExecutables)
+  ++ (concat $ concatMap executableDependencies packageTests)
+  ++ maybe [] (concat . libraryDependencies) packageLibrary
 
 instance FromJSON PackageConfig where
   parseJSON value = handleNullValues <$> genericParseJSON_ value

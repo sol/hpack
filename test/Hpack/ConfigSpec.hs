@@ -1,4 +1,5 @@
-{-# LANGUAGE QuasiQuotes, OverloadedLists #-}
+{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE QuasiQuotes #-}
 module Hpack.ConfigSpec (
   main
 , spec
@@ -507,10 +508,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           |]
         touch "some-existing-dir/foo"
         fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
-            "Specified source-dir " ++ show "some-dir" ++ " does not exist"
-          , "Specified source-dir " ++ show "some-exec-dir" ++ " does not exist"
-          , "Specified source-dir " ++ show "some-lib-dir" ++ " does not exist"
-          , "Specified source-dir " ++ show "some-test-dir" ++ " does not exist"
+            "Specified source-dir \"some-dir\" does not exist"
+          , "Specified source-dir \"some-exec-dir\" does not exist"
+          , "Specified source-dir \"some-lib-dir\" does not exist"
+          , "Specified source-dir \"some-test-dir\" does not exist"
           ]
 
     context "when package.yaml can not be parsed" $ do

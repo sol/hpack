@@ -1,7 +1,6 @@
 {-# LANGUAGE QuasiQuotes, RecordWildCards #-}
 module Hpack.Run (
   run
-, configFile
 -- exported for testing
 , renderPackage
 , renderSourceRepository
@@ -16,12 +15,9 @@ import           System.Exit.Compat
 import           Hpack.Util
 import           Hpack.Config
 
-configFile :: FilePath
-configFile = "package.yaml"
-
 run :: IO ([String], FilePath, String)
 run = do
-  mPackage <- readPackageConfig configFile
+  mPackage <- readPackageConfig packageConfig
   case mPackage of
     Right (warnings, package) -> do
       let cabalFile = packageName package ++ ".cabal"

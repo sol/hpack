@@ -12,6 +12,7 @@ import           Control.DeepSeq
 import           System.Environment
 
 import           Paths_hpack (version)
+import           Hpack.Config
 import           Hpack.Run
 
 programVersion :: String
@@ -19,7 +20,7 @@ programVersion = "hpack version " ++ showVersion version
 
 header :: String
 header = unlines [
-    "-- This file has been generated from " ++ configFile ++ " by " ++ programVersion ++ "."
+    "-- This file has been generated from " ++ packageConfig ++ " by " ++ programVersion ++ "."
   , "--"
   , "-- see: https://github.com/sol/hpack"
   , ""
