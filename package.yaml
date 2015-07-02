@@ -19,20 +19,23 @@ dependencies:
   - yaml
 
 library:
+  source-dirs: src
   exposed-modules:
     - Hpack.Config
-
-source-dirs: src
+    - Hpack.Run
 
 executables:
   hpack:
     main: Main.hs
     source-dirs: driver
+    dependencies: hpack
 
 tests:
   spec:
     main: Spec.hs
-    source-dirs: test
+    source-dirs:
+      - test
+      - src
     dependencies:
       - hspec == 2.*
       - mockery >= 0.3
