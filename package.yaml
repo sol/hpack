@@ -3,7 +3,7 @@ version: 0.3.2
 synopsis: An alternative format for Haskell packages
 maintainer: Simon Hengel <sol@typeful.net>
 license: MIT
-github: haskell-tinc/hpack
+github: sol/hpack
 
 ghc-options: -Wall
 
