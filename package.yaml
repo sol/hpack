@@ -9,7 +9,7 @@ ghc-options: -Wall
 
 dependencies:
   - aeson >= 0.8
-  - base == 4.*
+  - base >= 4.7 && < 5
   - base-compat >= 0.8
   - deepseq
   - directory

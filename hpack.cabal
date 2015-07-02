@@ -26,7 +26,7 @@ executable hpack
       Hpack.Util
   build-depends:
       aeson >= 0.8
-    , base == 4.*
+    , base >= 4.7 && < 5
     , base-compat >= 0.8
     , deepseq
     , directory
@@ -51,7 +51,7 @@ test-suite spec
       Hpack.UtilSpec
   build-depends:
       aeson >= 0.8
-    , base == 4.*
+    , base >= 4.7 && < 5
     , base-compat >= 0.8
     , deepseq
     , directory
