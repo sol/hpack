@@ -115,10 +115,10 @@ expandGlobs config globs = do
         xs -> Right xs
 
   (missing, expanded) <- partitionEithers <$> mapM matchOrPreserve globs
-  let allFiles = map (makeRelative configDir) $ missing ++ concat expanded
+  let allFiles = map (makeRelative configDir) $ concat expanded
   return . (,) (formatMissingExtras missing) . nub $ sort allFiles
   where
     formatMissingExtras = map f
       where
         f name = "Specified extra-source-file " ++ show name
-                 ++ " does not exist, leaving as-is"
+                 ++ " does not exist, skipping"

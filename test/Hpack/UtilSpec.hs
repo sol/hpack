@@ -134,7 +134,7 @@ spec = do
         snd <$> expandGlobs "package.yaml" ["**/*.testfile"]
         `shouldReturn` files
 
-    it "doesn't expand globs to directories" $ do
+    it "doesn't expand globs for directories" $ do
       let setup = do
             touch "res/foo"
             createDirectory "res/testdirectory"
