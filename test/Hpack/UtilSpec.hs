@@ -121,10 +121,27 @@ spec = do
 
     it "expands directory globs" $ do
       let setup = touch "res/foo/hello.foo" >> touch "res/bar/hello.bar"
-          cleanup = removeDirectoryRecursive "res/foo"
+          cleanup = removeDirectoryRecursive "res"
       bracket_ setup cleanup $
         snd <$> expandGlobs "package.yaml" ["res/*/*"]
         `shouldReturn` ["res/bar/hello.bar", "res/foo/hello.foo"]
+
+    it "expands ** globs" $ do
+      let files = ["res/foo/hello.testfile", "res/bar/hello.testfile"]
+          setup = mapM_ touch files
+          cleanup = removeDirectoryRecursive "res"
+      bracket_ setup cleanup $
+        snd <$> expandGlobs "package.yaml" ["**/*.testfile"]
+        `shouldReturn` files
+
+    it "doesn't expand globs to directories" $ do
+      let setup = do
+            touch "res/foo"
+            createDirectory "res/testdirectory"
+          cleanup = removeDirectoryRecursive "res"
+      bracket_ setup cleanup $
+        snd <$> expandGlobs "package.yaml" ["res/**"]
+        `shouldReturn` ["res/foo"]
 
     it "expands globs relative to the given filepath" $ do
       let setup = do
@@ -138,8 +155,8 @@ spec = do
         snd <$> expandGlobs "../../package.yaml" ["res/*/*"]
           `shouldReturn` ["res/bar/hello.bar", "res/foo/hello.foo"]
 
-    it "warns if extra-source-file doesn't match anything" $ do
-      fst <$> expandGlobs "package.yaml" ["missing.foo", "res/*"] `shouldReturn` [
-          "Specified extra-source-file \"missing.foo\" does not exist, leaving as-is"
-        , "Specified extra-source-file \"res/*\" does not exist, leaving as-is"
-        ]
+    it "doesn't preserve extra-source-files patterns which don't exist" $ do
+      expandGlobs "package.yaml" ["missing.foo", "res/*"] `shouldReturn` ([
+          "Specified extra-source-file \"missing.foo\" does not exist, skipping"
+        , "Specified extra-source-file \"res/*\" does not exist, skipping"
+        ], [])
