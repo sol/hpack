@@ -127,7 +127,7 @@ spec = do
         `shouldReturn` ["res/bar/hello.bar", "res/foo/hello.foo"]
 
     it "expands ** globs" $ do
-      let files = ["res/foo/hello.testfile", "res/bar/hello.testfile"]
+      let files = ["res/bar/hello.testfile", "res/foo/hello.testfile"]
           setup = mapM_ touch files
           cleanup = removeDirectoryRecursive "res"
       bracket_ setup cleanup $
