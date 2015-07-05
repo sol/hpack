@@ -394,3 +394,6 @@ toExecutables globalSourceDirs globalDependencies globalDefaultExtensions global
 
         filterMain :: [String] -> [String]
         filterMain = maybe id (filter . (/=)) (toModule $ splitDirectories executableSectionMain)
+
+fromMaybeList :: Maybe (List a) -> [a]
+fromMaybeList = maybe [] fromList

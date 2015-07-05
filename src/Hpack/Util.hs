@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE LambdaCase #-}
 module Hpack.Util (
   List(..)
 , toModule
@@ -7,8 +6,8 @@ module Hpack.Util (
 , tryReadFile
 , sniffAlignment
 , extractFieldOrderHint
-, fromMaybeList
 , expandGlobs
+
 -- exported for testing
 , splitField
 ) where
@@ -19,7 +18,7 @@ import           Control.Exception
 import           Control.DeepSeq
 import           Data.Char
 import           Data.Maybe
-import           Data.List hiding (find)
+import           Data.List
 import           System.Directory
 import           System.FilePath
 import           System.FilePath.Glob
@@ -92,9 +91,6 @@ splitField field = case span isNameChar field of
   where
     isNameChar = (`elem` nameChars)
     nameChars = ['a'..'z'] ++ ['A'..'Z'] ++ "-"
-
-fromMaybeList :: Maybe (List a) -> [a]
-fromMaybeList = maybe [] fromList
 
 expandGlobPattern :: String -> IO (Either String [FilePath])
 expandGlobPattern pattern = do
