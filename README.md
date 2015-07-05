@@ -16,12 +16,13 @@ Documentation is mostly missing so far, sorry for that!
 
 ### File globing
 
-At place where you can specify a list of files you can also specify a glob
-pattern, e.g.:
+At place where you can specify a list of files you can also use glob patterns.
+Glob patters and ordinary file names can be freely mixed, e.g.:
 
 ```yaml
 extra-source-files:
   - static/*.js
+  - static/site.css
 ```
 
 Glob patterns are expanded according to the following rules:
