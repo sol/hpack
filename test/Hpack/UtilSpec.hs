@@ -3,6 +3,7 @@ module Hpack.UtilSpec (main, spec) where
 
 import           Helper
 import           Data.Aeson
+import           Data.List
 import           System.Directory
 
 import           Hpack.Util
@@ -102,46 +103,52 @@ spec = do
     it "rejects invalid fields" $ do
       splitField "foo bar" `shouldBe` Nothing
 
-  describe "expandGlobs" $ around_ inTempDirectory $ before_ (touch "package.yaml") $ do
-    it "accepts file globs in extra-source-files" $ do
-      let files = map ("res/" ++) ["foo.bar", "hello", "world"]
-      mapM_ touch files
-      expandGlobs ["res/*"] `shouldReturn` ([], files)
+  describe "expandGlobs" $ around_ inTempDirectory $ do
+    it "accepts simple files" $ do
+      touch "foo.js"
+      expandGlobs ["foo.js"] `shouldReturn` ([], ["foo.js"])
 
-    it "disallows duplicates in extra-source-files in presence of globs" $ do
-      let file = "res/hello"
-      touch file
-      expandGlobs ["res/*", "res/hello"] `shouldReturn` ([], [file])
+    it "removes duplicates" $ do
+      touch "foo.js"
+      expandGlobs ["foo.js", "*.js"] `shouldReturn` ([], ["foo.js"])
 
-    it "expands globs followed by extension" $ do
-      let file = "foo.js"
-      touch file
-      expandGlobs ["*.js"] `shouldReturn` ([], [file])
+    it "rejects directories" $ do
+      touch "foo"
+      createDirectory "bar"
+      expandGlobs ["*"] `shouldReturn` ([], ["foo"])
 
-    it "expands directory globs" $ do
-      touch "res/foo/hello.foo"
-      touch "res/bar/hello.bar"
-      expandGlobs ["res/*/*"] `shouldReturn` ([], ["res/bar/hello.bar", "res/foo/hello.foo"])
+    context "when expanding *" $ do
+      it "expands by extension" $ do
+        let files = [
+                "files/foo.js"
+              , "files/bar.js"
+              , "files/baz.js"]
+        mapM_ touch files
+        touch "files/foo.hs"
+        expandGlobs ["files/*.js"] `shouldReturn` ([], sort files)
 
-    it "expands ** globs" $ do
-      let files = ["res/bar/hello.testfile", "res/foo/hello.testfile"]
-      mapM_ touch files
-      expandGlobs ["**/*.testfile"] `shouldReturn` ([], files)
+      it "rejects dot-files" $ do
+        touch "foo/bar"
+        touch "foo/.baz"
+        expandGlobs ["foo/*"] `shouldReturn` ([], ["foo/bar"])
 
-    it "doesn't expand globs for directories" $ do
-      touch "res/foo"
-      createDirectory "res/testdirectory"
-      expandGlobs ["res/**"] `shouldReturn` ([], ["res/foo"])
+      it "accepts dot-files when explicitly asked to" $ do
+        touch "foo/bar"
+        touch "foo/.baz"
+        expandGlobs ["foo/.*"] `shouldReturn` ([], ["foo/.baz"])
 
-    it "doesn't preserve extra-source-files patterns which don't exist" $ do
-      let patterns = ["missing.foo", "res/*"]
-          warnings = [
-              "Specified pattern \"missing.foo\" for extra-source-files does not match any files"
-            , "Specified pattern \"res/*\" for extra-source-files does not match any files"
-            ]
-      expandGlobs patterns `shouldReturn` (warnings, [])
+      it "matches at most one directory component" $ do
+        touch "foo/bar/baz.js"
+        touch "foo/bar.js"
+        expandGlobs ["*/*.js"] `shouldReturn` ([], ["foo/bar.js"])
 
-    it "doesn't warn when there are redundant patterns" $ do
-      let file = "res/hello"
-      touch file
-      fst <$> expandGlobs ["res/*", "res/hello"] `shouldReturn` []
+    context "when expanding **" $ do
+      it "matches arbitrary many directory components" $ do
+        let file = "foo/bar/baz.js"
+        touch file
+        expandGlobs ["**/*.js"] `shouldReturn` ([], [file])
+
+    context "when a pattern does not match anything" $ do
+      it "warns" $ do
+        expandGlobs ["foo"] `shouldReturn`
+          (["Specified pattern \"foo\" for extra-source-files does not match any files"], [])
