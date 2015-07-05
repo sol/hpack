@@ -23,7 +23,6 @@ import           System.Directory
 import           System.FilePath
 import           System.FilePath.Glob
 import           Data.Data
-import           Data.Either
 
 import           Data.Aeson.Types
 
@@ -92,13 +91,17 @@ splitField field = case span isNameChar field of
     isNameChar = (`elem` nameChars)
     nameChars = ['a'..'z'] ++ ['A'..'Z'] ++ "-"
 
-expandGlobPattern :: String -> IO (Either String [FilePath])
-expandGlobPattern pattern = do
-  files <- globDir1 (compileWith options pattern) "" >>= removeDirectories
-  return $ case files of
-    [] -> Left ("Specified pattern " ++ show pattern ++ " for extra-source-files does not match any files")
-    _ -> Right files
+expandGlobs :: [String] -> IO ([String], [FilePath])
+expandGlobs patterns = do
+  cwd <- getCurrentDirectory
+  files <- map (makeRelative cwd) . nub . concat . fst
+           <$> globDir (map compileGlob patterns) cwd >>= removeDirectories
+  let matchesAny g = any (match (compileGlob g)) files
+      warnings = map warn $ filter (not . matchesAny) patterns
+  return (warnings, sort files)
   where
+    warn pattern = "Specified pattern " ++ show pattern ++ " for extra-source-files does not match any files"
+    compileGlob = compileWith options
     removeDirectories = filterM doesFileExist
     options = CompOptions {
         characterClasses = False
@@ -109,9 +112,3 @@ expandGlobPattern pattern = do
       , pathSepInRanges = False
       , errorRecovery = True
       }
-
-expandGlobs :: [String] -> IO ([String], [FilePath])
-expandGlobs patterns = do
-  cwd <- getCurrentDirectory
-  (warnings, files) <- partitionEithers <$> mapM expandGlobPattern patterns
-  return (warnings, map (makeRelative cwd) . nub . sort . concat $ files)
