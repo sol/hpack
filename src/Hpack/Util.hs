@@ -94,12 +94,21 @@ splitField field = case span isNameChar field of
 
 expandGlobPattern :: String -> IO (Either String [FilePath])
 expandGlobPattern pattern = do
-  files <- glob pattern >>= removeDirectories
+  files <- globDir1 (compileWith options pattern) "" >>= removeDirectories
   return $ case files of
     [] -> Left ("Specified pattern " ++ show pattern ++ " for extra-source-files does not match any files")
     _ -> Right files
   where
     removeDirectories = filterM doesFileExist
+    options = CompOptions {
+        characterClasses = False
+      , characterRanges = False
+      , numberRanges = False
+      , wildcards = True
+      , recursiveWildcards = True
+      , pathSepInRanges = False
+      , errorRecovery = True
+      }
 
 expandGlobs :: [String] -> IO ([String], [FilePath])
 expandGlobs patterns = do

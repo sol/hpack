@@ -117,6 +117,12 @@ spec = do
       createDirectory "bar"
       expandGlobs ["*"] `shouldReturn` ([], ["foo"])
 
+    it "rejects character ranges" $ do
+      touch "foo1"
+      touch "foo2"
+      touch "foo[1,2]"
+      expandGlobs ["foo[1,2]"] `shouldReturn` ([], ["foo[1,2]"])
+
     context "when expanding *" $ do
       it "expands by extension" $ do
         let files = [
