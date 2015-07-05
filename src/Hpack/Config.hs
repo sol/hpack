@@ -267,7 +267,7 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
     ++ concatMap executableSourceDirs tests
     )
 
-  (extrasWarnings, globbedExtraSourceFiles) <-
+  (extraSourceFilesWarnings, extraSourceFiles) <-
     expandGlobs (fromMaybeList packageConfigExtraSourceFiles)
 
   let package = Package {
@@ -284,7 +284,7 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
       , packageCopyright = fromMaybeList packageConfigCopyright
       , packageLicense = packageConfigLicense
       , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
-      , packageExtraSourceFiles = globbedExtraSourceFiles
+      , packageExtraSourceFiles = extraSourceFiles
       , packageSourceRepository = sourceRepository
       , packageLibrary = mLibrary
       , packageExecutables = executables
@@ -297,7 +297,7 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
         ++ formatUnknownSectionFields "executable" packageConfigExecutables
         ++ formatUnknownSectionFields "test" packageConfigTests
         ++ formatMissingSourceDirs missingSourceDirs
-        ++ extrasWarnings
+        ++ extraSourceFilesWarnings
 
   return (warnings, package)
   where
