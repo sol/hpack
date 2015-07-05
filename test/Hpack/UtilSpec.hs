@@ -160,3 +160,8 @@ spec = do
           "Specified extra-source-file \"missing.foo\" does not exist, skipping"
         , "Specified extra-source-file \"res/*\" does not exist, skipping"
         ], [])
+
+    it "doesn't warn when there are redundant patterns" $ do
+      let file = "res/hello"
+      bracket_ (touch file) (removeFile file) $ do
+        fst <$> expandGlobs "package.yaml" ["res/*", "res/hello"] `shouldReturn` []

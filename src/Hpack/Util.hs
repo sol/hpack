@@ -14,6 +14,7 @@ module Hpack.Util (
 ) where
 
 import           Control.Applicative
+import           Control.Arrow (first)
 import           Control.Monad
 import           Control.Exception
 import           Control.DeepSeq
@@ -23,8 +24,7 @@ import           Data.Maybe
 import           Data.List hiding (find)
 import           System.Directory
 import           System.FilePath
-import           System.FilePath.Find
-import           System.FilePath.Glob (namesMatching)
+import           System.FilePath.Glob (compile, globDir, match)
 import           Data.Data
 
 import           Data.Aeson.Types
@@ -100,30 +100,35 @@ fromMaybeList = maybe [] fromList
 
 -- | Expand glob files relative to the given path.
 --
--- @**@ globs are supported. Note that currently this function will
--- traverse the whole directory tree of the specified config file.
+-- Supports everything that 'compile' does. If multiple globs match
+-- the same files, no warning is given about the redundancy.
 expandGlobs :: FilePath -- ^ File path of the config file we are
                         -- reading. The globs are expanded relative to
                         -- the directory the config file is in.
             -> [String] -- ^ A list of globs to expand
             -> IO ([String], [FilePath])
             -- ^ A tuple of warnings and expanded globs
-expandGlobs config globs = do
+expandGlobs _ [] = return ([], [])
+expandGlobs config allGlobs@(glob:globs) = do
   configDir <- takeDirectory <$> canonicalizePath config
-  let matchesGlob g =
-        canonicalPath ~~? configDir </> g &&? fileType ==? RegularFile
+  (matchedFirst, unmatchedFirst) <- do
+    (ms, unms) <- first concat <$> globDir [compile glob] configDir
+    (,) <$> filterM doesFileExist ms <*> filterM doesFileExist unms
 
-      matcher [] = return Nothing
-      matcher (g:gs) = matchesGlob g >>= \case
-        True -> filePath >>= \p -> return $ Just (g, makeRelative configDir p)
-        False -> matcher gs
+  let matchRemaining [] r = r
+      matchRemaining (g:gs) r@(acceptedGlobs, matchedFiles) =
+         case filter (match $ compile $ configDir </> g) (matchedFirst ++ unmatchedFirst) of
+           [] -> matchRemaining gs r
+           xs -> matchRemaining gs (g:acceptedGlobs, xs ++ matchedFiles)
 
-      findMatches rs = maybe rs (: rs) . evalClause (matcher globs)
+      (remainingGlobs, remainingFiles) = matchRemaining globs ([], [])
+      unmatchedGlobs = allGlobs \\ ((if null matchedFirst then [] else [glob]) ++ remainingGlobs)
 
-  (matchedGlobs, files) <- unzip <$> fold always findMatches [] configDir
+      matchedFiles = map (makeRelative configDir) . sort . nub $ matchedFirst ++ remainingFiles
 
-  return . (,) (formatMissingExtras (globs \\ matchedGlobs)) . nub $ sort files
+  return (formatMissingExtras unmatchedGlobs, matchedFiles)
   where
+    formatMissingExtras :: [String] -> [String]
     formatMissingExtras = map f . sort
       where
         f name = "Specified extra-source-file " ++ show name

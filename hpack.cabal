@@ -30,8 +30,8 @@ library
     , base-compat >= 0.8
     , deepseq
     , directory
-    , filemanip
     , filepath
+    , Glob
     , text
     , unordered-containers
     , yaml
@@ -47,8 +47,8 @@ executable hpack
     , base-compat >= 0.8
     , deepseq
     , directory
-    , filemanip
     , filepath
+    , Glob
     , text
     , unordered-containers
     , yaml
@@ -75,8 +75,8 @@ test-suite spec
     , base-compat >= 0.8
     , deepseq
     , directory
-    , filemanip
     , filepath
+    , Glob
     , text
     , unordered-containers
     , yaml
