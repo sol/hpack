@@ -2,6 +2,7 @@
 module Hpack.RunSpec (main, spec) where
 
 import           Test.Hspec
+import           Data.List
 
 import           Hpack.ConfigSpec hiding (main, spec)
 import           Hpack.Config
@@ -30,7 +31,7 @@ spec = do
         ]
 
     it "includes description" $ do
-      renderPackage 0 [] package {packageDescription = Just "foo\nbar\n"} `shouldBe` unlines [
+      renderPackage 0 [] package {packageDescription = Just "foo\n\nbar\n"} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "description: foo"
@@ -41,7 +42,7 @@ spec = do
         ]
 
     it "aligns description" $ do
-      renderPackage 16 [] package {packageDescription = Just "foo\nbar\n"} `shouldBe` unlines [
+      renderPackage 16 [] package {packageDescription = Just "foo\n\nbar\n"} `shouldBe` unlines [
           "name:           foo"
         , "version:        0.0.0"
         , "description:    foo"
@@ -139,6 +140,41 @@ spec = do
           , "  ghc-options: -Wall -Werror"
           , "  default-language: Haskell2010"
           ]
+
+  describe "formatDescription" $ do
+    it "formats description" $ do
+      let description = unlines [
+              "foo"
+            , "bar"
+            ]
+      "description: " ++ formatDescription 0 description `shouldBe` intercalate "\n" [
+          "description: foo"
+        , "             bar"
+        ]
+
+    it "takes specified alignment into account" $ do
+      let description = unlines [
+              "foo"
+            , "bar"
+            , "baz"
+            ]
+      "description:   " ++ formatDescription 15 description `shouldBe` intercalate "\n" [
+          "description:   foo"
+        , "               bar"
+        , "               baz"
+        ]
+
+    it "formats empty lines" $ do
+      let description = unlines [
+              "foo"
+            , "   "
+            , "bar"
+            ]
+      "description: " ++ formatDescription 0 description `shouldBe` intercalate "\n" [
+          "description: foo"
+        , "             ."
+        , "             bar"
+        ]
 
   describe "renderSourceRepository" $ do
     it "renders source-repository without subdir correctly" $ do

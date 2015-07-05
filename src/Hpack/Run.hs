@@ -4,10 +4,12 @@ module Hpack.Run (
 -- exported for testing
 , renderPackage
 , renderSourceRepository
+, formatDescription
 ) where
 
 import           Control.Applicative
 import           Control.Monad
+import           Data.Char
 import           Data.Maybe
 import           Data.List
 import           System.Exit.Compat
@@ -77,7 +79,7 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
         ("name", Just packageName)
       , ("version", Just packageVersion)
       , ("synopsis", packageSynopsis)
-      , ("description", (formatDescription <$> packageDescription))
+      , ("description", (formatDescription alignment <$> packageDescription))
       , ("category", packageCategory)
       , ("stability", packageStability)
       , ("homepage", packageHomepage)
@@ -99,10 +101,19 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
     defaultFieldOrder :: [String]
     defaultFieldOrder = map fst fields
 
-    formatDescription = intercalate separator . intersperse "." . lines
-      where
-        n = max alignment $ length ("description: ")
-        separator = "\n" ++ replicate n ' '
+formatDescription :: Int -> String -> String
+formatDescription alignment description = case map emptyLineToDot $ lines description of
+  x : xs -> intercalate "\n" (x : map (indentation ++) xs)
+  [] -> ""
+  where
+    n = max alignment (length "description: ")
+    indentation = replicate n ' '
+
+    emptyLineToDot xs
+      | isEmptyLine xs = "."
+      | otherwise = xs
+
+    isEmptyLine = all isSpace
 
 renderSourceRepository :: SourceRepository -> String
 renderSourceRepository SourceRepository{..} = concat [
