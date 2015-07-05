@@ -7,6 +7,31 @@
  * Given this [package.yaml](https://github.com/hspec/sensei/blob/master/package.yaml) running `hpack` will generate [sensei.cabal](https://github.com/hspec/sensei/blob/master/sensei.cabal)
  * Given this [package.yaml](https://github.com/haskell-compat/base-orphans/blob/master/package.yaml) running `hpack` will generate [base-orphans.cabal](https://github.com/haskell-compat/base-orphans/blob/master/base-orphans.cabal)
 
+## Documentation
+
+Documentation is mostly missing so far, sorry for that!
+
+ - Slides from my talk about `hpack` at the Singapore Haskell meetup:
+   http://typeful.net/talks/hpack
+
+### File globing
+
+At place where you can specify a list of files you can also specify a glob
+pattern, e.g.:
+
+```yaml
+extra-source-files:
+  - static/*.js
+```
+
+Glob patterns are expanded according to the following rules:
+
+ - `?` and `*` are expanded according to POSIX (they match arbitrary
+   characters, except for directory separators)
+ - `**` is expanded in a `zsh`-like fashion (matching across directory
+   separators)
+ - `?`, `*` and `**` do not match a `.` at the beginning of a file/directory
+
 ## Vim integration
 
 To run `hpack` automatically on modifications to `package.yaml` add the
