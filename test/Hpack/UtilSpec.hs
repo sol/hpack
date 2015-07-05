@@ -106,35 +106,32 @@ spec = do
     it "accepts file globs in extra-source-files" $ do
       let files = map ("res/" ++) ["foo.bar", "hello", "world"]
       mapM_ touch files
-      snd <$> expandGlobs ["res/*"] `shouldReturn` files
+      expandGlobs ["res/*"] `shouldReturn` ([], files)
 
     it "disallows duplicates in extra-source-files in presence of globs" $ do
       let file = "res/hello"
       touch file
-      snd <$> expandGlobs ["res/*", "res/hello"] `shouldReturn` [file]
+      expandGlobs ["res/*", "res/hello"] `shouldReturn` ([], [file])
 
     it "expands globs followed by extension" $ do
       let file = "foo.js"
       touch file
-      snd <$> expandGlobs ["*.js"] `shouldReturn` [file]
+      expandGlobs ["*.js"] `shouldReturn` ([], [file])
 
     it "expands directory globs" $ do
       touch "res/foo/hello.foo"
       touch "res/bar/hello.bar"
-      snd <$> expandGlobs ["res/*/*"]
-        `shouldReturn` ["res/bar/hello.bar", "res/foo/hello.foo"]
+      expandGlobs ["res/*/*"] `shouldReturn` ([], ["res/bar/hello.bar", "res/foo/hello.foo"])
 
     it "expands ** globs" $ do
       let files = ["res/bar/hello.testfile", "res/foo/hello.testfile"]
       mapM_ touch files
-      snd <$> expandGlobs ["**/*.testfile"]
-        `shouldReturn` files
+      expandGlobs ["**/*.testfile"] `shouldReturn` ([], files)
 
     it "doesn't expand globs for directories" $ do
       touch "res/foo"
       createDirectory "res/testdirectory"
-      snd <$> expandGlobs ["res/**"]
-        `shouldReturn` ["res/foo"]
+      expandGlobs ["res/**"] `shouldReturn` ([], ["res/foo"])
 
     it "doesn't preserve extra-source-files patterns which don't exist" $ do
       expandGlobs ["missing.foo", "res/*"] `shouldReturn` ([
