@@ -149,7 +149,7 @@ isNull name value = case parseMaybe p value of
 readPackageConfig :: FilePath -> IO (Either String ([String], Package))
 readPackageConfig file = do
   config <- decodeFileEither file
-  either (return . Left . errToString) (fmap Right . mkPackage file) config
+  either (return . Left . errToString) (fmap Right . mkPackage) config
   where
     errToString err = file ++ case err of
       AesonException e -> ": " ++ e
@@ -244,9 +244,8 @@ data SourceRepository = SourceRepository {
 , sourceRepositorySubdir :: Maybe String
 } deriving (Eq, Show)
 
-mkPackage :: FilePath -- ^ The path of the yaml file, used by globbing
-          -> (CaptureUnknownFields PackageConfig) -> IO ([String], Package)
-mkPackage config (CaptureUnknownFields unknownFields PackageConfig{..}) = do
+mkPackage :: (CaptureUnknownFields PackageConfig) -> IO ([String], Package)
+mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
   let dependencies = fromMaybeList packageConfigDependencies
       sourceDirs = fromMaybeList packageConfigSourceDirs
       defaultExtensions = fromMaybeList packageConfigDefaultExtensions
@@ -269,7 +268,7 @@ mkPackage config (CaptureUnknownFields unknownFields PackageConfig{..}) = do
     )
 
   (extrasWarnings, globbedExtraSourceFiles) <-
-    expandGlobs config (fromMaybeList packageConfigExtraSourceFiles)
+    expandGlobs (fromMaybeList packageConfigExtraSourceFiles)
 
   let package = Package {
         packageName = name

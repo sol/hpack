@@ -97,33 +97,23 @@ splitField field = case span isNameChar field of
 fromMaybeList :: Maybe (List a) -> [a]
 fromMaybeList = maybe [] fromList
 
--- | Expand glob files relative to the given path.
---
--- Supports everything that 'compile' does. If multiple globs match
--- the same files, no warning is given about the redundancy.
-expandGlobs :: FilePath -- ^ File path of the config file we are
-                        -- reading. The globs are expanded relative to
-                        -- the directory the config file is in.
-            -> [String] -- ^ A list of globs to expand
-            -> IO ([String], [FilePath])
-            -- ^ A tuple of warnings and expanded globs
-expandGlobs _ [] = return ([], [])
-expandGlobs config allGlobs@(glob:globs) = do
-  configDir <- takeDirectory <$> canonicalizePath config
+expandGlobs :: [String] -> IO ([String], [FilePath])
+expandGlobs [] = return ([], [])
+expandGlobs allGlobs@(glob:globs) = do
   (matchedFirst, unmatchedFirst) <- do
-    (ms, unms) <- first concat <$> globDir [compile glob] configDir
+    (ms, unms) <- first concat <$> globDir [compile glob] "."
     (,) <$> filterM doesFileExist ms <*> filterM doesFileExist unms
 
   let matchRemaining [] r = r
       matchRemaining (g:gs) r@(acceptedGlobs, matchedFiles_) =
-         case filter (match $ compile $ configDir </> g) (matchedFirst ++ unmatchedFirst) of
+         case filter (match $ compile g) (matchedFirst ++ unmatchedFirst) of
            [] -> matchRemaining gs r
            xs -> matchRemaining gs (g:acceptedGlobs, xs ++ matchedFiles_)
 
       (remainingGlobs, remainingFiles) = matchRemaining globs ([], [])
       unmatchedGlobs = allGlobs \\ ((if null matchedFirst then [] else [glob]) ++ remainingGlobs)
 
-      matchedFiles = map (makeRelative configDir) . sort . nub $ matchedFirst ++ remainingFiles
+      matchedFiles = map (makeRelative ".") . sort . nub $ matchedFirst ++ remainingFiles
 
   return (formatMissingExtras unmatchedGlobs, matchedFiles)
   where
