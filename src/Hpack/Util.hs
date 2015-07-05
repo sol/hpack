@@ -93,9 +93,9 @@ splitField field = case span isNameChar field of
 
 expandGlobs :: [String] -> IO ([String], [FilePath])
 expandGlobs patterns = do
-  files <- fst <$> globDir compiledPatterns "."
+  files <- (fst <$> globDir compiledPatterns ".") >>= mapM removeDirectories
   let warnings = [warn pattern | ([], pattern) <- zip files patterns]
-  (,) warnings <$> removeDirectories (combineResults files)
+  return (warnings, combineResults files)
   where
     combineResults = nub . map (makeRelative ".") . sort . concat
     warn pattern = "Specified pattern " ++ show pattern ++ " for extra-source-files does not match any files"

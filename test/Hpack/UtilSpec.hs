@@ -158,3 +158,9 @@ spec = do
       it "warns" $ do
         expandGlobs ["foo"] `shouldReturn`
           (["Specified pattern \"foo\" for extra-source-files does not match any files"], [])
+
+    context "when a pattern only matches a directory" $ do
+      it "warns" $ do
+        createDirectory "foo"
+        expandGlobs ["foo"] `shouldReturn`
+          (["Specified pattern \"foo\" for extra-source-files does not match any files"], [])
