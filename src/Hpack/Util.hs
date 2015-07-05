@@ -19,7 +19,6 @@ import           Control.Monad
 import           Control.Exception
 import           Control.DeepSeq
 import           Data.Char
-import           Data.Either (partitionEithers)
 import           Data.Maybe
 import           Data.List hiding (find)
 import           System.Directory
@@ -116,10 +115,10 @@ expandGlobs config allGlobs@(glob:globs) = do
     (,) <$> filterM doesFileExist ms <*> filterM doesFileExist unms
 
   let matchRemaining [] r = r
-      matchRemaining (g:gs) r@(acceptedGlobs, matchedFiles) =
+      matchRemaining (g:gs) r@(acceptedGlobs, matchedFiles_) =
          case filter (match $ compile $ configDir </> g) (matchedFirst ++ unmatchedFirst) of
            [] -> matchRemaining gs r
-           xs -> matchRemaining gs (g:acceptedGlobs, xs ++ matchedFiles)
+           xs -> matchRemaining gs (g:acceptedGlobs, xs ++ matchedFiles_)
 
       (remainingGlobs, remainingFiles) = matchRemaining globs ([], [])
       unmatchedGlobs = allGlobs \\ ((if null matchedFirst then [] else [glob]) ++ remainingGlobs)
