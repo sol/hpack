@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE LambdaCase #-}
 module Hpack.Util (
   List(..)
 , toModule
@@ -6,20 +7,24 @@ module Hpack.Util (
 , tryReadFile
 , sniffAlignment
 , extractFieldOrderHint
-
+, fromMaybeList
+, expandGlobs
 -- exported for testing
 , splitField
 ) where
 
 import           Control.Applicative
+import           Control.Arrow (first)
 import           Control.Monad
 import           Control.Exception
 import           Control.DeepSeq
 import           Data.Char
+import           Data.Either (partitionEithers)
 import           Data.Maybe
-import           Data.List
+import           Data.List hiding (find)
 import           System.Directory
 import           System.FilePath
+import           System.FilePath.Glob (compile, globDir, match)
 import           Data.Data
 
 import           Data.Aeson.Types
@@ -88,3 +93,43 @@ splitField field = case span isNameChar field of
   where
     isNameChar = (`elem` nameChars)
     nameChars = ['a'..'z'] ++ ['A'..'Z'] ++ "-"
+
+
+fromMaybeList :: Maybe (List a) -> [a]
+fromMaybeList = maybe [] fromList
+
+-- | Expand glob files relative to the given path.
+--
+-- Supports everything that 'compile' does. If multiple globs match
+-- the same files, no warning is given about the redundancy.
+expandGlobs :: FilePath -- ^ File path of the config file we are
+                        -- reading. The globs are expanded relative to
+                        -- the directory the config file is in.
+            -> [String] -- ^ A list of globs to expand
+            -> IO ([String], [FilePath])
+            -- ^ A tuple of warnings and expanded globs
+expandGlobs _ [] = return ([], [])
+expandGlobs config allGlobs@(glob:globs) = do
+  configDir <- takeDirectory <$> canonicalizePath config
+  (matchedFirst, unmatchedFirst) <- do
+    (ms, unms) <- first concat <$> globDir [compile glob] configDir
+    (,) <$> filterM doesFileExist ms <*> filterM doesFileExist unms
+
+  let matchRemaining [] r = r
+      matchRemaining (g:gs) r@(acceptedGlobs, matchedFiles) =
+         case filter (match $ compile $ configDir </> g) (matchedFirst ++ unmatchedFirst) of
+           [] -> matchRemaining gs r
+           xs -> matchRemaining gs (g:acceptedGlobs, xs ++ matchedFiles)
+
+      (remainingGlobs, remainingFiles) = matchRemaining globs ([], [])
+      unmatchedGlobs = allGlobs \\ ((if null matchedFirst then [] else [glob]) ++ remainingGlobs)
+
+      matchedFiles = map (makeRelative configDir) . sort . nub $ matchedFirst ++ remainingFiles
+
+  return (formatMissingExtras unmatchedGlobs, matchedFiles)
+  where
+    formatMissingExtras :: [String] -> [String]
+    formatMissingExtras = map f . sort
+      where
+        f name = "Specified extra-source-file " ++ show name
+                 ++ " does not exist, skipping"
