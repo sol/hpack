@@ -2,7 +2,6 @@
 module Hpack.UtilSpec (main, spec) where
 
 import           Helper
-import           Control.Exception (bracket, bracket_)
 import           Data.Aeson
 import           System.Directory
 
@@ -103,57 +102,46 @@ spec = do
     it "rejects invalid fields" $ do
       splitField "foo bar" `shouldBe` Nothing
 
-  describe "expandGlobs" $ do
+  describe "expandGlobs" $ around_ inTempDirectory $ before_ (touch "package.yaml") $ do
     it "accepts file globs in extra-source-files" $ do
       let files = map ("res/" ++) ["foo.bar", "hello", "world"]
-      bracket_ (mapM_ touch files) (mapM_ removeFile files) $ do
-        snd <$> expandGlobs "package.yaml" ["res/*"] `shouldReturn` files
+      mapM_ touch files
+      snd <$> expandGlobs "package.yaml" ["res/*"] `shouldReturn` files
 
     it "disallows duplicates in extra-source-files in presence of globs" $ do
       let file = "res/hello"
-      bracket_ (touch file) (removeFile file) $ do
-        snd <$> expandGlobs "package.yaml" ["res/*", "res/hello"] `shouldReturn` [file]
+      touch file
+      snd <$> expandGlobs "package.yaml" ["res/*", "res/hello"] `shouldReturn` [file]
 
     it "expands globs followed by extension" $ do
       let file = "foo.js"
-      bracket_ (touch file) (removeFile file) $ do
-        snd <$> expandGlobs "package.yaml" ["*.js"] `shouldReturn` [file]
+      touch file
+      snd <$> expandGlobs "package.yaml" ["*.js"] `shouldReturn` [file]
 
     it "expands directory globs" $ do
-      let setup = touch "res/foo/hello.foo" >> touch "res/bar/hello.bar"
-          cleanup = removeDirectoryRecursive "res"
-      bracket_ setup cleanup $
-        snd <$> expandGlobs "package.yaml" ["res/*/*"]
+      touch "res/foo/hello.foo"
+      touch "res/bar/hello.bar"
+      snd <$> expandGlobs "package.yaml" ["res/*/*"]
         `shouldReturn` ["res/bar/hello.bar", "res/foo/hello.foo"]
 
     it "expands ** globs" $ do
       let files = ["res/bar/hello.testfile", "res/foo/hello.testfile"]
-          setup = mapM_ touch files
-          cleanup = removeDirectoryRecursive "res"
-      bracket_ setup cleanup $
-        snd <$> expandGlobs "package.yaml" ["**/*.testfile"]
+      mapM_ touch files
+      snd <$> expandGlobs "package.yaml" ["**/*.testfile"]
         `shouldReturn` files
 
     it "doesn't expand globs for directories" $ do
-      let setup = do
-            touch "res/foo"
-            createDirectory "res/testdirectory"
-          cleanup = removeDirectoryRecursive "res"
-      bracket_ setup cleanup $
-        snd <$> expandGlobs "package.yaml" ["res/**"]
+      touch "res/foo"
+      createDirectory "res/testdirectory"
+      snd <$> expandGlobs "package.yaml" ["res/**"]
         `shouldReturn` ["res/foo"]
 
     it "expands globs relative to the given filepath" $ do
-      let setup = do
-            cwd <- getCurrentDirectory
-            touch "res/foo/hello.foo"
-            touch "res/bar/hello.bar"
-            setCurrentDirectory "res/foo"
-            return cwd
-          cleanup d = setCurrentDirectory d >> removeDirectoryRecursive "res"
-      bracket setup cleanup $ \_ -> do
-        snd <$> expandGlobs "../../package.yaml" ["res/*/*"]
-          `shouldReturn` ["res/bar/hello.bar", "res/foo/hello.foo"]
+      touch "res/foo/hello.foo"
+      touch "res/bar/hello.bar"
+      setCurrentDirectory "res/foo"
+      snd <$> expandGlobs "../../package.yaml" ["res/*/*"]
+        `shouldReturn` ["res/bar/hello.bar", "res/foo/hello.foo"]
 
     it "doesn't preserve extra-source-files patterns which don't exist" $ do
       expandGlobs "package.yaml" ["missing.foo", "res/*"] `shouldReturn` ([
@@ -163,5 +151,5 @@ spec = do
 
     it "doesn't warn when there are redundant patterns" $ do
       let file = "res/hello"
-      bracket_ (touch file) (removeFile file) $ do
-        fst <$> expandGlobs "package.yaml" ["res/*", "res/hello"] `shouldReturn` []
+      touch file
+      fst <$> expandGlobs "package.yaml" ["res/*", "res/hello"] `shouldReturn` []
