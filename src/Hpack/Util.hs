@@ -14,7 +14,6 @@ module Hpack.Util (
 ) where
 
 import           Control.Applicative
-import           Control.Arrow (first)
 import           Control.Monad
 import           Control.Exception
 import           Control.DeepSeq
@@ -23,8 +22,9 @@ import           Data.Maybe
 import           Data.List hiding (find)
 import           System.Directory
 import           System.FilePath
-import           System.FilePath.Glob (compile, globDir, match)
+import           System.FilePath.Glob
 import           Data.Data
+import           Data.Either
 
 import           Data.Aeson.Types
 
@@ -93,32 +93,20 @@ splitField field = case span isNameChar field of
     isNameChar = (`elem` nameChars)
     nameChars = ['a'..'z'] ++ ['A'..'Z'] ++ "-"
 
-
 fromMaybeList :: Maybe (List a) -> [a]
 fromMaybeList = maybe [] fromList
 
-expandGlobs :: [String] -> IO ([String], [FilePath])
-expandGlobs [] = return ([], [])
-expandGlobs allGlobs@(glob:globs) = do
-  (matchedFirst, unmatchedFirst) <- do
-    (ms, unms) <- first concat <$> globDir [compile glob] "."
-    (,) <$> filterM doesFileExist ms <*> filterM doesFileExist unms
-
-  let matchRemaining [] r = r
-      matchRemaining (g:gs) r@(acceptedGlobs, matchedFiles_) =
-         case filter (match $ compile g) (matchedFirst ++ unmatchedFirst) of
-           [] -> matchRemaining gs r
-           xs -> matchRemaining gs (g:acceptedGlobs, xs ++ matchedFiles_)
-
-      (remainingGlobs, remainingFiles) = matchRemaining globs ([], [])
-      unmatchedGlobs = allGlobs \\ ((if null matchedFirst then [] else [glob]) ++ remainingGlobs)
-
-      matchedFiles = map (makeRelative ".") . sort . nub $ matchedFirst ++ remainingFiles
-
-  return (formatMissingExtras unmatchedGlobs, matchedFiles)
+expandGlobPattern :: String -> IO (Either String [FilePath])
+expandGlobPattern pattern = do
+  files <- glob pattern >>= removeDirectories
+  return $ case files of
+    [] -> Left ("Specified pattern " ++ show pattern ++ " for extra-source-files does not match any files")
+    _ -> Right files
   where
-    formatMissingExtras :: [String] -> [String]
-    formatMissingExtras = map f . sort
-      where
-        f name = "Specified extra-source-file " ++ show name
-                 ++ " does not exist, skipping"
+    removeDirectories = filterM doesFileExist
+
+expandGlobs :: [String] -> IO ([String], [FilePath])
+expandGlobs patterns = do
+  cwd <- getCurrentDirectory
+  (warnings, files) <- partitionEithers <$> mapM expandGlobPattern patterns
+  return (warnings, map (makeRelative cwd) . nub . sort . concat $ files)

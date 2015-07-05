@@ -134,10 +134,12 @@ spec = do
       expandGlobs ["res/**"] `shouldReturn` ([], ["res/foo"])
 
     it "doesn't preserve extra-source-files patterns which don't exist" $ do
-      expandGlobs ["missing.foo", "res/*"] `shouldReturn` ([
-          "Specified extra-source-file \"missing.foo\" does not exist, skipping"
-        , "Specified extra-source-file \"res/*\" does not exist, skipping"
-        ], [])
+      let patterns = ["missing.foo", "res/*"]
+          warnings = [
+              "Specified pattern \"missing.foo\" for extra-source-files does not match any files"
+            , "Specified pattern \"res/*\" for extra-source-files does not match any files"
+            ]
+      expandGlobs patterns `shouldReturn` (warnings, [])
 
     it "doesn't warn when there are redundant patterns" $ do
       let file = "res/hello"
