@@ -1,4 +1,6 @@
-{-# LANGUAGE QuasiQuotes, RecordWildCards #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ViewPatterns #-}
 module Hpack.Run (
   run
 -- exported for testing
@@ -123,47 +125,44 @@ renderSourceRepository SourceRepository{..} = concat [
   , maybe "" (("  subdir: " ++) . (++ "\n")) sourceRepositorySubdir
   ]
 
-renderExecutables :: [Executable] -> [String]
+renderExecutables :: [Section Executable] -> [String]
 renderExecutables = map renderExecutable
 
-renderExecutable :: Executable -> String
-renderExecutable executable@Executable{..} =
+renderExecutable :: Section Executable -> String
+renderExecutable section@(sectionData -> Executable{..}) =
      "executable "
   ++ executableName ++ "\n"
-  ++ renderExecutableSection executable
+  ++ renderExecutableSection section
 
-renderTests :: [Executable] -> [String]
+renderTests :: [Section Executable] -> [String]
 renderTests = map renderTest
 
-renderTest :: Executable -> String
-renderTest executable@Executable{..} =
+renderTest :: Section Executable -> String
+renderTest section@(sectionData -> Executable{..}) =
      "test-suite " ++ executableName ++ "\n"
   ++ "  type: exitcode-stdio-1.0\n"
-  ++ renderExecutableSection executable
+  ++ renderExecutableSection section
 
-renderExecutableSection :: Executable -> String
-renderExecutableSection Executable{..} =
-     renderSourceDirs executableSourceDirs
-  ++ "  main-is: " ++ executableMain ++ "\n"
-  ++ renderOtherModules executableOtherModules
-  ++ renderDependencies executableDependencies
-  ++ renderDefaultExtensions executableDefaultExtensions
-  ++ renderGhcOptions executableGhcOptions
-  ++ renderCppOptions executableCppOptions
-  ++ "  default-language: Haskell2010\n"
+renderExecutableSection :: Section Executable -> String
+renderExecutableSection section@(sectionData -> Executable{..}) =
+     "  main-is: " ++ executableMain ++ "\n"
+  ++ renderSection section
 
-renderLibrary :: Library -> String
-renderLibrary Library{..} =
+renderLibrary :: Section Library -> String
+renderLibrary section@(sectionData -> Library{..}) =
     "library\n"
-  ++ renderSourceDirs librarySourceDirs
   ++ renderExposedModules libraryExposedModules
   ++ renderOtherModules libraryOtherModules
-  ++ renderDependencies libraryDependencies
-  ++ renderDefaultExtensions libraryDefaultExtensions
-  ++ renderGhcOptions libraryGhcOptions
-  ++ renderCppOptions libraryCppOptions
-  ++ "  default-language: Haskell2010\n"
+  ++ renderSection section
 
+renderSection :: Section a -> String
+renderSection Section{..} =
+     renderSourceDirs sectionSourceDirs
+  ++ renderDependencies sectionDependencies
+  ++ renderDefaultExtensions sectionDefaultExtensions
+  ++ renderGhcOptions sectionGhcOptions
+  ++ renderCppOptions sectionCppOptions
+  ++ "  default-language: Haskell2010\n"
 
 renderSourceDirs :: [String] -> String
 renderSourceDirs dirs

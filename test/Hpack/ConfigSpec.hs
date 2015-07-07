@@ -2,12 +2,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 module Hpack.ConfigSpec (
-  main
-, spec
+  spec
 
 , package
 , executable
 , library
+, section
 ) where
 
 import           Helper
@@ -18,17 +18,17 @@ import           Data.String.Interpolate
 
 import           Hpack.Config
 
-main :: IO ()
-main = hspec spec
-
 package :: Package
 package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing [] Nothing Nothing [] []
 
 executable :: String -> String -> Executable
-executable name main_ = Executable name main_ [] [] [] [] [] []
+executable name main_ = Executable name main_ []
 
 library :: Library
-library = Library [] [] [] [] [] [] []
+library = Library [] []
+
+section :: a -> Section a
+section a = Section a [] [] [] [] []
 
 spec :: Spec
 spec = do
@@ -259,9 +259,9 @@ spec = do
         |]
       Right (_, c) <- readPackageConfig "package.yaml"
       c `shouldBe` package {
-          packageLibrary = Just library {libraryCppOptions = ["-DFOO", "-DLIB"]}
-        , packageExecutables = [(executable "foo" "Main.hs") {executableCppOptions = ["-DFOO", "-DFOO"]}]
-        , packageTests = [(executable "spec" "Spec.hs") {executableCppOptions = ["-DFOO", "-DTEST"]}]
+          packageLibrary = Just (section library) {sectionCppOptions = ["-DFOO", "-DLIB"]}
+        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionCppOptions = ["-DFOO", "-DFOO"]}]
+        , packageTests = [(section $ executable "spec" "Spec.hs") {sectionCppOptions = ["-DFOO", "-DTEST"]}]
         }
 
     context "when reading library section" $ do
@@ -285,7 +285,7 @@ spec = do
               - bar
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just library {librarySourceDirs = ["foo", "bar"]}
+        packageLibrary c `shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}
 
       it "accepts default-extensions" $ do
         writeFile "package.yaml" [i|
@@ -295,7 +295,7 @@ spec = do
               - Bar
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just library {libraryDefaultExtensions = ["Foo", "Bar"]}
+        packageLibrary c `shouldBe` Just (section library) {sectionDefaultExtensions = ["Foo", "Bar"]}
 
       it "accepts global default-extensions" $ do
         writeFile "package.yaml" [i|
@@ -305,7 +305,7 @@ spec = do
           library: {}
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just library {libraryDefaultExtensions = ["Foo", "Bar"]}
+        packageLibrary c `shouldBe` Just (section library) {sectionDefaultExtensions = ["Foo", "Bar"]}
 
       it "accepts global source-dirs" $ do
         writeFile "package.yaml" [i|
@@ -315,7 +315,7 @@ spec = do
           library: {}
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just library {librarySourceDirs = ["foo", "bar"]}
+        packageLibrary c `shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}
 
       it "allows to specify exposed-modules" $ do
         writeFile "package.yaml" [i|
@@ -326,7 +326,7 @@ spec = do
         touch "src/Foo.hs"
         touch "src/Bar.hs"
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}
+        packageLibrary c `shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}
 
       it "allows to specify other-modules" $ do
         writeFile "package.yaml" [i|
@@ -337,7 +337,7 @@ spec = do
         touch "src/Foo.hs"
         touch "src/Bar.hs"
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}
+        packageLibrary c `shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}
 
       it "allows to specify both exposed-modules and other-modules" $ do
         writeFile "package.yaml" [i|
@@ -348,7 +348,7 @@ spec = do
           |]
         touch "src/Baz.hs"
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}
+        packageLibrary c `shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}
 
       context "when neither exposed-module nor other-module are specified" $ do
         it "exposes all modules" $ do
@@ -359,7 +359,7 @@ spec = do
           touch "src/Foo.hs"
           touch "src/Bar.hs"
           Right (_, c) <- readPackageConfig "package.yaml"
-          packageLibrary c `shouldBe` Just library {librarySourceDirs = ["src"], libraryExposedModules = ["Bar", "Foo"]}
+          packageLibrary c `shouldBe` Just (section library{libraryExposedModules = ["Bar", "Foo"]}) {sectionSourceDirs = ["src"]}
 
     context "when reading executable section" $ do
       it "warns on unknown fields" $ do
@@ -383,7 +383,7 @@ spec = do
               main: driver/Main.hs
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageExecutables c `shouldBe` [executable "foo" "driver/Main.hs"]
+        packageExecutables c `shouldBe` [section $ executable "foo" "driver/Main.hs"]
 
       it "accepts source-dirs" $ do
         writeFile "package.yaml" [i|
@@ -395,7 +395,7 @@ spec = do
                 - bar
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageExecutables c `shouldBe` [(executable "foo" "Main.hs") {executableSourceDirs = ["foo", "bar"]}]
+        packageExecutables c `shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]
 
       it "accepts global source-dirs" $ do
         writeFile "package.yaml" [i|
@@ -407,7 +407,7 @@ spec = do
               main: Main.hs
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageExecutables c `shouldBe` [(executable "foo" "Main.hs") {executableSourceDirs = ["foo", "bar"]}]
+        packageExecutables c `shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]
 
       it "infers other-modules" $ do
         touch "src/Main.hs"
@@ -421,7 +421,7 @@ spec = do
               source-dirs: src
           |]
         Right (_, [r]) <- (fmap . fmap) packageExecutables <$> readPackageConfig "package.yaml"
-        executableOtherModules r `shouldBe` ["Bar", "Baz", "Foo"]
+        executableOtherModules (sectionData r) `shouldBe` ["Bar", "Baz", "Foo"]
 
       it "allows to specify other-modules" $ do
         touch "src/Foo.hs"
@@ -434,7 +434,7 @@ spec = do
               other-modules: Baz
           |]
         Right (_, [r]) <- (fmap . fmap) packageExecutables <$> readPackageConfig "package.yaml"
-        executableOtherModules r `shouldBe` ["Baz"]
+        executableOtherModules (sectionData r) `shouldBe` ["Baz"]
 
       it "accepts default-extensions" $ do
         writeFile "package.yaml" [i|
@@ -446,7 +446,7 @@ spec = do
                 - Bar
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageExecutables c `shouldBe` [(executable "foo" "driver/Main.hs") {executableDefaultExtensions = ["Foo", "Bar"]}]
+        packageExecutables c `shouldBe` [(section $ executable "foo" "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]}]
 
       it "accepts global default-extensions" $ do
         writeFile "package.yaml" [i|
@@ -458,7 +458,7 @@ spec = do
               main: driver/Main.hs
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageExecutables c `shouldBe` [(executable "foo" "driver/Main.hs") {executableDefaultExtensions = ["Foo", "Bar"]}]
+        packageExecutables c `shouldBe` [(section $ executable "foo" "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]}]
 
       it "accepts GHC options" $ do
         writeFile "package.yaml" [i|
@@ -468,7 +468,7 @@ spec = do
               ghc-options: -Wall
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
+        c `shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcOptions = ["-Wall"]}]}
 
       it "accepts global GHC options" $ do
         writeFile "package.yaml" [i|
@@ -478,7 +478,7 @@ spec = do
               main: driver/Main.hs
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageExecutables = [(executable "foo" "driver/Main.hs") {executableGhcOptions = ["-Wall"]}]}
+        c `shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcOptions = ["-Wall"]}]}
 
     context "when reading test section" $ do
       it "warns on unknown fields" $ do
@@ -502,7 +502,7 @@ spec = do
               main: test/Spec.hs
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageTests = [executable "spec" "test/Spec.hs"]}
+        c `shouldBe` package {packageTests = [section $ executable "spec" "test/Spec.hs"]}
 
       it "accepts single dependency" $ do
         writeFile "package.yaml" [i|
@@ -512,7 +512,7 @@ spec = do
               dependencies: hspec
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["hspec"]]}]}
+        c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = [["hspec"]]}]}
 
       it "accepts list of dependencies" $ do
         writeFile "package.yaml" [i|
@@ -524,7 +524,7 @@ spec = do
                 - QuickCheck
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["hspec", "QuickCheck"]]}]}
+        c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = [["hspec", "QuickCheck"]]}]}
 
       context "when both global and section specific dependencies are specified" $ do
         it "combines dependencies" $ do
@@ -538,7 +538,7 @@ spec = do
                 dependencies: hspec
             |]
           Right (_, c) <- readPackageConfig "package.yaml"
-          c `shouldBe` package {packageTests = [(executable "spec" "test/Spec.hs") {executableDependencies = [["base"], ["hspec"]]}]}
+          c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = [["base"], ["hspec"]]}]}
 
     context "when a specified source directory does not exist" $ do
       it "warns" $ do

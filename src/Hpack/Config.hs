@@ -12,6 +12,7 @@ module Hpack.Config (
 , GitRef(..)
 , packageDependencies
 , GhcOption
+, Section(..)
 , Library(..)
 , Executable(..)
 , SourceRepository(..)
@@ -122,9 +123,9 @@ data PackageConfig = PackageConfig {
 
 packageDependencies :: Package -> [Dependency]
 packageDependencies Package{..} = nub . sort $
-     (concat $ concatMap executableDependencies packageExecutables)
-  ++ (concat $ concatMap executableDependencies packageTests)
-  ++ maybe [] (concat . libraryDependencies) packageLibrary
+     (concat $ concatMap sectionDependencies packageExecutables)
+  ++ (concat $ concatMap sectionDependencies packageTests)
+  ++ maybe [] (concat . sectionDependencies) packageLibrary
 
 instance FromJSON PackageConfig where
   parseJSON value = handleNullValues <$> genericParseJSON_ value
@@ -213,30 +214,29 @@ data Package = Package {
 , packageLicenseFile :: Maybe FilePath
 , packageExtraSourceFiles :: [FilePath]
 , packageSourceRepository :: Maybe SourceRepository
-, packageLibrary :: Maybe Library
-, packageExecutables :: [Executable]
-, packageTests :: [Executable]
+, packageLibrary :: Maybe (Section Library)
+, packageExecutables :: [Section Executable]
+, packageTests :: [Section Executable]
 } deriving (Eq, Show)
 
 data Library = Library {
-  librarySourceDirs :: [FilePath]
-, libraryExposedModules :: [String]
+  libraryExposedModules :: [String]
 , libraryOtherModules :: [String]
-, libraryDependencies :: [[Dependency]]
-, libraryDefaultExtensions :: [String]
-, libraryGhcOptions :: [GhcOption]
-, libraryCppOptions :: [CppOption]
 } deriving (Eq, Show)
 
 data Executable = Executable {
   executableName :: String
 , executableMain :: FilePath
-, executableSourceDirs :: [FilePath]
 , executableOtherModules :: [String]
-, executableDependencies :: [[Dependency]]
-, executableDefaultExtensions :: [String]
-, executableGhcOptions :: [GhcOption]
-, executableCppOptions :: [CppOption]
+} deriving (Eq, Show)
+
+data Section a = Section {
+  sectionData :: a
+, sectionSourceDirs :: [FilePath]
+, sectionDependencies :: [[Dependency]]
+, sectionDefaultExtensions :: [String]
+, sectionGhcOptions :: [GhcOption]
+, sectionCppOptions :: [CppOption]
 } deriving (Eq, Show)
 
 data SourceRepository = SourceRepository {
@@ -262,9 +262,9 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
   licenseFileExists <- doesFileExist "LICENSE"
 
   missingSourceDirs <- nub . sort <$> filterM (fmap not <$> doesDirectoryExist) (
-       maybe [] librarySourceDirs mLibrary
-    ++ concatMap executableSourceDirs executables
-    ++ concatMap executableSourceDirs tests
+       maybe [] sectionSourceDirs mLibrary
+    ++ concatMap sectionSourceDirs executables
+    ++ concatMap sectionSourceDirs tests
     )
 
   (extraSourceFilesWarnings, extraSourceFiles) <-
@@ -346,13 +346,13 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> sourceRepository
 
-toLibrary :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> [CppOption] -> LibrarySection -> IO Library
+toLibrary :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> [CppOption] -> LibrarySection -> IO (Section Library)
 toLibrary globalSourceDirs globalDependencies globalDefaultExtensions globalGhcOptions globalCppOptions LibrarySection{..} = do
   modules <- concat <$> mapM getModules sourceDirs
 
   let (exposedModules, otherModules) = determineModules modules librarySectionExposedModules librarySectionOtherModules
 
-  return (Library sourceDirs exposedModules otherModules dependencies defaultExtensions ghcOptions cppOptions)
+  return (Section (Library exposedModules otherModules) sourceDirs dependencies defaultExtensions ghcOptions cppOptions)
   where
     sourceDirs = globalSourceDirs ++ fromMaybeList librarySectionSourceDirs
     dependencies = filter (not . null) [globalDependencies, fromMaybeList librarySectionDependencies]
@@ -378,13 +378,13 @@ getModules src = do
     toModules :: [[FilePath]] -> [String]
     toModules = catMaybes . map toModule
 
-toExecutables :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> [CppOption] -> Maybe (HashMap String ExecutableSection) -> IO [Executable]
+toExecutables :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> [CppOption] -> Maybe (HashMap String ExecutableSection) -> IO [Section Executable]
 toExecutables globalSourceDirs globalDependencies globalDefaultExtensions globalGhcOptions globalCppOptions executables =
   (mapM toExecutable . Map.toList) (fromMaybe mempty executables)
   where
     toExecutable (name, ExecutableSection{..}) = do
       modules <- maybe (filterMain . concat <$> mapM getModules sourceDirs) (return . fromList) executableSectionOtherModules
-      return $ Executable name executableSectionMain sourceDirs modules dependencies defaultExtensions ghcOptions cppOptions
+      return $ Section (Executable name executableSectionMain modules) sourceDirs dependencies defaultExtensions ghcOptions cppOptions
       where
         dependencies = filter (not . null) [globalDependencies, fromMaybeList executableSectionDependencies]
         sourceDirs = globalSourceDirs ++ fromMaybeList executableSectionSourceDirs

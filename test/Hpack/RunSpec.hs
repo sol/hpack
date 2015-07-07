@@ -1,15 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Hpack.RunSpec (main, spec) where
+module Hpack.RunSpec (spec) where
 
 import           Test.Hspec
 import           Data.List
 
-import           Hpack.ConfigSpec hiding (main, spec)
+import           Hpack.ConfigSpec hiding (spec)
 import           Hpack.Config
 import           Hpack.Run
-
-main :: IO ()
-main = hspec spec
 
 spec :: Spec
 spec = do
@@ -111,7 +108,7 @@ spec = do
 
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage 0 [] package {packageExecutables = [(executable "foo" "Main.hs") {executableDependencies = [["foo", "bar"], ["foo", "baz"]]}]} `shouldBe` unlines [
+        renderPackage 0 [] package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionDependencies = [["foo", "bar"], ["foo", "baz"]]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -129,7 +126,7 @@ spec = do
           ]
 
       it "includes GHC options" $ do
-        renderPackage 0 [] package {packageExecutables = [(executable "foo" "Main.hs") {executableGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
+        renderPackage 0 [] package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
