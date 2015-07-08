@@ -140,9 +140,9 @@ instance HasFieldNames PackageConfig
 
 packageDependencies :: Package -> [Dependency]
 packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . dependencyName)) $
-     (concat $ concatMap sectionDependencies packageExecutables)
-  ++ (concat $ concatMap sectionDependencies packageTests)
-  ++ maybe [] (concat . sectionDependencies) packageLibrary
+     (concatMap sectionDependencies packageExecutables)
+  ++ (concatMap sectionDependencies packageTests)
+  ++ maybe [] sectionDependencies packageLibrary
 
 instance FromJSON PackageConfig where
   parseJSON value = handleNullValues <$> genericParseJSON_ value
@@ -251,7 +251,7 @@ data Executable = Executable {
 data Section a = Section {
   sectionData :: a
 , sectionSourceDirs :: [FilePath]
-, sectionDependencies :: [[Dependency]]
+, sectionDependencies :: [Dependency]
 , sectionDefaultExtensions :: [String]
 , sectionGhcOptions :: [GhcOption]
 , sectionCppOptions :: [CppOption]
@@ -431,7 +431,7 @@ toSection a CommonOptions{..}
     defaultExtensions = fromMaybeList commonOptionsDefaultExtensions
     ghcOptions = fromMaybeList commonOptionsGhcOptions
     cppOptions = fromMaybeList commonOptionsCppOptions
-    dependencies = filter (not . null) [fromMaybeList commonOptionsDependencies]
+    dependencies = fromMaybeList commonOptionsDependencies
 
 determineModules :: [String] -> Maybe (List String) -> Maybe (List String) -> ([String], [String])
 determineModules modules mExposedModules mOtherModules = case (mExposedModules, mOtherModules) of

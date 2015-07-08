@@ -165,7 +165,7 @@ renderLibrary section@(sectionData -> Library{..}) =
 renderSection :: Section a -> String
 renderSection Section{..} =
      renderSourceDirs sectionSourceDirs
-  ++ renderDependencies sectionDependencies
+  ++ unlines (renderDependencies sectionDependencies)
   ++ renderDefaultExtensions sectionDefaultExtensions
   ++ renderGhcOptions sectionGhcOptions
   ++ renderCppOptions sectionCppOptions
@@ -185,14 +185,15 @@ renderOtherModules modules
   | null modules = ""
   | otherwise = "  other-modules:\n" ++ (unlines $ map ("      " ++) modules)
 
-renderDependencies :: [[Dependency]] -> String
+renderDependencies :: [Dependency] -> [String]
 renderDependencies dependencies
-  | null dependencies = ""
-  | otherwise = concatMap render $ zip (True : repeat False) (map (map dependencyName) dependencies)
+  | null dependencies = []
+  | otherwise = "  build-depends:" : map render (zip (True : repeat False) dependencies)
   where
-    render (isFirst, xs)
-      | isFirst = "  build-depends:\n      " ++ intercalate "\n    , " xs ++ "\n"
-      | otherwise = "\n    , " ++ intercalate "\n    , " xs ++ "\n"
+    render :: (Bool, Dependency) -> String
+    render (isFirst, dependency)
+      | isFirst   = "      " ++ dependencyName dependency
+      | otherwise = "    , " ++ dependencyName dependency
 
 renderGhcOptions :: [GhcOption] -> String
 renderGhcOptions = renderOptions "ghc-options"

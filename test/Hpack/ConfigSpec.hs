@@ -522,7 +522,7 @@ spec = do
               dependencies: hspec
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = [["hspec"]]}]}
+        c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec"]}]}
 
       it "accepts list of dependencies" $ do
         writeFile "package.yaml" [i|
@@ -534,7 +534,7 @@ spec = do
                 - QuickCheck
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = [["hspec", "QuickCheck"]]}]}
+        c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec", "QuickCheck"]}]}
 
       context "when both global and section specific dependencies are specified" $ do
         it "combines dependencies" $ do
@@ -548,7 +548,7 @@ spec = do
                 dependencies: hspec
             |]
           Right (_, c) <- readPackageConfig "package.yaml"
-          c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = [["base"], ["hspec"]]}]}
+          c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["base", "hspec"]}]}
 
     context "when a specified source directory does not exist" $ do
       it "warns" $ do

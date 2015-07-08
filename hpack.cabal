@@ -31,12 +31,12 @@ library
     , unordered-containers
     , yaml
   ghc-options: -Wall
-  default-language: Haskell2010
   exposed-modules:
       Hpack.Config
       Hpack.Run
   other-modules:
       Hpack.Util
+  default-language: Haskell2010
 
 executable hpack
   main-is: Main.hs
@@ -52,7 +52,6 @@ executable hpack
     , text
     , unordered-containers
     , yaml
-
     , hpack
   ghc-options: -Wall
   default-language: Haskell2010
@@ -72,13 +71,11 @@ test-suite spec
     , text
     , unordered-containers
     , yaml
-
     , hspec == 2.*
     , mockery >= 0.3
     , interpolate
     , aeson-qq
   ghc-options: -Wall
-  default-language: Haskell2010
   other-modules:
       Helper
       Hpack.ConfigSpec
@@ -87,3 +84,4 @@ test-suite spec
       Hpack.Config
       Hpack.Run
       Hpack.Util
+  default-language: Haskell2010
