@@ -1,9 +1,14 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns #-}
 module Hpack.Config (
   packageConfig
 , readPackageConfig
@@ -18,23 +23,23 @@ module Hpack.Config (
 , SourceRepository(..)
 ) where
 
-import           Prelude ()
-import           Prelude.Compat
 import           Control.Applicative
 import           Control.Monad.Compat
-import           Data.List (nub, sort, (\\))
-import           Data.String
-import           Data.Maybe
-import           Data.Yaml
-import           GHC.Generics
+import           Data.Aeson.Types
+import           Data.Data
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as Map
+import           Data.List (nub, sort, (\\))
+import           Data.Maybe
+import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           System.FilePath
+import           Data.Yaml
+import           GHC.Generics
+import           Prelude ()
+import           Prelude.Compat
 import           System.Directory
-import           Data.Data
-import           Data.Aeson.Types
+import           System.FilePath
 
 import           Hpack.Util
 
@@ -52,12 +57,20 @@ genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphen
 hyphenize :: String -> String -> String
 hyphenize name = camelTo '-' . drop (length name)
 
+class HasFieldNames a where
+  fieldNames :: a -> [String]
+  default fieldNames :: Data a => a -> [String]
+  fieldNames a = map (hyphenize name) (constrFields constr)
+    where
+      constr = toConstr a
+      name = showConstr constr
+
 data CaptureUnknownFields a = CaptureUnknownFields {
   captureUnknownFieldsFields :: [String]
 , captureUnknownFieldsValue :: a
 } deriving (Eq, Show, Generic, Data, Typeable)
 
-instance (Data a, FromJSON a) => FromJSON (CaptureUnknownFields a) where
+instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields a) where
   parseJSON v = captureUnknownFields <$> parseJSON v
     where
       captureUnknownFields a = case v of
@@ -65,35 +78,49 @@ instance (Data a, FromJSON a) => FromJSON (CaptureUnknownFields a) where
           where
             unknown = keys \\ fields
             keys = map T.unpack (Map.keys o)
-            constr = toConstr a
-            name = showConstr constr
-            fields = map (hyphenize name) (constrFields constr)
+            fields = fieldNames a
         _ -> CaptureUnknownFields [] a
 
 data LibrarySection = LibrarySection {
-  librarySectionSourceDirs :: Maybe (List FilePath)
-, librarySectionExposedModules :: Maybe (List String)
+  librarySectionExposedModules :: Maybe (List String)
 , librarySectionOtherModules :: Maybe (List String)
-, librarySectionDependencies :: Maybe (List Dependency)
-, librarySectionDefaultExtensions :: Maybe (List String)
-, librarySectionGhcOptions :: Maybe (List GhcOption)
-, librarySectionCppOptions :: Maybe (List CppOption)
 } deriving (Eq, Show, Generic, Data, Typeable)
+
+instance HasFieldNames LibrarySection
 
 instance FromJSON LibrarySection where
   parseJSON = genericParseJSON_
 
 data ExecutableSection = ExecutableSection {
   executableSectionMain :: FilePath
-, executableSectionSourceDirs :: Maybe (List FilePath)
 , executableSectionOtherModules :: Maybe (List String)
-, executableSectionDependencies :: Maybe (List Dependency)
-, executableSectionDefaultExtensions :: Maybe (List String)
-, executableSectionGhcOptions :: Maybe (List GhcOption)
-, executableSectionCppOptions :: Maybe (List CppOption)
 } deriving (Eq, Show, Generic, Data, Typeable)
 
+instance HasFieldNames ExecutableSection
+
 instance FromJSON ExecutableSection where
+  parseJSON = genericParseJSON_
+
+data WithCommonOptions a = WithCommonOptions a CommonOptions
+  deriving (Eq, Show, Generic, Data, Typeable)
+
+instance HasFieldNames a => HasFieldNames (WithCommonOptions a) where
+  fieldNames (WithCommonOptions a options) = (fieldNames a ++ fieldNames options) \\ ["config"] -- FIXME : test for removing "config"
+
+instance FromJSON a => FromJSON (WithCommonOptions a) where
+  parseJSON v = WithCommonOptions <$> parseJSON v <*> parseJSON v
+
+data CommonOptions = CommonOptions {
+  commonOptionsSourceDirs :: Maybe (List FilePath)
+, commonOptionsDependencies :: Maybe (List Dependency)
+, commonOptionsDefaultExtensions :: Maybe (List String)
+, commonOptionsGhcOptions :: Maybe (List GhcOption)
+, commonOptionsCppOptions :: Maybe (List CppOption)
+} deriving (Eq, Show, Generic, Data, Typeable)
+
+instance HasFieldNames CommonOptions
+
+instance FromJSON CommonOptions where
   parseJSON = genericParseJSON_
 
 data PackageConfig = PackageConfig {
@@ -111,15 +138,12 @@ data PackageConfig = PackageConfig {
 , packageConfigLicense :: Maybe String
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigGithub :: Maybe Text
-, packageConfigSourceDirs :: Maybe (List FilePath)
-, packageConfigDependencies :: Maybe (List Dependency)
-, packageConfigDefaultExtensions :: Maybe (List String)
-, packageConfigGhcOptions :: Maybe (List GhcOption)
-, packageConfigCppOptions :: Maybe (List CppOption)
-, packageConfigLibrary :: Maybe (CaptureUnknownFields LibrarySection)
-, packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields ExecutableSection))
-, packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields ExecutableSection))
+, packageConfigLibrary :: Maybe (CaptureUnknownFields (WithCommonOptions LibrarySection))
+, packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields (WithCommonOptions ExecutableSection)))
+, packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields (WithCommonOptions ExecutableSection)))
 } deriving (Eq, Show, Generic, Data, Typeable)
+
+instance HasFieldNames PackageConfig
 
 packageDependencies :: Package -> [Dependency]
 packageDependencies Package{..} = nub . sort $
@@ -237,25 +261,18 @@ data Section a = Section {
 , sectionDefaultExtensions :: [String]
 , sectionGhcOptions :: [GhcOption]
 , sectionCppOptions :: [CppOption]
-} deriving (Eq, Show)
+} deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data SourceRepository = SourceRepository {
   sourceRepositoryUrl :: String
 , sourceRepositorySubdir :: Maybe String
 } deriving (Eq, Show)
 
-mkPackage :: (CaptureUnknownFields PackageConfig) -> IO ([String], Package)
-mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
-  let dependencies = fromMaybeList packageConfigDependencies
-      sourceDirs = fromMaybeList packageConfigSourceDirs
-      defaultExtensions = fromMaybeList packageConfigDefaultExtensions
-      ghcOptions = fromMaybeList packageConfigGhcOptions
-      cppOptions = fromMaybeList packageConfigCppOptions
-      convert f = f sourceDirs dependencies defaultExtensions ghcOptions cppOptions
-
-  mLibrary <- mapM (convert toLibrary) mLibrarySection
-  executables <- convert toExecutables mExecutableSections
-  tests <- convert toExecutables mTestSections
+mkPackage :: (CaptureUnknownFields (WithCommonOptions PackageConfig)) -> IO ([String], Package)
+mkPackage (CaptureUnknownFields unknownFields (WithCommonOptions PackageConfig{..} globalOptions@CommonOptions{..})) = do
+  mLibrary <- mapM (toLibrary globalOptions) mLibrarySection
+  executables <- toExecutables globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
+  tests <- toExecutables globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
 
   name <- maybe (takeBaseName <$> getCurrentDirectory) return packageConfigName
 
@@ -294,27 +311,32 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
       warnings =
            formatUnknownFields "package description" unknownFields
         ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary)
-        ++ formatUnknownSectionFields "executable" packageConfigExecutables
-        ++ formatUnknownSectionFields "test" packageConfigTests
+        ++ formatUnknownSectionFields "executable" executableSections
+        ++ formatUnknownSectionFields "test" testsSections
         ++ formatMissingSourceDirs missingSourceDirs
         ++ extraSourceFilesWarnings
 
   return (warnings, package)
   where
-    mLibrarySection :: Maybe LibrarySection
+    executableSections :: [(String, CaptureUnknownFields (WithCommonOptions ExecutableSection))]
+    executableSections = toList packageConfigExecutables
+
+    testsSections :: [(String, CaptureUnknownFields (WithCommonOptions ExecutableSection))]
+    testsSections = toList packageConfigTests
+
+    toList :: Maybe (HashMap String a) -> [(String, a)]
+    toList = Map.toList . fromMaybe mempty
+
+    mLibrarySection :: Maybe (WithCommonOptions LibrarySection)
     mLibrarySection = captureUnknownFieldsValue <$> packageConfigLibrary
 
-    mExecutableSections :: Maybe (HashMap String ExecutableSection)
-    mExecutableSections = fmap captureUnknownFieldsValue <$> packageConfigExecutables
-
-    mTestSections :: Maybe (HashMap String ExecutableSection)
-    mTestSections = fmap captureUnknownFieldsValue <$> packageConfigTests
-
+    formatUnknownFields :: String -> [String] -> [String]
     formatUnknownFields name = map f . sort
       where
         f field = "Ignoring unknown field " ++ show field ++ " in " ++ name
 
-    formatUnknownSectionFields sectionType = maybe [] (concatMap f . Map.toList . fmap captureUnknownFieldsFields)
+    formatUnknownSectionFields :: String -> [(String, CaptureUnknownFields a)] -> [String]
+    formatUnknownSectionFields sectionType = concatMap f . map (fmap captureUnknownFieldsFields)
       where
         f :: (String, [String]) -> [String]
         f (section, fields) = formatUnknownFields (sectionType ++ " section " ++ show section) fields
@@ -346,19 +368,52 @@ mkPackage (CaptureUnknownFields unknownFields PackageConfig{..}) = do
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> sourceRepository
 
-toLibrary :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> [CppOption] -> LibrarySection -> IO (Section Library)
-toLibrary globalSourceDirs globalDependencies globalDefaultExtensions globalGhcOptions globalCppOptions LibrarySection{..} = do
-  modules <- concat <$> mapM getModules sourceDirs
-
-  let (exposedModules, otherModules) = determineModules modules librarySectionExposedModules librarySectionOtherModules
-
-  return (Section (Library exposedModules otherModules) sourceDirs dependencies defaultExtensions ghcOptions cppOptions)
+toLibrary :: CommonOptions -> WithCommonOptions LibrarySection -> IO (Section Library)
+toLibrary globalOptions library = traverse fromLibrarySection section
   where
-    sourceDirs = globalSourceDirs ++ fromMaybeList librarySectionSourceDirs
-    dependencies = filter (not . null) [globalDependencies, fromMaybeList librarySectionDependencies]
-    defaultExtensions = globalDefaultExtensions ++ fromMaybeList librarySectionDefaultExtensions
-    ghcOptions = globalGhcOptions ++ fromMaybeList librarySectionGhcOptions
-    cppOptions = globalCppOptions ++ fromMaybeList librarySectionCppOptions
+    section :: Section LibrarySection
+    section = toSection globalOptions library
+
+    sourceDirs :: [FilePath]
+    sourceDirs = sectionSourceDirs section
+
+    fromLibrarySection :: LibrarySection -> IO Library
+    fromLibrarySection LibrarySection{..} = do
+      modules <- concat <$> mapM getModules sourceDirs
+      let (exposedModules, otherModules) = determineModules modules librarySectionExposedModules librarySectionOtherModules
+      return (Library exposedModules otherModules)
+
+toExecutables :: CommonOptions -> [(String, WithCommonOptions ExecutableSection)] -> IO [Section Executable]
+toExecutables globalOptions executables = mapM toExecutable sections
+  where
+    sections :: [(String, Section ExecutableSection)]
+    sections = map (fmap $ toSection globalOptions) executables
+
+    toExecutable :: (String, Section ExecutableSection) -> IO (Section Executable)
+    toExecutable (name, section) = traverse fromExecutableSection section
+      where
+        sourceDirs :: [FilePath]
+        sourceDirs = sectionSourceDirs section
+
+        fromExecutableSection :: ExecutableSection -> IO Executable
+        fromExecutableSection ExecutableSection{..} = do
+          modules <- maybe (filterMain . concat <$> mapM getModules sourceDirs) (return . fromList) executableSectionOtherModules
+          return (Executable name executableSectionMain modules)
+          where
+            filterMain :: [String] -> [String]
+            filterMain = maybe id (filter . (/=)) (toModule $ splitDirectories executableSectionMain)
+
+toSection :: CommonOptions -> WithCommonOptions a -> Section a
+toSection globalOptions (WithCommonOptions a options)
+  = Section a sourceDirs dependencies defaultExtensions ghcOptions cppOptions
+  where
+    sourceDirs = merge commonOptionsSourceDirs
+    defaultExtensions = merge commonOptionsDefaultExtensions
+    ghcOptions = merge commonOptionsGhcOptions
+    cppOptions = merge commonOptionsCppOptions
+    merge selector = fromMaybeList (selector globalOptions) ++ fromMaybeList (selector options)
+    getDependencies = fromMaybeList . commonOptionsDependencies
+    dependencies = filter (not . null) [getDependencies globalOptions, getDependencies options]
 
 determineModules :: [String] -> Maybe (List String) -> Maybe (List String) -> ([String], [String])
 determineModules modules mExposedModules mOtherModules = case (mExposedModules, mOtherModules) of
@@ -377,23 +432,6 @@ getModules src = do
   where
     toModules :: [[FilePath]] -> [String]
     toModules = catMaybes . map toModule
-
-toExecutables :: [FilePath] -> [Dependency] -> [String] -> [GhcOption] -> [CppOption] -> Maybe (HashMap String ExecutableSection) -> IO [Section Executable]
-toExecutables globalSourceDirs globalDependencies globalDefaultExtensions globalGhcOptions globalCppOptions executables =
-  (mapM toExecutable . Map.toList) (fromMaybe mempty executables)
-  where
-    toExecutable (name, ExecutableSection{..}) = do
-      modules <- maybe (filterMain . concat <$> mapM getModules sourceDirs) (return . fromList) executableSectionOtherModules
-      return $ Section (Executable name executableSectionMain modules) sourceDirs dependencies defaultExtensions ghcOptions cppOptions
-      where
-        dependencies = filter (not . null) [globalDependencies, fromMaybeList executableSectionDependencies]
-        sourceDirs = globalSourceDirs ++ fromMaybeList executableSectionSourceDirs
-        defaultExtensions = globalDefaultExtensions ++ fromMaybeList executableSectionDefaultExtensions
-        ghcOptions = globalGhcOptions ++ fromMaybeList executableSectionGhcOptions
-        cppOptions = globalCppOptions ++ fromMaybeList executableSectionCppOptions
-
-        filterMain :: [String] -> [String]
-        filterMain = maybe id (filter . (/=)) (toModule $ splitDirectories executableSectionMain)
 
 fromMaybeList :: Maybe (List a) -> [a]
 fromMaybeList = maybe [] fromList

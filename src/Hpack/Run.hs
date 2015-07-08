@@ -9,11 +9,13 @@ module Hpack.Run (
 , formatDescription
 ) where
 
-import           Control.Applicative
+import           Prelude ()
+import           Prelude.Compat
+
 import           Control.Monad
 import           Data.Char
 import           Data.Maybe
-import           Data.List
+import           Data.List.Compat
 import           System.Exit.Compat
 
 import           Hpack.Util
