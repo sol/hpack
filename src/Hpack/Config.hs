@@ -29,9 +29,9 @@ import           Data.Aeson.Types
 import           Data.Data
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as Map
+import           Data.Ord
 import           Data.List (nub, (\\), sortBy)
 import           Data.Maybe
-import           Data.Ord
 import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -102,15 +102,6 @@ instance HasFieldNames ExecutableSection
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_
 
-data WithCommonOptions a = WithCommonOptions a CommonOptions
-  deriving (Eq, Show, Generic, Data, Typeable)
-
-instance HasFieldNames a => HasFieldNames (WithCommonOptions a) where
-  fieldNames (WithCommonOptions a options) = (fieldNames a ++ fieldNames options) \\ ["config"] -- FIXME : test for removing "config"
-
-instance FromJSON a => FromJSON (WithCommonOptions a) where
-  parseJSON v = WithCommonOptions <$> parseJSON v <*> parseJSON v
-
 data CommonOptions = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
 , commonOptionsDependencies :: Maybe (List Dependency)
@@ -140,9 +131,9 @@ data PackageConfig = PackageConfig {
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigGithub :: Maybe Text
-, packageConfigLibrary :: Maybe (CaptureUnknownFields (WithCommonOptions LibrarySection))
-, packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields (WithCommonOptions ExecutableSection)))
-, packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields (WithCommonOptions ExecutableSection)))
+, packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
+, packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
+, packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
 } deriving (Eq, Show, Generic, Data, Typeable)
 
 instance HasFieldNames PackageConfig
@@ -264,15 +255,24 @@ data Section a = Section {
 , sectionDefaultExtensions :: [String]
 , sectionGhcOptions :: [GhcOption]
 , sectionCppOptions :: [CppOption]
-} deriving (Eq, Show, Functor, Foldable, Traversable)
+} deriving (Eq, Show, Functor, Foldable, Traversable, Data, Typeable)
+
+instance HasFieldNames a => HasFieldNames (Section a) where
+  fieldNames section = (fieldNames (sectionData section) ++ fieldNames proxy) \\ ["config"] -- FIXME : test for removing "config"
+    where
+      proxy :: CommonOptions
+      proxy = CommonOptions Nothing Nothing Nothing Nothing Nothing
+
+instance FromJSON a => FromJSON (Section a) where
+  parseJSON v = toSection <$> parseJSON v <*> parseJSON v
 
 data SourceRepository = SourceRepository {
   sourceRepositoryUrl :: String
 , sourceRepositorySubdir :: Maybe String
 } deriving (Eq, Show)
 
-mkPackage :: (CaptureUnknownFields (WithCommonOptions PackageConfig)) -> IO ([String], Package)
-mkPackage (CaptureUnknownFields unknownFields (WithCommonOptions PackageConfig{..} globalOptions@CommonOptions{..})) = do
+mkPackage :: (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
+mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
   mLibrary <- mapM (toLibrary globalOptions) mLibrarySection
   executables <- toExecutables globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
   tests <- toExecutables globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
@@ -326,16 +326,16 @@ mkPackage (CaptureUnknownFields unknownFields (WithCommonOptions PackageConfig{.
 
   return (warnings, package)
   where
-    executableSections :: [(String, CaptureUnknownFields (WithCommonOptions ExecutableSection))]
+    executableSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     executableSections = toList packageConfigExecutables
 
-    testsSections :: [(String, CaptureUnknownFields (WithCommonOptions ExecutableSection))]
+    testsSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     testsSections = toList packageConfigTests
 
     toList :: Maybe (HashMap String a) -> [(String, a)]
     toList = Map.toList . fromMaybe mempty
 
-    mLibrarySection :: Maybe (WithCommonOptions LibrarySection)
+    mLibrarySection :: Maybe (Section LibrarySection)
     mLibrarySection = captureUnknownFieldsValue <$> packageConfigLibrary
 
     formatUnknownFields :: String -> [String] -> [String]
@@ -376,11 +376,11 @@ mkPackage (CaptureUnknownFields unknownFields (WithCommonOptions PackageConfig{.
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> sourceRepository
 
-toLibrary :: CommonOptions -> WithCommonOptions LibrarySection -> IO (Section Library)
+toLibrary :: Section global -> Section LibrarySection -> IO (Section Library)
 toLibrary globalOptions library = traverse fromLibrarySection section
   where
     section :: Section LibrarySection
-    section = toSection globalOptions library
+    section = mergeSections globalOptions library
 
     sourceDirs :: [FilePath]
     sourceDirs = sectionSourceDirs section
@@ -391,11 +391,11 @@ toLibrary globalOptions library = traverse fromLibrarySection section
       let (exposedModules, otherModules) = determineModules modules librarySectionExposedModules librarySectionOtherModules
       return (Library exposedModules otherModules)
 
-toExecutables :: CommonOptions -> [(String, WithCommonOptions ExecutableSection)] -> IO [Section Executable]
+toExecutables :: Section global -> [(String, Section ExecutableSection)] -> IO [Section Executable]
 toExecutables globalOptions executables = mapM toExecutable sections
   where
     sections :: [(String, Section ExecutableSection)]
-    sections = map (fmap $ toSection globalOptions) executables
+    sections = map (fmap $ mergeSections globalOptions) executables
 
     toExecutable :: (String, Section ExecutableSection) -> IO (Section Executable)
     toExecutable (name, section) = traverse fromExecutableSection section
@@ -411,17 +411,27 @@ toExecutables globalOptions executables = mapM toExecutable sections
             filterMain :: [String] -> [String]
             filterMain = maybe id (filter . (/=)) (toModule $ splitDirectories executableSectionMain)
 
-toSection :: CommonOptions -> WithCommonOptions a -> Section a
-toSection globalOptions (WithCommonOptions a options)
+mergeSections :: Section global -> Section a -> Section a
+mergeSections globalOptions options
   = Section a sourceDirs dependencies defaultExtensions ghcOptions cppOptions
   where
-    sourceDirs = merge commonOptionsSourceDirs
-    defaultExtensions = merge commonOptionsDefaultExtensions
-    ghcOptions = merge commonOptionsGhcOptions
-    cppOptions = merge commonOptionsCppOptions
-    merge selector = fromMaybeList (selector globalOptions) ++ fromMaybeList (selector options)
-    getDependencies = fromMaybeList . commonOptionsDependencies
-    dependencies = filter (not . null) [getDependencies globalOptions, getDependencies options]
+    a = sectionData options
+    sourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
+    defaultExtensions = sectionDefaultExtensions globalOptions ++ sectionDefaultExtensions options
+    ghcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
+    cppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
+    getDependencies = sectionDependencies
+    dependencies = getDependencies globalOptions ++ getDependencies options
+
+toSection :: a -> CommonOptions -> Section a
+toSection a CommonOptions{..}
+  = Section a sourceDirs dependencies defaultExtensions ghcOptions cppOptions
+  where
+    sourceDirs = fromMaybeList commonOptionsSourceDirs
+    defaultExtensions = fromMaybeList commonOptionsDefaultExtensions
+    ghcOptions = fromMaybeList commonOptionsGhcOptions
+    cppOptions = fromMaybeList commonOptionsCppOptions
+    dependencies = filter (not . null) [fromMaybeList commonOptionsDependencies]
 
 determineModules :: [String] -> Maybe (List String) -> Maybe (List String) -> ([String], [String])
 determineModules modules mExposedModules mOtherModules = case (mExposedModules, mOtherModules) of
