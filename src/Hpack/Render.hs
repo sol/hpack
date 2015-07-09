@@ -1,5 +1,13 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Hpack.Render where
 
+import Prelude ()
+import Prelude.Compat
+
+import Control.Applicative
+import Data.Char
+import Data.List.Compat
 import Data.String
 
 data Value =
@@ -15,21 +23,28 @@ data Stanza = Stanza String [Field]
 data Lines = SingleLine String | MultipleLines [String]
   deriving (Eq, Show)
 
+data RenderSettings = RenderSettings {
+  renderSettingsIndentation :: Int
+} deriving (Eq, Show)
+
+defaultRenderSettings :: RenderSettings
+defaultRenderSettings = RenderSettings 2
+
 class Render a where
-  render :: Int -> a -> [String]
+  render :: RenderSettings -> Int -> a -> [String]
 
 instance Render Stanza where
-  render nesting (Stanza name fields) = name : renderFields fields
+  render settings nesting (Stanza name fields) = name : renderFields fields
     where
       renderFields :: [Field] -> [String]
-      renderFields = concatMap (render $ succ nesting)
+      renderFields = concatMap (render settings $ succ nesting)
 
 instance Render Field where
-  render nesting (Field name v) = case renderValue v of
+  render settings nesting (Field name v) = case renderValue v of
     SingleLine "" -> []
-    SingleLine x -> [indent nesting (name ++ ": " ++ x)]
+    SingleLine x -> [indent settings nesting (name ++ ": " ++ x)]
     MultipleLines [] -> []
-    MultipleLines xs -> (indent nesting name ++ ":") : map (indent $ succ nesting) xs
+    MultipleLines xs -> (indent settings nesting name ++ ":") : map (indent settings $ succ nesting) xs
 
 renderValue :: Value -> Lines
 renderValue (Literal s) = SingleLine s
@@ -46,5 +61,23 @@ renderValue (LineSeparatedList xs) = MultipleLines $ map ("  " ++) xs
 instance IsString Value where
   fromString = Literal
 
-indent :: Int -> String -> String
-indent nesting s = replicate (nesting * 2) ' ' ++ s
+indent :: RenderSettings -> Int -> String -> String
+indent RenderSettings{..} nesting s = replicate (nesting * renderSettingsIndentation) ' ' ++ s
+
+sniffIndentation :: String -> Maybe Int
+sniffIndentation s = sniffFrom "library" <|> sniffFrom "executable"
+  where
+    sniffFrom :: String -> Maybe Int
+    sniffFrom section = case findSection . removeEmptyLines $ lines s of
+      _ : x : _ -> Just . length $ takeWhile isSpace x
+      _ -> Nothing
+      where
+        findSection = dropWhile (not . isPrefixOf section)
+
+    removeEmptyLines :: [String] -> [String]
+    removeEmptyLines = filter $ any (not . isSpace)
+
+sniffRenderSettings :: String -> RenderSettings
+sniffRenderSettings s = maybe defaultRenderSettings RenderSettings indentation
+  where
+    indentation = sniffIndentation s

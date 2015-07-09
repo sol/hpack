@@ -33,12 +33,13 @@ run = do
       old <- tryReadFile cabalFile
 
       let alignment = fromMaybe 16 (old >>= sniffAlignment)
-          output = renderPackage alignment (maybe [] extractFieldOrderHint old) package
+          settings = maybe defaultRenderSettings sniffRenderSettings old
+          output = renderPackage settings alignment (maybe [] extractFieldOrderHint old) package
       return (warnings, cabalFile, output)
     Left err -> die err
 
-renderPackage :: Int -> [String] -> Package -> String
-renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" chunks
+renderPackage :: RenderSettings -> Int -> [String] -> Package -> String
+renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\n" chunks
   where
     chunks :: [String]
     chunks = catMaybes [
@@ -46,7 +47,7 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" chunks
       , extraSourceFiles
       , dataFiles
       , sourceRepository
-      ] ++ map (unlines . render 0) section
+      ] ++ map (unlines . render settings 0) section
 
     header = Just (unlines $ map formatField sortedFields)
 
