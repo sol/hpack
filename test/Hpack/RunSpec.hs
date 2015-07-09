@@ -137,6 +137,40 @@ spec = do
           , "  default-language: Haskell2010"
           ]
 
+  describe "renderSection" $ do
+    it "renders conditionals" $ do
+      let conditional = (section $ Condition "os(windows)"){sectionDependencies = ["Win32"]}
+          input = (section ()){sectionConditionals = [conditional]}
+      renderSection 0 input `shouldBe` unlines [
+          "if os(windows)"
+        , "  build-depends:"
+        , "      Win32"
+        ]
+
+    it "renders nested conditionals" $ do
+      let conditional = (section $ Condition "arch(i386)"){sectionGhcOptions = ["-threaded"], sectionConditionals = [innerConditional]}
+          innerConditional = (section $ Condition "os(windows)"){sectionDependencies = ["Win32"]}
+          input = (section ()){sectionConditionals = [conditional]}
+      renderSection 0 input `shouldBe` unlines [
+          "if arch(i386)"
+        , "  ghc-options: -threaded"
+        , "  if os(windows)"
+        , "    build-depends:"
+        , "        Win32"
+        ]
+
+    it "renders a list of conditionals" $ do
+      let conditionalA = (section $ Condition "arch(i386)"){sectionGhcOptions = ["-threaded"]}
+          conditionalB = (section $ Condition "os(windows)"){sectionDependencies = ["Win32"]}
+          input = (section ()){sectionConditionals = [conditionalA, conditionalB]}
+      renderSection 0 input `shouldBe` unlines [
+          "if arch(i386)"
+        , "  ghc-options: -threaded"
+        , "if os(windows)"
+        , "  build-depends:"
+        , "      Win32"
+        ]
+
   describe "formatDescription" $ do
     it "formats description" $ do
       let description = unlines [
