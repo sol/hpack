@@ -19,7 +19,7 @@ import           Data.String.Interpolate
 import           Hpack.Config
 
 package :: Package
-package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing [] Nothing Nothing [] []
+package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] Nothing Nothing [] []
 
 executable :: String -> String -> Executable
 executable name main_ = Executable name main_ []
@@ -223,6 +223,16 @@ spec = do
       touch "README.markdown"
       Right (_, c) <- readPackageConfig "package.yaml"
       packageExtraSourceFiles c `shouldBe` ["CHANGES.markdown", "README.markdown"]
+
+    it "accepts data-files" $ do
+      writeFile "package.yaml" [i|
+        data-files:
+          - data/**/*.html
+        |]
+      touch "data/foo/index.html"
+      touch "data/bar/index.html"
+      Right (_, c) <- readPackageConfig "package.yaml"
+      packageDataFiles c `shouldMatchList` ["data/foo/index.html", "data/bar/index.html"]
 
     it "accepts github" $ do
       writeFile "package.yaml" [i|

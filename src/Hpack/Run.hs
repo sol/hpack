@@ -42,6 +42,7 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
     sections = catMaybes [
         header
       , extraSourceFiles
+      , dataFiles
       , sourceRepository
       , library
       ] ++ renderExecutables packageExecutables ++ renderTests packageTests
@@ -49,6 +50,7 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
     header = Just (unlines $ map formatField sortedFields)
 
     extraSourceFiles = guard (not . null $ packageExtraSourceFiles) >> Just (unlines $ "extra-source-files:" : map ("  " ++) packageExtraSourceFiles)
+    dataFiles = guard (not . null $ packageDataFiles) >> Just (unlines $ "data-files:" : map ("  " ++) packageDataFiles)
 
     sourceRepository = renderSourceRepository <$> packageSourceRepository
 

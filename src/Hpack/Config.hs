@@ -137,6 +137,7 @@ data PackageConfig = PackageConfig {
 , packageConfigCopyright :: Maybe (List String)
 , packageConfigLicense :: Maybe String
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
+, packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigGithub :: Maybe Text
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (WithCommonOptions LibrarySection))
 , packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields (WithCommonOptions ExecutableSection)))
@@ -237,6 +238,7 @@ data Package = Package {
 , packageLicense :: Maybe String
 , packageLicenseFile :: Maybe FilePath
 , packageExtraSourceFiles :: [FilePath]
+, packageDataFiles :: [FilePath]
 , packageSourceRepository :: Maybe SourceRepository
 , packageLibrary :: Maybe (Section Library)
 , packageExecutables :: [Section Executable]
@@ -287,6 +289,9 @@ mkPackage (CaptureUnknownFields unknownFields (WithCommonOptions PackageConfig{.
   (extraSourceFilesWarnings, extraSourceFiles) <-
     expandGlobs (fromMaybeList packageConfigExtraSourceFiles)
 
+  (dataFilesWarnings, dataFiles) <-
+    expandGlobs (fromMaybeList packageConfigDataFiles)
+
   let package = Package {
         packageName = name
       , packageVersion = fromMaybe "0.0.0" packageConfigVersion
@@ -302,6 +307,7 @@ mkPackage (CaptureUnknownFields unknownFields (WithCommonOptions PackageConfig{.
       , packageLicense = packageConfigLicense
       , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
       , packageExtraSourceFiles = extraSourceFiles
+      , packageDataFiles = dataFiles
       , packageSourceRepository = sourceRepository
       , packageLibrary = mLibrary
       , packageExecutables = executables
@@ -315,6 +321,7 @@ mkPackage (CaptureUnknownFields unknownFields (WithCommonOptions PackageConfig{.
         ++ formatUnknownSectionFields "test" testsSections
         ++ formatMissingSourceDirs missingSourceDirs
         ++ extraSourceFilesWarnings
+        ++ dataFilesWarnings
 
   return (warnings, package)
   where
