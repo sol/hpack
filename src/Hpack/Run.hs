@@ -1,10 +1,12 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Hpack.Run (
   run
 -- exported for testing
 , renderPackage
+, renderSection
 , renderSourceRepository
 , formatDescription
 ) where
@@ -150,25 +152,43 @@ renderTest section@(sectionData -> Executable{..}) =
 renderExecutableSection :: Section Executable -> String
 renderExecutableSection section@(sectionData -> Executable{..}) =
      "  main-is: " ++ executableMain ++ "\n"
-  ++ renderSection section
+  ++ renderSection 1 section
   ++ renderOtherModules executableOtherModules
   ++ "  default-language: Haskell2010\n"
 
 renderLibrary :: Section Library -> String
 renderLibrary section@(sectionData -> Library{..}) =
     "library\n"
-  ++ renderSection section
+  ++ renderSection 1 section
   ++ renderExposedModules libraryExposedModules
   ++ renderOtherModules libraryOtherModules
   ++ "  default-language: Haskell2010\n"
 
-renderSection :: Section a -> String
-renderSection Section{..} =
+newtype Nesting = Nesting Int
+  deriving (Num, Enum)
+
+indent :: Nesting -> [String] -> String
+indent (Nesting n) = unlines . map indentLine
+  where
+    indentLine "" = ""
+    indentLine s = replicate (n * 2) ' ' ++ s
+
+renderSection :: Nesting -> Section a -> String
+renderSection nesting Section{..} =
      renderSourceDirs sectionSourceDirs
-  ++ unlines (renderDependencies sectionDependencies)
-  ++ renderDefaultExtensions sectionDefaultExtensions
-  ++ renderGhcOptions sectionGhcOptions
-  ++ renderCppOptions sectionCppOptions
+  ++ indent nesting (renderDependencies sectionDependencies)
+  ++ indent nesting (renderDefaultExtensions sectionDefaultExtensions)
+  ++ indent nesting (renderGhcOptions sectionGhcOptions)
+  ++ indent nesting (renderCppOptions sectionCppOptions)
+  ++ renderConditionals nesting sectionConditionals
+
+renderConditionals :: Nesting -> [Section Condition] -> String
+renderConditionals nesting = concatMap (renderConditional nesting)
+
+renderConditional :: Nesting -> Section Condition -> String
+renderConditional nesting section = condition ++ renderSection (succ nesting) section
+  where
+    condition = indent nesting ["if " ++ conditionCondition (sectionData section)]
 
 renderSourceDirs :: [String] -> String
 renderSourceDirs dirs
@@ -188,23 +208,23 @@ renderOtherModules modules
 renderDependencies :: [Dependency] -> [String]
 renderDependencies dependencies
   | null dependencies = []
-  | otherwise = "  build-depends:" : map render (zip (True : repeat False) dependencies)
+  | otherwise = "build-depends:" : map render (zip (True : repeat False) dependencies)
   where
     render :: (Bool, Dependency) -> String
     render (isFirst, dependency)
-      | isFirst   = "      " ++ dependencyName dependency
-      | otherwise = "    , " ++ dependencyName dependency
+      | isFirst   = "    " ++ dependencyName dependency
+      | otherwise = "  , " ++ dependencyName dependency
 
-renderGhcOptions :: [GhcOption] -> String
+renderGhcOptions :: [GhcOption] -> [String]
 renderGhcOptions = renderOptions "ghc-options"
 
-renderCppOptions :: [GhcOption] -> String
+renderCppOptions :: [GhcOption] -> [String]
 renderCppOptions = renderOptions "cpp-options"
 
-renderDefaultExtensions :: [String] -> String
+renderDefaultExtensions :: [String] -> [String]
 renderDefaultExtensions = renderOptions "default-extensions"
 
-renderOptions :: String -> [String] -> String
+renderOptions :: String -> [String] -> [String]
 renderOptions field options
-  | null options = ""
-  | otherwise = "  " ++ field ++ ": " ++ unwords options ++ "\n"
+  | null options = []
+  | otherwise = [field ++ ": " ++ unwords options]
