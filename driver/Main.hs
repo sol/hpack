@@ -35,7 +35,11 @@ main = do
       (warnings, name, new) <- run
       forM_ warnings $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
       old <- force . either (const Nothing) (Just . stripHeader) <$> tryJust (guard . isDoesNotExistError) (readFile name)
-      unless (old == Just (lines new)) (writeFile name $ header ++ new)
+      if (old == Just (lines new)) then do
+        putStrLn (name ++ " is up-to-date")
+      else do
+        (writeFile name $ header ++ new)
+        putStrLn ("generated " ++ name)
       where
         stripHeader :: String -> [String]
         stripHeader = dropWhile null . dropWhile ("--" `isPrefixOf`) . lines
