@@ -151,13 +151,16 @@ renderExecutableSection :: Section Executable -> String
 renderExecutableSection section@(sectionData -> Executable{..}) =
      "  main-is: " ++ executableMain ++ "\n"
   ++ renderSection section
+  ++ renderOtherModules executableOtherModules
+  ++ "  default-language: Haskell2010\n"
 
 renderLibrary :: Section Library -> String
 renderLibrary section@(sectionData -> Library{..}) =
     "library\n"
+  ++ renderSection section
   ++ renderExposedModules libraryExposedModules
   ++ renderOtherModules libraryOtherModules
-  ++ renderSection section
+  ++ "  default-language: Haskell2010\n"
 
 renderSection :: Section a -> String
 renderSection Section{..} =
@@ -166,7 +169,6 @@ renderSection Section{..} =
   ++ renderDefaultExtensions sectionDefaultExtensions
   ++ renderGhcOptions sectionGhcOptions
   ++ renderCppOptions sectionCppOptions
-  ++ "  default-language: Haskell2010\n"
 
 renderSourceDirs :: [String] -> String
 renderSourceDirs dirs
