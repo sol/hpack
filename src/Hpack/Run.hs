@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -20,6 +21,7 @@ import           System.Exit.Compat
 
 import           Hpack.Util
 import           Hpack.Config
+import           Hpack.Render
 
 run :: IO ([String], FilePath, String)
 run = do
@@ -31,21 +33,21 @@ run = do
       old <- tryReadFile cabalFile
 
       let alignment = fromMaybe 16 (old >>= sniffAlignment)
-          output = renderPackage alignment (maybe [] extractFieldOrderHint old) package
+          settings = maybe defaultRenderSettings sniffRenderSettings old
+          output = renderPackage settings alignment (maybe [] extractFieldOrderHint old) package
       return (warnings, cabalFile, output)
     Left err -> die err
 
-renderPackage :: Int -> [String] -> Package -> String
-renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sections
+renderPackage :: RenderSettings -> Int -> [String] -> Package -> String
+renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\n" chunks
   where
-    sections :: [String]
-    sections = catMaybes [
+    chunks :: [String]
+    chunks = catMaybes [
         header
       , extraSourceFiles
       , dataFiles
       , sourceRepository
-      , library
-      ] ++ renderExecutables packageExecutables ++ renderTests packageTests
+      ] ++ map (unlines . render settings 0) section
 
     header = Just (unlines $ map formatField sortedFields)
 
@@ -54,7 +56,9 @@ renderPackage alignment existingFieldOrder Package{..} = intercalate "\n" sectio
 
     sourceRepository = renderSourceRepository <$> packageSourceRepository
 
-    library = renderLibrary <$> packageLibrary
+    library = maybe [] (return . renderLibrary) packageLibrary
+
+    section = library ++ renderExecutables packageExecutables ++ renderTests packageTests
 
     padding name = replicate (alignment - length name - 2) ' '
 
@@ -112,7 +116,7 @@ formatDescription alignment description = case map emptyLineToDot $ lines descri
   x : xs -> intercalate "\n" (x : map (indentation ++) xs)
   [] -> ""
   where
-    n = max alignment (length "description: ")
+    n = max alignment (length ("description: " :: String))
     indentation = replicate n ' '
 
     emptyLineToDot xs
@@ -129,82 +133,65 @@ renderSourceRepository SourceRepository{..} = concat [
   , maybe "" (("  subdir: " ++) . (++ "\n")) sourceRepositorySubdir
   ]
 
-renderExecutables :: [Section Executable] -> [String]
+renderExecutables :: [Section Executable] -> [Stanza]
 renderExecutables = map renderExecutable
 
-renderExecutable :: Section Executable -> String
+renderExecutable :: Section Executable -> Stanza
 renderExecutable section@(sectionData -> Executable{..}) =
-     "executable "
-  ++ executableName ++ "\n"
-  ++ renderExecutableSection section
+  Stanza ("executable " ++ executableName) (renderExecutableSection section)
 
-renderTests :: [Section Executable] -> [String]
+renderTests :: [Section Executable] -> [Stanza]
 renderTests = map renderTest
 
-renderTest :: Section Executable -> String
+renderTest :: Section Executable -> Stanza
 renderTest section@(sectionData -> Executable{..}) =
-     "test-suite " ++ executableName ++ "\n"
-  ++ "  type: exitcode-stdio-1.0\n"
-  ++ renderExecutableSection section
+  Stanza ("test-suite " ++ executableName)
+    (Field "type" "exitcode-stdio-1.0" : renderExecutableSection section)
 
-renderExecutableSection :: Section Executable -> String
+renderExecutableSection :: Section Executable -> [Field]
 renderExecutableSection section@(sectionData -> Executable{..}) =
-     "  main-is: " ++ executableMain ++ "\n"
-  ++ renderSection section
-  ++ renderOtherModules executableOtherModules
-  ++ "  default-language: Haskell2010\n"
-
-renderLibrary :: Section Library -> String
-renderLibrary section@(sectionData -> Library{..}) =
-    "library\n"
-  ++ renderSection section
-  ++ renderExposedModules libraryExposedModules
-  ++ renderOtherModules libraryOtherModules
-  ++ "  default-language: Haskell2010\n"
-
-renderSection :: Section a -> String
-renderSection Section{..} =
-     renderSourceDirs sectionSourceDirs
-  ++ unlines (renderDependencies sectionDependencies)
-  ++ renderDefaultExtensions sectionDefaultExtensions
-  ++ renderGhcOptions sectionGhcOptions
-  ++ renderCppOptions sectionCppOptions
-
-renderSourceDirs :: [String] -> String
-renderSourceDirs dirs
-  | null dirs = ""
-  | otherwise = "  hs-source-dirs: " ++ intercalate ", " dirs ++ "\n"
-
-renderExposedModules :: [String] -> String
-renderExposedModules modules
-  | null modules = ""
-  | otherwise = "  exposed-modules:\n" ++ (unlines $ map ("      " ++) modules)
-
-renderOtherModules :: [String] -> String
-renderOtherModules modules
-  | null modules = ""
-  | otherwise = "  other-modules:\n" ++ (unlines $ map ("      " ++) modules)
-
-renderDependencies :: [Dependency] -> [String]
-renderDependencies dependencies
-  | null dependencies = []
-  | otherwise = "  build-depends:" : map render (zip (True : repeat False) dependencies)
+  mainIs : renderSection section ++ [otherModules, defaultLanguage]
   where
-    render :: (Bool, Dependency) -> String
-    render (isFirst, dependency)
-      | isFirst   = "      " ++ dependencyName dependency
-      | otherwise = "    , " ++ dependencyName dependency
+    mainIs = Field "main-is" (Literal executableMain)
+    otherModules = renderOtherModules executableOtherModules
 
-renderGhcOptions :: [GhcOption] -> String
-renderGhcOptions = renderOptions "ghc-options"
+renderLibrary :: Section Library -> Stanza
+renderLibrary section@(sectionData -> Library{..}) = Stanza "library" $
+  renderSection section ++ [
+    renderExposedModules libraryExposedModules
+  , renderOtherModules libraryOtherModules
+  , defaultLanguage
+  ]
 
-renderCppOptions :: [GhcOption] -> String
-renderCppOptions = renderOptions "cpp-options"
+renderSection :: Section a -> [Field]
+renderSection Section{..} = [
+    renderSourceDirs sectionSourceDirs
+  , renderDependencies sectionDependencies
+  , renderDefaultExtensions sectionDefaultExtensions
+  , renderGhcOptions sectionGhcOptions
+  , renderCppOptions sectionCppOptions
+  ]
 
-renderDefaultExtensions :: [String] -> String
-renderDefaultExtensions = renderOptions "default-extensions"
+defaultLanguage :: Field
+defaultLanguage = Field "default-language" "Haskell2010"
 
-renderOptions :: String -> [String] -> String
-renderOptions field options
-  | null options = ""
-  | otherwise = "  " ++ field ++ ": " ++ unwords options ++ "\n"
+renderSourceDirs :: [String] -> Field
+renderSourceDirs dirs = Field "hs-source-dirs" (CommaSeparatedList dirs)
+
+renderExposedModules :: [String] -> Field
+renderExposedModules modules = Field "exposed-modules" (LineSeparatedList modules)
+
+renderOtherModules :: [String] -> Field
+renderOtherModules modules = Field "other-modules" (LineSeparatedList modules)
+
+renderDependencies :: [Dependency] -> Field
+renderDependencies dependencies = Field "build-depends" (CommaSeparatedList $ map dependencyName dependencies)
+
+renderGhcOptions :: [GhcOption] -> Field
+renderGhcOptions = Field "ghc-options" . WordList
+
+renderCppOptions :: [GhcOption] -> Field
+renderCppOptions = Field "cpp-options" . WordList
+
+renderDefaultExtensions :: [String] -> Field
+renderDefaultExtensions = Field "default-extensions" . WordList

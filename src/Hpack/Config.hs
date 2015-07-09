@@ -258,7 +258,7 @@ data Section a = Section {
 } deriving (Eq, Show, Functor, Foldable, Traversable, Data, Typeable)
 
 instance HasFieldNames a => HasFieldNames (Section a) where
-  fieldNames section = (fieldNames (sectionData section) ++ fieldNames proxy) \\ ["config"] -- FIXME : test for removing "config"
+  fieldNames section = (fieldNames (sectionData section) ++ fieldNames proxy)
     where
       proxy :: CommonOptions
       proxy = CommonOptions Nothing Nothing Nothing Nothing Nothing
@@ -420,8 +420,7 @@ mergeSections globalOptions options
     defaultExtensions = sectionDefaultExtensions globalOptions ++ sectionDefaultExtensions options
     ghcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
     cppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
-    getDependencies = sectionDependencies
-    dependencies = getDependencies globalOptions ++ getDependencies options
+    dependencies = sectionDependencies globalOptions ++ sectionDependencies options
 
 toSection :: a -> CommonOptions -> Section a
 toSection a CommonOptions{..}
