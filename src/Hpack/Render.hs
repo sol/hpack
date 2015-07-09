@@ -2,13 +2,14 @@
 
 module Hpack.Render where
 
-import Prelude ()
-import Prelude.Compat
+import           Prelude ()
+import           Prelude.Compat
 
-import Control.Applicative
-import Data.Char
-import Data.List.Compat
-import Data.String
+import           Control.Applicative
+import           Data.Char
+import           Data.List.Compat
+import           Data.Maybe
+import           Data.String
 
 data Value =
     Literal String
@@ -25,10 +26,11 @@ data Lines = SingleLine String | MultipleLines [String]
 
 data RenderSettings = RenderSettings {
   renderSettingsIndentation :: Int
+, renderSettingsTrailingCommas :: Bool
 } deriving (Eq, Show)
 
 defaultRenderSettings :: RenderSettings
-defaultRenderSettings = RenderSettings 2
+defaultRenderSettings = RenderSettings 2 False
 
 class Render a where
   render :: RenderSettings -> Int -> a -> [String]
@@ -40,23 +42,33 @@ instance Render Stanza where
       renderFields = concatMap (render settings $ succ nesting)
 
 instance Render Field where
-  render settings nesting (Field name v) = case renderValue v of
+  render settings nesting (Field name v) = case renderValue settings v of
     SingleLine "" -> []
     SingleLine x -> [indent settings nesting (name ++ ": " ++ x)]
     MultipleLines [] -> []
     MultipleLines xs -> (indent settings nesting name ++ ":") : map (indent settings $ succ nesting) xs
 
-renderValue :: Value -> Lines
-renderValue (Literal s) = SingleLine s
-renderValue (WordList ws) = SingleLine $ unwords ws
-renderValue (CommaSeparatedList xs) = MultipleLines $
-  map render_ (zip (True : repeat False) xs)
-  where
-    render_ :: (Bool, String) -> String
-    render_ (isFirst, x)
-      | isFirst   = "  " ++ x
-      | otherwise = ", " ++ x
-renderValue (LineSeparatedList xs) = MultipleLines $ map ("  " ++) xs
+renderValue :: RenderSettings -> Value -> Lines
+renderValue RenderSettings{..} v = case v of
+  Literal s -> SingleLine s
+  WordList ws -> SingleLine $ unwords ws
+  LineSeparatedList xs -> MultipleLines $ map ("  " ++) xs
+  CommaSeparatedList xs -> MultipleLines $ ys
+    where
+      ys | renderSettingsTrailingCommas = trailingCommas
+         | otherwise = leadingCommas
+      leadingCommas = map render_ (zip (True : repeat False) xs)
+        where
+          render_ :: (Bool, String) -> String
+          render_ (isFirst, x)
+            | isFirst   = "  " ++ x
+            | otherwise = ", " ++ x
+      trailingCommas = map render_ (reverse $ zip (True : repeat False) (reverse xs))
+        where
+          render_ :: (Bool, String) -> String
+          render_ (isLast, x)
+            | isLast   = x
+            | otherwise = x ++ ","
 
 instance IsString Value where
   fromString = Literal
@@ -78,6 +90,7 @@ sniffIndentation s = sniffFrom "library" <|> sniffFrom "executable"
     removeEmptyLines = filter $ any (not . isSpace)
 
 sniffRenderSettings :: String -> RenderSettings
-sniffRenderSettings s = maybe defaultRenderSettings RenderSettings indentation
+sniffRenderSettings s = RenderSettings indentation trailingCommas
   where
-    indentation = sniffIndentation s
+    indentation = fromMaybe (renderSettingsIndentation defaultRenderSettings) (sniffIndentation s)
+    trailingCommas = renderSettingsTrailingCommas defaultRenderSettings
