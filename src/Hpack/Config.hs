@@ -29,8 +29,9 @@ import           Data.Aeson.Types
 import           Data.Data
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as Map
-import           Data.List (nub, sort, (\\))
+import           Data.List (nub, (\\), sortBy)
 import           Data.Maybe
+import           Data.Ord
 import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -147,7 +148,7 @@ data PackageConfig = PackageConfig {
 instance HasFieldNames PackageConfig
 
 packageDependencies :: Package -> [Dependency]
-packageDependencies Package{..} = nub . sort $
+packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . dependencyName)) $
      (concat $ concatMap sectionDependencies packageExecutables)
   ++ (concat $ concatMap sectionDependencies packageTests)
   ++ maybe [] (concat . sectionDependencies) packageLibrary
@@ -431,7 +432,7 @@ determineModules modules mExposedModules mOtherModules = case (mExposedModules, 
     exposedModules = maybe (modules \\ otherModules)   fromList mExposedModules
 
 getModules :: FilePath -> IO [String]
-getModules src = do
+getModules src = sort <$> do
   exits <- doesDirectoryExist src
   if exits
     then toModules <$> getFilesRecursive src

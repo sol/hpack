@@ -7,24 +7,32 @@ module Hpack.Util (
 , sniffAlignment
 , extractFieldOrderHint
 , expandGlobs
+, sort
+, lexicographically
 
 -- exported for testing
 , splitField
 ) where
 
 import           Control.Applicative
-import           Control.Monad
-import           Control.Exception
 import           Control.DeepSeq
+import           Control.Exception
+import           Control.Monad
+import           Data.Aeson.Types
 import           Data.Char
+import           Data.Data
+import           Data.List hiding (sort)
 import           Data.Maybe
-import           Data.List
+import           Data.Ord
 import           System.Directory
 import           System.FilePath
 import           System.FilePath.Glob
-import           Data.Data
 
-import           Data.Aeson.Types
+sort :: [String] -> [String]
+sort = sortBy (comparing lexicographically)
+
+lexicographically :: String -> (String, String)
+lexicographically x = (map toLower x, x)
 
 newtype List a = List {fromList :: [a]}
   deriving (Eq, Show, Data, Typeable)
@@ -51,8 +59,8 @@ isValidModuleName (c:cs) = isUpper c && all isValidModuleChar cs
 isValidModuleChar :: Char -> Bool
 isValidModuleChar c = isAlphaNum c || c == '_' || c == '\''
 
-getFilesRecursive :: FilePath -> IO [[FilePath]]
-getFilesRecursive baseDir = sort <$> go []
+getFilesRecursive :: FilePath -> IO [[String]]
+getFilesRecursive baseDir = go []
   where
     go :: [FilePath] -> IO [[FilePath]]
     go dir = do

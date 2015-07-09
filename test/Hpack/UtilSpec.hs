@@ -3,7 +3,6 @@ module Hpack.UtilSpec (main, spec) where
 
 import           Helper
 import           Data.Aeson
-import           Data.List
 import           System.Directory
 
 import           Hpack.Util
@@ -13,6 +12,10 @@ main = hspec spec
 
 spec :: Spec
 spec = do
+  describe "sort" $ do
+    it "sorts lexicographically" $ do
+      sort ["foo", "Foo"] `shouldBe` ["Foo", "foo" :: String]
+
   describe "toModule" $ do
     it "maps paths to module names" $ do
       toModule ["Foo", "Bar", "Baz.hs"] `shouldBe` Just "Foo.Bar.Baz"
@@ -26,7 +29,8 @@ spec = do
         touch "foo/bar"
         touch "foo/baz"
         touch "foo/foobar/baz"
-        getFilesRecursive "foo" `shouldReturn` [
+        actual <- getFilesRecursive "foo"
+        actual `shouldMatchList` [
             ["bar"]
           , ["baz"]
           , ["foobar", "baz"]
