@@ -73,21 +73,29 @@ spec = do
 
   describe "renderValue" $ do
     it "renders WordList" $ do
-      renderValue (WordList ["foo", "bar", "baz"]) `shouldBe` SingleLine "foo bar baz"
+      renderValue defaultRenderSettings (WordList ["foo", "bar", "baz"]) `shouldBe` SingleLine "foo bar baz"
+
+    it "renders LineSeparatedList" $ do
+      renderValue defaultRenderSettings (LineSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
+          "  foo"
+        , "  bar"
+        , "  baz"
+        ]
 
     it "renders CommaSeparatedList" $ do
-      renderValue (CommaSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
+      renderValue defaultRenderSettings (CommaSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
           "  foo"
         , ", bar"
         , ", baz"
         ]
 
-    it "renders LineSeparatedList" $ do
-      renderValue (LineSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
-          "  foo"
-        , "  bar"
-        , "  baz"
-        ]
+    context "when renderSettingsTrailingCommas is True" $ do
+      it "renders CommaSeparatedList with trailing commas" $ do
+        renderValue defaultRenderSettings{renderSettingsTrailingCommas = True} (CommaSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
+            "foo,"
+          , "bar,"
+          , "baz"
+          ]
 
   describe "sniffIndentation" $ do
     it "sniff alignment from executable section" $ do
