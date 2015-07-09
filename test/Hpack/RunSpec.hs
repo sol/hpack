@@ -89,6 +89,17 @@ spec = do
         , "  bar"
         ]
 
+    it "renders libray section" $ do
+      renderPackage 0 [] package {packageLibrary = Just $ section library} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.10"
+        , ""
+        , "library"
+        , "  default-language: Haskell2010"
+        ]
+
     context "when given list of existing fields" $ do
       it "retains field order" $ do
         renderPackage 16 ["cabal-version", "version", "name", "build-type"] package `shouldBe` unlines [
