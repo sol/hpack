@@ -39,26 +39,25 @@ run = do
     Left err -> die err
 
 renderPackage :: RenderSettings -> Int -> [String] -> Package -> String
-renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\n" chunks
+renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\n" (header : chunks)
   where
     chunks :: [String]
-    chunks = catMaybes [
-        header
-      , extraSourceFiles
-      , dataFiles
-      , sourceRepository
-      ] ++ map (unlines . render settings 0) section
+    chunks = map unlines . filter (not . null) . map (render settings 0) $ stanzas
 
-    header = Just (unlines $ map formatField sortedFields)
+    header = unlines $ map formatField sortedFields
 
-    extraSourceFiles = guard (not . null $ packageExtraSourceFiles) >> Just (unlines $ "extra-source-files:" : map ("  " ++) packageExtraSourceFiles)
-    dataFiles = guard (not . null $ packageDataFiles) >> Just (unlines $ "data-files:" : map ("  " ++) packageDataFiles)
+    extraSourceFiles :: Field
+    extraSourceFiles = Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
 
-    sourceRepository = renderSourceRepository <$> packageSourceRepository
+    dataFiles :: Field
+    dataFiles = Field "data-files" (LineSeparatedList packageDataFiles)
+
+    sourceRepository = maybe [] (return . renderSourceRepository) packageSourceRepository
 
     library = maybe [] (return . renderLibrary) packageLibrary
 
-    section = library ++ renderExecutables packageExecutables ++ renderTests packageTests
+    stanzas :: [Stanza]
+    stanzas = Fields [extraSourceFiles] : Fields [dataFiles] : sourceRepository ++ library ++ renderExecutables packageExecutables ++ renderTests packageTests
 
     padding name = replicate (alignment - length name - 2) ' '
 
@@ -125,12 +124,11 @@ formatDescription alignment description = case map emptyLineToDot $ lines descri
 
     isEmptyLine = all isSpace
 
-renderSourceRepository :: SourceRepository -> String
-renderSourceRepository SourceRepository{..} = concat [
-    "source-repository head\n"
-  , "  type: git\n"
-  , "  location: " ++ sourceRepositoryUrl ++ "\n"
-  , maybe "" (("  subdir: " ++) . (++ "\n")) sourceRepositorySubdir
+renderSourceRepository :: SourceRepository -> Stanza
+renderSourceRepository SourceRepository{..} = Stanza "source-repository head" [
+    Field "type" "git"
+  , Field "location" (Literal sourceRepositoryUrl)
+  , Field "subdir" (maybe "" Literal sourceRepositorySubdir)
   ]
 
 renderExecutables :: [Section Executable] -> [Stanza]
@@ -166,10 +164,10 @@ renderLibrary section@(sectionData -> Library{..}) = Stanza "library" $
 renderSection :: Section a -> [Field]
 renderSection Section{..} = [
     renderSourceDirs sectionSourceDirs
-  , renderDependencies sectionDependencies
   , renderDefaultExtensions sectionDefaultExtensions
   , renderGhcOptions sectionGhcOptions
   , renderCppOptions sectionCppOptions
+  , renderDependencies sectionDependencies
   ]
 
 defaultLanguage :: Field

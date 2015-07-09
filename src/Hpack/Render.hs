@@ -16,10 +16,13 @@ data Value =
   | CommaSeparatedList [String]
   | LineSeparatedList [String]
   | WordList [String]
+  deriving (Eq, Show)
 
 data Field = Field String Value
+  deriving (Eq, Show)
 
-data Stanza = Stanza String [Field]
+data Stanza = Stanza String [Field] | Fields [Field]
+  deriving (Eq, Show)
 
 data Lines = SingleLine String | MultipleLines [String]
   deriving (Eq, Show)
@@ -39,6 +42,7 @@ class Render a where
   render :: RenderSettings -> Int -> a -> [String]
 
 instance Render Stanza where
+  render settings nesting (Fields fields) = concatMap (render settings nesting) fields
   render settings nesting (Stanza name fields) = name : renderFields fields
     where
       renderFields :: [Field] -> [String]

@@ -87,8 +87,8 @@ spec = do
         , "cabal-version: >= 1.10"
         , ""
         , "extra-source-files:"
-        , "  foo"
-        , "  bar"
+        , "    foo"
+        , "    bar"
         ]
 
     it "renders libray section" $ do
@@ -187,16 +187,18 @@ spec = do
 
   describe "renderSourceRepository" $ do
     it "renders source-repository without subdir correctly" $ do
-      renderSourceRepository (SourceRepository "https://github.com/hspec/hspec" Nothing)
-        `shouldBe` unlines [
+      let repository = SourceRepository "https://github.com/hspec/hspec" Nothing
+      (render defaultRenderSettings 0 $ renderSourceRepository repository)
+        `shouldBe` [
             "source-repository head"
           , "  type: git"
           , "  location: https://github.com/hspec/hspec"
           ]
 
     it "renders source-repository with subdir" $ do
-      renderSourceRepository (SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core"))
-        `shouldBe` unlines [
+      let repository = SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core")
+      (render defaultRenderSettings 0 $ renderSourceRepository repository)
+        `shouldBe` [
             "source-repository head"
           , "  type: git"
           , "  location: https://github.com/hspec/hspec"
