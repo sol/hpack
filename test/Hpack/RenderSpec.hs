@@ -73,21 +73,38 @@ spec = do
 
   describe "renderValue" $ do
     it "renders WordList" $ do
-      renderValue (WordList ["foo", "bar", "baz"]) `shouldBe` SingleLine "foo bar baz"
+      renderValue defaultRenderSettings (WordList ["foo", "bar", "baz"]) `shouldBe` SingleLine "foo bar baz"
 
     it "renders CommaSeparatedList" $ do
-      renderValue (CommaSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
+      renderValue defaultRenderSettings (CommaSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
           "  foo"
         , ", bar"
         , ", baz"
         ]
 
     it "renders LineSeparatedList" $ do
-      renderValue (LineSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
+      renderValue defaultRenderSettings (LineSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
           "  foo"
         , "  bar"
         , "  baz"
         ]
+
+    context "when renderSettingsCommaStyle is TrailingCommas" $ do
+      let settings = defaultRenderSettings{renderSettingsCommaStyle = TrailingCommas}
+
+      it "renders CommaSeparatedList with trailing commas" $ do
+        renderValue settings (CommaSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
+            "foo,"
+          , "bar,"
+          , "baz"
+          ]
+
+      it "renders LineSeparatedList without padding" $ do
+        renderValue settings (LineSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
+            "foo"
+          , "bar"
+          , "baz"
+          ]
 
   describe "sniffIndentation" $ do
     it "sniff alignment from executable section" $ do
@@ -125,3 +142,26 @@ spec = do
             , "    build-depends: bar"
             ]
       sniffIndentation input `shouldBe` Just 4
+
+  describe "sniffCommaStyle" $ do
+    it "detects leading commas" $ do
+      let input = unlines [
+              "executable foo"
+            , "  build-depends:"
+            , "      bar"
+            , "    , baz"
+            ]
+      sniffCommaStyle input `shouldBe` Just LeadingCommas
+
+    it "detects trailing commas" $ do
+      let input = unlines [
+              "executable foo"
+            , "  build-depends:"
+            , "    bar,  "
+            , "    baz"
+            ]
+      sniffCommaStyle input `shouldBe` Just TrailingCommas
+
+    context "when detection fails" $ do
+      it "returns Nothing" $ do
+        sniffCommaStyle "" `shouldBe` Nothing
