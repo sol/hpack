@@ -13,9 +13,10 @@ import           Helper
 
 import           Data.Aeson.QQ
 import           Data.Aeson.Types
-import           Data.String.Interpolate
+import           Data.String.Interpolate.IsString
 import           Control.Arrow
 import           System.Directory (createDirectory)
+import           Data.Yaml
 
 import           Hpack.Util
 import           Hpack.Config hiding (package)
@@ -51,9 +52,31 @@ withPackageWarnings content beforeAction expectation = withPackage content befor
 withPackageWarnings_ :: String -> ([String] -> Expectation) -> Expectation
 withPackageWarnings_ content = withPackageWarnings content (return ())
 
+data Dummy = Dummy
+  deriving (Eq, Show)
+
+instance FromJSON Dummy where
+  parseJSON _ = return Dummy
+
 spec :: Spec
 spec = do
   describe "parseJSON" $ do
+    context "when parsing Section" $ do
+      it "accepts dependencies" $ do
+        let input = [i|
+              dependencies: hpack
+              |]
+        decodeEither input `shouldBe` Right (section Dummy){sectionDependencies = ["hpack"]}
+
+      it "accepts conditionals" $ do
+        let input = [i|
+              when:
+                condition: os(windows)
+                dependencies: Win32
+              |]
+            conditionals = [(section $ Condition "os(windows)"){sectionDependencies = ["Win32"]}]
+        decodeEither input `shouldBe` Right (section Dummy){sectionConditionals = conditionals}
+
     context "when parsing a Dependency" $ do
       it "accepts simple dependencies" $ do
         parseEither parseJSON "hpack" `shouldBe` Right (Dependency "hpack" Nothing)

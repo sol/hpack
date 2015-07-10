@@ -10,6 +10,7 @@ module Hpack.Run (
 , CommaStyle(..)
 , defaultRenderSettings
 #ifdef TEST
+, renderConditional
 , renderSourceRepository
 , formatDescription
 #endif
@@ -205,6 +206,13 @@ renderSection Section{..} = [
   , renderCppOptions sectionCppOptions
   , renderDependencies sectionDependencies
   ]
+  ++ map renderConditional sectionConditionals
+
+renderConditional :: Section Condition -> Element
+renderConditional section = Stanza condition (renderSection section)
+  where
+    condition :: String
+    condition = "if " ++ conditionCondition (sectionData section)
 
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"

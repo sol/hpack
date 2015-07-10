@@ -23,6 +23,7 @@ module Hpack.Config (
 , Section(..)
 , Library(..)
 , Executable(..)
+, Condition(..)
 , SourceRepository(..)
 #ifdef TEST
 , getModules
@@ -56,7 +57,7 @@ package :: String -> String -> Package
 package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] Nothing Nothing [] [] []
 
 section :: a -> Section a
-section a = Section a [] [] [] [] [] [] []
+section a = Section a [] [] [] [] [] [] [] []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -91,15 +92,18 @@ data CaptureUnknownFields a = CaptureUnknownFields {
 } deriving (Eq, Show, Generic)
 
 instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields a) where
-  parseJSON v = captureUnknownFields <$> parseJSON v
+  parseJSON v = CaptureUnknownFields unknown <$> parseJSON v
     where
-      captureUnknownFields a = case v of
-        Object o -> CaptureUnknownFields unknown a
-          where
-            unknown = keys \\ fields
-            keys = map T.unpack (Map.keys o)
-            fields = fieldNames (Proxy :: Proxy a)
-        _ -> CaptureUnknownFields [] a
+      unknown = getUnknownFields v (Proxy :: Proxy a)
+
+getUnknownFields :: forall a. HasFieldNames a => Value -> Proxy a -> [String]
+getUnknownFields v _ = case v of
+  Object o -> unknown
+    where
+      unknown = keys \\ fields
+      keys = map T.unpack (Map.keys o)
+      fields = fieldNames (Proxy :: Proxy a)
+  _ -> []
 
 data LibrarySection = LibrarySection {
   librarySectionExposedModules :: Maybe (List String)
@@ -130,11 +134,19 @@ data CommonOptions = CommonOptions {
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
+, commonOptionsWhen :: Maybe (List (Section Condition)) -- FIXME: handle unknown fields
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames CommonOptions
 
 instance FromJSON CommonOptions where
+  parseJSON = genericParseJSON_
+
+newtype Condition = Condition {
+  conditionCondition :: String
+} deriving (Eq, Show, Generic)
+
+instance FromJSON Condition where
   parseJSON = genericParseJSON_
 
 data PackageConfig = PackageConfig {
@@ -284,6 +296,7 @@ data Section a = Section {
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
 , sectionCppOptions :: [CppOption]
+, sectionConditionals :: [Section Condition]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance HasFieldNames a => HasFieldNames (Section a) where
@@ -448,7 +461,7 @@ toExecutables dir globalOptions executables = mapM toExecutable sections
 
 mergeSections :: Section global -> Section a -> Section a
 mergeSections globalOptions options
-  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions
+  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions conditionals
   where
     a = sectionData options
     sourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
@@ -458,10 +471,11 @@ mergeSections globalOptions options
     ghcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
     cppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
     dependencies = sectionDependencies globalOptions ++ sectionDependencies options
+    conditionals = sectionConditionals globalOptions ++ sectionConditionals options
 
 toSection :: a -> CommonOptions -> Section a
 toSection a CommonOptions{..}
-  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions
+  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions conditionals
   where
     sourceDirs = fromMaybeList commonOptionsSourceDirs
     defaultExtensions = fromMaybeList commonOptionsDefaultExtensions
@@ -470,6 +484,7 @@ toSection a CommonOptions{..}
     ghcProfOptions = fromMaybeList commonOptionsGhcProfOptions
     cppOptions = fromMaybeList commonOptionsCppOptions
     dependencies = fromMaybeList commonOptionsDependencies
+    conditionals = fromMaybeList commonOptionsWhen
 
 pathsModuleFromPackageName :: String -> String
 pathsModuleFromPackageName name = "Paths_" ++ map f name
