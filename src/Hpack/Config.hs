@@ -18,6 +18,7 @@ module Hpack.Config (
 , Section(..)
 , Library(..)
 , Executable(..)
+, Condition(..)
 , SourceRepository(..)
 ) where
 
@@ -106,11 +107,19 @@ data CommonOptions = CommonOptions {
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
+, commonOptionsWhen :: Maybe (List (Section Condition)) -- FIXME: handle unknown fields
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames CommonOptions
 
 instance FromJSON CommonOptions where
+  parseJSON = genericParseJSON_
+
+newtype Condition = Condition {
+  conditionCondition :: String
+} deriving (Eq, Show, Generic)
+
+instance FromJSON Condition where
   parseJSON = genericParseJSON_
 
 data PackageConfig = PackageConfig {
@@ -252,6 +261,7 @@ data Section a = Section {
 , sectionDefaultExtensions :: [String]
 , sectionGhcOptions :: [GhcOption]
 , sectionCppOptions :: [CppOption]
+, sectionConditionals :: [Section Condition]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance HasFieldNames a => HasFieldNames (Section a) where
@@ -408,7 +418,7 @@ toExecutables globalOptions executables = mapM toExecutable sections
 
 mergeSections :: Section global -> Section a -> Section a
 mergeSections globalOptions options
-  = Section a sourceDirs dependencies defaultExtensions ghcOptions cppOptions
+  = Section a sourceDirs dependencies defaultExtensions ghcOptions cppOptions conditionals
   where
     a = sectionData options
     sourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
@@ -416,16 +426,18 @@ mergeSections globalOptions options
     ghcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
     cppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
     dependencies = sectionDependencies globalOptions ++ sectionDependencies options
+    conditionals = sectionConditionals globalOptions ++ sectionConditionals options
 
 toSection :: a -> CommonOptions -> Section a
 toSection a CommonOptions{..}
-  = Section a sourceDirs dependencies defaultExtensions ghcOptions cppOptions
+  = Section a sourceDirs dependencies defaultExtensions ghcOptions cppOptions conditionals
   where
     sourceDirs = fromMaybeList commonOptionsSourceDirs
     defaultExtensions = fromMaybeList commonOptionsDefaultExtensions
     ghcOptions = fromMaybeList commonOptionsGhcOptions
     cppOptions = fromMaybeList commonOptionsCppOptions
     dependencies = fromMaybeList commonOptionsDependencies
+    conditionals = fromMaybeList commonOptionsWhen
 
 determineModules :: [String] -> Maybe (List String) -> Maybe (List String) -> ([String], [String])
 determineModules modules mExposedModules mOtherModules = case (mExposedModules, mOtherModules) of
