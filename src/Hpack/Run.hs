@@ -46,18 +46,18 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
 
     header = unlines $ map formatField sortedFields
 
-    extraSourceFiles :: Field
+    extraSourceFiles :: Element
     extraSourceFiles = Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
 
-    dataFiles :: Field
+    dataFiles :: Element
     dataFiles = Field "data-files" (LineSeparatedList packageDataFiles)
 
     sourceRepository = maybe [] (return . renderSourceRepository) packageSourceRepository
 
     library = maybe [] (return . renderLibrary) packageLibrary
 
-    stanzas :: [Stanza]
-    stanzas = Fields [extraSourceFiles] : Fields [dataFiles] : sourceRepository ++ library ++ renderExecutables packageExecutables ++ renderTests packageTests
+    stanzas :: [Element]
+    stanzas = extraSourceFiles : dataFiles : sourceRepository ++ library ++ renderExecutables packageExecutables ++ renderTests packageTests
 
     padding name = replicate (alignment - length name - 2) ' '
 
@@ -124,36 +124,36 @@ formatDescription alignment description = case map emptyLineToDot $ lines descri
 
     isEmptyLine = all isSpace
 
-renderSourceRepository :: SourceRepository -> Stanza
+renderSourceRepository :: SourceRepository -> Element
 renderSourceRepository SourceRepository{..} = Stanza "source-repository head" [
     Field "type" "git"
   , Field "location" (Literal sourceRepositoryUrl)
   , Field "subdir" (maybe "" Literal sourceRepositorySubdir)
   ]
 
-renderExecutables :: [Section Executable] -> [Stanza]
+renderExecutables :: [Section Executable] -> [Element]
 renderExecutables = map renderExecutable
 
-renderExecutable :: Section Executable -> Stanza
+renderExecutable :: Section Executable -> Element
 renderExecutable section@(sectionData -> Executable{..}) =
   Stanza ("executable " ++ executableName) (renderExecutableSection section)
 
-renderTests :: [Section Executable] -> [Stanza]
+renderTests :: [Section Executable] -> [Element]
 renderTests = map renderTest
 
-renderTest :: Section Executable -> Stanza
+renderTest :: Section Executable -> Element
 renderTest section@(sectionData -> Executable{..}) =
   Stanza ("test-suite " ++ executableName)
     (Field "type" "exitcode-stdio-1.0" : renderExecutableSection section)
 
-renderExecutableSection :: Section Executable -> [Field]
+renderExecutableSection :: Section Executable -> [Element]
 renderExecutableSection section@(sectionData -> Executable{..}) =
   mainIs : renderSection section ++ [otherModules, defaultLanguage]
   where
     mainIs = Field "main-is" (Literal executableMain)
     otherModules = renderOtherModules executableOtherModules
 
-renderLibrary :: Section Library -> Stanza
+renderLibrary :: Section Library -> Element
 renderLibrary section@(sectionData -> Library{..}) = Stanza "library" $
   renderSection section ++ [
     renderExposedModules libraryExposedModules
@@ -161,7 +161,7 @@ renderLibrary section@(sectionData -> Library{..}) = Stanza "library" $
   , defaultLanguage
   ]
 
-renderSection :: Section a -> [Field]
+renderSection :: Section a -> [Element]
 renderSection Section{..} = [
     renderSourceDirs sectionSourceDirs
   , renderDefaultExtensions sectionDefaultExtensions
@@ -170,26 +170,26 @@ renderSection Section{..} = [
   , renderDependencies sectionDependencies
   ]
 
-defaultLanguage :: Field
+defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"
 
-renderSourceDirs :: [String] -> Field
+renderSourceDirs :: [String] -> Element
 renderSourceDirs dirs = Field "hs-source-dirs" (CommaSeparatedList dirs)
 
-renderExposedModules :: [String] -> Field
+renderExposedModules :: [String] -> Element
 renderExposedModules modules = Field "exposed-modules" (LineSeparatedList modules)
 
-renderOtherModules :: [String] -> Field
+renderOtherModules :: [String] -> Element
 renderOtherModules modules = Field "other-modules" (LineSeparatedList modules)
 
-renderDependencies :: [Dependency] -> Field
+renderDependencies :: [Dependency] -> Element
 renderDependencies dependencies = Field "build-depends" (CommaSeparatedList $ map dependencyName dependencies)
 
-renderGhcOptions :: [GhcOption] -> Field
+renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList
 
-renderCppOptions :: [GhcOption] -> Field
+renderCppOptions :: [GhcOption] -> Element
 renderCppOptions = Field "cpp-options" . WordList
 
-renderDefaultExtensions :: [String] -> Field
+renderDefaultExtensions :: [String] -> Element
 renderDefaultExtensions = Field "default-extensions" . WordList

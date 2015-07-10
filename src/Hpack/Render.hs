@@ -18,10 +18,7 @@ data Value =
   | WordList [String]
   deriving (Eq, Show)
 
-data Field = Field String Value
-  deriving (Eq, Show)
-
-data Stanza = Stanza String [Field] | Fields [Field]
+data Element = Stanza String [Element] | Field String Value
   deriving (Eq, Show)
 
 data Lines = SingleLine String | MultipleLines [String]
@@ -38,22 +35,16 @@ data RenderSettings = RenderSettings {
 defaultRenderSettings :: RenderSettings
 defaultRenderSettings = RenderSettings 2 LeadingCommas
 
-class Render a where
-  render :: RenderSettings -> Int -> a -> [String]
-
-instance Render Stanza where
-  render settings nesting (Fields fields) = concatMap (render settings nesting) fields
-  render settings nesting (Stanza name fields) = name : renderFields fields
-    where
-      renderFields :: [Field] -> [String]
-      renderFields = concatMap (render settings $ succ nesting)
-
-instance Render Field where
-  render settings nesting (Field name v) = case renderValue settings v of
-    SingleLine "" -> []
-    SingleLine x -> [indent settings nesting (name ++ ": " ++ x)]
-    MultipleLines [] -> []
-    MultipleLines xs -> (indent settings nesting name ++ ":") : map (indent settings $ succ nesting) xs
+render :: RenderSettings -> Int -> Element -> [String]
+render settings nesting (Stanza name elements) = indent settings nesting name : renderElements elements
+  where
+    renderElements :: [Element] -> [String]
+    renderElements = concatMap (render settings $ succ nesting)
+render settings nesting (Field name v) = case renderValue settings v of
+  SingleLine "" -> []
+  SingleLine x -> [indent settings nesting (name ++ ": " ++ x)]
+  MultipleLines [] -> []
+  MultipleLines xs -> (indent settings nesting name ++ ":") : map (indent settings $ succ nesting) xs
 
 renderValue :: RenderSettings -> Value -> Lines
 renderValue RenderSettings{..} v = case v of

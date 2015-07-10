@@ -42,6 +42,15 @@ spec = do
           , "    baz: 42"
           ]
 
+      it "renders nested stanzas" $ do
+        let input = Stanza "foo" [Field "bar" "23", Stanza "baz" [Field "qux" "42"]]
+        render defaultRenderSettings 0 input `shouldBe` [
+            "foo"
+          , "  bar: 23"
+          , "  baz"
+          , "    qux: 42"
+          ]
+
     context "when rendering a Field" $ do
       context "when rendering a MultipleLines value" $ do
         it "takes nesting into account" $ do
