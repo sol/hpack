@@ -1,14 +1,12 @@
 {-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE ViewPatterns #-}
 module Hpack.Config (
   packageConfig
 , readPackageConfig
@@ -43,6 +41,7 @@ import           System.Directory
 import           System.FilePath
 
 import           Hpack.Util
+import           Hpack.GenericsUtil
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -50,26 +49,25 @@ packageConfig = "package.yaml"
 githubBaseUrl :: String
 githubBaseUrl = "https://github.com/"
 
-genericParseJSON_ :: forall a. (Typeable a, Generic a, GFromJSON (Rep a)) => Value -> Parser a
+genericParseJSON_ :: forall a. (Generic a, GFromJSON (Rep a), HasTypeName a) => Value -> Parser a
 genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphenize name}
   where
-    name = (tyConName . typeRepTyCon . typeRep) (Proxy :: Proxy a)
+    name :: String
+    name = typeName (Proxy :: Proxy a)
 
 hyphenize :: String -> String -> String
 hyphenize name = camelTo '-' . drop (length name)
 
 class HasFieldNames a where
-  fieldNames :: a -> [String]
-  default fieldNames :: Data a => a -> [String]
-  fieldNames a = map (hyphenize name) (constrFields constr)
-    where
-      constr = toConstr a
-      name = showConstr constr
+  fieldNames :: Proxy a -> [String]
+
+  default fieldNames :: (HasTypeName a, Generic a, Selectors (Rep a)) => Proxy a -> [String]
+  fieldNames proxy = map (hyphenize $ typeName proxy) (selectors proxy)
 
 data CaptureUnknownFields a = CaptureUnknownFields {
   captureUnknownFieldsFields :: [String]
 , captureUnknownFieldsValue :: a
-} deriving (Eq, Show, Generic, Data, Typeable)
+} deriving (Eq, Show, Generic)
 
 instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields a) where
   parseJSON v = captureUnknownFields <$> parseJSON v
@@ -79,13 +77,13 @@ instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields a) wher
           where
             unknown = keys \\ fields
             keys = map T.unpack (Map.keys o)
-            fields = fieldNames a
+            fields = fieldNames (Proxy :: Proxy a)
         _ -> CaptureUnknownFields [] a
 
 data LibrarySection = LibrarySection {
   librarySectionExposedModules :: Maybe (List String)
 , librarySectionOtherModules :: Maybe (List String)
-} deriving (Eq, Show, Generic, Data, Typeable)
+} deriving (Eq, Show, Generic)
 
 instance HasFieldNames LibrarySection
 
@@ -95,7 +93,7 @@ instance FromJSON LibrarySection where
 data ExecutableSection = ExecutableSection {
   executableSectionMain :: FilePath
 , executableSectionOtherModules :: Maybe (List String)
-} deriving (Eq, Show, Generic, Data, Typeable)
+} deriving (Eq, Show, Generic)
 
 instance HasFieldNames ExecutableSection
 
@@ -108,7 +106,7 @@ data CommonOptions = CommonOptions {
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
-} deriving (Eq, Show, Generic, Data, Typeable)
+} deriving (Eq, Show, Generic)
 
 instance HasFieldNames CommonOptions
 
@@ -134,7 +132,7 @@ data PackageConfig = PackageConfig {
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
 , packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
-} deriving (Eq, Show, Generic, Data, Typeable)
+} deriving (Eq, Show, Generic)
 
 instance HasFieldNames PackageConfig
 
@@ -179,7 +177,7 @@ readPackageConfig file = do
 data Dependency = Dependency {
   dependencyName :: String
 , dependencyGitRef :: Maybe GitRef
-} deriving (Eq, Show, Ord, Generic, Data, Typeable)
+} deriving (Eq, Show, Ord, Generic)
 
 instance IsString Dependency where
   fromString name = Dependency name Nothing
@@ -210,7 +208,7 @@ instance FromJSON Dependency where
 data GitRef = GitRef {
   gitRefUrl :: String
 , gitRefRef :: String
-} deriving (Eq, Show, Ord, Generic, Data, Typeable)
+} deriving (Eq, Show, Ord, Generic)
 
 type GhcOption = String
 type CppOption = String
@@ -255,13 +253,10 @@ data Section a = Section {
 , sectionDefaultExtensions :: [String]
 , sectionGhcOptions :: [GhcOption]
 , sectionCppOptions :: [CppOption]
-} deriving (Eq, Show, Functor, Foldable, Traversable, Data, Typeable)
+} deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance HasFieldNames a => HasFieldNames (Section a) where
-  fieldNames section = (fieldNames (sectionData section) ++ fieldNames proxy)
-    where
-      proxy :: CommonOptions
-      proxy = CommonOptions Nothing Nothing Nothing Nothing Nothing
+  fieldNames Proxy = fieldNames (Proxy :: Proxy a) ++ fieldNames (Proxy :: Proxy CommonOptions)
 
 instance FromJSON a => FromJSON (Section a) where
   parseJSON v = toSection <$> parseJSON v <*> parseJSON v
