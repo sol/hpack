@@ -78,6 +78,25 @@ spec = do
                 }|]
             parseEither parseJSON value `shouldBe` (Left "neither key \"git\" nor key \"github\" present" :: Either String Dependency)
 
+  describe "getModules" $ around_ inTempDirectory $ do
+    it "returns Haskell modules in specified source directory" $ do
+      touch "src/Foo.hs"
+      touch "src/Bar/Baz.hs"
+      touch "src/Setup.hs"
+      getModules "src" >>= (`shouldMatchList` ["Foo", "Bar.Baz", "Setup"])
+
+    context "when source directory is '.'" $ do
+      it "ignores Setup" $ do
+        touch "Foo.hs"
+        touch "Setup.hs"
+        getModules "." `shouldReturn` ["Foo"]
+
+    context "when source directory is './.'" $ do
+      it "ignores Setup" $ do
+        touch "Foo.hs"
+        touch "Setup.hs"
+        getModules "./." `shouldReturn` ["Foo"]
+
   describe "readPackageConfig" $ around_ (inTempDirectoryNamed "foo") $ do
     it "warns on unknown fields" $ do
       writeFile "package.yaml" [i|

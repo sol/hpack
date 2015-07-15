@@ -19,6 +19,9 @@ module Hpack.Config (
 , Library(..)
 , Executable(..)
 , SourceRepository(..)
+
+-- exported for testing
+, getModules
 ) where
 
 import           Control.Applicative
@@ -436,14 +439,22 @@ determineModules modules mExposedModules mOtherModules = case (mExposedModules, 
     exposedModules = maybe (modules \\ otherModules)   fromList mExposedModules
 
 getModules :: FilePath -> IO [String]
-getModules src = sort <$> do
-  exits <- doesDirectoryExist src
-  if exits
-    then toModules <$> getFilesRecursive src
+getModules src_ = sort <$> do
+  exists <- doesDirectoryExist src_
+  if exists
+    then do
+      src <- canonicalizePath src_
+      cwd <- getCurrentDirectory
+      removeSetup cwd src . toModules <$> getFilesRecursive src
     else return []
   where
     toModules :: [[FilePath]] -> [String]
     toModules = catMaybes . map toModule
+
+    removeSetup :: FilePath -> FilePath -> [String] -> [String]
+    removeSetup cwd src
+      | src == cwd = filter (/= "Setup")
+      | otherwise = id
 
 fromMaybeList :: Maybe (List a) -> [a]
 fromMaybeList = maybe [] fromList
