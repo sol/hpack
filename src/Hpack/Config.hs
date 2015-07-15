@@ -71,15 +71,18 @@ data CaptureUnknownFields a = CaptureUnknownFields {
 } deriving (Eq, Show, Generic)
 
 instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields a) where
-  parseJSON v = captureUnknownFields <$> parseJSON v
+  parseJSON v = CaptureUnknownFields unknown <$> parseJSON v
     where
-      captureUnknownFields a = case v of
-        Object o -> CaptureUnknownFields unknown a
-          where
-            unknown = keys \\ fields
-            keys = map T.unpack (Map.keys o)
-            fields = fieldNames (Proxy :: Proxy a)
-        _ -> CaptureUnknownFields [] a
+      unknown = getUnknownFields v (Proxy :: Proxy a)
+
+getUnknownFields :: forall a. HasFieldNames a => Value -> Proxy a -> [String]
+getUnknownFields v _ = case v of
+  Object o -> unknown
+    where
+      unknown = keys \\ fields
+      keys = map T.unpack (Map.keys o)
+      fields = fieldNames (Proxy :: Proxy a)
+  _ -> []
 
 data LibrarySection = LibrarySection {
   librarySectionExposedModules :: Maybe (List String)
