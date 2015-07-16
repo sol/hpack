@@ -42,7 +42,9 @@ newtype List a = List {fromList :: [a]}
   deriving (Eq, Show, Data, Typeable)
 
 instance FromJSON a => FromJSON (List a) where
-  parseJSON v = List <$> (parseJSON v <|> (return <$> parseJSON v))
+  parseJSON v = List <$> case v of
+    Array _ -> parseJSON v
+    _ -> return <$> parseJSON v
 
 type GhcOption = String
 
