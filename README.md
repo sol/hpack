@@ -14,7 +14,7 @@ Documentation is mostly missing so far, sorry for that!
  - Slides from my talk about `hpack` at the Singapore Haskell meetup:
    http://typeful.net/talks/hpack
 
-### File globing
+### File globbing
 
 At place where you can specify a list of files you can also use glob patterns.
 Glob patters and ordinary file names can be freely mixed, e.g.:
