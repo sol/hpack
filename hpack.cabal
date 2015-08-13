@@ -5,6 +5,7 @@
 name:           hpack
 version:        0.5.4
 synopsis:       An alternative format for Haskell packages
+category:       Development
 homepage:       https://github.com/sol/hpack#readme
 bug-reports:    https://github.com/sol/hpack/issues
 maintainer:     Simon Hengel <sol@typeful.net>
