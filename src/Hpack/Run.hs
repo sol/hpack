@@ -103,6 +103,7 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
       , ("copyright", formatList packageCopyright)
       , ("license", packageLicense)
       , ("license-file", packageLicenseFile)
+      , ("tested-with", packageTestedWith)
       , ("build-type", Just "Simple")
       , ("cabal-version", Just ">= 1.10")
       ]
