@@ -4,6 +4,9 @@ synopsis: An alternative format for Haskell packages
 maintainer: Simon Hengel <sol@typeful.net>
 license: MIT
 github: sol/hpack
+category: Development
+
+tested-with: GHC==7.8.4
 
 ghc-options: -Wall
 
