@@ -1,0 +1,6 @@
+flags: {}
+packages:
+- '.'
+extra-deps:
+- base-compat-0.8.2
+resolver: lts-2.22
