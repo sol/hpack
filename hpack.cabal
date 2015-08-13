@@ -1,4 +1,4 @@
--- This file has been generated from package.yaml by hpack version 0.5.3.
+-- This file has been generated from package.yaml by hpack version 0.5.4.
 --
 -- see: https://github.com/sol/hpack
 
@@ -10,6 +10,7 @@ bug-reports:    https://github.com/sol/hpack/issues
 maintainer:     Simon Hengel <sol@typeful.net>
 license:        MIT
 license-file:   LICENSE
+tested-with:    GHC==7.8.4
 build-type:     Simple
 cabal-version:  >= 1.10
 

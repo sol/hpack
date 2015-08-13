@@ -129,6 +129,7 @@ data PackageConfig = PackageConfig {
 , packageConfigMaintainer :: Maybe (List String)
 , packageConfigCopyright :: Maybe (List String)
 , packageConfigLicense :: Maybe String
+, packageConfigTestedWith :: Maybe String
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigGithub :: Maybe Text
@@ -229,6 +230,7 @@ data Package = Package {
 , packageCopyright :: [String]
 , packageLicense :: Maybe String
 , packageLicenseFile :: Maybe FilePath
+, packageTestedWith :: Maybe String
 , packageExtraSourceFiles :: [FilePath]
 , packageDataFiles :: [FilePath]
 , packageSourceRepository :: Maybe SourceRepository
@@ -304,6 +306,7 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
       , packageCopyright = fromMaybeList packageConfigCopyright
       , packageLicense = packageConfigLicense
       , packageLicenseFile = guard licenseFileExists >> Just "LICENSE"
+      , packageTestedWith = packageConfigTestedWith
       , packageExtraSourceFiles = extraSourceFiles
       , packageDataFiles = dataFiles
       , packageSourceRepository = sourceRepository
