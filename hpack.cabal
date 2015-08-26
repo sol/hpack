@@ -35,6 +35,7 @@ library
   exposed-modules:
       Hpack.Config
       Hpack.Run
+      Hpack.Yaml
   other-modules:
       Hpack.GenericsUtil
       Hpack.Haskell
@@ -67,7 +68,7 @@ test-suite spec
   hs-source-dirs:
       test
     , src
-  ghc-options: -Wall
+  ghc-options: -Wall -DTEST
   build-depends:
       aeson >= 0.8
     , base >= 4.7 && < 5
@@ -97,4 +98,5 @@ test-suite spec
       Hpack.Render
       Hpack.Run
       Hpack.Util
+      Hpack.Yaml
   default-language: Haskell2010

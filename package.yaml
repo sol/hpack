@@ -24,6 +24,7 @@ library:
   exposed-modules:
     - Hpack.Config
     - Hpack.Run
+    - Hpack.Yaml
 
 executables:
   hpack:
@@ -33,6 +34,7 @@ executables:
 
 tests:
   spec:
+    ghc-options: -DTEST
     main: Spec.hs
     source-dirs:
       - test

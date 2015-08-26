@@ -12,14 +12,15 @@ module Hpack.ConfigSpec (
 
 import           Helper
 
-import           Data.Aeson.Types
 import           Data.Aeson.QQ
+import           Data.Aeson.Types
 import           Data.String.Interpolate
 
-import           Hpack.Config
+import           Hpack.Config hiding (package)
+import qualified Hpack.Config as Config
 
 package :: Package
-package = Package "foo" "0.0.0" Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] Nothing Nothing [] []
+package = Config.package "foo" "0.0.0"
 
 executable :: String -> String -> Executable
 executable name main_ = Executable name main_ []

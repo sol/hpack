@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE CPP #-}
 module Hpack.Util (
   List(..)
 , GhcOption
@@ -11,9 +12,9 @@ module Hpack.Util (
 , expandGlobs
 , sort
 , lexicographically
-
--- exported for testing
+#ifdef TEST
 , splitField
+#endif
 ) where
 
 import           Control.Applicative

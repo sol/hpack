@@ -7,9 +7,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
 module Hpack.Config (
   packageConfig
 , readPackageConfig
+, package
 , Package(..)
 , Dependency(..)
 , GitRef(..)
@@ -19,9 +21,9 @@ module Hpack.Config (
 , Library(..)
 , Executable(..)
 , SourceRepository(..)
-
--- exported for testing
+#ifdef TEST
 , getModules
+#endif
 ) where
 
 import           Control.Applicative
@@ -30,21 +32,24 @@ import           Data.Aeson.Types
 import           Data.Data
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as Map
-import           Data.Ord
 import           Data.List (nub, (\\), sortBy)
 import           Data.Maybe
+import           Data.Ord
 import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.Yaml
 import           GHC.Generics
 import           Prelude ()
 import           Prelude.Compat
 import           System.Directory
 import           System.FilePath
 
-import           Hpack.Util
 import           Hpack.GenericsUtil
+import           Hpack.Util
+import           Hpack.Yaml
+
+package :: String -> String -> Package
+package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] Nothing Nothing [] []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -167,15 +172,8 @@ isNull name value = case parseMaybe p value of
 
 readPackageConfig :: FilePath -> IO (Either String ([String], Package))
 readPackageConfig file = do
-  config <- decodeFileEither file
-  either (return . Left . errToString) (fmap Right . mkPackage) config
-  where
-    errToString err = file ++ case err of
-      AesonException e -> ": " ++ e
-      InvalidYaml (Just (YamlException s)) -> ": " ++ s
-      InvalidYaml (Just (YamlParseException{..})) -> ":" ++ show yamlLine ++ ":" ++ show yamlColumn ++ ": " ++ yamlProblem ++ " " ++ yamlContext
-        where YamlMark{..} = yamlProblemMark
-      _ -> ": " ++ show err
+  config <- decodeYaml file
+  either (return . Left) (fmap Right . mkPackage) config
 
 data Dependency = Dependency {
   dependencyName :: String
@@ -290,7 +288,7 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
   (dataFilesWarnings, dataFiles) <-
     expandGlobs (fromMaybeList packageConfigDataFiles)
 
-  let package = Package {
+  let pkg = Package {
         packageName = name
       , packageVersion = fromMaybe "0.0.0" packageConfigVersion
       , packageSynopsis = packageConfigSynopsis
@@ -321,7 +319,7 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
         ++ extraSourceFilesWarnings
         ++ dataFilesWarnings
 
-  return (warnings, package)
+  return (warnings, pkg)
   where
     executableSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     executableSections = toList packageConfigExecutables

@@ -5,7 +5,7 @@ import           Test.Hspec
 import           Data.List
 
 import           Hpack.ConfigSpec hiding (spec)
-import           Hpack.Config
+import           Hpack.Config hiding (package)
 import           Hpack.Render
 import           Hpack.Run
 

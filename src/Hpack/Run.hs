@@ -2,12 +2,17 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE CPP #-}
 module Hpack.Run (
   run
--- exported for testing
 , renderPackage
+, RenderSettings(..)
+, CommaStyle(..)
+, defaultRenderSettings
+#ifdef TEST
 , renderSourceRepository
 , formatDescription
+#endif
 ) where
 
 import           Prelude ()
@@ -27,14 +32,14 @@ run :: IO ([String], FilePath, String)
 run = do
   mPackage <- readPackageConfig packageConfig
   case mPackage of
-    Right (warnings, package) -> do
-      let cabalFile = packageName package ++ ".cabal"
+    Right (warnings, pkg) -> do
+      let cabalFile = packageName pkg ++ ".cabal"
 
       old <- tryReadFile cabalFile
 
       let alignment = fromMaybe 16 (old >>= sniffAlignment)
           settings = maybe defaultRenderSettings sniffRenderSettings old
-          output = renderPackage settings alignment (maybe [] extractFieldOrderHint old) package
+          output = renderPackage settings alignment (maybe [] extractFieldOrderHint old) pkg
       return (warnings, cabalFile, output)
     Left err -> die err
 
