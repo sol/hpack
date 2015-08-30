@@ -39,5 +39,5 @@ To run `hpack` automatically on modifications to `package.yaml` add the
 following to your `~/.vimrc`:
 
 ```vim
-autocmd BufWritePost package.yaml silent !hpack > /dev/null
+autocmd BufWritePost package.yaml silent !hpack --silent
 ```
