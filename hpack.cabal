@@ -69,7 +69,8 @@ test-suite spec
   hs-source-dirs:
       test
     , src
-  ghc-options: -Wall -DTEST
+  ghc-options: -Wall
+  cpp-options: -DTEST
   build-depends:
       aeson >= 0.8
     , base >= 4.7 && < 5
