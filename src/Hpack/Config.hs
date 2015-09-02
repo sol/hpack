@@ -113,6 +113,7 @@ data CommonOptions = CommonOptions {
 , commonOptionsDependencies :: Maybe (List Dependency)
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
+, commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
 } deriving (Eq, Show, Generic)
 
@@ -252,6 +253,7 @@ data Section a = Section {
 , sectionDependencies :: [Dependency]
 , sectionDefaultExtensions :: [String]
 , sectionGhcOptions :: [GhcOption]
+, sectionGhcProfOptions :: [GhcProfOption]
 , sectionCppOptions :: [CppOption]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -410,22 +412,24 @@ toExecutables globalOptions executables = mapM toExecutable sections
 
 mergeSections :: Section global -> Section a -> Section a
 mergeSections globalOptions options
-  = Section a sourceDirs dependencies defaultExtensions ghcOptions cppOptions
+  = Section a sourceDirs dependencies defaultExtensions ghcOptions ghcProfOptions cppOptions
   where
     a = sectionData options
     sourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
     defaultExtensions = sectionDefaultExtensions globalOptions ++ sectionDefaultExtensions options
     ghcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
+    ghcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
     cppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
     dependencies = sectionDependencies globalOptions ++ sectionDependencies options
 
 toSection :: a -> CommonOptions -> Section a
 toSection a CommonOptions{..}
-  = Section a sourceDirs dependencies defaultExtensions ghcOptions cppOptions
+  = Section a sourceDirs dependencies defaultExtensions ghcOptions ghcProfOptions cppOptions
   where
     sourceDirs = fromMaybeList commonOptionsSourceDirs
     defaultExtensions = fromMaybeList commonOptionsDefaultExtensions
     ghcOptions = fromMaybeList commonOptionsGhcOptions
+    ghcProfOptions = fromMaybeList commonOptionsGhcProfOptions
     cppOptions = fromMaybeList commonOptionsCppOptions
     dependencies = fromMaybeList commonOptionsDependencies
 

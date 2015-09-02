@@ -150,6 +150,19 @@ spec = do
           , "  default-language: Haskell2010"
           ]
 
+      it "includes GHC profiling options" $ do
+        renderPackage_ 0 [] package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]}]} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.10"
+          , ""
+          , "executable foo"
+          , "  main-is: Main.hs"
+          , "  ghc-prof-options: -fprof-auto -rtsopts"
+          , "  default-language: Haskell2010"
+          ]
+
   describe "formatDescription" $ do
     it "formats description" $ do
       let description = unlines [
