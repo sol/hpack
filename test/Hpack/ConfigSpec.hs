@@ -7,7 +7,6 @@ module Hpack.ConfigSpec (
 , package
 , executable
 , library
-, section
 ) where
 
 import           Helper
@@ -27,9 +26,6 @@ executable name main_ = Executable name main_ []
 
 library :: Library
 library = Library [] []
-
-section :: a -> Section a
-section a = Section a [] [] [] [] [] []
 
 spec :: Spec
 spec = do

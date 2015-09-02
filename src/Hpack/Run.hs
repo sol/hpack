@@ -141,27 +141,27 @@ renderExecutables :: [Section Executable] -> [Element]
 renderExecutables = map renderExecutable
 
 renderExecutable :: Section Executable -> Element
-renderExecutable section@(sectionData -> Executable{..}) =
-  Stanza ("executable " ++ executableName) (renderExecutableSection section)
+renderExecutable sect@(sectionData -> Executable{..}) =
+  Stanza ("executable " ++ executableName) (renderExecutableSection sect)
 
 renderTests :: [Section Executable] -> [Element]
 renderTests = map renderTest
 
 renderTest :: Section Executable -> Element
-renderTest section@(sectionData -> Executable{..}) =
+renderTest sect@(sectionData -> Executable{..}) =
   Stanza ("test-suite " ++ executableName)
-    (Field "type" "exitcode-stdio-1.0" : renderExecutableSection section)
+    (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
 
 renderExecutableSection :: Section Executable -> [Element]
-renderExecutableSection section@(sectionData -> Executable{..}) =
-  mainIs : renderSection section ++ [otherModules, defaultLanguage]
+renderExecutableSection sect@(sectionData -> Executable{..}) =
+  mainIs : renderSection sect ++ [otherModules, defaultLanguage]
   where
     mainIs = Field "main-is" (Literal executableMain)
     otherModules = renderOtherModules executableOtherModules
 
 renderLibrary :: Section Library -> Element
-renderLibrary section@(sectionData -> Library{..}) = Stanza "library" $
-  renderSection section ++ [
+renderLibrary sect@(sectionData -> Library{..}) = Stanza "library" $
+  renderSection sect ++ [
     renderExposedModules libraryExposedModules
   , renderOtherModules libraryOtherModules
   , defaultLanguage

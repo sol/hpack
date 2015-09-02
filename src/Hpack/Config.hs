@@ -12,6 +12,7 @@ module Hpack.Config (
   packageConfig
 , readPackageConfig
 , package
+, section
 , Package(..)
 , Dependency(..)
 , GitRef(..)
@@ -50,6 +51,9 @@ import           Hpack.Yaml
 
 package :: String -> String -> Package
 package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] Nothing Nothing [] []
+
+section :: a -> Section a
+section a = Section a [] [] [] [] [] []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -345,7 +349,7 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
     formatUnknownSectionFields sectionType = concatMap f . map (fmap captureUnknownFieldsFields)
       where
         f :: (String, [String]) -> [String]
-        f (section, fields) = formatUnknownFields (sectionType ++ " section " ++ show section) fields
+        f (sect, fields) = formatUnknownFields (sectionType ++ " section " ++ show sect) fields
 
     formatMissingSourceDirs = map f
       where
@@ -375,13 +379,13 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> sourceRepository
 
 toLibrary :: Section global -> Section LibrarySection -> IO (Section Library)
-toLibrary globalOptions library = traverse fromLibrarySection section
+toLibrary globalOptions library = traverse fromLibrarySection sect
   where
-    section :: Section LibrarySection
-    section = mergeSections globalOptions library
+    sect :: Section LibrarySection
+    sect = mergeSections globalOptions library
 
     sourceDirs :: [FilePath]
-    sourceDirs = sectionSourceDirs section
+    sourceDirs = sectionSourceDirs sect
 
     fromLibrarySection :: LibrarySection -> IO Library
     fromLibrarySection LibrarySection{..} = do
@@ -396,9 +400,9 @@ toExecutables globalOptions executables = mapM toExecutable sections
     sections = map (fmap $ mergeSections globalOptions) executables
 
     toExecutable :: (String, Section ExecutableSection) -> IO (Section Executable)
-    toExecutable (name, section@Section{..}) = do
+    toExecutable (name, sect@Section{..}) = do
       (executable, ghcOptions) <- fromExecutableSection sectionData
-      return (section {sectionData = executable, sectionGhcOptions = sectionGhcOptions ++ ghcOptions})
+      return (sect {sectionData = executable, sectionGhcOptions = sectionGhcOptions ++ ghcOptions})
       where
         fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
         fromExecutableSection ExecutableSection{..} = do
