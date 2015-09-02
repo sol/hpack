@@ -212,8 +212,6 @@ data GitRef = GitRef {
 , gitRefRef :: String
 } deriving (Eq, Show, Ord, Generic)
 
-type CppOption = String
-
 data Package = Package {
   packageName :: String
 , packageVersion :: String

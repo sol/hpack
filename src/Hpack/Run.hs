@@ -194,7 +194,7 @@ renderDependencies dependencies = Field "build-depends" (CommaSeparatedList $ ma
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList
 
-renderCppOptions :: [GhcOption] -> Element
+renderCppOptions :: [CppOption] -> Element
 renderCppOptions = Field "cpp-options" . WordList
 
 renderDefaultExtensions :: [String] -> Element
