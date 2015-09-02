@@ -29,7 +29,7 @@ library :: Library
 library = Library [] []
 
 section :: a -> Section a
-section a = Section a [] [] [] [] []
+section a = Section a [] [] [] [] [] []
 
 spec :: Spec
 spec = do
@@ -520,6 +520,27 @@ spec = do
           |]
         Right (_, c) <- readPackageConfig "package.yaml"
         c `shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcOptions = ["-Wall"]}]}
+
+      it "accepts GHC profiling options" $ do
+        writeFile "package.yaml" [i|
+          executables:
+            foo:
+              main: driver/Main.hs
+              ghc-prof-options: -fprof-auto
+          |]
+        Right (_, c) <- readPackageConfig "package.yaml"
+        c `shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]}]}
+
+      it "accepts global GHC profiling options" $ do
+        writeFile "package.yaml" [i|
+          ghc-prof-options: -fprof-auto
+          executables:
+            foo:
+              main: driver/Main.hs
+          |]
+        Right (_, c) <- readPackageConfig "package.yaml"
+        c `shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]}]}
+
 
     context "when reading test section" $ do
       it "warns on unknown fields" $ do

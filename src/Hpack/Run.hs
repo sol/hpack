@@ -172,6 +172,7 @@ renderSection Section{..} = [
     renderSourceDirs sectionSourceDirs
   , renderDefaultExtensions sectionDefaultExtensions
   , renderGhcOptions sectionGhcOptions
+  , renderGhcProfOptions sectionGhcProfOptions
   , renderCppOptions sectionCppOptions
   , renderDependencies sectionDependencies
   ]
@@ -194,7 +195,10 @@ renderDependencies dependencies = Field "build-depends" (CommaSeparatedList $ ma
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList
 
-renderCppOptions :: [GhcOption] -> Element
+renderGhcProfOptions :: [GhcProfOption] -> Element
+renderGhcProfOptions = Field "ghc-prof-options" . WordList
+
+renderCppOptions :: [CppOption] -> Element
 renderCppOptions = Field "cpp-options" . WordList
 
 renderDefaultExtensions :: [String] -> Element
