@@ -50,7 +50,7 @@ import           Hpack.Util
 import           Hpack.Yaml
 
 package :: String -> String -> Package
-package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] Nothing Nothing [] []
+package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] Nothing Nothing [] [] []
 
 section :: a -> Section a
 section a = Section a [] [] [] [] [] []
@@ -146,6 +146,7 @@ data PackageConfig = PackageConfig {
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
 , packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
+, packageConfigBenchmarks :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames PackageConfig
@@ -154,6 +155,7 @@ packageDependencies :: Package -> [Dependency]
 packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . dependencyName)) $
      (concatMap sectionDependencies packageExecutables)
   ++ (concatMap sectionDependencies packageTests)
+  ++ (concatMap sectionDependencies packageBenchmarks)
   ++ maybe [] sectionDependencies packageLibrary
 
 instance FromJSON PackageConfig where
@@ -238,6 +240,7 @@ data Package = Package {
 , packageLibrary :: Maybe (Section Library)
 , packageExecutables :: [Section Executable]
 , packageTests :: [Section Executable]
+, packageBenchmarks :: [Section Executable]
 } deriving (Eq, Show)
 
 data Library = Library {
@@ -277,6 +280,7 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
   mLibrary <- mapM (toLibrary globalOptions) mLibrarySection
   executables <- toExecutables globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
   tests <- toExecutables globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
+  benchmarks <- toExecutables globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
 
   name <- maybe (takeBaseName <$> getCurrentDirectory) return packageConfigName
 
@@ -286,6 +290,7 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
        maybe [] sectionSourceDirs mLibrary
     ++ concatMap sectionSourceDirs executables
     ++ concatMap sectionSourceDirs tests
+    ++ concatMap sectionSourceDirs benchmarks
     )
 
   (extraSourceFilesWarnings, extraSourceFiles) <-
@@ -315,6 +320,7 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
       , packageLibrary = mLibrary
       , packageExecutables = executables
       , packageTests = tests
+      , packageBenchmarks = benchmarks
       }
 
       warnings =
@@ -333,6 +339,9 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
 
     testsSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     testsSections = toList packageConfigTests
+
+    benchmarkSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
+    benchmarkSections = toList packageConfigBenchmarks
 
     toList :: Maybe (HashMap String a) -> [(String, a)]
     toList = Map.toList . fromMaybe mempty

@@ -62,7 +62,13 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
     library = maybe [] (return . renderLibrary) packageLibrary
 
     stanzas :: [Element]
-    stanzas = extraSourceFiles : dataFiles : sourceRepository ++ library ++ renderExecutables packageExecutables ++ renderTests packageTests
+    stanzas = extraSourceFiles
+            : dataFiles
+            : sourceRepository
+            ++ library
+            ++ renderExecutables packageExecutables
+            ++ renderTests packageTests
+            ++ renderBenchmarks packageBenchmarks
 
     padding name = replicate (alignment - length name - 2) ' '
 
@@ -150,6 +156,14 @@ renderTests = map renderTest
 renderTest :: Section Executable -> Element
 renderTest sect@(sectionData -> Executable{..}) =
   Stanza ("test-suite " ++ executableName)
+    (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
+
+renderBenchmarks :: [Section Executable] -> [Element]
+renderBenchmarks = map renderBenchmark
+
+renderBenchmark :: Section Executable -> Element
+renderBenchmark sect@(sectionData -> Executable{..}) =
+  Stanza ("benchmark " ++ executableName)
     (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
 
 renderExecutableSection :: Section Executable -> [Element]
