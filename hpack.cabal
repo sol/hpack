@@ -3,7 +3,7 @@
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.7.0
+version:        0.7.1
 synopsis:       An alternative format for Haskell packages
 category:       Development
 homepage:       https://github.com/sol/hpack#readme
