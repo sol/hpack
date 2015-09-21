@@ -40,8 +40,8 @@ spec = do
               git: "https://github.com/sol/hpack",
               ref: "master"
             }|]
-            git = GitRef "https://github.com/sol/hpack" "master"
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just git))
+            source = GitRef "https://github.com/sol/hpack" "master"
+        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
 
       it "accepts github dependencies" $ do
         let value = [aesonQQ|{
@@ -49,8 +49,16 @@ spec = do
               github: "sol/hpack",
               ref: "master"
             }|]
-            git = GitRef "https://github.com/sol/hpack" "master"
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just git))
+            source = GitRef "https://github.com/sol/hpack" "master"
+        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
+
+      it "accepts local dependencies" $ do
+        let value = [aesonQQ|{
+              name: "hpack",
+              path: "../hpack"
+            }|]
+            source = Local "../hpack"
+        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
 
       context "when parsing fails" $ do
         it "returns an error message" $ do

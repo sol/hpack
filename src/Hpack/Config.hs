@@ -15,7 +15,9 @@ module Hpack.Config (
 , section
 , Package(..)
 , Dependency(..)
-, GitRef(..)
+, AddSource(..)
+, GitUrl
+, GitRef
 , packageDependencies
 , GhcOption
 , Section(..)
@@ -185,7 +187,7 @@ readPackageConfig file = do
 
 data Dependency = Dependency {
   dependencyName :: String
-, dependencyGitRef :: Maybe GitRef
+, dependencyGitRef :: Maybe AddSource
 } deriving (Eq, Show, Ord, Generic)
 
 instance IsString Dependency where
@@ -194,16 +196,19 @@ instance IsString Dependency where
 instance FromJSON Dependency where
   parseJSON v = case v of
     String _ -> fromString <$> parseJSON v
-    Object o -> gitDependency o
+    Object o -> addSourceDependency o
     _ -> typeMismatch "String or an Object" v
     where
-      gitDependency o = Dependency <$> name <*> (Just <$> git)
+      addSourceDependency o = Dependency <$> name <*> (Just <$> (local <|> git))
         where
           name :: Parser String
           name = o .: "name"
 
-          git :: Parser GitRef
+          git :: Parser AddSource
           git = GitRef <$> url <*> ref
+
+          local :: Parser AddSource
+          local = Local <$> o .: "path"
 
           url :: Parser String
           url =
@@ -214,10 +219,11 @@ instance FromJSON Dependency where
           ref :: Parser String
           ref = o .: "ref"
 
-data GitRef = GitRef {
-  gitRefUrl :: String
-, gitRefRef :: String
-} deriving (Eq, Show, Ord, Generic)
+data AddSource = GitRef GitUrl GitRef | Local FilePath
+  deriving (Eq, Show, Ord)
+
+type GitUrl = String
+type GitRef = String
 
 data Package = Package {
   packageName :: String
