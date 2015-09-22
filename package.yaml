@@ -1,5 +1,5 @@
 name: hpack
-version: 0.7.1
+version: 0.8.0
 synopsis: An alternative format for Haskell packages
 maintainer: Simon Hengel <sol@typeful.net>
 license: MIT
