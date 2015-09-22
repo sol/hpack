@@ -70,7 +70,13 @@ genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphen
     name = typeName (Proxy :: Proxy a)
 
 hyphenize :: String -> String -> String
-hyphenize name = camelTo '-' . drop (length name)
+hyphenize name =
+#if MIN_VERSION_aeson(0,10,0)
+  camelTo2
+#else
+  camelTo
+#endif
+  '-' . drop (length name)
 
 class HasFieldNames a where
   fieldNames :: Proxy a -> [String]

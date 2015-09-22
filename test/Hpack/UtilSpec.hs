@@ -62,21 +62,21 @@ spec = do
           gi: "sol/hpack",
           ref: "master"
         }|]
-        parseError :: Either String (List Dependency)
-        parseError = Left "neither key \"git\" nor key \"github\" present"
+        parseError :: String -> Either String (List Dependency)
+        parseError prefix = Left (prefix ++ ": neither key \"git\" nor key \"github\" present")
     context "when parsing single values" $ do
       it "returns the value in a singleton list" $ do
         fromJSON (toJSON $ Number 23) `shouldBe` Success (List [23 :: Int])
 
       it "returns error messages from element parsing" $ do
-        parseEither parseJSON invalid `shouldBe` parseError
+        parseEither parseJSON invalid `shouldBe` parseError "Error in $"
 
     context "when parsing a list of values" $ do
       it "returns the list" $ do
         fromJSON (toJSON [Number 23, Number 42]) `shouldBe` Success (List [23, 42 :: Int])
 
       it "propagates parse error messages of invalid elements" $ do
-        parseEither parseJSON (toJSON [String "foo", invalid]) `shouldBe` parseError
+        parseEither parseJSON (toJSON [String "foo", invalid]) `shouldBe` parseError "Error in $[1]"
 
   describe "tryReadFile" $ do
     it "reads file" $ do
