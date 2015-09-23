@@ -193,7 +193,7 @@ spec = do
               git: "https://github.com/sol/hpack",
               ref: "master"
             }|]
-            source = GitRef "https://github.com/sol/hpack" "master"
+            source = GitRef "https://github.com/sol/hpack" "master" Nothing
         parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
 
       it "accepts github dependencies" $ do
@@ -202,8 +202,18 @@ spec = do
               github: "sol/hpack",
               ref: "master"
             }|]
-            source = GitRef "https://github.com/sol/hpack" "master"
+            source = GitRef "https://github.com/sol/hpack" "master" Nothing
         parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
+
+      it "accepts an optional subdirectory for git dependencies" $ do
+        let value = [aesonQQ|{
+              name: "warp",
+              github: "yesodweb/wai",
+              ref: "master",
+              subdir: "warp"
+            }|]
+            source = GitRef "https://github.com/yesodweb/wai" "master" (Just "warp")
+        parseEither parseJSON value `shouldBe` Right (Dependency "warp" (Just source))
 
       it "accepts local dependencies" $ do
         let value = [aesonQQ|{

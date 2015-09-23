@@ -313,11 +313,11 @@ instance FromJSON Dependency where
           name :: Parser String
           name = o .: "name"
 
-          git :: Parser AddSource
-          git = GitRef <$> url <*> ref
-
           local :: Parser AddSource
           local = Local <$> o .: "path"
+
+          git :: Parser AddSource
+          git = GitRef <$> url <*> ref <*> subdir
 
           url :: Parser String
           url =
@@ -328,7 +328,10 @@ instance FromJSON Dependency where
           ref :: Parser String
           ref = o .: "ref"
 
-data AddSource = GitRef GitUrl GitRef | Local FilePath
+          subdir :: Parser (Maybe FilePath)
+          subdir = o .:? "subdir"
+
+data AddSource = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
   deriving (Eq, Show, Ord)
 
 type GitUrl = String
