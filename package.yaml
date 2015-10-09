@@ -9,7 +9,6 @@ category: Development
 ghc-options: -Wall
 
 dependencies:
-  - aeson >= 0.8
   - base >= 4.7 && < 5
   - base-compat >= 0.8
   - deepseq
@@ -22,6 +21,8 @@ dependencies:
 
 library:
   source-dirs: src
+  dependencies:
+    - aeson >= 0.8
   exposed-modules:
     - Hpack.Config
     - Hpack.Run
@@ -31,7 +32,9 @@ executables:
   hpack:
     main: Main.hs
     source-dirs: driver
-    dependencies: hpack
+    dependencies:
+      - hpack
+      - aeson >= 0.8
 
 tests:
   spec:
@@ -45,3 +48,4 @@ tests:
       - mockery >= 0.3
       - interpolate
       - aeson-qq
+      - aeson >= 0.10
