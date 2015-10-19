@@ -1,16 +1,18 @@
--- This file has been generated from package.yaml by hpack version 0.5.4.
+-- This file has been generated from package.yaml by hpack version 0.8.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           hpack
 version:        0.8.0
 synopsis:       An alternative format for Haskell packages
+description:    Check <https://github.com/sol/hpack#readme README>
 category:       Development
 homepage:       https://github.com/sol/hpack#readme
 bug-reports:    https://github.com/sol/hpack/issues
 maintainer:     Simon Hengel <sol@typeful.net>
 license:        MIT
 license-file:   LICENSE
+tested-with:    GHC==7.8.4, GHC==7.10.2
 build-type:     Simple
 cabal-version:  >= 1.10
 
@@ -23,7 +25,7 @@ library
       src
   ghc-options: -Wall
   build-depends:
-      aeson >= 0.8
+      aeson >= 0.8.0.2
     , base >= 4.7 && < 5
     , base-compat >= 0.8
     , deepseq
@@ -50,7 +52,7 @@ executable hpack
       driver
   ghc-options: -Wall
   build-depends:
-      aeson >= 0.8
+      aeson >= 0.8.0.2
     , base >= 4.7 && < 5
     , base-compat >= 0.8
     , deepseq
@@ -72,7 +74,7 @@ test-suite spec
   ghc-options: -Wall
   cpp-options: -DTEST
   build-depends:
-      aeson >= 0.8
+      aeson >= 0.8.0.2
     , base >= 4.7 && < 5
     , base-compat >= 0.8
     , deepseq
@@ -83,6 +85,7 @@ test-suite spec
     , unordered-containers
     , yaml
     , hspec == 2.*
+    , HUnit
     , mockery >= 0.3
     , interpolate
     , aeson-qq
