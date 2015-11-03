@@ -185,6 +185,7 @@ renderSection :: Section a -> [Element]
 renderSection Section{..} = [
     renderSourceDirs sectionSourceDirs
   , renderDefaultExtensions sectionDefaultExtensions
+  , renderOtherExtensions sectionOtherExtensions
   , renderGhcOptions sectionGhcOptions
   , renderGhcProfOptions sectionGhcProfOptions
   , renderCppOptions sectionCppOptions
@@ -217,3 +218,6 @@ renderCppOptions = Field "cpp-options" . WordList
 
 renderDefaultExtensions :: [String] -> Element
 renderDefaultExtensions = Field "default-extensions" . WordList
+
+renderOtherExtensions :: [String] -> Element
+renderOtherExtensions = Field "other-extensions" . WordList

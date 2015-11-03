@@ -55,7 +55,7 @@ package :: String -> String -> Package
 package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] Nothing Nothing [] [] []
 
 section :: a -> Section a
-section a = Section a [] [] [] [] [] []
+section a = Section a [] [] [] [] [] [] []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -124,6 +124,7 @@ data CommonOptions = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
 , commonOptionsDependencies :: Maybe (List Dependency)
 , commonOptionsDefaultExtensions :: Maybe (List String)
+, commonOptionsOtherExtensions :: Maybe (List String)
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
@@ -271,6 +272,7 @@ data Section a = Section {
 , sectionSourceDirs :: [FilePath]
 , sectionDependencies :: [Dependency]
 , sectionDefaultExtensions :: [String]
+, sectionOtherExtensions :: [String]
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
 , sectionCppOptions :: [CppOption]
@@ -437,11 +439,12 @@ toExecutables globalOptions executables = mapM toExecutable sections
 
 mergeSections :: Section global -> Section a -> Section a
 mergeSections globalOptions options
-  = Section a sourceDirs dependencies defaultExtensions ghcOptions ghcProfOptions cppOptions
+  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions
   where
     a = sectionData options
     sourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
     defaultExtensions = sectionDefaultExtensions globalOptions ++ sectionDefaultExtensions options
+    otherExtensions = sectionOtherExtensions globalOptions ++ sectionOtherExtensions options
     ghcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
     ghcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
     cppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
@@ -449,10 +452,11 @@ mergeSections globalOptions options
 
 toSection :: a -> CommonOptions -> Section a
 toSection a CommonOptions{..}
-  = Section a sourceDirs dependencies defaultExtensions ghcOptions ghcProfOptions cppOptions
+  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions
   where
     sourceDirs = fromMaybeList commonOptionsSourceDirs
     defaultExtensions = fromMaybeList commonOptionsDefaultExtensions
+    otherExtensions = fromMaybeList commonOptionsOtherExtensions
     ghcOptions = fromMaybeList commonOptionsGhcOptions
     ghcProfOptions = fromMaybeList commonOptionsGhcProfOptions
     cppOptions = fromMaybeList commonOptionsCppOptions

@@ -26,6 +26,27 @@ library:
     - Hpack.Config
     - Hpack.Run
     - Hpack.Yaml
+  # You can obtain this list "handy" with:
+  # grep 'LANGUAGE' src/**/*.hs|perl -pe 's/^.*LANGUAGE /    - /; s/ #-\}//'|sort -u
+  other-extensions:
+    - CPP
+    - DefaultSignatures
+    - DeriveDataTypeable
+    - DeriveFoldable
+    - DeriveFunctor
+    - DeriveGeneric
+    - DeriveTraversable
+    - FlexibleContexts
+    - FlexibleInstances
+    - OverloadedStrings
+    - PolyKinds
+    - QuasiQuotes
+    - RecordWildCards
+    - ScopedTypeVariables
+    - TypeFamilies
+    - TypeOperators
+    - UndecidableInstances
+    - ViewPatterns
 
 executables:
   hpack:
