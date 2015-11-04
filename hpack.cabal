@@ -1,4 +1,4 @@
--- This file has been generated from package.yaml by hpack version 0.8.0.
+-- This file has been generated from package.yaml by hpack version 0.5.4.
 --
 -- see: https://github.com/sol/hpack
 
@@ -21,7 +21,6 @@ source-repository head
 library
   hs-source-dirs:
       src
-  other-extensions: CPP DefaultSignatures DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveGeneric DeriveTraversable FlexibleContexts FlexibleInstances OverloadedStrings PolyKinds QuasiQuotes RecordWildCards ScopedTypeVariables TypeFamilies TypeOperators UndecidableInstances ViewPatterns
   ghc-options: -Wall
   build-depends:
       aeson >= 0.8
