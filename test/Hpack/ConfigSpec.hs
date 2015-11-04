@@ -63,7 +63,10 @@ spec = do
       context "when parsing fails" $ do
         it "returns an error message" $ do
           let value = Number 23
-          parseEither parseJSON value `shouldBe` (Left "Error in $: expected String or an Object, encountered Number" :: Either String Dependency)
+          parseEither parseJSON value `shouldBeOneOf`
+            [Left "Error in $: expected String or an Object, encountered Number" :: Either String Dependency
+            ,Left "when expecting a String or an Object, encountered Number instead"
+            ]
 
         context "when ref is missing" $ do
           it "produces accurate error messages" $ do
@@ -72,7 +75,10 @@ spec = do
                   git: "sol/hpack",
                   ef: "master"
                 }|]
-            parseEither parseJSON value `shouldBe` (Left "Error in $: key \"ref\" not present" :: Either String Dependency)
+            parseEither parseJSON value `shouldBeOneOf`
+              [Left "Error in $: key \"ref\" not present" :: Either String Dependency
+              ,Left "key \"ref\" not present"
+              ]
 
         context "when both git and github are missing" $ do
           it "produces accurate error messages" $ do
@@ -81,7 +87,10 @@ spec = do
                   gi: "sol/hpack",
                   ref: "master"
                 }|]
-            parseEither parseJSON value `shouldBe` (Left "Error in $: neither key \"git\" nor key \"github\" present" :: Either String Dependency)
+            parseEither parseJSON value `shouldBeOneOf`
+              [Left "Error in $: neither key \"git\" nor key \"github\" present" :: Either String Dependency
+              ,Left "neither key \"git\" nor key \"github\" present"
+              ]
 
   describe "getModules" $ around_ inTempDirectory $ do
     it "returns Haskell modules in specified source directory" $ do
@@ -646,7 +655,10 @@ spec = do
             foo:
               ain: driver/Main.hs
           |]
-        readPackageConfig "package.yaml" `shouldReturn` Left "package.yaml: Error in $.executables.foo: failed to parse field executables: The key \"main\" was not found"
+        readPackageConfig "package.yaml" `shouldReturnOneOf`
+          [Left "package.yaml: Error in $.executables.foo: failed to parse field executables: The key \"main\" was not found"
+          ,Left "package.yaml: The key \"main\" was not found"
+          ]
 
     context "when package.yaml does not exist" $ do
       it "returns an error" $

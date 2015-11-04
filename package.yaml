@@ -1,15 +1,17 @@
 name: hpack
 version: 0.8.0
 synopsis: An alternative format for Haskell packages
+description: Check <https://github.com/sol/hpack#readme README>
 maintainer: Simon Hengel <sol@typeful.net>
 license: MIT
 github: sol/hpack
 category: Development
+tested-with: GHC==7.8.4, GHC==7.10.2
 
 ghc-options: -Wall
 
 dependencies:
-  - aeson >= 0.8
+  - aeson >= 0.8.0.2
   - base >= 4.7 && < 5
   - base-compat >= 0.8
   - deepseq
@@ -42,6 +44,7 @@ tests:
       - src
     dependencies:
       - hspec == 2.*
+      - HUnit
       - mockery >= 0.3
       - interpolate
       - aeson-qq
