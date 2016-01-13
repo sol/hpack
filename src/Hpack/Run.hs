@@ -219,10 +219,10 @@ renderSection Section{..} = [
   ++ map renderConditional sectionConditionals
 
 renderConditional :: Section Condition -> Element
-renderConditional section = Stanza condition (renderSection section)
+renderConditional section' = Stanza condition (renderSection section')
   where
     condition :: String
-    condition = "if " ++ conditionCondition (sectionData section)
+    condition = "if " ++ conditionCondition (sectionData section')
 
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"
