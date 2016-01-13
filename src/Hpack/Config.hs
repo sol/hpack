@@ -11,6 +11,7 @@
 module Hpack.Config (
   packageConfig
 , readPackageConfig
+, readPackageConfigBS
 , package
 , section
 , Package(..)
@@ -34,6 +35,7 @@ module Hpack.Config (
 import           Control.Applicative
 import           Control.Monad.Compat
 import           Data.Aeson.Types
+import           Data.ByteString (ByteString)
 import           Data.Data
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as Map
@@ -210,6 +212,10 @@ readPackageConfig file = do
     Right config -> do
       dir <- takeDirectory <$> canonicalizePath file
       Right <$> mkPackage dir config
+
+readPackageConfigBS :: ByteString -> IO (Either String ([String], Package))
+readPackageConfigBS bs =
+  either (return . Left) (fmap Right . mkPackage) (decodeYamlBS bs)
 
 data Dependency = Dependency {
   dependencyName :: String
