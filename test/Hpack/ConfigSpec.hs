@@ -77,6 +77,29 @@ spec = do
             conditionals = [(section $ Condition "os(windows)"){sectionDependencies = ["Win32"]}]
         decodeEither input `shouldBe` Right (section Dummy){sectionConditionals = conditionals}
 
+      it "accepts conditionals: 2" $ do
+        let input = [i|
+              when:
+                - condition: os(windows)
+                  dependencies: Win32
+              |]
+            conditionals = [(section $ Condition "os(windows)"){sectionDependencies = ["Win32"]}]
+        decodeEither input `shouldBe` Right (section Dummy){sectionConditionals = conditionals}
+
+      it "accepts conditionals: multiple" $ do
+        let input = [i|
+              when:
+                - condition: os(windows)
+                  dependencies: Win32
+                - condition: "!os(windows)"
+                  dependencies: unix
+              |]
+            conditionals =
+              [ (section $ Condition "os(windows)"){sectionDependencies = ["Win32"]}
+              , (section $ Condition "!os(windows)"){sectionDependencies = ["unix"]}
+              ]
+        decodeEither input `shouldBe` Right (section Dummy){sectionConditionals = conditionals}
+
     context "when parsing a Dependency" $ do
       it "accepts simple dependencies" $ do
         parseEither parseJSON "hpack" `shouldBe` Right (Dependency "hpack" Nothing)
