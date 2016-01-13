@@ -25,6 +25,7 @@ module Hpack.Config (
 , Library(..)
 , Executable(..)
 , Condition(..)
+, Flag(..)
 , SourceRepository(..)
 #ifdef TEST
 , getModules
@@ -33,6 +34,7 @@ module Hpack.Config (
 ) where
 
 import           Control.Applicative
+import           Control.Arrow (second)
 import           Control.Monad.Compat
 import           Data.Aeson.Types
 import           Data.ByteString (ByteString)
@@ -56,7 +58,7 @@ import           Hpack.Util
 import           Hpack.Yaml
 
 package :: String -> String -> Package
-package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] Nothing Nothing [] [] []
+package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] Nothing Nothing [] [] [] []
 
 section :: a -> Section a
 section a = Section a [] [] [] [] [] [] [] []
@@ -173,6 +175,7 @@ data PackageConfig = PackageConfig {
 , packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigBenchmarks :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
+, packageConfigFlags :: Maybe (HashMap String (CaptureUnknownFields FlagFields))
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames PackageConfig
@@ -215,7 +218,7 @@ readPackageConfig file = do
 
 readPackageConfigBS :: ByteString -> IO (Either String ([String], Package))
 readPackageConfigBS bs =
-  either (return . Left) (fmap Right . mkPackage) (decodeYamlBS bs)
+  either (return . Left) (fmap Right . mkPackage ".") (decodeYamlBS bs)
 
 data Dependency = Dependency {
   dependencyName :: String
@@ -279,6 +282,7 @@ data Package = Package {
 , packageExecutables :: [Section Executable]
 , packageTests :: [Section Executable]
 , packageBenchmarks :: [Section Executable]
+, packageFlags :: [Flag]
 } deriving (Eq, Show)
 
 data Library = Library {
@@ -311,19 +315,43 @@ instance HasFieldNames a => HasFieldNames (Section a) where
 instance FromJSON a => FromJSON (Section a) where
   parseJSON v = toSection <$> parseJSON v <*> parseJSON v
 
+data FlagFields = FlagFields {
+    _flagFieldManual :: Bool
+  , _flagFieldDefault :: Bool
+  , _flagFieldDescription :: Maybe String
+  } deriving (Eq, Show, Generic)
+
+instance HasFieldNames FlagFields
+
+instance FromJSON FlagFields where
+  parseJSON = withObject "Flag fields" $ \obj ->
+    FlagFields <$> obj .: "manual"
+               <*> obj .: "default"
+               <*> obj .:? "description"
+
+data Flag = Flag {
+    flagName        :: String
+  , flagManual      :: Bool
+  , flagDefault     :: Bool
+  , flagDescription :: Maybe String
+  } deriving (Eq, Show)
+
 data SourceRepository = SourceRepository {
   sourceRepositoryUrl :: String
 , sourceRepositorySubdir :: Maybe String
 } deriving (Eq, Show)
 
+toFlag :: (String, FlagFields) -> Flag
+toFlag (name, FlagFields m d desc) = Flag name m d desc
+
 mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
 mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
   let name = fromMaybe (takeBaseName dir) packageConfigName
-
   mLibrary <- mapM (toLibrary dir name globalOptions) mLibrarySection
   executables <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
   tests <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
   benchmarks <- toExecutables dir globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
+  let flags = map (toFlag . second captureUnknownFieldsValue) configFlags
 
   licenseFileExists <- doesFileExist (dir </> "LICENSE")
 
@@ -362,6 +390,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       , packageExecutables = executables
       , packageTests = tests
       , packageBenchmarks = benchmarks
+      , packageFlags = flags
       }
 
       warnings =
@@ -383,6 +412,9 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
 
     benchmarkSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     benchmarkSections = toList packageConfigBenchmarks
+
+    configFlags :: [(String, CaptureUnknownFields FlagFields)]
+    configFlags = toList packageConfigFlags
 
     toList :: Maybe (HashMap String a) -> [(String, a)]
     toList = Map.toList . fromMaybe mempty

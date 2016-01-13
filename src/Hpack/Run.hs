@@ -67,6 +67,7 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
     stanzas = extraSourceFiles
             : dataFiles
             : sourceRepository
+            ++ renderFlags packageFlags
             ++ library
             ++ renderExecutables packageExecutables
             ++ renderTests packageTests
@@ -156,6 +157,15 @@ renderSourceRepository SourceRepository{..} = Stanza "source-repository head" [
   , Field "location" (Literal sourceRepositoryUrl)
   , Field "subdir" (maybe "" Literal sourceRepositorySubdir)
   ]
+
+renderFlags :: [Flag] -> [Element]
+renderFlags = map renderFlag
+
+renderFlag :: Flag -> Element
+renderFlag Flag {..} = Stanza ("flag " ++ flagName) $ [
+    Field "manual" $ if flagManual then "True" else "False"
+  , Field "default"  $ if flagDefault then "True" else "False"
+  ] ++ maybeToList (fmap (Field "description" . Literal) flagDescription)
 
 renderExecutables :: [Section Executable] -> [Element]
 renderExecutables = map renderExecutable
