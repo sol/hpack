@@ -19,6 +19,8 @@ dependencies:
   - containers
   - unordered-containers
   - yaml
+  - Cabal
+  - pretty
 
 library:
   source-dirs: src
