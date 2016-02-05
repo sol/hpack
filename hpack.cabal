@@ -38,12 +38,12 @@ library
       Hpack.Config
       Hpack.Run
       Hpack.Yaml
-      Paths_hpack
   other-modules:
       Hpack.GenericsUtil
       Hpack.Haskell
       Hpack.Render
       Hpack.Util
+      Paths_hpack
   default-language: Haskell2010
 
 executable hpack

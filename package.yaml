@@ -28,7 +28,6 @@ library:
     - Hpack.Config
     - Hpack.Run
     - Hpack.Yaml
-    - Paths_hpack
 
 executables:
   hpack:

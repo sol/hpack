@@ -26,6 +26,7 @@ module Hpack.Config (
 , SourceRepository(..)
 #ifdef TEST
 , getModules
+, determineModules
 #endif
 ) where
 
@@ -291,12 +292,12 @@ data SourceRepository = SourceRepository {
 
 mkPackage :: (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
 mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
-  mLibrary <- mapM (toLibrary globalOptions) mLibrarySection
+  name <- maybe (takeBaseName <$> getCurrentDirectory) return packageConfigName
+
+  mLibrary <- mapM (toLibrary name globalOptions) mLibrarySection
   executables <- toExecutables globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
   tests <- toExecutables globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
   benchmarks <- toExecutables globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
-
-  name <- maybe (takeBaseName <$> getCurrentDirectory) return packageConfigName
 
   licenseFileExists <- doesFileExist "LICENSE"
 
@@ -401,8 +402,8 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> sourceRepository
 
-toLibrary :: Section global -> Section LibrarySection -> IO (Section Library)
-toLibrary globalOptions library = traverse fromLibrarySection sect
+toLibrary :: String -> Section global -> Section LibrarySection -> IO (Section Library)
+toLibrary name globalOptions library = traverse fromLibrarySection sect
   where
     sect :: Section LibrarySection
     sect = mergeSections globalOptions library
@@ -413,7 +414,7 @@ toLibrary globalOptions library = traverse fromLibrarySection sect
     fromLibrarySection :: LibrarySection -> IO Library
     fromLibrarySection LibrarySection{..} = do
       modules <- concat <$> mapM getModules sourceDirs
-      let (exposedModules, otherModules) = determineModules modules librarySectionExposedModules librarySectionOtherModules
+      let (exposedModules, otherModules) = determineModules name modules librarySectionExposedModules librarySectionOtherModules
       return (Library exposedModules otherModules)
 
 toExecutables :: Section global -> [(String, Section ExecutableSection)] -> IO [Section Executable]
@@ -462,13 +463,14 @@ toSection a CommonOptions{..}
     cppOptions = fromMaybeList commonOptionsCppOptions
     dependencies = fromMaybeList commonOptionsDependencies
 
-determineModules :: [String] -> Maybe (List String) -> Maybe (List String) -> ([String], [String])
-determineModules modules mExposedModules mOtherModules = case (mExposedModules, mOtherModules) of
+determineModules :: String -> [String] -> Maybe (List String) -> Maybe (List String) -> ([String], [String])
+determineModules name modules mExposedModules mOtherModules = case (mExposedModules, mOtherModules) of
   (Nothing, Nothing) -> (modules, [])
   _ -> (exposedModules, otherModules)
   where
-    otherModules   = maybe (modules \\ exposedModules) fromList mOtherModules
+    otherModules   = maybe ((modules \\ exposedModules) ++ pathsModule) fromList mOtherModules
     exposedModules = maybe (modules \\ otherModules)   fromList mExposedModules
+    pathsModule = ["Paths_" ++ name] \\ exposedModules
 
 getModules :: FilePath -> IO [String]
 getModules src_ = sort <$> do

@@ -15,6 +15,7 @@ import           Data.Aeson.QQ
 import           Data.Aeson.Types
 import           Data.String.Interpolate
 
+import           Hpack.Util
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
 
@@ -101,6 +102,14 @@ spec = do
         touch "Foo.hs"
         touch "Setup.hs"
         getModules "./." `shouldReturn` ["Foo"]
+
+  describe "determineModules" $ do
+    it "adds the Paths_* module to the other-modules" $ do
+      determineModules "foo" [] (Just $ List ["Foo"]) Nothing `shouldBe` (["Foo"], ["Paths_foo"])
+
+    context "when the Paths_* module is part of the exposed-modules" $ do
+      it "it does not add the Paths_* module to the other-modules" $ do
+        determineModules "foo" [] (Just $ List ["Foo", "Paths_foo"]) Nothing `shouldBe` (["Foo", "Paths_foo"], [])
 
   describe "readPackageConfig" $ around_ (inTempDirectoryNamed "foo") $ do
     it "warns on unknown fields" $ do
@@ -360,7 +369,7 @@ spec = do
         touch "src/Foo.hs"
         touch "src/Bar.hs"
         Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}
+        packageLibrary c `shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar", "Paths_foo"]}) {sectionSourceDirs = ["src"]}
 
       it "allows to specify other-modules" $ do
         writeFile "package.yaml" [i|
