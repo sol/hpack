@@ -1,4 +1,4 @@
--- This file has been generated from package.yaml by hpack version 0.5.4.
+-- This file has been generated from package.yaml by hpack version 0.8.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -34,9 +34,11 @@ library
     , yaml
     , aeson >= 0.8
   exposed-modules:
+      Hpack
       Hpack.Config
       Hpack.Run
       Hpack.Yaml
+      Paths_hpack
   other-modules:
       Hpack.GenericsUtil
       Hpack.Haskell
@@ -94,6 +96,7 @@ test-suite spec
       Hpack.RenderSpec
       Hpack.RunSpec
       Hpack.UtilSpec
+      Hpack
       Hpack.Config
       Hpack.GenericsUtil
       Hpack.Haskell

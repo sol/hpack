@@ -24,9 +24,11 @@ library:
   dependencies:
     - aeson >= 0.8
   exposed-modules:
+    - Hpack
     - Hpack.Config
     - Hpack.Run
     - Hpack.Yaml
+    - Paths_hpack
 
 executables:
   hpack:
