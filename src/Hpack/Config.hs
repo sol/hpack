@@ -190,8 +190,12 @@ isNull name value = case parseMaybe p value of
 
 readPackageConfig :: FilePath -> IO (Either String ([String], Package))
 readPackageConfig file = do
-  config <- decodeYaml file
-  either (return . Left) (fmap Right . mkPackage) config
+  r <- decodeYaml file
+  case r of
+    Left err -> return (Left err)
+    Right config -> do
+      dir <- takeDirectory <$> canonicalizePath file
+      Right <$> mkPackage dir config
 
 data Dependency = Dependency {
   dependencyName :: String
@@ -290,18 +294,18 @@ data SourceRepository = SourceRepository {
 , sourceRepositorySubdir :: Maybe String
 } deriving (Eq, Show)
 
-mkPackage :: (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
-mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
-  name <- maybe (takeBaseName <$> getCurrentDirectory) return packageConfigName
+mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
+mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
+  let name = fromMaybe (takeBaseName dir) packageConfigName
 
-  mLibrary <- mapM (toLibrary name globalOptions) mLibrarySection
-  executables <- toExecutables globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
-  tests <- toExecutables globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
-  benchmarks <- toExecutables globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
+  mLibrary <- mapM (toLibrary dir name globalOptions) mLibrarySection
+  executables <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
+  tests <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
+  benchmarks <- toExecutables dir globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
 
-  licenseFileExists <- doesFileExist "LICENSE"
+  licenseFileExists <- doesFileExist (dir </> "LICENSE")
 
-  missingSourceDirs <- nub . sort <$> filterM (fmap not <$> doesDirectoryExist) (
+  missingSourceDirs <- nub . sort <$> filterM (fmap not <$> doesDirectoryExist . (dir </>)) (
        maybe [] sectionSourceDirs mLibrary
     ++ concatMap sectionSourceDirs executables
     ++ concatMap sectionSourceDirs tests
@@ -309,10 +313,10 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
     )
 
   (extraSourceFilesWarnings, extraSourceFiles) <-
-    expandGlobs (fromMaybeList packageConfigExtraSourceFiles)
+    expandGlobs dir (fromMaybeList packageConfigExtraSourceFiles)
 
   (dataFilesWarnings, dataFiles) <-
-    expandGlobs (fromMaybeList packageConfigDataFiles)
+    expandGlobs dir (fromMaybeList packageConfigDataFiles)
 
   let pkg = Package {
         packageName = name
@@ -402,8 +406,8 @@ mkPackage (CaptureUnknownFields unknownFields globalOptions@Section{sectionData 
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> sourceRepository
 
-toLibrary :: String -> Section global -> Section LibrarySection -> IO (Section Library)
-toLibrary name globalOptions library = traverse fromLibrarySection sect
+toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO (Section Library)
+toLibrary dir name globalOptions library = traverse fromLibrarySection sect
   where
     sect :: Section LibrarySection
     sect = mergeSections globalOptions library
@@ -413,12 +417,12 @@ toLibrary name globalOptions library = traverse fromLibrarySection sect
 
     fromLibrarySection :: LibrarySection -> IO Library
     fromLibrarySection LibrarySection{..} = do
-      modules <- concat <$> mapM getModules sourceDirs
+      modules <- concat <$> mapM (getModules dir) sourceDirs
       let (exposedModules, otherModules) = determineModules name modules librarySectionExposedModules librarySectionOtherModules
       return (Library exposedModules otherModules)
 
-toExecutables :: Section global -> [(String, Section ExecutableSection)] -> IO [Section Executable]
-toExecutables globalOptions executables = mapM toExecutable sections
+toExecutables :: FilePath -> Section global -> [(String, Section ExecutableSection)] -> IO [Section Executable]
+toExecutables dir globalOptions executables = mapM toExecutable sections
   where
     sections :: [(String, Section ExecutableSection)]
     sections = map (fmap $ mergeSections globalOptions) executables
@@ -430,7 +434,7 @@ toExecutables globalOptions executables = mapM toExecutable sections
       where
         fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
         fromExecutableSection ExecutableSection{..} = do
-          modules <- maybe (filterMain . concat <$> mapM getModules sectionSourceDirs) (return . fromList) executableSectionOtherModules
+          modules <- maybe (filterMain . concat <$> mapM (getModules dir) sectionSourceDirs) (return . fromList) executableSectionOtherModules
           return (Executable name mainSrcFile modules, ghcOptions)
           where
             filterMain :: [String] -> [String]
@@ -472,22 +476,21 @@ determineModules name modules mExposedModules mOtherModules = case (mExposedModu
     exposedModules = maybe (modules \\ otherModules)   fromList mExposedModules
     pathsModule = ["Paths_" ++ name] \\ exposedModules
 
-getModules :: FilePath -> IO [String]
-getModules src_ = sort <$> do
-  exists <- doesDirectoryExist src_
+getModules :: FilePath -> FilePath -> IO [String]
+getModules dir src_ = sort <$> do
+  exists <- doesDirectoryExist (dir </> src_)
   if exists
     then do
-      src <- canonicalizePath src_
-      cwd <- getCurrentDirectory
-      removeSetup cwd src . toModules <$> getFilesRecursive src
+      src <- canonicalizePath (dir </> src_)
+      removeSetup src . toModules <$> getFilesRecursive src
     else return []
   where
     toModules :: [[FilePath]] -> [String]
     toModules = catMaybes . map toModule
 
-    removeSetup :: FilePath -> FilePath -> [String] -> [String]
-    removeSetup cwd src
-      | src == cwd = filter (/= "Setup")
+    removeSetup :: FilePath -> [String] -> [String]
+    removeSetup src
+      | src == dir = filter (/= "Setup")
       | otherwise = id
 
 fromMaybeList :: Maybe (List a) -> [a]

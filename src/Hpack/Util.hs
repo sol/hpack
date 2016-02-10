@@ -119,13 +119,13 @@ splitField field = case span isNameChar field of
     isNameChar = (`elem` nameChars)
     nameChars = ['a'..'z'] ++ ['A'..'Z'] ++ "-"
 
-expandGlobs :: [String] -> IO ([String], [FilePath])
-expandGlobs patterns = do
-  files <- (fst <$> globDir compiledPatterns ".") >>= mapM removeDirectories
+expandGlobs :: FilePath -> [String] -> IO ([String], [FilePath])
+expandGlobs dir patterns = do
+  files <- (fst <$> globDir compiledPatterns dir) >>= mapM removeDirectories
   let warnings = [warn pattern | ([], pattern) <- zip files patterns]
   return (warnings, combineResults files)
   where
-    combineResults = nub . map (makeRelative ".") . sort . concat
+    combineResults = nub . map (makeRelative dir) . sort . concat
     warn pattern = "Specified pattern " ++ show pattern ++ " for extra-source-files does not match any files"
     compiledPatterns = map (compileWith options) patterns
     removeDirectories = filterM doesFileExist

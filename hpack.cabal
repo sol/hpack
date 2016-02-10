@@ -84,6 +84,7 @@ test-suite spec
     , unordered-containers
     , yaml
     , hspec == 2.*
+    , temporary
     , mockery >= 0.3
     , interpolate
     , aeson-qq

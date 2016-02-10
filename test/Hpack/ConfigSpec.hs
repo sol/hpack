@@ -14,6 +14,8 @@ import           Helper
 import           Data.Aeson.QQ
 import           Data.Aeson.Types
 import           Data.String.Interpolate
+import           Control.Arrow
+import           System.Directory (createDirectory)
 
 import           Hpack.Util
 import           Hpack.Config hiding (package)
@@ -27,6 +29,27 @@ executable name main_ = Executable name main_ []
 
 library :: Library
 library = Library [] []
+
+withPackage :: String -> IO () -> (([String], Package) -> Expectation) -> Expectation
+withPackage content beforeAction expectation = withSystemTempDirectory "hspec" $ \dir_ -> do
+  let dir = dir_ </> "foo"
+  createDirectory dir
+  writeFile (dir </> "package.yaml") content
+  withCurrentDirectory dir beforeAction
+  r <- readPackageConfig (dir </> "package.yaml")
+  either expectationFailure expectation r
+
+withPackageConfig :: String -> IO () -> (Package -> Expectation) -> Expectation
+withPackageConfig content beforeAction expectation = withPackage content beforeAction (expectation . snd)
+
+withPackageConfig_ :: String -> (Package -> Expectation) -> Expectation
+withPackageConfig_ content = withPackageConfig content (return ())
+
+withPackageWarnings :: String -> IO () -> ([String] -> Expectation) -> Expectation
+withPackageWarnings content beforeAction expectation = withPackage content beforeAction (expectation . fst)
+
+withPackageWarnings_ :: String -> ([String] -> Expectation) -> Expectation
+withPackageWarnings_ content = withPackageWarnings content (return ())
 
 spec :: Spec
 spec = do
@@ -84,24 +107,24 @@ spec = do
                 }|]
             parseEither parseJSON value `shouldBe` (Left "Error in $: neither key \"git\" nor key \"github\" present" :: Either String Dependency)
 
-  describe "getModules" $ around_ inTempDirectory $ do
-    it "returns Haskell modules in specified source directory" $ do
-      touch "src/Foo.hs"
-      touch "src/Bar/Baz.hs"
-      touch "src/Setup.hs"
-      getModules "src" >>= (`shouldMatchList` ["Foo", "Bar.Baz", "Setup"])
+  describe "getModules" $ around (withSystemTempDirectory "hspec") $ do
+    it "returns Haskell modules in specified source directory" $ \dir -> do
+      touch (dir </> "src/Foo.hs")
+      touch (dir </> "src/Bar/Baz.hs")
+      touch (dir </> "src/Setup.hs")
+      getModules dir "src" >>= (`shouldMatchList` ["Foo", "Bar.Baz", "Setup"])
 
     context "when source directory is '.'" $ do
-      it "ignores Setup" $ do
-        touch "Foo.hs"
-        touch "Setup.hs"
-        getModules "." `shouldReturn` ["Foo"]
+      it "ignores Setup" $ \dir -> do
+        touch (dir </> "Foo.hs")
+        touch (dir </> "Setup.hs")
+        getModules dir  "." `shouldReturn` ["Foo"]
 
     context "when source directory is './.'" $ do
-      it "ignores Setup" $ do
-        touch "Foo.hs"
-        touch "Setup.hs"
-        getModules "./." `shouldReturn` ["Foo"]
+      it "ignores Setup" $ \dir -> do
+        touch (dir </> "Foo.hs")
+        touch (dir </> "Setup.hs")
+        getModules dir  "./." `shouldReturn` ["Foo"]
 
   describe "determineModules" $ do
     it "adds the Paths_* module to the other-modules" $ do
@@ -111,180 +134,164 @@ spec = do
       it "it does not add the Paths_* module to the other-modules" $ do
         determineModules "foo" [] (Just $ List ["Foo", "Paths_foo"]) Nothing `shouldBe` (["Foo", "Paths_foo"], [])
 
-  describe "readPackageConfig" $ around_ (inTempDirectoryNamed "foo") $ do
+  describe "readPackageConfig" $ do
     it "warns on unknown fields" $ do
-      writeFile "package.yaml" [i|
+      withPackageWarnings_ [i|
         bar: 23
         baz: 42
         |]
-      fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
+        (`shouldBe` [
           "Ignoring unknown field \"bar\" in package description"
         , "Ignoring unknown field \"baz\" in package description"
         ]
+        )
 
     it "accepts name" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         name: bar
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      c `shouldBe` package {packageName = "bar"}
+        (packageName >>> (`shouldBe` "bar"))
 
     it "accepts version" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         version: 0.1.0
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      c `shouldBe` package {packageVersion = "0.1.0"}
+        (packageVersion >>> (`shouldBe` "0.1.0"))
 
     it "accepts synopsis" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         synopsis: some synopsis
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      c `shouldBe` package {packageSynopsis = Just "some synopsis"}
+        (packageSynopsis >>> (`shouldBe` Just "some synopsis"))
 
     it "accepts description" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         description: some description
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      c `shouldBe` package {packageDescription = Just "some description"}
+        (packageDescription >>> (`shouldBe` Just "some description"))
 
     it "accepts category" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         category: Data
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      c `shouldBe` package {packageCategory = Just "Data"}
+        (`shouldBe` package {packageCategory = Just "Data"})
 
     it "accepts author" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         author: John Doe
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      c `shouldBe` package {packageAuthor = ["John Doe"]}
+        (`shouldBe` package {packageAuthor = ["John Doe"]})
 
     it "accepts maintainer" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         maintainer: John Doe <john.doe@example.com>
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      c `shouldBe` package {packageMaintainer = ["John Doe <john.doe@example.com>"]}
+        (`shouldBe` package {packageMaintainer = ["John Doe <john.doe@example.com>"]})
 
     it "accepts copyright" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         copyright: (c) 2015 John Doe
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      c `shouldBe` package {packageCopyright = ["(c) 2015 John Doe"]}
+        (`shouldBe` package {packageCopyright = ["(c) 2015 John Doe"]})
 
     it "accepts stability" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         stability: experimental
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      packageStability c `shouldBe` Just "experimental"
+        (packageStability >>> (`shouldBe` Just "experimental"))
 
     it "accepts homepage URL" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         github: hspec/hspec
         homepage: https://example.com/
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      packageHomepage c `shouldBe` Just "https://example.com/"
+        (packageHomepage >>> (`shouldBe` Just "https://example.com/"))
 
     it "infers homepage URL from github" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         github: hspec/hspec
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      packageHomepage c `shouldBe` Just "https://github.com/hspec/hspec#readme"
+        (packageHomepage >>> (`shouldBe` Just "https://github.com/hspec/hspec#readme"))
 
     it "omits homepage URL if it is null" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         github: hspec/hspec
         homepage: null
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      packageHomepage c `shouldBe` Nothing
+        (packageHomepage >>> (`shouldBe` Nothing))
 
     it "accepts bug-reports URL" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         github: hspec/hspec
         bug-reports: https://example.com/issues
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      packageBugReports c `shouldBe` Just "https://example.com/issues"
+        (packageBugReports >>> (`shouldBe` Just "https://example.com/issues"))
 
     it "infers bug-reports URL from github" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         github: hspec/hspec
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      packageBugReports c `shouldBe` Just "https://github.com/hspec/hspec/issues"
+        (packageBugReports >>> (`shouldBe` Just "https://github.com/hspec/hspec/issues"))
 
     it "omits bug-reports URL if it is null" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         github: hspec/hspec
         bug-reports: null
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      packageBugReports c `shouldBe` Nothing
+        (packageBugReports >>> (`shouldBe` Nothing))
 
     it "accepts license" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         license: MIT
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      c `shouldBe` package {packageLicense = Just "MIT"}
+        (`shouldBe` package {packageLicense = Just "MIT"})
 
     it "infers license file" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig [i|
         name: foo
         |]
-      touch "LICENSE"
-      Right (_, c) <- readPackageConfig "package.yaml"
-      c `shouldBe` package {packageLicenseFile = Just "LICENSE"}
+        (do
+        touch "LICENSE"
+        )
+        (`shouldBe` package {packageLicenseFile = Just "LICENSE"})
 
     it "accepts extra-source-files" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig [i|
         extra-source-files:
           - CHANGES.markdown
           - README.markdown
         |]
-      touch "CHANGES.markdown"
-      touch "README.markdown"
-      Right (_, c) <- readPackageConfig "package.yaml"
-      packageExtraSourceFiles c `shouldBe` ["CHANGES.markdown", "README.markdown"]
+        (do
+        touch "CHANGES.markdown"
+        touch "README.markdown"
+        )
+        (packageExtraSourceFiles >>> (`shouldBe` ["CHANGES.markdown", "README.markdown"]))
 
     it "accepts data-files" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig [i|
         data-files:
           - data/**/*.html
         |]
-      touch "data/foo/index.html"
-      touch "data/bar/index.html"
-      Right (_, c) <- readPackageConfig "package.yaml"
-      packageDataFiles c `shouldMatchList` ["data/foo/index.html", "data/bar/index.html"]
+        (do
+        touch "data/foo/index.html"
+        touch "data/bar/index.html"
+        )
+        (packageDataFiles >>> (`shouldMatchList` ["data/foo/index.html", "data/bar/index.html"]))
 
     it "accepts github" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         github: hspec/hspec
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      packageSourceRepository c `shouldBe`
-        Just (SourceRepository "https://github.com/hspec/hspec" Nothing)
+        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://github.com/hspec/hspec" Nothing)))
 
     it "accepts third part of github URL as subdir" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         github: hspec/hspec/hspec-core
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      packageSourceRepository c `shouldBe`
-        Just (SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core"))
+        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core"))))
 
     it "accepts CPP options" $ do
-      writeFile "package.yaml" [i|
+      withPackageConfig_ [i|
         cpp-options: -DFOO
         library:
           cpp-options: -DLIB
@@ -300,147 +307,146 @@ spec = do
             main: Spec.hs
             cpp-options: -DTEST
         |]
-      Right (_, c) <- readPackageConfig "package.yaml"
-      c `shouldBe` package {
+        (`shouldBe` package {
           packageLibrary = Just (section library) {sectionCppOptions = ["-DFOO", "-DLIB"]}
         , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionCppOptions = ["-DFOO", "-DFOO"]}]
         , packageTests = [(section $ executable "spec" "Spec.hs") {sectionCppOptions = ["-DFOO", "-DTEST"]}]
         }
+        )
 
     context "when reading library section" $ do
       it "warns on unknown fields" $ do
-        writeFile "package.yaml" [i|
+        withPackageWarnings_ [i|
           library:
             bar: 23
             baz: 42
           |]
-
-        fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
+          (`shouldBe` [
             "Ignoring unknown field \"bar\" in library section"
           , "Ignoring unknown field \"baz\" in library section"
           ]
+          )
 
       it "accepts source-dirs" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           library:
             source-dirs:
               - foo
               - bar
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
 
       it "accepts default-extensions" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           library:
             default-extensions:
               - Foo
               - Bar
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just (section library) {sectionDefaultExtensions = ["Foo", "Bar"]}
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionDefaultExtensions = ["Foo", "Bar"]}))
 
       it "accepts global default-extensions" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           default-extensions:
             - Foo
             - Bar
           library: {}
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just (section library) {sectionDefaultExtensions = ["Foo", "Bar"]}
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionDefaultExtensions = ["Foo", "Bar"]}))
 
       it "accepts global source-dirs" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           source-dirs:
             - foo
             - bar
           library: {}
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
 
       it "allows to specify exposed-modules" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig [i|
           library:
             source-dirs: src
             exposed-modules: Foo
           |]
-        touch "src/Foo.hs"
-        touch "src/Bar.hs"
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar", "Paths_foo"]}) {sectionSourceDirs = ["src"]}
+          (do
+          touch "src/Foo.hs"
+          touch "src/Bar.hs"
+          )
+          (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar", "Paths_foo"]}) {sectionSourceDirs = ["src"]}))
 
       it "allows to specify other-modules" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig [i|
           library:
             source-dirs: src
             other-modules: Bar
           |]
-        touch "src/Foo.hs"
-        touch "src/Bar.hs"
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}
+          (do
+          touch "src/Foo.hs"
+          touch "src/Bar.hs"
+          )
+          (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}))
 
       it "allows to specify both exposed-modules and other-modules" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig [i|
           library:
             source-dirs: src
             exposed-modules: Foo
             other-modules: Bar
           |]
-        touch "src/Baz.hs"
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageLibrary c `shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}
+          (do
+          touch "src/Baz.hs"
+          )
+          (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}))
 
-      context "when neither exposed-module nor other-module are specified" $ do
+      context "when neither exposed-modules nor other-modules are specified" $ do
         it "exposes all modules" $ do
-          writeFile "package.yaml" [i|
+          withPackageConfig [i|
             library:
               source-dirs: src
             |]
-          touch "src/Foo.hs"
-          touch "src/Bar.hs"
-          Right (_, c) <- readPackageConfig "package.yaml"
-          packageLibrary c `shouldBe` Just (section library{libraryExposedModules = ["Bar", "Foo"]}) {sectionSourceDirs = ["src"]}
+            (do
+            touch "src/Foo.hs"
+            touch "src/Bar.hs"
+            )
+            (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Bar", "Foo"]}) {sectionSourceDirs = ["src"]}))
 
     context "when reading executable section" $ do
       it "warns on unknown fields" $ do
-        writeFile "package.yaml" [i|
+        withPackageWarnings_ [i|
           executables:
             foo:
               main: Main.hs
               bar: 42
               baz: 23
           |]
-
-        fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
+          (`shouldBe` [
             "Ignoring unknown field \"bar\" in executable section \"foo\""
           , "Ignoring unknown field \"baz\" in executable section \"foo\""
           ]
+          )
 
       it "reads executable section" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           executables:
             foo:
               main: driver/Main.hs
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageExecutables c `shouldBe` [section $ executable "foo" "driver/Main.hs"]
+          (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main.hs"]))
 
       it "accepts arbitrary entry points as main" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           executables:
             foo:
               main: Foo
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageExecutables c `shouldBe` [
+          (packageExecutables >>> (`shouldBe` [
             (section $ executable "foo" "Foo.hs") {sectionGhcOptions = ["-main-is Foo"]}
           ]
+          ))
 
       it "accepts source-dirs" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           executables:
             foo:
               main: Main.hs
@@ -448,11 +454,10 @@ spec = do
                 - foo
                 - bar
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageExecutables c `shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]
+          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]))
 
       it "accepts global source-dirs" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           source-dirs:
             - foo
             - bar
@@ -460,38 +465,39 @@ spec = do
             foo:
               main: Main.hs
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageExecutables c `shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]
+          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]))
 
       it "infers other-modules" $ do
-        touch "src/Main.hs"
-        touch "src/Foo.hs"
-        touch "src/Bar.hs"
-        touch "src/Baz.lhs"
-        writeFile "package.yaml" [i|
+        withPackageConfig [i|
           executables:
             foo:
               main: Main.hs
               source-dirs: src
           |]
-        Right (_, [r]) <- (fmap . fmap) packageExecutables <$> readPackageConfig "package.yaml"
-        executableOtherModules (sectionData r) `shouldBe` ["Bar", "Baz", "Foo"]
+          (do
+          touch "src/Main.hs"
+          touch "src/Foo.hs"
+          touch "src/Bar.hs"
+          touch "src/Baz.lhs"
+          )
+          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Bar", "Baz", "Foo"]]))
 
       it "allows to specify other-modules" $ do
-        touch "src/Foo.hs"
-        touch "src/Bar.hs"
-        writeFile "package.yaml" [i|
+        withPackageConfig [i|
           executables:
             foo:
               main: Main.hs
               source-dirs: src
               other-modules: Baz
           |]
-        Right (_, [r]) <- (fmap . fmap) packageExecutables <$> readPackageConfig "package.yaml"
-        executableOtherModules (sectionData r) `shouldBe` ["Baz"]
+          (do
+          touch "src/Foo.hs"
+          touch "src/Bar.hs"
+          )
+          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Baz"]]))
 
       it "accepts default-extensions" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           executables:
             foo:
               main: driver/Main.hs
@@ -499,11 +505,10 @@ spec = do
                 - Foo
                 - Bar
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageExecutables c `shouldBe` [(section $ executable "foo" "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]}]
+          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]}]))
 
       it "accepts global default-extensions" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           default-extensions:
             - Foo
             - Bar
@@ -511,86 +516,79 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        packageExecutables c `shouldBe` [(section $ executable "foo" "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]}]
+          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]}]))
 
       it "accepts GHC options" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           executables:
             foo:
               main: driver/Main.hs
               ghc-options: -Wall
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcOptions = ["-Wall"]}]}
+          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcOptions = ["-Wall"]}]})
 
       it "accepts global GHC options" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           ghc-options: -Wall
           executables:
             foo:
               main: driver/Main.hs
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcOptions = ["-Wall"]}]}
+          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcOptions = ["-Wall"]}]})
 
       it "accepts GHC profiling options" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           executables:
             foo:
               main: driver/Main.hs
               ghc-prof-options: -fprof-auto
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]}]}
+          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]}]})
 
       it "accepts global GHC profiling options" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           ghc-prof-options: -fprof-auto
           executables:
             foo:
               main: driver/Main.hs
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]}]}
+          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]}]})
 
 
     context "when reading test section" $ do
       it "warns on unknown fields" $ do
-        writeFile "package.yaml" [i|
+        withPackageWarnings_ [i|
           tests:
             foo:
               main: Main.hs
               bar: 42
               baz: 23
           |]
-
-        fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
+          (`shouldBe` [
             "Ignoring unknown field \"bar\" in test section \"foo\""
           , "Ignoring unknown field \"baz\" in test section \"foo\""
           ]
+          )
 
       it "reads test section" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           tests:
             spec:
               main: test/Spec.hs
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageTests = [section $ executable "spec" "test/Spec.hs"]}
+          (`shouldBe` package {packageTests = [section $ executable "spec" "test/Spec.hs"]})
 
       it "accepts single dependency" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           tests:
             spec:
               main: test/Spec.hs
               dependencies: hspec
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec"]}]}
+          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec"]}]})
 
       it "accepts list of dependencies" $ do
-        writeFile "package.yaml" [i|
+        withPackageConfig_ [i|
           tests:
             spec:
               main: test/Spec.hs
@@ -598,12 +596,11 @@ spec = do
                 - hspec
                 - QuickCheck
           |]
-        Right (_, c) <- readPackageConfig "package.yaml"
-        c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec", "QuickCheck"]}]}
+          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec", "QuickCheck"]}]})
 
       context "when both global and section specific dependencies are specified" $ do
         it "combines dependencies" $ do
-          writeFile "package.yaml" [i|
+          withPackageConfig_ [i|
             dependencies:
               - base
 
@@ -612,12 +609,11 @@ spec = do
                 main: test/Spec.hs
                 dependencies: hspec
             |]
-          Right (_, c) <- readPackageConfig "package.yaml"
-          c `shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["base", "hspec"]}]}
+            (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["base", "hspec"]}]})
 
     context "when a specified source directory does not exist" $ do
       it "warns" $ do
-        writeFile "package.yaml" [i|
+        withPackageWarnings [i|
           source-dirs:
             - some-dir
             - some-existing-dir
@@ -632,31 +628,38 @@ spec = do
               main: Main.hs
               source-dirs: some-test-dir
           |]
-        touch "some-existing-dir/foo"
-        fmap fst <$> readPackageConfig "package.yaml" `shouldReturn` Right [
+          (do
+          touch "some-existing-dir/foo"
+          )
+          (`shouldBe` [
             "Specified source-dir \"some-dir\" does not exist"
           , "Specified source-dir \"some-exec-dir\" does not exist"
           , "Specified source-dir \"some-lib-dir\" does not exist"
           , "Specified source-dir \"some-test-dir\" does not exist"
           ]
+          )
 
-    context "when package.yaml can not be parsed" $ do
-      it "returns an error" $ do
-        writeFile "package.yaml" [i|
-          foo: bar
-          foo baz
-          |]
-        readPackageConfig "package.yaml" `shouldReturn` Left "package.yaml:3:10: could not find expected ':' while scanning a simple key"
+    around (withSystemTempDirectory "hspec") $ do
+      context "when package.yaml can not be parsed" $ do
+        it "returns an error" $ \dir -> do
+          let file = dir </> "package.yaml"
+          writeFile file [i|
+            foo: bar
+            foo baz
+            |]
+          readPackageConfig file `shouldReturn` Left (file ++ ":3:12: could not find expected ':' while scanning a simple key")
 
-    context "when package.yaml is invalid" $ do
-      it "returns an error" $ do
-        writeFile "package.yaml" [i|
-          executables:
-            foo:
-              ain: driver/Main.hs
-          |]
-        readPackageConfig "package.yaml" `shouldReturn` Left "package.yaml: Error in $.executables.foo: failed to parse field executables: The key \"main\" was not found"
+      context "when package.yaml is invalid" $ do
+        it "returns an error" $ \dir -> do
+          let file = dir </> "package.yaml"
+          writeFile file [i|
+            executables:
+              foo:
+                ain: driver/Main.hs
+            |]
+          readPackageConfig file `shouldReturn` Left (file ++ ": Error in $.executables.foo: failed to parse field executables: The key \"main\" was not found")
 
-    context "when package.yaml does not exist" $ do
-      it "returns an error" $
-        readPackageConfig "package.yaml" `shouldReturn` Left "package.yaml: Yaml file not found: package.yaml"
+      context "when package.yaml does not exist" $ do
+        it "returns an error" $ \dir -> do
+          let file = dir </> "package.yaml"
+          readPackageConfig file `shouldReturn` Left [i|#{file}: Yaml file not found: #{file}|]

@@ -46,6 +46,7 @@ tests:
       - src
     dependencies:
       - hspec == 2.*
+      - temporary
       - mockery >= 0.3
       - interpolate
       - aeson-qq

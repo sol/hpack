@@ -142,64 +142,64 @@ spec = do
     it "rejects invalid fields" $ do
       splitField "foo bar" `shouldBe` Nothing
 
-  describe "expandGlobs" $ around_ inTempDirectory $ do
-    it "accepts simple files" $ do
-      touch "foo.js"
-      expandGlobs ["foo.js"] `shouldReturn` ([], ["foo.js"])
+  describe "expandGlobs" $ around (withSystemTempDirectory "hspec") $ do
+    it "accepts simple files" $ \dir -> do
+        touch (dir </> "foo.js")
+        expandGlobs dir ["foo.js"] `shouldReturn` ([], ["foo.js"])
 
-    it "removes duplicates" $ do
-      touch "foo.js"
-      expandGlobs ["foo.js", "*.js"] `shouldReturn` ([], ["foo.js"])
+    it "removes duplicates" $ \dir -> do
+      touch (dir </> "foo.js")
+      expandGlobs dir ["foo.js", "*.js"] `shouldReturn` ([], ["foo.js"])
 
-    it "rejects directories" $ do
-      touch "foo"
-      createDirectory "bar"
-      expandGlobs ["*"] `shouldReturn` ([], ["foo"])
+    it "rejects directories" $ \dir -> do
+      touch (dir </> "foo")
+      createDirectory (dir </> "bar")
+      expandGlobs dir ["*"] `shouldReturn` ([], ["foo"])
 
-    it "rejects character ranges" $ do
-      touch "foo1"
-      touch "foo2"
-      touch "foo[1,2]"
-      expandGlobs ["foo[1,2]"] `shouldReturn` ([], ["foo[1,2]"])
+    it "rejects character ranges" $ \dir -> do
+      touch (dir </> "foo1")
+      touch (dir </> "foo2")
+      touch (dir </> "foo[1,2]")
+      expandGlobs dir ["foo[1,2]"] `shouldReturn` ([], ["foo[1,2]"])
 
     context "when expanding *" $ do
-      it "expands by extension" $ do
+      it "expands by extension" $ \dir -> do
         let files = [
                 "files/foo.js"
               , "files/bar.js"
               , "files/baz.js"]
-        mapM_ touch files
-        touch "files/foo.hs"
-        expandGlobs ["files/*.js"] `shouldReturn` ([], sort files)
+        mapM_ (touch . (dir </>)) files
+        touch (dir </> "files/foo.hs")
+        expandGlobs dir ["files/*.js"] `shouldReturn` ([], sort files)
 
-      it "rejects dot-files" $ do
-        touch "foo/bar"
-        touch "foo/.baz"
-        expandGlobs ["foo/*"] `shouldReturn` ([], ["foo/bar"])
+      it "rejects dot-files" $ \dir -> do
+        touch (dir </> "foo/bar")
+        touch (dir </> "foo/.baz")
+        expandGlobs dir ["foo/*"] `shouldReturn` ([], ["foo/bar"])
 
-      it "accepts dot-files when explicitly asked to" $ do
-        touch "foo/bar"
-        touch "foo/.baz"
-        expandGlobs ["foo/.*"] `shouldReturn` ([], ["foo/.baz"])
+      it "accepts dot-files when explicitly asked to" $ \dir -> do
+        touch (dir </> "foo/bar")
+        touch (dir </> "foo/.baz")
+        expandGlobs dir ["foo/.*"] `shouldReturn` ([], ["foo/.baz"])
 
-      it "matches at most one directory component" $ do
-        touch "foo/bar/baz.js"
-        touch "foo/bar.js"
-        expandGlobs ["*/*.js"] `shouldReturn` ([], ["foo/bar.js"])
+      it "matches at most one directory component" $ \dir -> do
+        touch (dir </> "foo/bar/baz.js")
+        touch (dir </> "foo/bar.js")
+        expandGlobs dir ["*/*.js"] `shouldReturn` ([], ["foo/bar.js"])
 
     context "when expanding **" $ do
-      it "matches arbitrary many directory components" $ do
+      it "matches arbitrary many directory components" $ \dir -> do
         let file = "foo/bar/baz.js"
-        touch file
-        expandGlobs ["**/*.js"] `shouldReturn` ([], [file])
+        touch (dir </> file)
+        expandGlobs dir ["**/*.js"] `shouldReturn` ([], [file])
 
     context "when a pattern does not match anything" $ do
-      it "warns" $ do
-        expandGlobs ["foo"] `shouldReturn`
+      it "warns" $ \dir -> do
+        expandGlobs dir ["foo"] `shouldReturn`
           (["Specified pattern \"foo\" for extra-source-files does not match any files"], [])
 
     context "when a pattern only matches a directory" $ do
-      it "warns" $ do
-        createDirectory "foo"
-        expandGlobs ["foo"] `shouldReturn`
+      it "warns" $ \dir -> do
+        createDirectory (dir </> "foo")
+        expandGlobs dir ["foo"] `shouldReturn`
           (["Specified pattern \"foo\" for extra-source-files does not match any files"], [])
