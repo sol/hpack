@@ -1,7 +1,11 @@
+{-# LANGUAGE CPP #-}
 module Hpack (
   hpack
 , version
 , main
+#ifdef TEST
+, parseVerbosity
+#endif
 ) where
 
 import           Prelude ()
@@ -37,15 +41,26 @@ main = do
   args <- getArgs
   case args of
     ["--version"] -> putStrLn programVersion
-    ["--silent"] -> hpack False
-    [] -> hpack True
-    _ -> do
-      hPutStrLn stderr "Usage: hpack [ --version | --silent ]"
-      exitFailure
+    _ -> case parseVerbosity args of
+      (verbose, [dir]) -> hpack dir verbose
+      (verbose, []) -> hpack "." verbose
+      _ -> do
+        hPutStrLn stderr $ unlines [
+            "Usage: hpack [ --silent ] [ dir ]"
+          , "       hpack --version"
+          ]
+        exitFailure
 
-hpack :: Bool -> IO ()
-hpack verbose = do
-  (warnings, name, new) <- run
+parseVerbosity :: [String] -> (Bool, [String])
+parseVerbosity xs = (verbose, ys)
+  where
+    silentFlag = "--silent"
+    verbose = not (silentFlag `elem` xs)
+    ys = filter (/= silentFlag) xs
+
+hpack :: FilePath -> Bool -> IO ()
+hpack dir verbose = do
+  (warnings, name, new) <- run dir
   forM_ warnings $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
   old <- force . either (const Nothing) (Just . stripHeader) <$> tryJust (guard . isDoesNotExistError) (readFile name)
   if (old == Just (lines new)) then do

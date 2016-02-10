@@ -97,6 +97,7 @@ test-suite spec
       Hpack.RenderSpec
       Hpack.RunSpec
       Hpack.UtilSpec
+      HpackSpec
       Hpack
       Hpack.Config
       Hpack.GenericsUtil

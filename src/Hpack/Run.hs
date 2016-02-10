@@ -23,17 +23,18 @@ import           Data.Char
 import           Data.Maybe
 import           Data.List.Compat
 import           System.Exit.Compat
+import           System.FilePath
 
 import           Hpack.Util
 import           Hpack.Config
 import           Hpack.Render
 
-run :: IO ([String], FilePath, String)
-run = do
-  mPackage <- readPackageConfig packageConfig
+run :: FilePath -> IO ([String], FilePath, String)
+run dir = do
+  mPackage <- readPackageConfig (dir </> packageConfig)
   case mPackage of
     Right (warnings, pkg) -> do
-      let cabalFile = packageName pkg ++ ".cabal"
+      let cabalFile = dir </> (packageName pkg ++ ".cabal")
 
       old <- tryReadFile cabalFile
 
