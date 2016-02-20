@@ -477,7 +477,12 @@ determineModules name modules mExposedModules mOtherModules = case (mExposedModu
     pathsModule = ["Paths_" ++ name] \\ exposedModules
 
 getModules :: FilePath -> FilePath -> IO [String]
-getModules dir src_ = sort <$> do
+getModules dir src = do
+  dir' <- canonicalizePath dir
+  getModules' dir' src
+
+getModules' :: FilePath -> FilePath -> IO [String]
+getModules' dir src_ = sort <$> do
   exists <- doesDirectoryExist (dir </> src_)
   if exists
     then do
