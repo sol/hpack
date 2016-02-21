@@ -363,6 +363,18 @@ spec = do
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
 
+      it "replaces dashes with underscores in exposed-modules" $ do
+        withPackageConfig [i|
+          name: foo-bar
+          library:
+            source-dirs: src
+            exposed-modules: Foo
+          |]
+          (do
+          touch "src/Foo.hs"
+          )
+          (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Paths_foo_bar"]}) {sectionSourceDirs = ["src"]}))
+
       it "allows to specify exposed-modules" $ do
         withPackageConfig [i|
           library:
