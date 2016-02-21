@@ -31,7 +31,7 @@ library :: Library
 library = Library [] [] []
 
 withPackage :: String -> IO () -> (([String], Package) -> Expectation) -> Expectation
-withPackage content beforeAction expectation = withSystemTempDirectory "hspec" $ \dir_ -> do
+withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
   let dir = dir_ </> "foo"
   createDirectory dir
   writeFile (dir </> "package.yaml") content
@@ -107,7 +107,7 @@ spec = do
                 }|]
             parseEither parseJSON value `shouldBe` (Left "Error in $: neither key \"git\" nor key \"github\" present" :: Either String Dependency)
 
-  describe "getModules" $ around (withSystemTempDirectory "hspec") $ do
+  describe "getModules" $ around withTempDirectory $ do
     it "returns Haskell modules in specified source directory" $ \dir -> do
       touch (dir </> "src/Foo.hs")
       touch (dir </> "src/Bar/Baz.hs")
@@ -655,7 +655,7 @@ spec = do
           ]
           )
 
-    around (withSystemTempDirectory "hspec") $ do
+    around withTempDirectory $ do
       context "when package.yaml can not be parsed" $ do
         it "returns an error" $ \dir -> do
           let file = dir </> "package.yaml"

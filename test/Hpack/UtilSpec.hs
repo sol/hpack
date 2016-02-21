@@ -142,7 +142,7 @@ spec = do
     it "rejects invalid fields" $ do
       splitField "foo bar" `shouldBe` Nothing
 
-  describe "expandGlobs" $ around (withSystemTempDirectory "hspec") $ do
+  describe "expandGlobs" $ around withTempDirectory $ do
     it "accepts simple files" $ \dir -> do
         touch (dir </> "foo.js")
         expandGlobs dir ["foo.js"] `shouldReturn` ([], ["foo.js"])
