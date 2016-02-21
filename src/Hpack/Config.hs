@@ -467,11 +467,11 @@ toSection a CommonOptions{..}
     cppOptions = fromMaybeList commonOptionsCppOptions
     dependencies = fromMaybeList commonOptionsDependencies
 
-moduleNameFromPkgName :: String -> String
-moduleNameFromPkgName name = map f name
+pathsModuleFromPackageName :: String -> String
+pathsModuleFromPackageName name = "Paths_" ++ map f name
   where
-      f '-' = '_'
-      f x = x
+    f '-' = '_'
+    f x = x
 
 determineModules :: String -> [String] -> Maybe (List String) -> Maybe (List String) -> ([String], [String])
 determineModules name modules mExposedModules mOtherModules = case (mExposedModules, mOtherModules) of
@@ -480,7 +480,7 @@ determineModules name modules mExposedModules mOtherModules = case (mExposedModu
   where
     otherModules   = maybe ((modules \\ exposedModules) ++ pathsModule) fromList mOtherModules
     exposedModules = maybe (modules \\ otherModules)   fromList mExposedModules
-    pathsModule = ["Paths_" ++ moduleNameFromPkgName name] \\ exposedModules
+    pathsModule = [pathsModuleFromPackageName name] \\ exposedModules
 
 getModules :: FilePath -> FilePath -> IO [String]
 getModules dir src_ = sort <$> do

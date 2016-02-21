@@ -130,8 +130,11 @@ spec = do
     it "adds the Paths_* module to the other-modules" $ do
       determineModules "foo" [] (Just $ List ["Foo"]) Nothing `shouldBe` (["Foo"], ["Paths_foo"])
 
+    it "replaces dashes with underscores in Paths_*" $ do
+      determineModules "foo-bar" [] (Just $ List ["Foo"]) Nothing `shouldBe` (["Foo"], ["Paths_foo_bar"])
+
     context "when the Paths_* module is part of the exposed-modules" $ do
-      it "it does not add the Paths_* module to the other-modules" $ do
+      it "does not add the Paths_* module to the other-modules" $ do
         determineModules "foo" [] (Just $ List ["Foo", "Paths_foo"]) Nothing `shouldBe` (["Foo", "Paths_foo"], [])
 
   describe "readPackageConfig" $ do
@@ -362,18 +365,6 @@ spec = do
           library: {}
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
-
-      it "replaces dashes with underscores in exposed-modules" $ do
-        withPackageConfig [i|
-          name: foo-bar
-          library:
-            source-dirs: src
-            exposed-modules: Foo
-          |]
-          (do
-          touch "src/Foo.hs"
-          )
-          (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Paths_foo_bar"]}) {sectionSourceDirs = ["src"]}))
 
       it "allows to specify exposed-modules" $ do
         withPackageConfig [i|
