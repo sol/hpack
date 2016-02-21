@@ -2,19 +2,27 @@ sudo: false
 
 language: c
 
-env:
-  - GHCVER=7.8.4
-  - GHCVER=7.10.2
+matrix:
+  include:
+    - env: GHCVER=7.8.4
+      addons:
+        apt:
+          sources:
+            - hvr-ghc
+          packages:
+            - ghc-7.8.4
+            - happy-1.19.5
+            - cabal-install-1.22
 
-addons:
-  apt:
-    sources:
-      - hvr-ghc
-    packages:
-      - ghc-7.8.4
-      - ghc-7.10.2
-      - happy-1.19.5
-      - cabal-install-1.22
+    - env: GHCVER=7.10.2
+      addons:
+        apt:
+          sources:
+            - hvr-ghc
+          packages:
+            - ghc-7.10.2
+            - happy-1.19.5
+            - cabal-install-1.22
 
 before_install:
   - (mkdir -p $HOME/.local/bin && cd $HOME/.local/bin && wget https://zalora-public.s3.amazonaws.com/tinc && chmod +x tinc)
