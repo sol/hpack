@@ -112,7 +112,7 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
       , ("license-file", packageLicenseFile)
       , ("tested-with", packageTestedWith)
       , ("build-type", Just "Simple")
-      , ("cabal-version", Just ">= 1.10")
+      , ("cabal-version", packageCabalVersion)
       ]
 
     formatList :: [String] -> Maybe String
@@ -122,6 +122,17 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
 
     defaultFieldOrder :: [String]
     defaultFieldOrder = map fst fields
+
+    packageCabalVersion :: Maybe String
+    packageCabalVersion = maximum
+      [ Just ">= 1.10"
+      , packageLibrary >>= libCabalVersion
+      ]
+     where
+      libCabalVersion :: Section Library -> Maybe String
+      libCabalVersion sect = maximum
+        [ ">= 1.21" <$ guard (not (null (libraryReexportedModules (sectionData sect))))
+        ]
 
 formatDescription :: Int -> String -> String
 formatDescription alignment description = case map emptyLineToDot $ lines description of
@@ -179,6 +190,7 @@ renderLibrary sect@(sectionData -> Library{..}) = Stanza "library" $
   renderSection sect ++ [
     renderExposedModules libraryExposedModules
   , renderOtherModules libraryOtherModules
+  , renderReexportedModules libraryReexportedModules
   , defaultLanguage
   ]
 
@@ -204,6 +216,9 @@ renderExposedModules modules = Field "exposed-modules" (LineSeparatedList module
 
 renderOtherModules :: [String] -> Element
 renderOtherModules modules = Field "other-modules" (LineSeparatedList modules)
+
+renderReexportedModules :: [String] -> Element
+renderReexportedModules modules = Field "reexported-modules" (LineSeparatedList modules)
 
 renderDependencies :: [Dependency] -> Element
 renderDependencies dependencies = Field "build-depends" (CommaSeparatedList $ map dependencyName dependencies)

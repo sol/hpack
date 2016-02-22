@@ -104,6 +104,7 @@ instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields a) wher
 data LibrarySection = LibrarySection {
   librarySectionExposedModules :: Maybe (List String)
 , librarySectionOtherModules :: Maybe (List String)
+, librarySectionReexportedModules :: Maybe (List String)
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames LibrarySection
@@ -264,6 +265,7 @@ data Package = Package {
 data Library = Library {
   libraryExposedModules :: [String]
 , libraryOtherModules :: [String]
+, libraryReexportedModules :: [String]
 } deriving (Eq, Show)
 
 data Executable = Executable {
@@ -419,7 +421,8 @@ toLibrary dir name globalOptions library = traverse fromLibrarySection sect
     fromLibrarySection LibrarySection{..} = do
       modules <- concat <$> mapM (getModules dir) sourceDirs
       let (exposedModules, otherModules) = determineModules name modules librarySectionExposedModules librarySectionOtherModules
-      return (Library exposedModules otherModules)
+          reexportedModules = fromMaybe [] (fromList <$> librarySectionReexportedModules)
+      return (Library exposedModules otherModules reexportedModules)
 
 toExecutables :: FilePath -> Section global -> [(String, Section ExecutableSection)] -> IO [Section Executable]
 toExecutables dir globalOptions executables = mapM toExecutable sections

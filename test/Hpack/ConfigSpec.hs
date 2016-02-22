@@ -28,7 +28,7 @@ executable :: String -> String -> Executable
 executable name main_ = Executable name main_ []
 
 library :: Library
-library = Library [] []
+library = Library [] [] []
 
 withPackage :: String -> IO () -> (([String], Package) -> Expectation) -> Expectation
 withPackage content beforeAction expectation = withSystemTempDirectory "hspec" $ \dir_ -> do
@@ -389,6 +389,13 @@ spec = do
           touch "src/Bar.hs"
           )
           (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}))
+
+      it "allows to specify reexported-modules" $ do
+        withPackageConfig_ [i|
+          library:
+            reexported-modules: Baz
+          |]
+          (packageLibrary >>> (`shouldBe` Just (section library{libraryReexportedModules = ["Baz"]})))
 
       it "allows to specify both exposed-modules and other-modules" $ do
         withPackageConfig [i|
