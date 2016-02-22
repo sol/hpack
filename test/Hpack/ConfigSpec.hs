@@ -258,6 +258,15 @@ spec = do
         )
         (`shouldBe` package {packageLicenseFile = Just "LICENSE"})
 
+    it "accepts license file" $ do
+      withPackageConfig [i|
+        license-file: FOO
+        |]
+        (do
+        touch "FOO"
+        )
+        (`shouldBe` package {packageLicenseFile = Just "FOO"})
+
     it "accepts extra-source-files" $ do
       withPackageConfig [i|
         extra-source-files:
