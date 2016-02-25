@@ -422,7 +422,7 @@ toLibrary dir name globalOptions library = traverse fromLibrarySection sect
     fromLibrarySection LibrarySection{..} = do
       modules <- concat <$> mapM (getModules dir) sourceDirs
       let (exposedModules, otherModules) = determineModules name modules librarySectionExposedModules librarySectionOtherModules
-          reexportedModules = fromMaybe [] (fromList <$> librarySectionReexportedModules)
+          reexportedModules = fromMaybeList librarySectionReexportedModules
       return (Library exposedModules otherModules reexportedModules)
 
 toExecutables :: FilePath -> Section global -> [(String, Section ExecutableSection)] -> IO [Section Executable]

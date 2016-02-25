@@ -112,7 +112,7 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
       , ("license-file", packageLicenseFile)
       , ("tested-with", packageTestedWith)
       , ("build-type", Just "Simple")
-      , ("cabal-version", packageCabalVersion)
+      , ("cabal-version", cabalVersion)
       ]
 
     formatList :: [String] -> Maybe String
@@ -123,16 +123,17 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
     defaultFieldOrder :: [String]
     defaultFieldOrder = map fst fields
 
-    packageCabalVersion :: Maybe String
-    packageCabalVersion = maximum
-      [ Just ">= 1.10"
+    cabalVersion :: Maybe String
+    cabalVersion = maximum [
+        Just ">= 1.10"
       , packageLibrary >>= libCabalVersion
       ]
      where
       libCabalVersion :: Section Library -> Maybe String
-      libCabalVersion sect = maximum
-        [ ">= 1.21" <$ guard (not (null (libraryReexportedModules (sectionData sect))))
-        ]
+      libCabalVersion sect = ">= 1.21" <$ guard (hasReexportedModules sect)
+
+      hasReexportedModules :: Section Library -> Bool
+      hasReexportedModules = not . null . libraryReexportedModules . sectionData
 
 formatDescription :: Int -> String -> String
 formatDescription alignment description = case map emptyLineToDot $ lines description of
