@@ -4,41 +4,46 @@ language: c
 
 matrix:
   include:
-    - env: GHCVER=7.8.4
-      addons:
-        apt:
-          sources:
-            - hvr-ghc
-          packages:
-            - ghc-7.8.4
-            - happy-1.19.5
-            - cabal-install-1.22
-
-    - env: GHCVER=7.10.2
-      addons:
-        apt:
-          sources:
-            - hvr-ghc
-          packages:
-            - ghc-7.10.2
-            - happy-1.19.5
-            - cabal-install-1.22
+    - env: BUILD=tinc CABALVER=1.22 GHCVER=7.8.4
+      compiler: ": #tinc 7.8.4"
+      addons: {apt: {packages: [cabal-install-1.22,ghc-7.8.4,happy-1.19.5], sources: [hvr-ghc]}}
+    - env: BUILD=tinc CABALVER=1.22 GHCVER=7.10.3
+      compiler: ": #tinc 7.10.3"
+      addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,happy-1.19.5], sources: [hvr-ghc]}}
+    - env: BUILD=stack GHCVER=7.10.3 STACK_YAML=stack.yaml
+      compiler: ": #stack 7.10.3"
+      addons: {apt: {packages: [ghc-7.10.3,happy-1.19.5], sources: [hvr-ghc]}}
+    - env: BUILD=stack STACK_YAML=stack.yaml
+      compiler: ": #stack 7.10.3 osx"
+      os: osx
 
 before_install:
-  - (mkdir -p $HOME/.local/bin && cd $HOME/.local/bin && wget https://zalora-public.s3.amazonaws.com/tinc && chmod +x tinc)
+  - unset CC
   - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/1.22/bin:/opt/happy/1.19.5/bin:$PATH
-  - ghc --version
-  - cabal --version
-  - happy --version
-  - travis_retry cabal update
-  - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
+  - ./.travis-setup.sh
+  - ghc --version || stack exec -- ghc --version
+  - happy --version || true
+  - cabal --version || true
+  - stack --version || true
+  - tick --version || true
 
 install:
-  - tinc
+  - case "$BUILD" in
+      tinc)
+        tinc;;
+      stack)
+        stack --no-terminal test --only-dependencies;;
+    esac
 
 script:
-  - cabal configure --enable-tests --ghc-options=-Werror --disable-optimization && cabal build && cabal test
+  - case "$BUILD" in
+      tinc)
+        cabal configure --enable-tests --ghc-options=-Werror --disable-optimization && cabal build && cabal test;;
+      stack)
+        stack --no-terminal test --haddock --no-haddock-deps;;
+    esac
 
 cache:
   directories:
     - $HOME/.tinc/cache
+    - $HOME/.stack
