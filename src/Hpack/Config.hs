@@ -298,14 +298,13 @@ data SourceRepository = SourceRepository {
 mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
 mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
   let name = fromMaybe (takeBaseName dir) packageConfigName
-      licenseFile = fromMaybe "LICENSE" packageConfigLicenseFile
 
   mLibrary <- mapM (toLibrary dir name globalOptions) mLibrarySection
   executables <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
   tests <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
   benchmarks <- toExecutables dir globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
 
-  licenseFileExists <- doesFileExist (dir </> licenseFile)
+  licenseFileExists <- doesFileExist (dir </> "LICENSE")
 
   missingSourceDirs <- nub . sort <$> filterM (fmap not <$> doesDirectoryExist . (dir </>)) (
        maybe [] sectionSourceDirs mLibrary
@@ -333,7 +332,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       , packageMaintainer = fromMaybeList packageConfigMaintainer
       , packageCopyright = fromMaybeList packageConfigCopyright
       , packageLicense = packageConfigLicense
-      , packageLicenseFile = guard licenseFileExists >> Just licenseFile
+      , packageLicenseFile = packageConfigLicenseFile <|> (guard licenseFileExists >> Just "LICENSE")
       , packageTestedWith = packageConfigTestedWith
       , packageExtraSourceFiles = extraSourceFiles
       , packageDataFiles = dataFiles
