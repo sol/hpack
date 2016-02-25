@@ -91,16 +91,56 @@ spec = do
         , "    bar"
         ]
 
-    it "renders libray section" $ do
-      renderPackage_ 0 [] package {packageLibrary = Just $ section library} `shouldBe` unlines [
-          "name: foo"
-        , "version: 0.0.0"
-        , "build-type: Simple"
-        , "cabal-version: >= 1.10"
-        , ""
-        , "library"
-        , "  default-language: Haskell2010"
-        ]
+    context "when rendering library section" $ do
+      it "renders library section" $ do
+        renderPackage_ 0 [] package {packageLibrary = Just $ section library} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.10"
+          , ""
+          , "library"
+          , "  default-language: Haskell2010"
+          ]
+
+      it "includes exposed-modules" $ do
+        renderPackage_ 0 [] package {packageLibrary = Just (section library{libraryExposedModules = ["Foo"]})} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.10"
+          , ""
+          , "library"
+          , "  exposed-modules:"
+          , "      Foo"
+          , "  default-language: Haskell2010"
+          ]
+
+      it "includes other-modules" $ do
+        renderPackage_ 0 [] package {packageLibrary = Just (section library{libraryOtherModules = ["Bar"]})} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.10"
+          , ""
+          , "library"
+          , "  other-modules:"
+          , "      Bar"
+          , "  default-language: Haskell2010"
+          ]
+
+      it "includes reexported-modules and bumps cabal version" $ do
+        renderPackage_ 0 [] package {packageLibrary = Just (section library{libraryReexportedModules = ["Baz"]})} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.21"
+          , ""
+          , "library"
+          , "  reexported-modules:"
+          , "      Baz"
+          , "  default-language: Haskell2010"
+          ]
 
     context "when given list of existing fields" $ do
       it "retains field order" $ do
