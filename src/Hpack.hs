@@ -41,15 +41,20 @@ main = do
   args <- getArgs
   case args of
     ["--version"] -> putStrLn programVersion
+    ["--help"] -> printHelp
     _ -> case parseVerbosity args of
       (verbose, [dir]) -> hpack dir verbose
       (verbose, []) -> hpack "." verbose
       _ -> do
-        hPutStrLn stderr $ unlines [
-            "Usage: hpack [ --silent ] [ dir ]"
-          , "       hpack --version"
-          ]
+        printHelp
         exitFailure
+
+printHelp :: IO ()
+printHelp = do
+  hPutStrLn stderr $ unlines [
+      "Usage: hpack [ --silent ] [ dir ]"
+    , "       hpack --version"
+    ]
 
 parseVerbosity :: [String] -> (Bool, [String])
 parseVerbosity xs = (verbose, ys)
