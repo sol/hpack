@@ -195,6 +195,32 @@ spec = do
         ]
         )
 
+    it "warns on unknown fields in when block, list" $ do
+      withPackageWarnings_ [i|
+        when:
+          - condition: impl(ghc)
+            bar: 23
+            baz: 42
+        |]
+        (`shouldBe` [
+          "Ignoring unknown field \"bar\" in package description"
+        , "Ignoring unknown field \"baz\" in package description"
+        ]
+        )
+
+    it "warns on unknown fields in when block, single" $ do
+      withPackageWarnings_ [i|
+        when:
+          condition: impl(ghc)
+          bar: 23
+          baz: 42
+        |]
+        (`shouldBe` [
+          "Ignoring unknown field \"bar\" in package description"
+        , "Ignoring unknown field \"baz\" in package description"
+        ]
+        )
+
     it "accepts name" $ do
       withPackageConfig_ [i|
         name: bar

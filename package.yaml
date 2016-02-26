@@ -18,6 +18,7 @@ dependencies:
   - Glob
   - text
   - unordered-containers
+  - vector
   - yaml
 
 library:

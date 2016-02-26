@@ -32,6 +32,7 @@ library
     , Glob
     , text
     , unordered-containers
+    , vector
     , yaml
     , aeson >= 0.8
   exposed-modules:
@@ -62,6 +63,7 @@ executable hpack
     , Glob
     , text
     , unordered-containers
+    , vector
     , yaml
     , hpack
     , aeson >= 0.8
@@ -85,6 +87,7 @@ test-suite spec
     , Glob
     , text
     , unordered-containers
+    , vector
     , yaml
     , hspec == 2.*
     , temporary

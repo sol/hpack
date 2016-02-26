@@ -47,6 +47,7 @@ import           Data.Ord
 import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Vector as V
 import           GHC.Generics
 import           Prelude ()
 import           Prelude.Compat
@@ -101,12 +102,21 @@ instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields a) wher
       unknown = getUnknownFields v (Proxy :: Proxy a)
 
 getUnknownFields :: forall a. HasFieldNames a => Value -> Proxy a -> [String]
-getUnknownFields v _ = case v of
-  Object o -> unknown
+getUnknownFields v proxy = case v of
+  Object o -> unknown ++ (whenUnknown \\ ["condition"])
     where
       unknown = keys \\ fields
       keys = map T.unpack (Map.keys o)
       fields = fieldNames (Proxy :: Proxy a)
+
+      -- If object has `when` field, it have to be an array, and each section should have same fields
+      whenUnknown = concatMap (flip getUnknownFields proxy) $ whens $ Map.lookup "when" o
+
+      whens :: Maybe Value -> [Value]
+      whens (Just (Array arr))    = V.toList arr
+      whens (Just obj@(Object _)) = [obj]
+      whens _                     = []
+
   _ -> []
 
 data LibrarySection = LibrarySection {
@@ -138,7 +148,7 @@ data CommonOptions = CommonOptions {
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
-, commonOptionsWhen :: Maybe (List (Section Condition)) -- FIXME: handle unknown fields
+, commonOptionsWhen :: Maybe (List (Section Condition))
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames CommonOptions
