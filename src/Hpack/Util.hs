@@ -31,6 +31,7 @@ import           Data.Maybe
 import           Data.Ord
 import           System.Directory
 import           System.FilePath
+import qualified System.FilePath.Posix as Posix
 import           System.FilePath.Glob
 
 import           Hpack.Haskell
@@ -119,13 +120,16 @@ splitField field = case span isNameChar field of
     isNameChar = (`elem` nameChars)
     nameChars = ['a'..'z'] ++ ['A'..'Z'] ++ "-"
 
+toPosixFilePath :: FilePath -> FilePath
+toPosixFilePath = Posix.joinPath . splitDirectories
+
 expandGlobs :: FilePath -> [String] -> IO ([String], [FilePath])
 expandGlobs dir patterns = do
   files <- (fst <$> globDir compiledPatterns dir) >>= mapM removeDirectories
   let warnings = [warn pattern | ([], pattern) <- zip files patterns]
   return (warnings, combineResults files)
   where
-    combineResults = nub . map (makeRelative dir) . sort . concat
+    combineResults = nub . sort . map (toPosixFilePath . makeRelative dir) . concat
     warn pattern = "Specified pattern " ++ show pattern ++ " for extra-source-files does not match any files"
     compiledPatterns = map (compileWith options) patterns
     removeDirectories = filterM doesFileExist
