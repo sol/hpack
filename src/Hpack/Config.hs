@@ -11,6 +11,7 @@
 module Hpack.Config (
   packageConfig
 , readPackageConfig
+, readPackageConfigBS
 , package
 , section
 , Package(..)
@@ -23,6 +24,8 @@ module Hpack.Config (
 , Section(..)
 , Library(..)
 , Executable(..)
+, Condition(..)
+, Flag(..)
 , SourceRepository(..)
 #ifdef TEST
 , getModules
@@ -31,8 +34,10 @@ module Hpack.Config (
 ) where
 
 import           Control.Applicative
+import           Control.Arrow (second)
 import           Control.Monad.Compat
 import           Data.Aeson.Types
+import           Data.ByteString (ByteString)
 import           Data.Data
 import           Data.HashMap.Lazy (HashMap)
 import qualified Data.HashMap.Lazy as Map
@@ -42,6 +47,7 @@ import           Data.Ord
 import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Vector as V
 import           GHC.Generics
 import           Prelude ()
 import           Prelude.Compat
@@ -53,10 +59,10 @@ import           Hpack.Util
 import           Hpack.Yaml
 
 package :: String -> String -> Package
-package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] Nothing Nothing [] [] []
+package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] Nothing Nothing [] [] [] []
 
 section :: a -> Section a
-section a = Section a [] [] [] [] [] [] []
+section a = Section a [] [] [] [] [] [] [] []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -91,15 +97,27 @@ data CaptureUnknownFields a = CaptureUnknownFields {
 } deriving (Eq, Show, Generic)
 
 instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields a) where
-  parseJSON v = captureUnknownFields <$> parseJSON v
+  parseJSON v = CaptureUnknownFields unknown <$> parseJSON v
     where
-      captureUnknownFields a = case v of
-        Object o -> CaptureUnknownFields unknown a
-          where
-            unknown = keys \\ fields
-            keys = map T.unpack (Map.keys o)
-            fields = fieldNames (Proxy :: Proxy a)
-        _ -> CaptureUnknownFields [] a
+      unknown = getUnknownFields v (Proxy :: Proxy a)
+
+getUnknownFields :: forall a. HasFieldNames a => Value -> Proxy a -> [String]
+getUnknownFields v proxy = case v of
+  Object o -> unknown ++ (whenUnknown \\ ["condition"])
+    where
+      unknown = keys \\ fields
+      keys = map T.unpack (Map.keys o)
+      fields = fieldNames (Proxy :: Proxy a)
+
+      -- If object has `when` field, it have to be an array, and each section should have same fields
+      whenUnknown = concatMap (flip getUnknownFields proxy) $ whens $ Map.lookup "when" o
+
+      whens :: Maybe Value -> [Value]
+      whens (Just (Array arr))    = V.toList arr
+      whens (Just obj@(Object _)) = [obj]
+      whens _                     = []
+
+  _ -> []
 
 data LibrarySection = LibrarySection {
   librarySectionExposedModules :: Maybe (List String)
@@ -130,11 +148,19 @@ data CommonOptions = CommonOptions {
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
+, commonOptionsWhen :: Maybe (List (Section Condition))
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames CommonOptions
 
 instance FromJSON CommonOptions where
+  parseJSON = genericParseJSON_
+
+newtype Condition = Condition {
+  conditionCondition :: String
+} deriving (Eq, Show, Generic)
+
+instance FromJSON Condition where
   parseJSON = genericParseJSON_
 
 data PackageConfig = PackageConfig {
@@ -159,6 +185,7 @@ data PackageConfig = PackageConfig {
 , packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigBenchmarks :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
+, packageConfigFlags :: Maybe (HashMap String (CaptureUnknownFields FlagFields))
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames PackageConfig
@@ -198,6 +225,10 @@ readPackageConfig file = do
     Right config -> do
       dir <- takeDirectory <$> canonicalizePath file
       Right <$> mkPackage dir config
+
+readPackageConfigBS :: ByteString -> IO (Either String ([String], Package))
+readPackageConfigBS bs =
+  either (return . Left) (fmap Right . mkPackage ".") (decodeYamlBS bs)
 
 data Dependency = Dependency {
   dependencyName :: String
@@ -261,6 +292,7 @@ data Package = Package {
 , packageExecutables :: [Section Executable]
 , packageTests :: [Section Executable]
 , packageBenchmarks :: [Section Executable]
+, packageFlags :: [Flag]
 } deriving (Eq, Show)
 
 data Library = Library {
@@ -284,6 +316,7 @@ data Section a = Section {
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
 , sectionCppOptions :: [CppOption]
+, sectionConditionals :: [Section Condition]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance HasFieldNames a => HasFieldNames (Section a) where
@@ -292,19 +325,43 @@ instance HasFieldNames a => HasFieldNames (Section a) where
 instance FromJSON a => FromJSON (Section a) where
   parseJSON v = toSection <$> parseJSON v <*> parseJSON v
 
+data FlagFields = FlagFields {
+    _flagFieldManual :: Bool
+  , _flagFieldDefault :: Bool
+  , _flagFieldDescription :: Maybe String
+  } deriving (Eq, Show, Generic)
+
+instance HasFieldNames FlagFields
+
+instance FromJSON FlagFields where
+  parseJSON = withObject "Flag fields" $ \obj ->
+    FlagFields <$> obj .: "manual"
+               <*> obj .: "default"
+               <*> obj .:? "description"
+
+data Flag = Flag {
+    flagName        :: String
+  , flagManual      :: Bool
+  , flagDefault     :: Bool
+  , flagDescription :: Maybe String
+  } deriving (Eq, Show)
+
 data SourceRepository = SourceRepository {
   sourceRepositoryUrl :: String
 , sourceRepositorySubdir :: Maybe String
 } deriving (Eq, Show)
 
+toFlag :: (String, FlagFields) -> Flag
+toFlag (name, FlagFields m d desc) = Flag name m d desc
+
 mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
 mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
   let name = fromMaybe (takeBaseName dir) packageConfigName
-
   mLibrary <- mapM (toLibrary dir name globalOptions) mLibrarySection
   executables <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
   tests <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
   benchmarks <- toExecutables dir globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
+  let flags = map (toFlag . second captureUnknownFieldsValue) configFlags
 
   licenseFileExists <- doesFileExist (dir </> "LICENSE")
 
@@ -343,6 +400,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       , packageExecutables = executables
       , packageTests = tests
       , packageBenchmarks = benchmarks
+      , packageFlags = flags
       }
 
       warnings =
@@ -364,6 +422,9 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
 
     benchmarkSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     benchmarkSections = toList packageConfigBenchmarks
+
+    configFlags :: [(String, CaptureUnknownFields FlagFields)]
+    configFlags = toList packageConfigFlags
 
     toList :: Maybe (HashMap String a) -> [(String, a)]
     toList = Map.toList . fromMaybe mempty
@@ -448,7 +509,7 @@ toExecutables dir globalOptions executables = mapM toExecutable sections
 
 mergeSections :: Section global -> Section a -> Section a
 mergeSections globalOptions options
-  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions
+  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions conditionals
   where
     a = sectionData options
     sourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
@@ -458,10 +519,11 @@ mergeSections globalOptions options
     ghcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
     cppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
     dependencies = sectionDependencies globalOptions ++ sectionDependencies options
+    conditionals = sectionConditionals globalOptions ++ sectionConditionals options
 
 toSection :: a -> CommonOptions -> Section a
 toSection a CommonOptions{..}
-  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions
+  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions conditionals
   where
     sourceDirs = fromMaybeList commonOptionsSourceDirs
     defaultExtensions = fromMaybeList commonOptionsDefaultExtensions
@@ -470,6 +532,7 @@ toSection a CommonOptions{..}
     ghcProfOptions = fromMaybeList commonOptionsGhcProfOptions
     cppOptions = fromMaybeList commonOptionsCppOptions
     dependencies = fromMaybeList commonOptionsDependencies
+    conditionals = fromMaybeList commonOptionsWhen
 
 pathsModuleFromPackageName :: String -> String
 pathsModuleFromPackageName name = "Paths_" ++ map f name

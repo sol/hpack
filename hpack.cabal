@@ -25,12 +25,14 @@ library
   build-depends:
       base >= 4.7 && < 5
     , base-compat >= 0.8
+    , bytestring
     , deepseq
     , directory
     , filepath
     , Glob
     , text
     , unordered-containers
+    , vector
     , yaml
     , aeson >= 0.8
   exposed-modules:
@@ -54,12 +56,14 @@ executable hpack
   build-depends:
       base >= 4.7 && < 5
     , base-compat >= 0.8
+    , bytestring
     , deepseq
     , directory
     , filepath
     , Glob
     , text
     , unordered-containers
+    , vector
     , yaml
     , hpack
     , aeson >= 0.8
@@ -76,22 +80,26 @@ test-suite spec
   build-depends:
       base >= 4.7 && < 5
     , base-compat >= 0.8
+    , bytestring
     , deepseq
     , directory
     , filepath
     , Glob
     , text
     , unordered-containers
+    , vector
     , yaml
     , hspec == 2.*
     , temporary
     , mockery >= 0.3
+    , file-embed
     , interpolate
     , aeson-qq
     , aeson >= 0.10
   other-modules:
       Helper
       Hpack.ConfigSpec
+      Hpack.FixtureSpec
       Hpack.GenericsUtilSpec
       Hpack.HaskellSpec
       Hpack.RenderSpec

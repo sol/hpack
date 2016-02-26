@@ -11,12 +11,14 @@ ghc-options: -Wall
 dependencies:
   - base >= 4.7 && < 5
   - base-compat >= 0.8
+  - bytestring
   - deepseq
   - directory
   - filepath
   - Glob
   - text
   - unordered-containers
+  - vector
   - yaml
 
 library:
@@ -48,6 +50,7 @@ tests:
       - hspec == 2.*
       - temporary
       - mockery >= 0.3
+      - file-embed
       - interpolate
       - aeson-qq
       - aeson >= 0.10
