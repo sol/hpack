@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -79,23 +80,25 @@ hyphenize name =
 #endif
   '-' . drop (length name)
 
+type FieldName = String
+
 class HasFieldNames a where
-  fieldNames :: Proxy a -> [String]
+  fieldNames :: Proxy a -> [FieldName]
 
   default fieldNames :: (HasTypeName a, Generic a, Selectors (Rep a)) => Proxy a -> [String]
   fieldNames proxy = map (hyphenize $ typeName proxy) (selectors proxy)
 
 data CaptureUnknownFields a = CaptureUnknownFields {
-  captureUnknownFieldsFields :: [String]
+  captureUnknownFieldsFields :: [FieldName]
 , captureUnknownFieldsValue :: a
 } deriving (Eq, Show, Generic)
 
-instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields a) where
+instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields (Section a)) where
   parseJSON v = CaptureUnknownFields unknown <$> parseJSON v
     where
-      unknown = getUnknownFields v (Proxy :: Proxy a)
+      unknown = getUnknownFields v (Proxy :: Proxy (Section a))
 
-getUnknownFields :: forall a. HasFieldNames a => Value -> Proxy a -> [String]
+getUnknownFields :: forall a. HasFieldNames a => Value -> Proxy a -> [FieldName]
 getUnknownFields v _ = case v of
   Object o -> unknown
     where
@@ -374,7 +377,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
     mLibrarySection :: Maybe (Section LibrarySection)
     mLibrarySection = captureUnknownFieldsValue <$> packageConfigLibrary
 
-    formatUnknownFields :: String -> [String] -> [String]
+    formatUnknownFields :: String -> [FieldName] -> [String]
     formatUnknownFields name = map f . sort
       where
         f field = "Ignoring unknown field " ++ show field ++ " in " ++ name
