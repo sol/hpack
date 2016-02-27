@@ -13,9 +13,10 @@ import           Helper
 
 import           Data.Aeson.QQ
 import           Data.Aeson.Types
-import           Data.String.Interpolate
+import           Data.String.Interpolate.IsString
 import           Control.Arrow
 import           System.Directory (createDirectory)
+import           Data.Yaml
 
 import           Hpack.Util
 import           Hpack.Config hiding (package)
@@ -51,9 +52,51 @@ withPackageWarnings content beforeAction expectation = withPackage content befor
 withPackageWarnings_ :: String -> ([String] -> Expectation) -> Expectation
 withPackageWarnings_ content = withPackageWarnings content (return ())
 
+data Dummy = Dummy
+  deriving (Eq, Show)
+
+instance FromJSON Dummy where
+  parseJSON _ = return Dummy
+
+instance HasFieldNames Dummy where
+  fieldNames _ = []
+
 spec :: Spec
 spec = do
   describe "parseJSON" $ do
+    context "when parsing (CaptureUnknownFields Section a)" $ do
+      it "accepts dependencies" $ do
+        let input = [i|
+              dependencies: hpack
+              |]
+        captureUnknownFieldsValue <$> decodeEither input
+          `shouldBe` Right (section Dummy){sectionDependencies = ["hpack"]}
+
+      it "accepts conditionals" $ do
+        let input = [i|
+              when:
+                condition: os(windows)
+                dependencies: Win32
+              |]
+            conditionals = [(section $ Condition "os(windows)"){sectionDependencies = ["Win32"]}]
+        captureUnknownFieldsValue <$> decodeEither input
+          `shouldBe` Right (section Dummy){sectionConditionals = conditionals}
+
+      it "warns on unknown fields" $ do
+        let input = [i|
+              foo: 23
+              when:
+                - condition: os(windows)
+                  bar: 23
+                  when:
+                    condition: os(windows)
+                    bar2: 23
+                - condition: os(windows)
+                  baz: 23
+              |]
+        captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Dummy)))
+          `shouldBe` Right ["foo", "bar", "bar2", "baz"]
+
     context "when parsing a Dependency" $ do
       it "accepts simple dependencies" $ do
         parseEither parseJSON "hpack" `shouldBe` Right (Dependency "hpack" Nothing)
