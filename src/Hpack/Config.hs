@@ -176,6 +176,7 @@ data PackageConfig = PackageConfig {
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigGithub :: Maybe Text
+, packageConfigGit :: Maybe String
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
 , packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
@@ -406,7 +407,10 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
         f name = "Specified source-dir " ++ show name ++ " does not exist"
 
     sourceRepository :: Maybe SourceRepository
-    sourceRepository = parseGithub <$> packageConfigGithub
+    sourceRepository = github <|> (`SourceRepository` Nothing) <$> packageConfigGit
+
+    github :: Maybe SourceRepository
+    github = parseGithub <$> packageConfigGithub
       where
         parseGithub :: Text -> SourceRepository
         parseGithub input = case map T.unpack $ T.splitOn "/" input of
@@ -419,14 +423,14 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       Just Nothing -> Nothing
       _ -> join packageConfigHomepage <|> fromGithub
       where
-        fromGithub = (++ "#readme") . sourceRepositoryUrl <$> sourceRepository
+        fromGithub = (++ "#readme") . sourceRepositoryUrl <$> github
 
     bugReports :: Maybe String
     bugReports = case packageConfigBugReports of
       Just Nothing -> Nothing
       _ -> join packageConfigBugReports <|> fromGithub
       where
-        fromGithub = (++ "/issues") . sourceRepositoryUrl <$> sourceRepository
+        fromGithub = (++ "/issues") . sourceRepositoryUrl <$> github
 
 toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO (Section Library)
 toLibrary dir name globalOptions library = traverse fromLibrarySection sect

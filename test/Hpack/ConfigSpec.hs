@@ -369,6 +369,12 @@ spec = do
         |]
         (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core"))))
 
+    it "accepts arbitrary git URLs as source repository" $ do
+      withPackageConfig_ [i|
+        git: https://gitlab.com/gitlab-org/gitlab-ce.git
+        |]
+        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://gitlab.com/gitlab-org/gitlab-ce.git" Nothing)))
+
     it "accepts CPP options" $ do
       withPackageConfig_ [i|
         cpp-options: -DFOO
