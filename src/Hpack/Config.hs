@@ -9,6 +9,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Hpack.Config (
   packageConfig
 , readPackageConfig
@@ -25,6 +26,7 @@ module Hpack.Config (
 , Library(..)
 , Executable(..)
 , Condition(..)
+, Flag(..)
 , SourceRepository(..)
 #ifdef TEST
 , HasFieldNames(..)
@@ -57,7 +59,7 @@ import           Hpack.Util
 import           Hpack.Yaml
 
 package :: String -> String -> Package
-package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] Nothing Nothing [] [] []
+package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] []
 
 section :: a -> Section a
 section a = Section a [] [] [] [] [] [] [] []
@@ -81,7 +83,7 @@ hyphenize name =
 #else
   camelTo
 #endif
-  '-' . drop (length name)
+  '-' . drop (length name) . dropWhile (== '_')
 
 type FieldName = String
 
@@ -96,12 +98,20 @@ data CaptureUnknownFields a = CaptureUnknownFields {
 , captureUnknownFieldsValue :: a
 } deriving (Eq, Show, Generic)
 
+captureUnknownFields :: forall a. (HasFieldNames a, FromJSON a) => Value -> Parser (CaptureUnknownFields a)
+captureUnknownFields v = CaptureUnknownFields unknown <$> parseJSON v
+  where
+    unknown = getUnknownFields v (Proxy :: Proxy a)
+
 instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields (Section a)) where
   parseJSON v = do
     (unknownFields, sect) <- toSection <$> parseJSON v <*> parseJSON v
     return (CaptureUnknownFields (unknownSectionFields ++ unknownFields) sect)
     where
       unknownSectionFields = getUnknownFields v (Proxy :: Proxy (Section a))
+
+instance FromJSON (CaptureUnknownFields FlagSection) where
+  parseJSON = captureUnknownFields
 
 getUnknownFields :: forall a. HasFieldNames a => Value -> Proxy a -> [FieldName]
 getUnknownFields v _ = case v of
@@ -173,6 +183,7 @@ data PackageConfig = PackageConfig {
 , packageConfigLicense :: Maybe String
 , packageConfigLicenseFile :: Maybe String
 , packageConfigTestedWith :: Maybe String
+, packageConfigFlags :: Maybe (HashMap String (CaptureUnknownFields FlagSection))
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigGithub :: Maybe Text
@@ -276,6 +287,7 @@ data Package = Package {
 , packageLicense :: Maybe String
 , packageLicenseFile :: Maybe FilePath
 , packageTestedWith :: Maybe String
+, packageFlags :: [Flag]
 , packageExtraSourceFiles :: [FilePath]
 , packageDataFiles :: [FilePath]
 , packageSourceRepository :: Maybe SourceRepository
@@ -311,6 +323,27 @@ data Section a = Section {
 
 instance HasFieldNames a => HasFieldNames (Section a) where
   fieldNames Proxy = fieldNames (Proxy :: Proxy a) ++ fieldNames (Proxy :: Proxy CommonOptions)
+
+data FlagSection = FlagSection {
+  _flagSectionDescription :: Maybe String
+, _flagSectionManual :: Bool
+, _flagSectionDefault :: Bool
+} deriving (Eq, Show, Generic)
+
+instance HasFieldNames FlagSection
+
+instance FromJSON FlagSection where
+  parseJSON = genericParseJSON_
+
+data Flag = Flag {
+  flagName :: String
+, flagDescription :: Maybe String
+, flagManual :: Bool
+, flagDefault :: Bool
+} deriving (Eq, Show)
+
+toFlag :: (String, FlagSection) -> Flag
+toFlag (name, FlagSection description manual def) = Flag name description manual def
 
 data SourceRepository = SourceRepository {
   sourceRepositoryUrl :: String
@@ -356,6 +389,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       , packageLicense = packageConfigLicense
       , packageLicenseFile = packageConfigLicenseFile <|> (guard licenseFileExists >> Just "LICENSE")
       , packageTestedWith = packageConfigTestedWith
+      , packageFlags = flags
       , packageExtraSourceFiles = extraSourceFiles
       , packageDataFiles = dataFiles
       , packageSourceRepository = sourceRepository
@@ -367,6 +401,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
 
       warnings =
            formatUnknownFields "package description" unknownFields
+        ++ flagWarnings
         ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary)
         ++ formatUnknownSectionFields "executable" executableSections
         ++ formatUnknownSectionFields "test" testsSections
@@ -384,6 +419,15 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
 
     benchmarkSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     benchmarkSections = toList packageConfigBenchmarks
+
+    (flagWarnings, flags) = (concatMap formatUnknownFlagFields xs, map (toFlag . fmap captureUnknownFieldsValue) xs)
+      where
+        xs :: [(String, CaptureUnknownFields FlagSection)]
+        xs = toList packageConfigFlags
+
+        formatUnknownFlagFields :: (String, CaptureUnknownFields a) -> [String]
+        formatUnknownFlagFields (name, fields) = map f (captureUnknownFieldsFields fields)
+          where f field = "Ignoring unknown field " ++ show field ++ " for flag " ++ show name
 
     toList :: Maybe (HashMap String a) -> [(String, a)]
     toList = Map.toList . fromMaybe mempty

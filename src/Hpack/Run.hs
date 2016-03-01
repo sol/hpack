@@ -11,6 +11,7 @@ module Hpack.Run (
 , defaultRenderSettings
 #ifdef TEST
 , renderConditional
+, renderFlag
 , renderSourceRepository
 , formatDescription
 #endif
@@ -67,6 +68,7 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
     stanzas = extraSourceFiles
             : dataFiles
             : sourceRepository
+            ++ map renderFlag packageFlags
             ++ library
             ++ renderExecutables packageExecutables
             ++ renderTests packageTests
@@ -156,6 +158,14 @@ renderSourceRepository SourceRepository{..} = Stanza "source-repository head" [
   , Field "location" (Literal sourceRepositoryUrl)
   , Field "subdir" (maybe "" Literal sourceRepositorySubdir)
   ]
+
+renderFlag :: Flag -> Element
+renderFlag Flag {..} = Stanza ("flag " ++ flagName) $ description ++ [
+    Field "manual" (Literal $ show flagManual)
+  , Field "default" (Literal $ show flagDefault)
+  ]
+  where
+    description = maybe [] (return . Field "description" . Literal) flagDescription
 
 renderExecutables :: [Section Executable] -> [Element]
 renderExecutables = map renderExecutable

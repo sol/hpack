@@ -334,6 +334,30 @@ spec = do
         |]
         (packageLicenseFile >>> (`shouldBe` Just "FOO"))
 
+    it "accepts flags" $ do
+      withPackageConfig_ [i|
+        flags:
+          integration-tests:
+            description: Run the integration test suite
+            manual: yes
+            default: no
+        |]
+        (packageFlags >>> (`shouldBe` [Flag "integration-tests" (Just "Run the integration test suite") True False]))
+
+    it "warns on unknown fields in flag sections" $ do
+      withPackageWarnings_ [i|
+        flags:
+          integration-tests:
+            description: Run the integration test suite
+            manual: yes
+            default: no
+            foo: 23
+        |]
+        (`shouldBe` [
+          "Ignoring unknown field \"foo\" for flag \"integration-tests\""
+        ]
+        )
+
     it "accepts extra-source-files" $ do
       withPackageConfig [i|
         extra-source-files:

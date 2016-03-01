@@ -222,6 +222,16 @@ spec = do
         , "        Win32"
         ]
 
+  describe "renderFlag" $ do
+    it "renders flags" $ do
+      let flag = (Flag "foo" (Just "some flag") True False)
+      render defaultRenderSettings 0 (renderFlag flag) `shouldBe` [
+          "flag foo"
+        , "  description: some flag"
+        , "  manual: True"
+        , "  default: False"
+        ]
+
   describe "formatDescription" $ do
     it "formats description" $ do
       let description = unlines [
