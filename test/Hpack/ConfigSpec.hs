@@ -423,6 +423,16 @@ spec = do
         }
         )
 
+    it "accepts ld-options" $ do
+      withPackageConfig_ [i|
+        library:
+          ld-options: -static
+        |]
+        (`shouldBe` package {
+          packageLibrary = Just (section library) {sectionLdOptions = ["-static"]}
+        }
+        )
+
     context "when reading library section" $ do
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|

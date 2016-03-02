@@ -214,6 +214,7 @@ renderSection Section{..} = [
   , renderGhcOptions sectionGhcOptions
   , renderGhcProfOptions sectionGhcProfOptions
   , renderCppOptions sectionCppOptions
+  , renderLdOptions sectionLdOptions
   , renderDependencies sectionDependencies
   ]
   ++ map renderConditional sectionConditionals
@@ -250,6 +251,9 @@ renderGhcProfOptions = Field "ghc-prof-options" . WordList
 
 renderCppOptions :: [CppOption] -> Element
 renderCppOptions = Field "cpp-options" . WordList
+
+renderLdOptions :: [LdOption] -> Element
+renderLdOptions = Field "ld-options" . WordList
 
 renderDefaultExtensions :: [String] -> Element
 renderDefaultExtensions = Field "default-extensions" . WordList

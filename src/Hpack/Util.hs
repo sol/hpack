@@ -5,6 +5,7 @@ module Hpack.Util (
 , GhcOption
 , GhcProfOption
 , CppOption
+, LdOption
 , parseMain
 , toModule
 , getFilesRecursive
@@ -53,6 +54,7 @@ instance FromJSON a => FromJSON (List a) where
 type GhcOption = String
 type GhcProfOption = String
 type CppOption = String
+type LdOption = String
 
 parseMain :: String -> (FilePath, [GhcOption])
 parseMain main = case reverse name of
