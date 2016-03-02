@@ -433,6 +433,22 @@ spec = do
         }
         )
 
+    it "accepts buildable" $ do
+      withPackageConfig_ [i|
+        buildable: no
+        library:
+          buildable: yes
+
+        executables:
+          foo:
+            main: Main.hs
+        |]
+        (`shouldBe` package {
+          packageLibrary = Just (section library) {sectionBuildable = Just True}
+        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionBuildable = Just False}]
+        }
+        )
+
     context "when reading library section" $ do
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|

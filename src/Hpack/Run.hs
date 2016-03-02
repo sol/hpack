@@ -217,6 +217,7 @@ renderSection Section{..} = [
   , renderLdOptions sectionLdOptions
   , renderDependencies sectionDependencies
   ]
+  ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ map renderConditional sectionConditionals
 
 renderConditional :: Section Condition -> Element
@@ -254,6 +255,9 @@ renderCppOptions = Field "cpp-options" . WordList
 
 renderLdOptions :: [LdOption] -> Element
 renderLdOptions = Field "ld-options" . WordList
+
+renderBuildable :: Bool -> Element
+renderBuildable buildable = Field "buildable" (Literal $ show buildable)
 
 renderDefaultExtensions :: [String] -> Element
 renderDefaultExtensions = Field "default-extensions" . WordList

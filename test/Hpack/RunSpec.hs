@@ -91,6 +91,18 @@ spec = do
         , "    bar"
         ]
 
+    it "includes buildable" $ do
+      renderPackage_ 0 [] package {packageLibrary = Just (section library){sectionBuildable = Just False}} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.10"
+        , ""
+        , "library"
+        , "  buildable: False"
+        , "  default-language: Haskell2010"
+        ]
+
     context "when rendering library section" $ do
       it "renders library section" $ do
         renderPackage_ 0 [] package {packageLibrary = Just $ section library} `shouldBe` unlines [
