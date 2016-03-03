@@ -16,6 +16,7 @@ dependencies:
   - filepath
   - Glob
   - text
+  - containers
   - unordered-containers
   - yaml
 

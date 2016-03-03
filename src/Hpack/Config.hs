@@ -41,8 +41,9 @@ import           Control.Applicative
 import           Control.Monad.Compat
 import           Data.Aeson.Types
 import           Data.Data
-import           Data.HashMap.Lazy (HashMap)
-import qualified Data.HashMap.Lazy as Map
+import           Data.Map.Lazy (Map)
+import qualified Data.Map.Lazy as Map
+import qualified Data.HashMap.Lazy as HashMap
 import           Data.List (nub, (\\), sortBy)
 import           Data.Maybe
 import           Data.Ord
@@ -119,7 +120,7 @@ getUnknownFields v _ = case v of
   Object o -> unknown
     where
       unknown = keys \\ fields
-      keys = map T.unpack (Map.keys o)
+      keys = map T.unpack (HashMap.keys o)
       fields = fieldNames (Proxy :: Proxy a)
   _ -> []
 
@@ -171,7 +172,7 @@ instance FromJSON ConditionalSection where
     | otherwise = FlatConditional <$> parseJSON v
 
 hasKey :: Text -> Value -> Bool
-hasKey key (Object o) = Map.member key o
+hasKey key (Object o) = HashMap.member key o
 hasKey _ _ = False
 
 newtype Condition = Condition {
@@ -221,15 +222,15 @@ data PackageConfig = PackageConfig {
 , packageConfigLicense :: Maybe String
 , packageConfigLicenseFile :: Maybe String
 , packageConfigTestedWith :: Maybe String
-, packageConfigFlags :: Maybe (HashMap String (CaptureUnknownFields FlagSection))
+, packageConfigFlags :: Maybe (Map String (CaptureUnknownFields FlagSection))
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigGithub :: Maybe Text
 , packageConfigGit :: Maybe String
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
-, packageConfigExecutables :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
-, packageConfigTests :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
-, packageConfigBenchmarks :: Maybe (HashMap String (CaptureUnknownFields (Section ExecutableSection)))
+, packageConfigExecutables :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
+, packageConfigTests :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
+, packageConfigBenchmarks :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames PackageConfig
@@ -475,7 +476,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
         formatUnknownFlagFields (name, fields) = map f (captureUnknownFieldsFields fields)
           where f field = "Ignoring unknown field " ++ show field ++ " for flag " ++ show name
 
-    toList :: Maybe (HashMap String a) -> [(String, a)]
+    toList :: Maybe (Map String a) -> [(String, a)]
     toList = Map.toList . fromMaybe mempty
 
     mLibrarySection :: Maybe (Section LibrarySection)
