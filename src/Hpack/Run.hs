@@ -218,13 +218,12 @@ renderSection Section{..} = [
   , renderDependencies sectionDependencies
   ]
   ++ maybe [] (return . renderBuildable) sectionBuildable
-  ++ map renderConditional sectionConditionals
+  ++ concatMap renderConditional sectionConditionals
 
-renderConditional :: Section Condition -> Element
-renderConditional sect = Stanza condition (renderSection sect)
+renderConditional :: Conditional -> [Element]
+renderConditional (Conditional condition sect mElse) = Stanza ("if " ++ condition) (renderSection sect) : else_
   where
-    condition :: String
-    condition = "if " ++ conditionCondition (sectionData sect)
+    else_ = maybe [] (return . Stanza "else" . renderSection) mElse
 
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"

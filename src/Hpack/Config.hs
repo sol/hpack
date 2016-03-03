@@ -25,12 +25,13 @@ module Hpack.Config (
 , Section(..)
 , Library(..)
 , Executable(..)
-, Condition(..)
+, Conditional(..)
 , Flag(..)
 , SourceRepository(..)
 #ifdef TEST
 , HasFieldNames(..)
 , CaptureUnknownFields(..)
+, Empty(..)
 , getModules
 , determineModules
 #endif
@@ -153,13 +154,25 @@ data CommonOptions = CommonOptions {
 , commonOptionsCppOptions :: Maybe (List CppOption)
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
-, commonOptionsWhen :: Maybe (List (CaptureUnknownFields (Section Condition)))
+, commonOptionsWhen :: Maybe (List ConditionalSection)
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames CommonOptions
 
 instance FromJSON CommonOptions where
   parseJSON = genericParseJSON_
+
+data ConditionalSection = ThenElseConditional (CaptureUnknownFields ThenElse) | FlatConditional (CaptureUnknownFields (Section Condition))
+  deriving (Eq, Show)
+
+instance FromJSON ConditionalSection where
+  parseJSON v
+    | hasKey "then" v || hasKey "else" v = ThenElseConditional <$> parseJSON v
+    | otherwise = FlatConditional <$> parseJSON v
+
+hasKey :: Text -> Value -> Bool
+hasKey key (Object o) = Map.member key o
+hasKey _ _ = False
 
 newtype Condition = Condition {
   conditionCondition :: String
@@ -169,6 +182,29 @@ instance FromJSON Condition where
   parseJSON = genericParseJSON_
 
 instance HasFieldNames Condition
+
+data ThenElse = ThenElse {
+  _thenElseCondition :: String
+, _thenElseThen :: (CaptureUnknownFields (Section Empty))
+, _thenElseElse :: (CaptureUnknownFields (Section Empty))
+} deriving (Eq, Show, Generic)
+
+instance FromJSON (CaptureUnknownFields ThenElse) where
+  parseJSON = captureUnknownFields
+
+instance HasFieldNames ThenElse
+
+instance FromJSON ThenElse where
+  parseJSON = genericParseJSON_
+
+data Empty = Empty
+  deriving (Eq, Show)
+
+instance FromJSON Empty where
+  parseJSON _ = return Empty
+
+instance HasFieldNames Empty where
+  fieldNames _ = []
 
 data PackageConfig = PackageConfig {
   packageConfigName :: Maybe String
@@ -322,8 +358,14 @@ data Section a = Section {
 , sectionCppOptions :: [CppOption]
 , sectionLdOptions :: [LdOption]
 , sectionBuildable :: Maybe Bool
-, sectionConditionals :: [Section Condition]
+, sectionConditionals :: [Conditional]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
+
+data Conditional = Conditional {
+  conditionalCondition :: String
+, conditionalThen :: Section ()
+, conditionalElse :: Maybe (Section ())
+} deriving (Eq, Show)
 
 instance HasFieldNames a => HasFieldNames (Section a) where
   fieldNames Proxy = fieldNames (Proxy :: Proxy a) ++ fieldNames (Proxy :: Proxy CommonOptions)
@@ -546,8 +588,13 @@ toSection a CommonOptions{..}
     ldOptions = fromMaybeList commonOptionsLdOptions
     buildable = commonOptionsBuildable
     dependencies = fromMaybeList commonOptionsDependencies
-    (unknownFields, conditionals) =
-      unzip [(field, value) | CaptureUnknownFields field value <- fromMaybeList commonOptionsWhen]
+    (unknownFields, conditionals) = unzip (map toConditional $ fromMaybeList commonOptionsWhen)
+
+toConditional :: ConditionalSection -> ([FieldName], Conditional)
+toConditional x = case x of
+  ThenElseConditional (CaptureUnknownFields fields (ThenElse condition (CaptureUnknownFields fieldsThen then_) (CaptureUnknownFields fieldsElse else_))) ->
+      (fields ++ fieldsThen ++ fieldsElse, Conditional condition (() <$ then_) (Just (() <$ else_)))
+  FlatConditional (CaptureUnknownFields fields sect) -> (fields, Conditional (conditionCondition $ sectionData sect) (() <$ sect) Nothing)
 
 pathsModuleFromPackageName :: String -> String
 pathsModuleFromPackageName name = "Paths_" ++ map f name
