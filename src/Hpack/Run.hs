@@ -214,6 +214,8 @@ renderSection Section{..} = [
   , renderGhcOptions sectionGhcOptions
   , renderGhcProfOptions sectionGhcProfOptions
   , renderCppOptions sectionCppOptions
+  , Field "include-dirs" (LineSeparatedList sectionIncludeDirs)
+  , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
   , renderLdOptions sectionLdOptions
   , renderDependencies sectionDependencies
   ]
@@ -229,19 +231,19 @@ defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"
 
 renderSourceDirs :: [String] -> Element
-renderSourceDirs dirs = Field "hs-source-dirs" (CommaSeparatedList dirs)
+renderSourceDirs = Field "hs-source-dirs" . CommaSeparatedList
 
 renderExposedModules :: [String] -> Element
-renderExposedModules modules = Field "exposed-modules" (LineSeparatedList modules)
+renderExposedModules = Field "exposed-modules" . LineSeparatedList
 
 renderOtherModules :: [String] -> Element
-renderOtherModules modules = Field "other-modules" (LineSeparatedList modules)
+renderOtherModules = Field "other-modules" . LineSeparatedList
 
 renderReexportedModules :: [String] -> Element
-renderReexportedModules modules = Field "reexported-modules" (LineSeparatedList modules)
+renderReexportedModules = Field "reexported-modules" . LineSeparatedList
 
 renderDependencies :: [Dependency] -> Element
-renderDependencies dependencies = Field "build-depends" (CommaSeparatedList $ map dependencyName dependencies)
+renderDependencies = Field "build-depends" . CommaSeparatedList . map dependencyName
 
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList
@@ -256,7 +258,7 @@ renderLdOptions :: [LdOption] -> Element
 renderLdOptions = Field "ld-options" . WordList
 
 renderBuildable :: Bool -> Element
-renderBuildable buildable = Field "buildable" (Literal $ show buildable)
+renderBuildable = Field "buildable" . Literal . show
 
 renderDefaultExtensions :: [String] -> Element
 renderDefaultExtensions = Field "default-extensions" . WordList

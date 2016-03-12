@@ -64,6 +64,24 @@ spec = do
         captureUnknownFieldsValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionDependencies = ["hpack"]}
 
+      it "accepts includes-dirs" $ do
+        let input = [i|
+              include-dirs:
+                - foo
+                - bar
+              |]
+        captureUnknownFieldsValue <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionIncludeDirs = ["foo", "bar"]}
+
+      it "accepts install-includes" $ do
+        let input = [i|
+              install-includes:
+                - foo.h
+                - bar.h
+              |]
+        captureUnknownFieldsValue <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionInstallIncludes = ["foo.h", "bar.h"]}
+
       context "when parsing conditionals" $ do
         it "accepts conditionals" $ do
           let input = [i|

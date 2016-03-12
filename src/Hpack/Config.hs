@@ -64,7 +64,7 @@ package :: String -> String -> Package
 package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] []
 
 section :: a -> Section a
-section a = Section a [] [] [] [] [] [] [] [] Nothing []
+section a = Section a [] [] [] [] [] [] [] [] [] [] Nothing []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -153,6 +153,8 @@ data CommonOptions = CommonOptions {
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
+, commonOptionsIncludeDirs :: Maybe (List FilePath)
+, commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List ConditionalSection)
@@ -357,6 +359,8 @@ data Section a = Section {
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
 , sectionCppOptions :: [CppOption]
+, sectionIncludeDirs :: [FilePath]
+, sectionInstallIncludes :: [FilePath]
 , sectionLdOptions :: [LdOption]
 , sectionBuildable :: Maybe Bool
 , sectionConditionals :: [Conditional]
@@ -562,7 +566,7 @@ toExecutables dir globalOptions executables = mapM toExecutable sections
 
 mergeSections :: Section global -> Section a -> Section a
 mergeSections globalOptions options
-  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions ldOptions buildable conditionals
+  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions includeDirs installIncludes ldOptions buildable conditionals
   where
     a = sectionData options
     sourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
@@ -571,6 +575,8 @@ mergeSections globalOptions options
     ghcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
     ghcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
     cppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
+    includeDirs = sectionIncludeDirs globalOptions ++ sectionIncludeDirs options
+    installIncludes = sectionInstallIncludes globalOptions ++ sectionInstallIncludes options
     ldOptions = sectionLdOptions globalOptions ++ sectionLdOptions options
     buildable = sectionBuildable options <|> sectionBuildable globalOptions
     dependencies = sectionDependencies globalOptions ++ sectionDependencies options
@@ -578,7 +584,7 @@ mergeSections globalOptions options
 
 toSection :: a -> CommonOptions -> ([FieldName], Section a)
 toSection a CommonOptions{..}
-  = (concat unknownFields, Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions ldOptions buildable conditionals)
+  = (concat unknownFields, Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions includeDirs installIncludes ldOptions buildable conditionals)
   where
     sourceDirs = fromMaybeList commonOptionsSourceDirs
     defaultExtensions = fromMaybeList commonOptionsDefaultExtensions
@@ -586,6 +592,8 @@ toSection a CommonOptions{..}
     ghcOptions = fromMaybeList commonOptionsGhcOptions
     ghcProfOptions = fromMaybeList commonOptionsGhcProfOptions
     cppOptions = fromMaybeList commonOptionsCppOptions
+    includeDirs = fromMaybeList commonOptionsIncludeDirs
+    installIncludes = fromMaybeList commonOptionsInstallIncludes
     ldOptions = fromMaybeList commonOptionsLdOptions
     buildable = commonOptionsBuildable
     dependencies = fromMaybeList commonOptionsDependencies
