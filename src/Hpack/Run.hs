@@ -199,12 +199,16 @@ renderExecutableSection sect@(sectionData -> Executable{..}) =
 
 renderLibrary :: Section Library -> Element
 renderLibrary sect@(sectionData -> Library{..}) = Stanza "library" $
-  renderSection sect ++ [
+  renderSection sect ++
+  maybe [] (return . renderExposed) libraryExposed ++ [
     renderExposedModules libraryExposedModules
   , renderOtherModules libraryOtherModules
   , renderReexportedModules libraryReexportedModules
   , defaultLanguage
   ]
+
+renderExposed :: Bool -> Element
+renderExposed = Field "exposed" . Literal . show
 
 renderSection :: Section a -> [Element]
 renderSection Section{..} = [

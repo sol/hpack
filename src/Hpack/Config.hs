@@ -125,7 +125,8 @@ getUnknownFields v _ = case v of
   _ -> []
 
 data LibrarySection = LibrarySection {
-  librarySectionExposedModules :: Maybe (List String)
+  librarySectionExposed :: Maybe Bool
+, librarySectionExposedModules :: Maybe (List String)
 , librarySectionOtherModules :: Maybe (List String)
 , librarySectionReexportedModules :: Maybe (List String)
 } deriving (Eq, Show, Generic)
@@ -339,7 +340,8 @@ data Package = Package {
 } deriving (Eq, Show)
 
 data Library = Library {
-  libraryExposedModules :: [String]
+  libraryExposed :: Maybe Bool
+, libraryExposedModules :: [String]
 , libraryOtherModules :: [String]
 , libraryReexportedModules :: [String]
 } deriving (Eq, Show)
@@ -541,7 +543,7 @@ toLibrary dir name globalOptions library = traverse fromLibrarySection sect
       modules <- concat <$> mapM (getModules dir) sourceDirs
       let (exposedModules, otherModules) = determineModules name modules librarySectionExposedModules librarySectionOtherModules
           reexportedModules = fromMaybeList librarySectionReexportedModules
-      return (Library exposedModules otherModules reexportedModules)
+      return (Library librarySectionExposed exposedModules otherModules reexportedModules)
 
 toExecutables :: FilePath -> Section global -> [(String, Section ExecutableSection)] -> IO [Section Executable]
 toExecutables dir globalOptions executables = mapM toExecutable sections

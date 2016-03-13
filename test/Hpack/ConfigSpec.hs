@@ -30,7 +30,7 @@ executable :: String -> String -> Executable
 executable name main_ = Executable name main_ []
 
 library :: Library
-library = Library [] [] []
+library = Library Nothing [] [] []
 
 withPackage :: String -> IO () -> (([String], Package) -> Expectation) -> Expectation
 withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
@@ -557,6 +557,13 @@ spec = do
           library: {}
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
+
+      it "allows to specify exposed" $ do
+        withPackageConfig_ [i|
+          library:
+            exposed: no
+          |]
+          (packageLibrary >>> (`shouldBe` Just (section library{libraryExposed = Just False})))
 
       it "allows to specify exposed-modules" $ do
         withPackageConfig [i|
