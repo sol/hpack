@@ -233,6 +233,9 @@ spec = do
     it "adds the Paths_* module to the other-modules" $ do
       determineModules "foo" [] (Just $ List ["Foo"]) Nothing `shouldBe` (["Foo"], ["Paths_foo"])
 
+    it "adds the Paths_* module to the other-modules when no modules are specified" $ do
+      determineModules "foo" [] Nothing Nothing `shouldBe` ([], ["Paths_foo"])
+
     it "replaces dashes with underscores in Paths_*" $ do
       determineModules "foo-bar" [] (Just $ List ["Foo"]) Nothing `shouldBe` (["Foo"], ["Paths_foo_bar"])
 
