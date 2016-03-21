@@ -66,7 +66,7 @@ package :: String -> String -> Package
 package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] []
 
 renamePackage :: String -> Package -> Package
-renamePackage name package@Package{..} = package {
+renamePackage name p@Package{..} = p {
     packageName = name
   , packageExecutables = map (renameDependencies packageName name) packageExecutables
   , packageTests = map (renameDependencies packageName name) packageTests
@@ -74,7 +74,7 @@ renamePackage name package@Package{..} = package {
   }
 
 renameDependencies :: String -> String -> Section a -> Section a
-renameDependencies old new section@Section{..} = section {sectionDependencies = map rename sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
+renameDependencies old new sect@Section{..} = sect {sectionDependencies = map rename sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
   where
     rename dep
       | dependencyName dep == old = dep {dependencyName = new}
