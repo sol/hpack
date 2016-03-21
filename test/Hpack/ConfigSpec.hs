@@ -55,6 +55,32 @@ withPackageWarnings_ content = withPackageWarnings content (return ())
 
 spec :: Spec
 spec = do
+  describe "renamePackage" $ do
+    it "renames a package" $ do
+      renamePackage "bar" package `shouldBe` package {packageName = "bar"}
+
+    it "renames dependencies on self" $ do
+      let packageWithExecutable dependencies = package {packageExecutables = [(section $ executable "main" "Main.hs") {sectionDependencies = dependencies}]}
+      renamePackage "bar" (packageWithExecutable ["foo"]) `shouldBe` (packageWithExecutable ["bar"]) {packageName = "bar"}
+
+  describe "renameDependencies" $ do
+    let sectionWithDeps dependencies = (section ()) {sectionDependencies = dependencies}
+
+    it "renames dependencies" $ do
+      renameDependencies "bar" "baz" (sectionWithDeps ["foo", "bar"]) `shouldBe` sectionWithDeps ["foo", "baz"]
+
+    it "renames dependency in conditionals" $ do
+      let sectionWithConditional dependencies = (section ()) {
+              sectionConditionals = [
+                Conditional {
+                  conditionalCondition = "some condition"
+                , conditionalThen = sectionWithDeps dependencies
+                , conditionalElse = Just (sectionWithDeps dependencies)
+                }
+                ]
+            }
+      renameDependencies "bar" "baz" (sectionWithConditional ["foo", "bar"]) `shouldBe` sectionWithConditional ["foo", "baz"]
+
   describe "parseJSON" $ do
     context "when parsing (CaptureUnknownFields Section a)" $ do
       it "accepts dependencies" $ do

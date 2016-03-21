@@ -13,6 +13,8 @@
 module Hpack.Config (
   packageConfig
 , readPackageConfig
+, renamePackage
+, packageDependencies
 , package
 , section
 , Package(..)
@@ -20,7 +22,6 @@ module Hpack.Config (
 , AddSource(..)
 , GitUrl
 , GitRef
-, packageDependencies
 , GhcOption
 , Section(..)
 , Library(..)
@@ -29,6 +30,7 @@ module Hpack.Config (
 , Flag(..)
 , SourceRepository(..)
 #ifdef TEST
+, renameDependencies
 , HasFieldNames(..)
 , CaptureUnknownFields(..)
 , Empty(..)
@@ -62,6 +64,31 @@ import           Hpack.Yaml
 
 package :: String -> String -> Package
 package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] []
+
+renamePackage :: String -> Package -> Package
+renamePackage name package@Package{..} = package {
+    packageName = name
+  , packageExecutables = map (renameDependencies packageName name) packageExecutables
+  , packageTests = map (renameDependencies packageName name) packageTests
+  , packageBenchmarks = map (renameDependencies packageName name) packageBenchmarks
+  }
+
+renameDependencies :: String -> String -> Section a -> Section a
+renameDependencies old new section@Section{..} = section {sectionDependencies = map rename sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
+  where
+    rename dep
+      | dependencyName dep == old = dep {dependencyName = new}
+      | otherwise = dep
+
+    renameConditional :: Conditional -> Conditional
+    renameConditional (Conditional condition then_ else_) = Conditional condition (renameDependencies old new then_) (renameDependencies old new <$> else_)
+
+packageDependencies :: Package -> [Dependency]
+packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . dependencyName)) $
+     (concatMap sectionDependencies packageExecutables)
+  ++ (concatMap sectionDependencies packageTests)
+  ++ (concatMap sectionDependencies packageBenchmarks)
+  ++ maybe [] sectionDependencies packageLibrary
 
 section :: a -> Section a
 section a = Section a [] [] [] [] [] [] [] [] [] [] Nothing []
@@ -237,13 +264,6 @@ data PackageConfig = PackageConfig {
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames PackageConfig
-
-packageDependencies :: Package -> [Dependency]
-packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . dependencyName)) $
-     (concatMap sectionDependencies packageExecutables)
-  ++ (concatMap sectionDependencies packageTests)
-  ++ (concatMap sectionDependencies packageBenchmarks)
-  ++ maybe [] sectionDependencies packageLibrary
 
 instance FromJSON PackageConfig where
   parseJSON value = handleNullValues <$> genericParseJSON_ value
