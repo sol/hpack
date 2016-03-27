@@ -30,6 +30,7 @@ import           System.FilePath
 import           Hpack.Util
 import           Hpack.Config
 import           Hpack.Render
+import           Hpack.FormattingHints
 
 run :: FilePath -> IO ([String], FilePath, String)
 run dir = do
@@ -40,9 +41,14 @@ run dir = do
 
       old <- tryReadFile cabalFile
 
-      let alignment = fromMaybe 16 (old >>= sniffAlignment)
-          settings = maybe defaultRenderSettings sniffRenderSettings old
-          output = renderPackage settings alignment (maybe [] extractFieldOrderHint old) pkg
+      let
+        hints = sniffFormattingHints <$> old
+        alignment = fromMaybe 16 (hints >>= formattingHintsAlignment)
+        fieldOrderHint = maybe [] formattingHintsFieldOrder hints
+        settings = maybe defaultRenderSettings formattingHintsRenderSettings hints
+
+        output = renderPackage settings alignment fieldOrderHint pkg
+
       return (warnings, cabalFile, output)
     Left err -> die err
 

@@ -40,6 +40,7 @@ library
       Hpack.Run
       Hpack.Yaml
   other-modules:
+      Hpack.FormattingHints
       Hpack.GenericsUtil
       Hpack.Haskell
       Hpack.Render
@@ -95,6 +96,7 @@ test-suite spec
   other-modules:
       Helper
       Hpack.ConfigSpec
+      Hpack.FormattingHintsSpec
       Hpack.GenericsUtilSpec
       Hpack.HaskellSpec
       Hpack.RenderSpec
@@ -103,6 +105,7 @@ test-suite spec
       HpackSpec
       Hpack
       Hpack.Config
+      Hpack.FormattingHints
       Hpack.GenericsUtil
       Hpack.Haskell
       Hpack.Render

@@ -88,60 +88,6 @@ spec = do
       inTempDirectory $ do
         tryReadFile "foo" `shouldReturn` Nothing
 
-  describe "extractFieldOrderHint" $ do
-    it "extracts field order hints" $ do
-      let input = unlines [
-              "name:           cabalize"
-            , "version:        0.0.0"
-            , "license:"
-            , "license-file: "
-            , "build-type:     Simple"
-            , "cabal-version:  >= 1.10"
-            ]
-      extractFieldOrderHint input `shouldBe` [
-              "name"
-            , "version"
-            , "license"
-            , "license-file"
-            , "build-type"
-            , "cabal-version"
-            ]
-
-  describe "sniffAlignment" $ do
-    it "sniffs field alignment from given cabal file" $ do
-      let input = unlines [
-              "name:           cabalize"
-            , "version:        0.0.0"
-            , "license:        MIT"
-            , "license-file:   LICENSE"
-            , "build-type:     Simple"
-            , "cabal-version:  >= 1.10"
-            ]
-      sniffAlignment input `shouldBe` Just 16
-
-    it "ignores fields without a value on the same line" $ do
-      let input = unlines [
-              "name:           cabalize"
-            , "version:        0.0.0"
-            , "description: "
-            , "  foo"
-            , "  bar"
-            ]
-      sniffAlignment input `shouldBe` Just 16
-
-  describe "splitField" $ do
-    it "splits fields" $ do
-      splitField "foo:   bar" `shouldBe` Just ("foo", "   bar")
-
-    it "accepts fields names with dashes" $ do
-      splitField "foo-bar: baz" `shouldBe` Just ("foo-bar", " baz")
-
-    it "rejects fields names with spaces" $ do
-      splitField "foo bar: baz" `shouldBe` Nothing
-
-    it "rejects invalid fields" $ do
-      splitField "foo bar" `shouldBe` Nothing
-
   describe "expandGlobs" $ around withTempDirectory $ do
     it "accepts simple files" $ \dir -> do
         touch (dir </> "foo.js")

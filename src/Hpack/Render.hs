@@ -1,14 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ViewPatterns #-}
 module Hpack.Render where
 
 import           Prelude ()
 import           Prelude.Compat
 
-import           Control.Applicative
-import           Data.Char
-import           Data.List.Compat
-import           Data.Maybe
 import           Data.String
 
 data Value =
@@ -80,30 +75,3 @@ instance IsString Value where
 
 indent :: RenderSettings -> Int -> String -> String
 indent RenderSettings{..} nesting s = replicate (nesting * renderSettingsIndentation) ' ' ++ s
-
-sniffIndentation :: String -> Maybe Int
-sniffIndentation input = sniffFrom "library" <|> sniffFrom "executable"
-  where
-    sniffFrom :: String -> Maybe Int
-    sniffFrom section = case findSection . removeEmptyLines $ lines input of
-      _ : x : _ -> Just . length $ takeWhile isSpace x
-      _ -> Nothing
-      where
-        findSection = dropWhile (not . isPrefixOf section)
-
-    removeEmptyLines :: [String] -> [String]
-    removeEmptyLines = filter $ any (not . isSpace)
-
-sniffCommaStyle :: String -> Maybe CommaStyle
-sniffCommaStyle (lines -> input)
-  | any startsWithComma input = Just LeadingCommas
-  | any (startsWithComma . reverse) input = Just TrailingCommas
-  | otherwise = Nothing
-  where
-    startsWithComma = isPrefixOf "," . dropWhile isSpace
-
-sniffRenderSettings :: String -> RenderSettings
-sniffRenderSettings input = RenderSettings indentation trailingCommas
-  where
-    indentation = fromMaybe (renderSettingsIndentation defaultRenderSettings) (sniffIndentation input)
-    trailingCommas = fromMaybe (renderSettingsCommaStyle defaultRenderSettings) (sniffCommaStyle input)
