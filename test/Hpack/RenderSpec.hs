@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
-
 module Hpack.RenderSpec where
 
-import Test.Hspec
+import           Test.Hspec
+import           Test.QuickCheck
+import           Data.List
+import           Data.Maybe
 
-import Hpack.Render
+import           Hpack.Render
 
 spec :: Spec
 spec = do
@@ -119,3 +121,35 @@ spec = do
           , "bar"
           , "baz"
           ]
+
+  describe "sortFieldsBy" $ do
+    let
+      field name = Field name (Literal $ name ++ " value")
+      arbitraryFieldNames = sublistOf ["foo", "bar", "baz", "qux", "foobar", "foobaz"] >>= shuffle
+
+    it "sorts fields" $ do
+      let fields = map field ["baz", "bar", "foo"]
+      sortFieldsBy ["foo", "bar", "baz"] fields `shouldBe` map field ["foo", "bar", "baz"]
+
+    it "keeps existing field order" $ do
+      forAll (map field <$> arbitraryFieldNames) $ \fields -> do
+        forAll arbitraryFieldNames $ \existingFieldOrder -> do
+          let
+            existingIndex :: Element -> Maybe Int
+            existingIndex (Field name _) = name `elemIndex` existingFieldOrder
+            existingIndex _ = Nothing
+
+            indexes :: [Int]
+            indexes = mapMaybe existingIndex (sortFieldsBy existingFieldOrder fields)
+
+          sort indexes `shouldBe` indexes
+
+    it "is stable" $ do
+      forAll arbitraryFieldNames $ \fieldNames -> do
+        forAll (elements $ subsequences fieldNames) $ \existingFieldOrder -> do
+          let fields = map field fieldNames
+          sortFieldsBy existingFieldOrder fields `shouldBe` fields
+
+  describe "addSortKey" $ do
+    it "adds sort key"  $ do
+      addSortKey [(Nothing, "foo"), (Just 3, "bar"), (Nothing, "baz")] `shouldBe` [((-1, 0), "foo"), ((3, 1), "bar"), ((3, 2), "baz" :: String)]

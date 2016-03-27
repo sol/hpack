@@ -47,6 +47,7 @@ tests:
       - src
     dependencies:
       - hspec == 2.*
+      - QuickCheck
       - temporary
       - mockery >= 0.3
       - interpolate

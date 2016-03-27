@@ -1,10 +1,31 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
-module Hpack.Render where
+module Hpack.Render (
+-- * AST
+  Element (..)
+, Value (..)
+
+-- * Render
+, RenderSettings (..)
+, CommaStyle (..)
+, defaultRenderSettings
+, render
+
+-- * Utils
+, sortFieldsBy
+
+#ifdef TEST
+, Lines (..)
+, renderValue
+, addSortKey
+#endif
+) where
 
 import           Prelude ()
 import           Prelude.Compat
 
 import           Data.String
+import           Data.List
 
 data Value =
     Literal String
@@ -82,3 +103,23 @@ instance IsString Value where
 
 indent :: RenderSettings -> Int -> String -> String
 indent RenderSettings{..} nesting s = replicate (nesting * renderSettingsIndentation) ' ' ++ s
+
+sortFieldsBy :: [String] -> [Element] -> [Element]
+sortFieldsBy existingFieldOrder =
+    map snd
+  . sortOn fst
+  . addSortKey
+  . map (\a -> (existingIndex a, a))
+  where
+    existingIndex :: Element -> Maybe Int
+    existingIndex (Field name _) = name `elemIndex` existingFieldOrder
+    existingIndex _ = Nothing
+
+addSortKey :: [(Maybe Int, a)] -> [((Int, Int), a)]
+addSortKey = go (-1) . zip [0..]
+  where
+    go :: Int -> [(Int, (Maybe Int, a))] -> [((Int, Int), a)]
+    go n xs = case xs of
+      [] -> []
+      (x, (Just y, a)) : ys -> ((y, x), a) : go y ys
+      (x, (Nothing, a)) : ys -> ((n, x), a) : go n ys
