@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Hpack.Render (
 -- * AST
   Element (..)
@@ -43,6 +44,9 @@ data Lines = SingleLine String | MultipleLines [String]
 data CommaStyle = LeadingCommas | TrailingCommas
   deriving (Eq, Show)
 
+newtype Nesting = Nesting Int
+  deriving (Eq, Show, Num, Enum)
+
 data RenderSettings = RenderSettings {
   renderSettingsIndentation :: Int
 , renderSettingsFieldAlignment :: Int
@@ -52,15 +56,15 @@ data RenderSettings = RenderSettings {
 defaultRenderSettings :: RenderSettings
 defaultRenderSettings = RenderSettings 2 0 LeadingCommas
 
-render :: RenderSettings -> Int -> Element -> [String]
+render :: RenderSettings -> Nesting -> Element -> [String]
 render settings nesting (Stanza name elements) = indent settings nesting name : renderElements settings (succ nesting) elements
 render settings nesting (Group a b) = render settings nesting a ++ render settings nesting b
 render settings nesting (Field name value) = renderField settings nesting name value
 
-renderElements :: RenderSettings -> Int -> [Element] -> [String]
+renderElements :: RenderSettings -> Nesting -> [Element] -> [String]
 renderElements settings nesting = concatMap (render settings nesting)
 
-renderField :: RenderSettings -> Int -> String -> Value -> [String]
+renderField :: RenderSettings -> Nesting -> String -> Value -> [String]
 renderField settings@RenderSettings{..} nesting name value = case renderValue settings value of
   SingleLine "" -> []
   SingleLine x -> [indent settings nesting (name ++ ": " ++ padding ++ x)]
@@ -101,8 +105,8 @@ renderCommaSeparatedList style = MultipleLines . case style of
 instance IsString Value where
   fromString = Literal
 
-indent :: RenderSettings -> Int -> String -> String
-indent RenderSettings{..} nesting s = replicate (nesting * renderSettingsIndentation) ' ' ++ s
+indent :: RenderSettings -> Nesting -> String -> String
+indent RenderSettings{..} (Nesting nesting) s = replicate (nesting * renderSettingsIndentation) ' ' ++ s
 
 sortFieldsBy :: [String] -> [Element] -> [Element]
 sortFieldsBy existingFieldOrder =
