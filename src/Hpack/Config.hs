@@ -46,7 +46,7 @@ import           Data.Data
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
-import           Data.List (nub, (\\), sortBy)
+import           Data.List.Compat (nub, (\\), sortBy)
 import           Data.Maybe
 import           Data.Ord
 import           Data.String

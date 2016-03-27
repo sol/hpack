@@ -28,7 +28,7 @@ import           Prelude ()
 import           Prelude.Compat
 
 import           Data.String
-import           Data.List
+import           Data.List.Compat
 
 data Value =
     Literal String

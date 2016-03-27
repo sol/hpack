@@ -1,9 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Hpack.RenderSpec where
 
+import           Prelude ()
+import           Prelude.Compat
+
 import           Test.Hspec
 import           Test.QuickCheck
-import           Data.List
+import           Data.List.Compat
 import           Data.Maybe
 
 import           Hpack.Render

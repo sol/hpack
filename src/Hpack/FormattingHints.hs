@@ -15,9 +15,12 @@ module Hpack.FormattingHints (
 #endif
 ) where
 
+import           Prelude ()
+import           Prelude.Compat
+
 import           Data.Char
 import           Data.Maybe
-import           Data.List
+import           Data.List.Compat
 import           Control.Applicative
 
 import           Hpack.Render

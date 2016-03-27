@@ -14,14 +14,17 @@ module Hpack.Util (
 , lexicographically
 ) where
 
+import           Prelude ()
+import           Prelude.Compat
+
 import           Control.Applicative
 import           Control.DeepSeq
 import           Control.Exception
-import           Control.Monad
+import           Control.Monad.Compat
 import           Data.Aeson.Types
 import           Data.Char
 import           Data.Data
-import           Data.List hiding (sort)
+import           Data.List.Compat hiding (sort)
 import           Data.Ord
 import           System.Directory
 import           System.FilePath

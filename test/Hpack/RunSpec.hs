@@ -2,7 +2,7 @@
 module Hpack.RunSpec (spec) where
 
 import           Test.Hspec
-import           Data.List
+import           Data.List.Compat
 
 import           Hpack.ConfigSpec hiding (spec)
 import           Hpack.Config hiding (package)
