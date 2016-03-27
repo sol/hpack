@@ -21,7 +21,7 @@ import           Hpack.Render
 
 data FormattingHints = FormattingHints {
   formattingHintsFieldOrder :: [String]
-, formattingHintsAlignment :: Maybe Int
+, formattingHintsAlignment :: Maybe Alignment
 , formattingHintsRenderSettings :: RenderSettings
 } deriving (Eq, Show)
 
@@ -35,9 +35,9 @@ sniffFormattingHints input = FormattingHints {
 extractFieldOrderHint :: String -> [String]
 extractFieldOrderHint = map fst . catMaybes . map splitField . lines
 
-sniffAlignment :: String -> Maybe Int
+sniffAlignment :: String -> Maybe Alignment
 sniffAlignment input = case nub . catMaybes . map indentation . catMaybes . map splitField $ lines input of
-  [n] -> Just n
+  [n] -> Just (Alignment n)
   _ -> Nothing
   where
 

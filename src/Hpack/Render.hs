@@ -10,6 +10,8 @@ module Hpack.Render (
 , RenderSettings (..)
 , CommaStyle (..)
 , defaultRenderSettings
+, Alignment (..)
+, Nesting
 , render
 
 -- * Utils
@@ -47,9 +49,12 @@ data CommaStyle = LeadingCommas | TrailingCommas
 newtype Nesting = Nesting Int
   deriving (Eq, Show, Num, Enum)
 
+newtype Alignment = Alignment Int
+  deriving (Eq, Show, Num)
+
 data RenderSettings = RenderSettings {
   renderSettingsIndentation :: Int
-, renderSettingsFieldAlignment :: Int
+, renderSettingsFieldAlignment :: Alignment
 , renderSettingsCommaStyle :: CommaStyle
 } deriving (Eq, Show)
 
@@ -71,7 +76,8 @@ renderField settings@RenderSettings{..} nesting name value = case renderValue se
   MultipleLines [] -> []
   MultipleLines xs -> (indent settings nesting name ++ ":") : map (indent settings $ succ nesting) xs
   where
-    padding = replicate (renderSettingsFieldAlignment - length name - 2) ' '
+    Alignment fieldAlignment = renderSettingsFieldAlignment
+    padding = replicate (fieldAlignment - length name - 2) ' '
 
 renderValue :: RenderSettings -> Value -> Lines
 renderValue RenderSettings{..} v = case v of

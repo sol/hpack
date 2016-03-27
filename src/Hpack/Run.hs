@@ -52,7 +52,7 @@ run dir = do
       return (warnings, cabalFile, output)
     Left err -> die err
 
-renderPackage :: RenderSettings -> Int -> [String] -> Package -> String
+renderPackage :: RenderSettings -> Alignment -> [String] -> Package -> String
 renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
   where
     chunks :: [String]
@@ -104,7 +104,7 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
     formatList :: [String] -> Maybe String
     formatList xs = guard (not $ null xs) >> (Just $ intercalate separator xs)
       where
-        separator = ",\n" ++ replicate alignment ' '
+        separator = let Alignment n = alignment in ",\n" ++ replicate n ' '
 
     cabalVersion :: Maybe String
     cabalVersion = maximum [
@@ -118,8 +118,8 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
       hasReexportedModules :: Section Library -> Bool
       hasReexportedModules = not . null . libraryReexportedModules . sectionData
 
-formatDescription :: Int -> String -> String
-formatDescription alignment description = case map emptyLineToDot $ lines description of
+formatDescription :: Alignment -> String -> String
+formatDescription (Alignment alignment) description = case map emptyLineToDot $ lines description of
   x : xs -> intercalate "\n" (x : map (indentation ++) xs)
   [] -> ""
   where
