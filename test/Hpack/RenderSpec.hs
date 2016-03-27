@@ -9,13 +9,14 @@ import Hpack.Render
 spec :: Spec
 spec = do
   describe "render" $ do
+    let render_ = render defaultRenderSettings 0
     context "when rendering a Stanza" $ do
       it "renders stanza" $ do
         let stanza = Stanza "foo" [
                 Field "bar" "23"
               , Field "baz" "42"
               ]
-        render defaultRenderSettings 0 stanza `shouldBe` [
+        render_ stanza `shouldBe` [
             "foo"
           , "  bar: 23"
           , "  baz: 42"
@@ -26,7 +27,7 @@ spec = do
                 Field "bar" "23"
               , Field "baz" (WordList [])
               ]
-        render defaultRenderSettings 0 stanza `shouldBe` [
+        render_ stanza `shouldBe` [
             "foo"
           , "  bar: 23"
           ]
@@ -44,7 +45,7 @@ spec = do
 
       it "renders nested stanzas" $ do
         let input = Stanza "foo" [Field "bar" "23", Stanza "baz" [Field "qux" "42"]]
-        render defaultRenderSettings 0 input `shouldBe` [
+        render_ input `shouldBe` [
             "foo"
           , "  bar: 23"
           , "  baz"
@@ -64,12 +65,12 @@ spec = do
         context "when value is empty" $ do
           it "returns an empty list" $ do
             let field = Field "foo" (CommaSeparatedList [])
-            render defaultRenderSettings 0 field `shouldBe` []
+            render_ field `shouldBe` []
 
       context "when rendering a SingleLine value" $ do
         it "returns a single line" $ do
           let field = Field "foo" (Literal "bar")
-          render defaultRenderSettings 0 field `shouldBe` ["foo: bar"]
+          render_ field `shouldBe` ["foo: bar"]
 
         it "takes nesting into account" $ do
           let field = Field "foo" (Literal "bar")
@@ -82,7 +83,7 @@ spec = do
         context "when value is empty" $ do
           it "returns an empty list" $ do
             let field = Field "foo" (Literal "")
-            render defaultRenderSettings 0 field `shouldBe` []
+            render_ field `shouldBe` []
 
   describe "renderValue" $ do
     it "renders WordList" $ do

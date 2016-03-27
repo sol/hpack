@@ -217,7 +217,7 @@ spec = do
   describe "renderConditional" $ do
     it "renders conditionals" $ do
       let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} Nothing
-      concatMap (render defaultRenderSettings 0) (renderConditional conditional) `shouldBe` [
+      render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"
@@ -225,7 +225,7 @@ spec = do
 
     it "renders conditionals with else-branch" $ do
       let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} (Just $ (section ()) {sectionDependencies = ["unix"]})
-      concatMap (render defaultRenderSettings 0) (renderConditional conditional) `shouldBe` [
+      render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"
@@ -237,7 +237,7 @@ spec = do
     it "renders nested conditionals" $ do
       let conditional = Conditional "arch(i386)" (section ()) {sectionGhcOptions = ["-threaded"], sectionConditionals = [innerConditional]} Nothing
           innerConditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} Nothing
-      concatMap (render defaultRenderSettings 0) (renderConditional conditional) `shouldBe` [
+      render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
           "if arch(i386)"
         , "  ghc-options: -threaded"
         , "  if os(windows)"

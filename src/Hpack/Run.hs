@@ -232,12 +232,14 @@ renderSection Section{..} = [
   , renderDependencies sectionDependencies
   ]
   ++ maybe [] (return . renderBuildable) sectionBuildable
-  ++ concatMap renderConditional sectionConditionals
+  ++ map renderConditional sectionConditionals
 
-renderConditional :: Conditional -> [Element]
-renderConditional (Conditional condition sect mElse) = Stanza ("if " ++ condition) (renderSection sect) : else_
+renderConditional :: Conditional -> Element
+renderConditional (Conditional condition sect mElse) = case mElse of
+  Nothing -> if_
+  Just else_ -> Group if_ (Stanza "else" $ renderSection else_)
   where
-    else_ = maybe [] (return . Stanza "else" . renderSection) mElse
+    if_ = Stanza ("if " ++ condition) (renderSection sect)
 
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"

@@ -13,7 +13,7 @@ data Value =
   | WordList [String]
   deriving (Eq, Show)
 
-data Element = Stanza String [Element] | Field String Value
+data Element = Stanza String [Element] | Group Element Element | Field String Value
   deriving (Eq, Show)
 
 data Lines = SingleLine String | MultipleLines [String]
@@ -32,11 +32,12 @@ defaultRenderSettings :: RenderSettings
 defaultRenderSettings = RenderSettings 2 0 LeadingCommas
 
 render :: RenderSettings -> Int -> Element -> [String]
-render settings nesting (Stanza name elements) = indent settings nesting name : renderElements elements
-  where
-    renderElements :: [Element] -> [String]
-    renderElements = concatMap (render settings $ succ nesting)
+render settings nesting (Stanza name elements) = indent settings nesting name : renderElements settings (succ nesting) elements
+render settings nesting (Group a b) = render settings nesting a ++ render settings nesting b
 render settings nesting (Field name value) = renderField settings nesting name value
+
+renderElements :: RenderSettings -> Int -> [Element] -> [String]
+renderElements settings nesting = concatMap (render settings nesting)
 
 renderField :: RenderSettings -> Int -> String -> Value -> [String]
 renderField settings@RenderSettings{..} nesting name value = case renderValue settings value of
