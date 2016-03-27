@@ -12,9 +12,9 @@ import           Hpack.Run
 spec :: Spec
 spec = do
   describe "renderPackage" $ do
-    let renderPackage_ = renderPackage defaultRenderSettings
+    let renderPackage_ = renderPackage defaultRenderSettings 0 [] []
     it "renders a package" $ do
-      renderPackage_ 0 [] package `shouldBe` unlines [
+      renderPackage_ package `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
@@ -22,7 +22,7 @@ spec = do
         ]
 
     it "aligns fields" $ do
-      renderPackage_ 16 [] package `shouldBe` unlines [
+      renderPackage defaultRenderSettings 16 [] [] package `shouldBe` unlines [
           "name:           foo"
         , "version:        0.0.0"
         , "build-type:     Simple"
@@ -30,7 +30,7 @@ spec = do
         ]
 
     it "includes description" $ do
-      renderPackage_ 0 [] package {packageDescription = Just "foo\n\nbar\n"} `shouldBe` unlines [
+      renderPackage_ package {packageDescription = Just "foo\n\nbar\n"} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "description: foo"
@@ -41,7 +41,7 @@ spec = do
         ]
 
     it "aligns description" $ do
-      renderPackage_ 16 [] package {packageDescription = Just "foo\n\nbar\n"} `shouldBe` unlines [
+      renderPackage defaultRenderSettings 16 [] [] package {packageDescription = Just "foo\n\nbar\n"} `shouldBe` unlines [
           "name:           foo"
         , "version:        0.0.0"
         , "description:    foo"
@@ -52,7 +52,7 @@ spec = do
         ]
 
     it "includes stability" $ do
-      renderPackage_ 0 [] package {packageStability = Just "experimental"} `shouldBe` unlines [
+      renderPackage_ package {packageStability = Just "experimental"} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "stability: experimental"
@@ -61,7 +61,7 @@ spec = do
         ]
 
     it "includes copyright holder" $ do
-      renderPackage_ 0 [] package {packageCopyright = ["(c) 2015 Simon Hengel"]} `shouldBe` unlines [
+      renderPackage_ package {packageCopyright = ["(c) 2015 Simon Hengel"]} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "copyright: (c) 2015 Simon Hengel"
@@ -70,7 +70,7 @@ spec = do
         ]
 
     it "aligns copyright holders" $ do
-      renderPackage_ 16 [] package {packageCopyright = ["(c) 2015 Foo", "(c) 2015 Bar"]} `shouldBe` unlines [
+      renderPackage defaultRenderSettings 16 [] [] package {packageCopyright = ["(c) 2015 Foo", "(c) 2015 Bar"]} `shouldBe` unlines [
           "name:           foo"
         , "version:        0.0.0"
         , "copyright:      (c) 2015 Foo,"
@@ -80,7 +80,7 @@ spec = do
         ]
 
     it "includes extra-source-files" $ do
-      renderPackage_ 0 [] package {packageExtraSourceFiles = ["foo", "bar"]} `shouldBe` unlines [
+      renderPackage_ package {packageExtraSourceFiles = ["foo", "bar"]} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
@@ -92,7 +92,7 @@ spec = do
         ]
 
     it "includes buildable" $ do
-      renderPackage_ 0 [] package {packageLibrary = Just (section library){sectionBuildable = Just False}} `shouldBe` unlines [
+      renderPackage_ package {packageLibrary = Just (section library){sectionBuildable = Just False}} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
@@ -105,7 +105,7 @@ spec = do
 
     context "when rendering library section" $ do
       it "renders library section" $ do
-        renderPackage_ 0 [] package {packageLibrary = Just $ section library} `shouldBe` unlines [
+        renderPackage_ package {packageLibrary = Just $ section library} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -116,7 +116,7 @@ spec = do
           ]
 
       it "includes exposed-modules" $ do
-        renderPackage_ 0 [] package {packageLibrary = Just (section library{libraryExposedModules = ["Foo"]})} `shouldBe` unlines [
+        renderPackage_ package {packageLibrary = Just (section library{libraryExposedModules = ["Foo"]})} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -129,7 +129,7 @@ spec = do
           ]
 
       it "includes other-modules" $ do
-        renderPackage_ 0 [] package {packageLibrary = Just (section library{libraryOtherModules = ["Bar"]})} `shouldBe` unlines [
+        renderPackage_ package {packageLibrary = Just (section library{libraryOtherModules = ["Bar"]})} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -142,7 +142,7 @@ spec = do
           ]
 
       it "includes reexported-modules and bumps cabal version" $ do
-        renderPackage_ 0 [] package {packageLibrary = Just (section library{libraryReexportedModules = ["Baz"]})} `shouldBe` unlines [
+        renderPackage_ package {packageLibrary = Just (section library{libraryReexportedModules = ["Baz"]})} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -156,7 +156,7 @@ spec = do
 
     context "when given list of existing fields" $ do
       it "retains field order" $ do
-        renderPackage_ 16 ["cabal-version", "version", "name", "build-type"] package `shouldBe` unlines [
+        renderPackage defaultRenderSettings 16 ["cabal-version", "version", "name", "build-type"] [] package `shouldBe` unlines [
             "cabal-version:  >= 1.10"
           , "version:        0.0.0"
           , "name:           foo"
@@ -164,16 +164,30 @@ spec = do
           ]
 
       it "uses default field order for new fields" $ do
-        renderPackage_ 16 ["name", "version", "cabal-version"] package `shouldBe` unlines [
+        renderPackage defaultRenderSettings 16 ["name", "version", "cabal-version"] [] package `shouldBe` unlines [
             "name:           foo"
           , "version:        0.0.0"
           , "build-type:     Simple"
           , "cabal-version:  >= 1.10"
           ]
 
+      it "retains section field order" $ do
+        renderPackage defaultRenderSettings 0 [] [("executable foo", ["default-language", "main-is", "ghc-options"])] package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.10"
+          , ""
+          , "executable foo"
+          , "  default-language: Haskell2010"
+          , "  main-is: Main.hs"
+          , "  ghc-options: -Wall -Werror"
+          ]
+
+
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage_ 0 [] package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionDependencies = ["foo", "bar", "foo", "baz"]}]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionDependencies = ["foo", "bar", "foo", "baz"]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -190,7 +204,7 @@ spec = do
           ]
 
       it "includes GHC options" $ do
-        renderPackage_ 0 [] package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -203,7 +217,7 @@ spec = do
           ]
 
       it "includes GHC profiling options" $ do
-        renderPackage_ 0 [] package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]}]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"

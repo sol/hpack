@@ -42,21 +42,20 @@ run dir = do
       old <- tryReadFile cabalFile
 
       let
-        hints = sniffFormattingHints <$> old
-        alignment = fromMaybe 16 (hints >>= formattingHintsAlignment)
-        fieldOrderHint = maybe [] formattingHintsFieldOrder hints
-        settings = maybe defaultRenderSettings formattingHintsRenderSettings hints
+        FormattingHints{..} = sniffFormattingHints (fromMaybe "" old)
+        alignment = fromMaybe 16 formattingHintsAlignment
+        settings = formattingHintsRenderSettings
 
-        output = renderPackage settings alignment fieldOrderHint pkg
+        output = renderPackage settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder pkg
 
       return (warnings, cabalFile, output)
     Left err -> die err
 
-renderPackage :: RenderSettings -> Alignment -> [String] -> Package -> String
-renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
+renderPackage :: RenderSettings -> Alignment -> [String] -> [(String, [String])] -> Package -> String
+renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
   where
     chunks :: [String]
-    chunks = map unlines . filter (not . null) . map (render settings 0) $ stanzas
+    chunks = map unlines . filter (not . null) . map (render settings 0) $ sortSectionFields sectionsFieldOrder stanzas
 
     header :: [String]
     header = concatMap (render settings {renderSettingsFieldAlignment = alignment} 0) fields
@@ -72,14 +71,17 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
     library = maybe [] (return . renderLibrary) packageLibrary
 
     stanzas :: [Element]
-    stanzas = extraSourceFiles
-            : dataFiles
-            : sourceRepository
-            ++ map renderFlag packageFlags
-            ++ library
-            ++ renderExecutables packageExecutables
-            ++ renderTests packageTests
-            ++ renderBenchmarks packageBenchmarks
+    stanzas =
+      extraSourceFiles
+      : dataFiles
+      : sourceRepository
+      ++ concat [
+        map renderFlag packageFlags
+      , library
+      , renderExecutables packageExecutables
+      , renderTests packageTests
+      , renderBenchmarks packageBenchmarks
+      ]
 
     fields :: [Element]
     fields = sortFieldsBy existingFieldOrder . mapMaybe (\(name, value) -> Field name . Literal <$> value) $ [
@@ -117,6 +119,14 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
 
       hasReexportedModules :: Section Library -> Bool
       hasReexportedModules = not . null . libraryReexportedModules . sectionData
+
+sortSectionFields :: [(String, [String])] -> [Element] -> [Element]
+sortSectionFields sectionsFieldOrder = go
+  where
+    go sections = case sections of
+      [] -> []
+      Stanza name fields : xs | Just fieldOrder <- lookup name sectionsFieldOrder -> Stanza name (sortFieldsBy fieldOrder fields) : go xs
+      x : xs -> x : go xs
 
 formatDescription :: Alignment -> String -> String
 formatDescription (Alignment alignment) description = case map emptyLineToDot $ lines description of

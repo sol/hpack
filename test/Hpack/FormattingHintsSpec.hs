@@ -7,9 +7,9 @@ import           Hpack.Render
 
 spec :: Spec
 spec = do
-  describe "extractFieldOrderHint" $ do
+  describe "extractFieldOrder" $ do
     it "extracts field order hints" $ do
-      let input = unlines [
+      let input = [
               "name:           cabalize"
             , "version:        0.0.0"
             , "license:"
@@ -17,7 +17,7 @@ spec = do
             , "build-type:     Simple"
             , "cabal-version:  >= 1.10"
             ]
-      extractFieldOrderHint input `shouldBe` [
+      extractFieldOrder input `shouldBe` [
               "name"
             , "version"
             , "license"
@@ -26,9 +26,53 @@ spec = do
             , "cabal-version"
             ]
 
+  describe "extractSectionsFieldOrder" $ do
+    it "splits input into sections" $ do
+      let input = [
+              "name:           cabalize"
+            , "version:        0.0.0"
+            , ""
+            , "library"
+            , "  foo: 23"
+            , "  bar: 42"
+            , ""
+            , "executable foo"
+            , "  bar: 23"
+            , "  baz: 42"
+            ]
+      extractSectionsFieldOrder input `shouldBe` [("library", ["foo", "bar"]), ("executable foo", ["bar", "baz"])]
+
+  describe "breakLines" $ do
+    it "breaks input into lines" $ do
+      let input = unlines [
+              "foo"
+            , ""
+            , "   "
+            , "  bar  "
+            , "  baz"
+            ]
+      breakLines input `shouldBe` [
+              "foo"
+            , "  bar"
+            , "  baz"
+            ]
+
+  describe "unindent" $ do
+    it "unindents" $ do
+      let input = [
+              "   foo"
+            , "  bar"
+            , "   baz"
+            ]
+      unindent input `shouldBe` [
+              " foo"
+            , "bar"
+            , " baz"
+            ]
+
   describe "sniffAlignment" $ do
     it "sniffs field alignment from given cabal file" $ do
-      let input = unlines [
+      let input = [
               "name:           cabalize"
             , "version:        0.0.0"
             , "license:        MIT"
@@ -39,7 +83,7 @@ spec = do
       sniffAlignment input `shouldBe` Just 16
 
     it "ignores fields without a value on the same line" $ do
-      let input = unlines [
+      let input = [
               "name:           cabalize"
             , "version:        0.0.0"
             , "description: "
@@ -63,7 +107,7 @@ spec = do
 
   describe "sniffIndentation" $ do
     it "sniff alignment from executable section" $ do
-      let input = unlines [
+      let input = [
               "name: foo"
             , "version: 0.0.0"
             , ""
@@ -73,7 +117,7 @@ spec = do
       sniffIndentation input `shouldBe` Just 4
 
     it "sniff alignment from library section" $ do
-      let input = unlines [
+      let input = [
               "name: foo"
             , "version: 0.0.0"
             , ""
@@ -83,7 +127,7 @@ spec = do
       sniffIndentation input `shouldBe` Just 4
 
     it "ignores empty lines" $ do
-      let input = unlines [
+      let input = [
               "executable foo"
             , ""
             , "    build-depends: bar"
@@ -91,7 +135,7 @@ spec = do
       sniffIndentation input `shouldBe` Just 4
 
     it "ignores whitespace lines" $ do
-      let input = unlines [
+      let input = [
               "executable foo"
             , "  "
             , "    build-depends: bar"
@@ -100,7 +144,7 @@ spec = do
 
   describe "sniffCommaStyle" $ do
     it "detects leading commas" $ do
-      let input = unlines [
+      let input = [
               "executable foo"
             , "  build-depends:"
             , "      bar"
@@ -109,7 +153,7 @@ spec = do
       sniffCommaStyle input `shouldBe` Just LeadingCommas
 
     it "detects trailing commas" $ do
-      let input = unlines [
+      let input = [
               "executable foo"
             , "  build-depends:"
             , "    bar,  "
@@ -119,4 +163,4 @@ spec = do
 
     context "when detection fails" $ do
       it "returns Nothing" $ do
-        sniffCommaStyle "" `shouldBe` Nothing
+        sniffCommaStyle [] `shouldBe` Nothing
