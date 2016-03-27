@@ -76,7 +76,8 @@ sniffCommaStyle (lines -> input)
     startsWithComma = isPrefixOf "," . dropWhile isSpace
 
 sniffRenderSettings :: String -> RenderSettings
-sniffRenderSettings input = RenderSettings indentation trailingCommas
+sniffRenderSettings input = RenderSettings indentation fieldAlignment commaStyle
   where
     indentation = fromMaybe (renderSettingsIndentation defaultRenderSettings) (sniffIndentation input)
-    trailingCommas = fromMaybe (renderSettingsCommaStyle defaultRenderSettings) (sniffCommaStyle input)
+    fieldAlignment = renderSettingsFieldAlignment defaultRenderSettings
+    commaStyle = fromMaybe (renderSettingsCommaStyle defaultRenderSettings) (sniffCommaStyle input)

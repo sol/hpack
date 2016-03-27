@@ -53,12 +53,16 @@ run dir = do
     Left err -> die err
 
 renderPackage :: RenderSettings -> Int -> [String] -> Package -> String
-renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\n" (header : chunks)
+renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
   where
     chunks :: [String]
     chunks = map unlines . filter (not . null) . map (render settings 0) $ stanzas
 
-    header = unlines $ map formatField sortedFields
+    header :: [String]
+    header = concatMap (render settings {renderSettingsFieldAlignment = alignment} 0) headerFields
+
+    headerFields :: [Element]
+    headerFields = map formatField $ sortFields fields existingFieldOrder
 
     extraSourceFiles :: Element
     extraSourceFiles = Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
@@ -80,29 +84,8 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
             ++ renderTests packageTests
             ++ renderBenchmarks packageBenchmarks
 
-    padding name = replicate (alignment - length name - 2) ' '
-
-    formatField :: (String, String) -> String
-    formatField (name, value) = name ++ ": " ++ padding name ++ value
-
-    sortedFields :: [(String, String)]
-    sortedFields = foldr insertByDefaultFieldOrder (sortBy orderingForExistingFields existing) new
-      where
-        (existing, new) = partition ((`elem` existingFieldOrder) . fst) fields
-
-        insertByDefaultFieldOrder :: (String, a) -> [(String, a)] -> [(String, a)]
-        insertByDefaultFieldOrder x@(key1, _) xs = case xs of
-          [] -> [x]
-          y@(key2, _) : ys -> if index key1 < index key2 then x : y : ys else y : insertByDefaultFieldOrder x ys
-          where
-            index :: String -> Maybe Int
-            index = (`elemIndex` defaultFieldOrder)
-
-    orderingForExistingFields :: (String, a) -> (String, a) -> Ordering
-    orderingForExistingFields (key1, _) (key2, _) = index key1 `compare` index key2
-      where
-        index :: String -> Maybe Int
-        index = (`elemIndex` existingFieldOrder)
+    formatField :: (String, String) -> Element
+    formatField (name, value) = Field name (Literal value)
 
     fields :: [(String, String)]
     fields = mapMaybe (\(name, value) -> (,) name <$> value) $ [
@@ -129,9 +112,6 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
       where
         separator = ",\n" ++ replicate alignment ' '
 
-    defaultFieldOrder :: [String]
-    defaultFieldOrder = map fst fields
-
     cabalVersion :: Maybe String
     cabalVersion = maximum [
         Just ">= 1.10"
@@ -143,6 +123,28 @@ renderPackage settings alignment existingFieldOrder Package{..} = intercalate "\
 
       hasReexportedModules :: Section Library -> Bool
       hasReexportedModules = not . null . libraryReexportedModules . sectionData
+
+sortFields :: [(String, a)] -> [String] -> [(String, a)]
+sortFields fields existingFieldOrder = foldr insertByDefaultFieldOrder (sortBy orderingForExistingFields existing) new
+  where
+    (existing, new) = partition ((`elem` existingFieldOrder) . fst) fields
+
+    insertByDefaultFieldOrder :: (String, a) -> [(String, a)] -> [(String, a)]
+    insertByDefaultFieldOrder x@(key1, _) xs = case xs of
+      [] -> [x]
+      y@(key2, _) : ys -> if index key1 < index key2 then x : y : ys else y : insertByDefaultFieldOrder x ys
+      where
+        index :: String -> Maybe Int
+        index = (`elemIndex` defaultFieldOrder)
+
+    orderingForExistingFields :: (String, a) -> (String, a) -> Ordering
+    orderingForExistingFields (key1, _) (key2, _) = index key1 `compare` index key2
+      where
+        index :: String -> Maybe Int
+        index = (`elemIndex` existingFieldOrder)
+
+    defaultFieldOrder :: [String]
+    defaultFieldOrder = map fst fields
 
 formatDescription :: Int -> String -> String
 formatDescription alignment description = case map emptyLineToDot $ lines description of

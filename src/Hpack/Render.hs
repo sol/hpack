@@ -24,22 +24,28 @@ data CommaStyle = LeadingCommas | TrailingCommas
 
 data RenderSettings = RenderSettings {
   renderSettingsIndentation :: Int
+, renderSettingsFieldAlignment :: Int
 , renderSettingsCommaStyle :: CommaStyle
 } deriving (Eq, Show)
 
 defaultRenderSettings :: RenderSettings
-defaultRenderSettings = RenderSettings 2 LeadingCommas
+defaultRenderSettings = RenderSettings 2 0 LeadingCommas
 
 render :: RenderSettings -> Int -> Element -> [String]
 render settings nesting (Stanza name elements) = indent settings nesting name : renderElements elements
   where
     renderElements :: [Element] -> [String]
     renderElements = concatMap (render settings $ succ nesting)
-render settings nesting (Field name v) = case renderValue settings v of
+render settings nesting (Field name value) = renderField settings nesting name value
+
+renderField :: RenderSettings -> Int -> String -> Value -> [String]
+renderField settings@RenderSettings{..} nesting name value = case renderValue settings value of
   SingleLine "" -> []
-  SingleLine x -> [indent settings nesting (name ++ ": " ++ x)]
+  SingleLine x -> [indent settings nesting (name ++ ": " ++ padding ++ x)]
   MultipleLines [] -> []
   MultipleLines xs -> (indent settings nesting name ++ ":") : map (indent settings $ succ nesting) xs
+  where
+    padding = replicate (renderSettingsFieldAlignment - length name - 2) ' '
 
 renderValue :: RenderSettings -> Value -> Lines
 renderValue RenderSettings{..} v = case v of

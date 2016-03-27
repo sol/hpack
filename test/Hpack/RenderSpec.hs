@@ -75,6 +75,10 @@ spec = do
           let field = Field "foo" (Literal "bar")
           render defaultRenderSettings 2 field `shouldBe` ["    foo: bar"]
 
+        it "takes alignment into account" $ do
+          let field = Field "foo" (Literal "bar")
+          render defaultRenderSettings {renderSettingsFieldAlignment = 10} 0 field `shouldBe` ["foo:      bar"]
+
         context "when value is empty" $ do
           it "returns an empty list" $ do
             let field = Field "foo" (Literal "")
