@@ -4,6 +4,7 @@ module Hpack (
 , version
 , main
 #ifdef TEST
+, hpackWithVersion
 , parseVerbosity
 #endif
 ) where
@@ -15,7 +16,8 @@ import           Control.DeepSeq
 import           Control.Exception
 import           Control.Monad.Compat
 import           Data.List.Compat
-import           Data.Version (showVersion)
+import           Data.Version (Version)
+import qualified Data.Version as Version
 import           System.Environment
 import           System.Exit
 import           System.IO
@@ -25,12 +27,12 @@ import           Paths_hpack (version)
 import           Hpack.Config
 import           Hpack.Run
 
-programVersion :: String
-programVersion = "hpack version " ++ showVersion version
+programVersion :: Version -> String
+programVersion v = "hpack version " ++ Version.showVersion v
 
-header :: String
-header = unlines [
-    "-- This file has been generated from " ++ packageConfig ++ " by " ++ programVersion ++ "."
+header :: Version -> String
+header v = unlines [
+    "-- This file has been generated from " ++ packageConfig ++ " by " ++ programVersion v ++ "."
   , "--"
   , "-- see: https://github.com/sol/hpack"
   , ""
@@ -40,11 +42,11 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
-    ["--version"] -> putStrLn programVersion
+    ["--version"] -> putStrLn (programVersion version)
     ["--help"] -> printHelp
     _ -> case parseVerbosity args of
       (verbose, [dir]) -> hpack dir verbose
-      (verbose, []) -> hpack "." verbose
+      (verbose, []) -> hpack "" verbose
       _ -> do
         printHelp
         exitFailure
@@ -64,14 +66,19 @@ parseVerbosity xs = (verbose, ys)
     ys = filter (/= silentFlag) xs
 
 hpack :: FilePath -> Bool -> IO ()
-hpack dir verbose = do
+hpack = hpackWithVersion version
+
+hpackWithVersion :: Version -> FilePath -> Bool -> IO ()
+hpackWithVersion v dir verbose = do
   (warnings, name, new) <- run dir
   forM_ warnings $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
-  old <- force . either (const Nothing) (Just . stripHeader) <$> tryJust (guard . isDoesNotExistError) (readFile name)
+
+  old <- either (const Nothing) (Just . stripHeader) <$> tryJust (guard . isDoesNotExistError) (readFile name >>= (return $!!))
+
   if (old == Just (lines new)) then do
     output (name ++ " is up-to-date")
   else do
-    (writeFile name $ header ++ new)
+    (writeFile name $ header v ++ new)
     output ("generated " ++ name)
   where
     stripHeader :: String -> [String]
