@@ -7,6 +7,7 @@ module Hpack.Run (
   run
 , renderPackage
 , RenderSettings(..)
+, Alignment(..)
 , CommaStyle(..)
 , defaultRenderSettings
 #ifdef TEST
