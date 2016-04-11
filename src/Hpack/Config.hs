@@ -17,6 +17,7 @@ module Hpack.Config (
 , packageDependencies
 , package
 , section
+, FileName
 , Package(..)
 , Dependency(..)
 , AddSource(..)
@@ -61,6 +62,8 @@ import           System.FilePath
 import           Hpack.GenericsUtil
 import           Hpack.Util
 import           Hpack.Yaml
+
+type FileName = String
 
 package :: String -> String -> Package
 package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] []
