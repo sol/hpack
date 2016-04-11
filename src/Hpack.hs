@@ -94,7 +94,7 @@ hpackWithName :: FileName -> FilePath -> Bool -> IO ()
 hpackWithName file = hpackWithVersionAndFileName file version
 
 hpackWithVersion :: Version -> FilePath -> Bool -> IO ()
-hpackWithVersion = hpackWithVersionAndFileName "package.yaml"
+hpackWithVersion = hpackWithVersionAndFileName packageConfig
 
 hpackWithVersionAndFileName :: FileName -> Version -> FilePath -> Bool -> IO ()
 hpackWithVersionAndFileName file v dir verbose = do
