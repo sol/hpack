@@ -91,7 +91,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . d
   ++ maybe [] sectionDependencies packageLibrary
 
 section :: a -> Section a
-section a = Section a [] [] [] [] [] [] [] [] [] [] Nothing []
+section a = Section a [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -181,6 +181,9 @@ data CommonOptions = CommonOptions {
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
+, commonOptionsCSources :: Maybe (List FilePath)
+, commonOptionsExtraLibDirs :: Maybe (List FilePath)
+, commonOptionsExtraLibraries :: Maybe (List FilePath)
 , commonOptionsIncludeDirs :: Maybe (List FilePath)
 , commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
@@ -384,6 +387,9 @@ data Section a = Section {
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
 , sectionCppOptions :: [CppOption]
+, sectionCSources :: [FilePath]
+, sectionExtraLibDirs :: [FilePath]
+, sectionExtraLibraries :: [FilePath]
 , sectionIncludeDirs :: [FilePath]
 , sectionInstallIncludes :: [FilePath]
 , sectionLdOptions :: [LdOption]
@@ -591,7 +597,7 @@ toExecutables dir globalOptions executables = mapM toExecutable sections
 
 mergeSections :: Section global -> Section a -> Section a
 mergeSections globalOptions options
-  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions includeDirs installIncludes ldOptions buildable conditionals
+  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions cSources extraLibDirs extraLibraries includeDirs installIncludes ldOptions buildable conditionals
   where
     a = sectionData options
     sourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
@@ -600,6 +606,9 @@ mergeSections globalOptions options
     ghcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
     ghcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
     cppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
+    cSources = sectionCSources globalOptions ++ sectionCSources options
+    extraLibDirs = sectionExtraLibDirs globalOptions ++ sectionExtraLibDirs options
+    extraLibraries = sectionExtraLibraries globalOptions ++ sectionExtraLibraries options
     includeDirs = sectionIncludeDirs globalOptions ++ sectionIncludeDirs options
     installIncludes = sectionInstallIncludes globalOptions ++ sectionInstallIncludes options
     ldOptions = sectionLdOptions globalOptions ++ sectionLdOptions options
@@ -609,7 +618,7 @@ mergeSections globalOptions options
 
 toSection :: a -> CommonOptions -> ([FieldName], Section a)
 toSection a CommonOptions{..}
-  = (concat unknownFields, Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions includeDirs installIncludes ldOptions buildable conditionals)
+  = (concat unknownFields, Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions cSources extraLibDirs extraLibraries includeDirs installIncludes ldOptions buildable conditionals)
   where
     sourceDirs = fromMaybeList commonOptionsSourceDirs
     defaultExtensions = fromMaybeList commonOptionsDefaultExtensions
@@ -617,6 +626,9 @@ toSection a CommonOptions{..}
     ghcOptions = fromMaybeList commonOptionsGhcOptions
     ghcProfOptions = fromMaybeList commonOptionsGhcProfOptions
     cppOptions = fromMaybeList commonOptionsCppOptions
+    cSources = fromMaybeList commonOptionsCSources
+    extraLibDirs = fromMaybeList commonOptionsExtraLibDirs
+    extraLibraries = fromMaybeList commonOptionsExtraLibraries
     includeDirs = fromMaybeList commonOptionsIncludeDirs
     installIncludes = fromMaybeList commonOptionsInstallIncludes
     ldOptions = fromMaybeList commonOptionsLdOptions

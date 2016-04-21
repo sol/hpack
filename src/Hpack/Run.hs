@@ -211,6 +211,9 @@ renderSection Section{..} = [
   , renderCppOptions sectionCppOptions
   , Field "include-dirs" (LineSeparatedList sectionIncludeDirs)
   , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
+  , Field "c-sources" (LineSeparatedList sectionCSources)
+  , Field "extra-lib-dirs" (LineSeparatedList sectionExtraLibDirs)
+  , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
   , renderLdOptions sectionLdOptions
   , renderDependencies sectionDependencies
   ]

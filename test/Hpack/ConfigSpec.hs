@@ -108,6 +108,33 @@ spec = do
         captureUnknownFieldsValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionInstallIncludes = ["foo.h", "bar.h"]}
 
+      it "accepts c-sources" $ do
+        let input = [i|
+              c-sources:
+                - foo.c
+                - bar.c
+              |]
+        captureUnknownFieldsValue <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionCSources = ["foo.c", "bar.c"]}
+
+      it "accepts extra-lib-dirs" $ do
+        let input = [i|
+              extra-lib-dirs:
+                - foo
+                - bar
+              |]
+        captureUnknownFieldsValue <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionExtraLibDirs = ["foo", "bar"]}
+
+      it "accepts extra-libraries" $ do
+        let input = [i|
+              extra-libraries:
+                - foo
+                - bar
+              |]
+        captureUnknownFieldsValue <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionExtraLibraries = ["foo", "bar"]}
+
       context "when parsing conditionals" $ do
         it "accepts conditionals" $ do
           let input = [i|
