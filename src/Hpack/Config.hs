@@ -91,7 +91,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . d
   ++ maybe [] sectionDependencies packageLibrary
 
 section :: a -> Section a
-section a = Section a [] [] [] [] [] [] [] [] [] [] Nothing []
+section a = Section a [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -181,6 +181,9 @@ data CommonOptions = CommonOptions {
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
+, commonOptionsCSources :: Maybe (List FilePath)
+, commonOptionsExtraLibDirs :: Maybe (List FilePath)
+, commonOptionsExtraLibraries :: Maybe (List FilePath)
 , commonOptionsIncludeDirs :: Maybe (List FilePath)
 , commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
@@ -384,6 +387,9 @@ data Section a = Section {
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
 , sectionCppOptions :: [CppOption]
+, sectionCSources :: [FilePath]
+, sectionExtraLibDirs :: [FilePath]
+, sectionExtraLibraries :: [FilePath]
 , sectionIncludeDirs :: [FilePath]
 , sectionInstallIncludes :: [FilePath]
 , sectionLdOptions :: [LdOption]
@@ -591,37 +597,48 @@ toExecutables dir globalOptions executables = mapM toExecutable sections
 
 mergeSections :: Section global -> Section a -> Section a
 mergeSections globalOptions options
-  = Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions includeDirs installIncludes ldOptions buildable conditionals
-  where
-    a = sectionData options
-    sourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
-    defaultExtensions = sectionDefaultExtensions globalOptions ++ sectionDefaultExtensions options
-    otherExtensions = sectionOtherExtensions globalOptions ++ sectionOtherExtensions options
-    ghcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
-    ghcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
-    cppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
-    includeDirs = sectionIncludeDirs globalOptions ++ sectionIncludeDirs options
-    installIncludes = sectionInstallIncludes globalOptions ++ sectionInstallIncludes options
-    ldOptions = sectionLdOptions globalOptions ++ sectionLdOptions options
-    buildable = sectionBuildable options <|> sectionBuildable globalOptions
-    dependencies = sectionDependencies globalOptions ++ sectionDependencies options
-    conditionals = sectionConditionals globalOptions ++ sectionConditionals options
+  = Section {
+    sectionData = sectionData options
+  , sectionSourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
+  , sectionDefaultExtensions = sectionDefaultExtensions globalOptions ++ sectionDefaultExtensions options
+  , sectionOtherExtensions = sectionOtherExtensions globalOptions ++ sectionOtherExtensions options
+  , sectionGhcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
+  , sectionGhcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
+  , sectionCppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
+  , sectionCSources = sectionCSources globalOptions ++ sectionCSources options
+  , sectionExtraLibDirs = sectionExtraLibDirs globalOptions ++ sectionExtraLibDirs options
+  , sectionExtraLibraries = sectionExtraLibraries globalOptions ++ sectionExtraLibraries options
+  , sectionIncludeDirs = sectionIncludeDirs globalOptions ++ sectionIncludeDirs options
+  , sectionInstallIncludes = sectionInstallIncludes globalOptions ++ sectionInstallIncludes options
+  , sectionLdOptions = sectionLdOptions globalOptions ++ sectionLdOptions options
+  , sectionBuildable = sectionBuildable options <|> sectionBuildable globalOptions
+  , sectionDependencies = sectionDependencies globalOptions ++ sectionDependencies options
+  , sectionConditionals = sectionConditionals globalOptions ++ sectionConditionals options
+  }
 
 toSection :: a -> CommonOptions -> ([FieldName], Section a)
 toSection a CommonOptions{..}
-  = (concat unknownFields, Section a sourceDirs dependencies defaultExtensions otherExtensions ghcOptions ghcProfOptions cppOptions includeDirs installIncludes ldOptions buildable conditionals)
+  = ( concat unknownFields 
+    , Section {
+        sectionData = a
+      , sectionSourceDirs = fromMaybeList commonOptionsSourceDirs
+      , sectionDefaultExtensions = fromMaybeList commonOptionsDefaultExtensions
+      , sectionOtherExtensions = fromMaybeList commonOptionsOtherExtensions
+      , sectionGhcOptions = fromMaybeList commonOptionsGhcOptions
+      , sectionGhcProfOptions = fromMaybeList commonOptionsGhcProfOptions
+      , sectionCppOptions = fromMaybeList commonOptionsCppOptions
+      , sectionCSources = fromMaybeList commonOptionsCSources
+      , sectionExtraLibDirs = fromMaybeList commonOptionsExtraLibDirs
+      , sectionExtraLibraries = fromMaybeList commonOptionsExtraLibraries
+      , sectionIncludeDirs = fromMaybeList commonOptionsIncludeDirs
+      , sectionInstallIncludes = fromMaybeList commonOptionsInstallIncludes
+      , sectionLdOptions = fromMaybeList commonOptionsLdOptions
+      , sectionBuildable = commonOptionsBuildable
+      , sectionDependencies = fromMaybeList commonOptionsDependencies
+      , sectionConditionals = conditionals
+      }
+    )
   where
-    sourceDirs = fromMaybeList commonOptionsSourceDirs
-    defaultExtensions = fromMaybeList commonOptionsDefaultExtensions
-    otherExtensions = fromMaybeList commonOptionsOtherExtensions
-    ghcOptions = fromMaybeList commonOptionsGhcOptions
-    ghcProfOptions = fromMaybeList commonOptionsGhcProfOptions
-    cppOptions = fromMaybeList commonOptionsCppOptions
-    includeDirs = fromMaybeList commonOptionsIncludeDirs
-    installIncludes = fromMaybeList commonOptionsInstallIncludes
-    ldOptions = fromMaybeList commonOptionsLdOptions
-    buildable = commonOptionsBuildable
-    dependencies = fromMaybeList commonOptionsDependencies
     (unknownFields, conditionals) = unzip (map toConditional $ fromMaybeList commonOptionsWhen)
 
 toConditional :: ConditionalSection -> ([FieldName], Conditional)
