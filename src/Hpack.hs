@@ -34,9 +34,9 @@ import           Hpack.Run
 programVersion :: Version -> String
 programVersion v = "hpack version " ++ Version.showVersion v
 
-header :: Version -> String
-header v = unlines [
-    "-- This file has been generated from " ++ packageConfig ++ " by " ++ programVersion v ++ "."
+header :: Version -> FileName -> String
+header v file = unlines [
+    "-- This file has been generated from " ++ file ++ " by " ++ programVersion v ++ "."
   , "--"
   , "-- see: https://github.com/sol/hpack"
   , ""
@@ -49,6 +49,7 @@ main = do
     ["--version"] -> putStrLn (programVersion version)
     ["--help"] -> printHelp
     _ -> case parseVerbosity args of
+      (verbose, [dir, fname]) -> hpackWithName fname dir verbose
       (verbose, [dir]) -> hpack dir verbose
       (verbose, []) -> hpack "" verbose
       _ -> do
@@ -58,8 +59,11 @@ main = do
 printHelp :: IO ()
 printHelp = do
   hPutStrLn stderr $ unlines [
-      "Usage: hpack [ --silent ] [ dir ]"
+      "Usage: hpack [ --silent ] [ dir [ file ] ]"
     , "       hpack --version"
+    , "       "
+    , "  dir:  directorty containing your package description file"
+    , "  file: name of your package description file (default is package.yaml)"
     ]
 
 parseVerbosity :: [String] -> (Bool, [String])
@@ -86,9 +90,15 @@ parseVersion xs = case [v | (v, "") <- readP_to_S Version.parseVersion xs] of
 hpack :: FilePath -> Bool -> IO ()
 hpack = hpackWithVersion version
 
+hpackWithName :: FileName -> FilePath -> Bool -> IO ()
+hpackWithName file = hpackWithVersionAndFileName file version
+
 hpackWithVersion :: Version -> FilePath -> Bool -> IO ()
-hpackWithVersion v dir verbose = do
-  (warnings, name, new) <- run dir
+hpackWithVersion = hpackWithVersionAndFileName packageConfig
+
+hpackWithVersionAndFileName :: FileName -> Version -> FilePath -> Bool -> IO ()
+hpackWithVersionAndFileName file v dir verbose = do
+  (warnings, name, new) <- run dir file
   forM_ warnings $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
 
   old <- either (const Nothing) (Just . splitHeader) <$> tryJust (guard . isDoesNotExistError) (readFile name >>= (return $!!))
@@ -98,7 +108,7 @@ hpackWithVersion v dir verbose = do
     if (fmap snd old == Just (lines new)) then do
       output (name ++ " is up-to-date")
     else do
-      (writeFile name $ header v ++ new)
+      (writeFile name $ header v file ++ new)
       output ("generated " ++ name)
   else do
     output (name ++ " was generated with a newer version of hpack, please upgrade and try again.")
