@@ -52,7 +52,7 @@ import           Data.Ord
 import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           GHC.Generics
+import           GHC.Generics (Generic, Rep)
 import           Prelude ()
 import           Prelude.Compat
 import           System.Directory
