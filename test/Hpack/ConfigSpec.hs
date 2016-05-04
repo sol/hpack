@@ -594,6 +594,15 @@ spec = do
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
 
+      it "accepts build-tools" $ do
+        withPackageConfig_ [i|
+          library:
+            build-tools:
+              - alex
+              - happy
+          |]
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = ["alex", "happy"]}))
+
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
           library:
@@ -620,6 +629,15 @@ spec = do
           library: {}
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
+
+      it "accepts global build-tools" $ do
+        withPackageConfig_ [i|
+          build-tools:
+            - alex
+            - happy
+          library: {}
+          |]
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = ["alex", "happy"]}))
 
       it "allows to specify exposed" $ do
         withPackageConfig_ [i|
@@ -728,6 +746,17 @@ spec = do
           |]
           (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]))
 
+      it "accepts build-tools" $ do
+        withPackageConfig_ [i|
+          executables:
+            foo:
+              main: Main.hs
+              build-tools:
+                - alex
+                - happy
+          |]
+          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = ["alex", "happy"]}]))
+
       it "accepts global source-dirs" $ do
         withPackageConfig_ [i|
           source-dirs:
@@ -738,6 +767,17 @@ spec = do
               main: Main.hs
           |]
           (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]))
+
+      it "accepts global build-tools" $ do
+        withPackageConfig_ [i|
+          build-tools:
+            - alex
+            - happy
+          executables:
+            foo:
+              main: Main.hs
+          |]
+          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = ["alex", "happy"]}]))
 
       it "infers other-modules" $ do
         withPackageConfig [i|
