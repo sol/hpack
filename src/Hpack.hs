@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Hpack (
   hpack
-, hpackSilent
+, hpackResult
 , Result(..)
 , Status(..)
 , version
@@ -89,8 +89,8 @@ parseVersion xs = case [v | (v, "") <- readP_to_S Version.parseVersion xs] of
 hpack :: FilePath -> Bool -> IO ()
 hpack = hpackWithVersion version
 
-hpackSilent :: FilePath -> IO Result
-hpackSilent = hpackWithVersionSilent version
+hpackResult :: FilePath -> IO Result
+hpackResult = hpackWithVersionResult version
 
 data Result = Result {
   resultWarnings :: [String]
@@ -102,7 +102,7 @@ data Status = Generated | AlreadyGeneratedByNewerHpack | OutputUnchanged
 
 hpackWithVersion :: Version -> FilePath -> Bool -> IO ()
 hpackWithVersion v dir verbose = do
-    r <- hpackWithVersionSilent v dir
+    r <- hpackWithVersionResult v dir
     forM_ (resultWarnings r) $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
     when verbose $ putStrLn $
       case resultStatus r of
@@ -110,8 +110,8 @@ hpackWithVersion v dir verbose = do
         OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
         AlreadyGeneratedByNewerHpack -> resultCabalFile r ++ " was generated with a newer version of hpack, please upgrade and try again."
 
-hpackWithVersionSilent :: Version -> FilePath -> IO Result
-hpackWithVersionSilent v dir = do
+hpackWithVersionResult :: Version -> FilePath -> IO Result
+hpackWithVersionResult v dir = do
   (warnings, cabalFile, new) <- run dir
   old <- either (const Nothing) (Just . splitHeader) <$> tryJust (guard . isDoesNotExistError) (readFile cabalFile >>= (return $!!))
   let oldVersion = fmap fst old >>= extractVersion
