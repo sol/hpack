@@ -61,6 +61,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `ld-options` | `ld-options` | | |
 | `buildable` | `buildable` | | May be overridden by later stanza |
 | `dependencies` | `build-depends` | | |
+| `build-tools` | `build-tools` | | |
 | `when` | | | Accepts a list of conditionals (see **conditionals** section below) |
 
 #### Library fields
