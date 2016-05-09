@@ -216,6 +216,7 @@ renderSection Section{..} = [
   , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
   , renderLdOptions sectionLdOptions
   , renderDependencies sectionDependencies
+  , renderBuildTools sectionBuildTools
   ]
   ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ map renderConditional sectionConditionals
@@ -265,3 +266,6 @@ renderDefaultExtensions = Field "default-extensions" . WordList
 
 renderOtherExtensions :: [String] -> Element
 renderOtherExtensions = Field "other-extensions" . WordList
+
+renderBuildTools :: [Dependency] -> Element
+renderBuildTools = Field "build-tools" . CommaSeparatedList . map dependencyName
