@@ -105,7 +105,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | `description` | `description` | | Optional |
-| `manual` | `manual` | | Required (unline Cabal) |
+| `manual` | `manual` | | Required (unlike Cabal) |
 | `default` | `default` | | Required (unlike Cabal) |
 
 #### Conditionals
