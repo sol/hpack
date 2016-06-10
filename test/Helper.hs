@@ -10,14 +10,14 @@ module Helper (
 import           Test.Hspec
 import           Test.Mockery.Directory
 import           Control.Applicative
-import           System.Directory
+import           System.Directory (getCurrentDirectory, setCurrentDirectory, canonicalizePath)
 import           Control.Exception
 import qualified System.IO.Temp as Temp
 import           System.FilePath
 
 withCurrentDirectory :: FilePath -> IO a -> IO a
 withCurrentDirectory dir action = do
-  bracket (getCurrentDirectory) (setCurrentDirectory) $ \ _ -> do
+  bracket getCurrentDirectory setCurrentDirectory $ \ _ -> do
     setCurrentDirectory dir
     action
 

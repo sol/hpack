@@ -119,7 +119,7 @@ type FieldName = String
 class HasFieldNames a where
   fieldNames :: Proxy a -> [FieldName]
 
-  default fieldNames :: (HasTypeName a, Generic a, Selectors (Rep a)) => Proxy a -> [String]
+  default fieldNames :: (HasTypeName a, Selectors (Rep a)) => Proxy a -> [String]
   fieldNames proxy = map (hyphenize $ typeName proxy) (selectors proxy)
 
 data CaptureUnknownFields a = CaptureUnknownFields {

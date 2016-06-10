@@ -21,10 +21,10 @@ class HasTypeName a where
 instance (Datatype d, Generic a, Rep a ~ M1 D d m) => HasTypeName a where
   typeName _ = datatypeName (undefined :: M1 D d x y)
 
-selectors :: (Generic a, Selectors (Rep a)) => Proxy a -> [String]
+selectors :: (Selectors (Rep a)) => Proxy a -> [String]
 selectors = f
   where
-    f :: forall a. (Generic a, Selectors (Rep a)) => Proxy a -> [String]
+    f :: forall a. (Selectors (Rep a)) => Proxy a -> [String]
     f _ = selNames (Proxy :: Proxy (Rep a))
 
 class Selectors a where

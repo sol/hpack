@@ -10,6 +10,9 @@ matrix:
     - env: BUILD=tinc CABALVER=1.22 GHCVER=7.10.3
       compiler: ": #tinc 7.10.3"
       addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,happy-1.19.5], sources: [hvr-ghc]}}
+    - env: BUILD=tinc CABALVER=1.24 GHCVER=8.0.1
+      compiler: ": #tinc 8.0.1"
+      addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.1,happy-1.19.5], sources: [hvr-ghc]}}
     - env: BUILD=stack GHCVER=7.10.3 STACK_YAML=stack.yaml
       compiler: ": #stack 7.10.3"
       addons: {apt: {packages: [ghc-7.10.3,happy-1.19.5], sources: [hvr-ghc]}}
@@ -19,7 +22,7 @@ matrix:
 
 before_install:
   - unset CC
-  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/1.22/bin:/opt/happy/1.19.5/bin:$PATH
+  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:/opt/happy/1.19.5/bin:$PATH
   - ./.travis-setup.sh
   - ghc --version || stack exec -- ghc --version
   - happy --version || true
