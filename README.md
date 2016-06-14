@@ -117,8 +117,9 @@ Conditionals with no else branch:
 
 For example,
 
-    condition: os(darwin)
-    extra-lib-dirs: lib/darwin
+    when:
+      - condition: os(darwin)
+        extra-lib-dirs: lib/darwin
 
 becomes
 
@@ -135,18 +136,19 @@ Conditionals with an else branch:
 
 For example,
 
-    condition: flag(fast)
-    then:
-      ghc-options: -O2
-    else:
-      ghc-options: -O0
+    when:
+      - condition: flag(fast)
+        then:
+          ghc-options: -O2
+        else:
+          ghc-options: -O0
 
 becomes
 
     if flag(fast)
       ghc-options: -O2
     else
-      ghc-options: -O2
+      ghc-options: -O0
 
 
 ### File globbing
