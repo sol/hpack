@@ -46,13 +46,14 @@
 These fields are merged with all library, executable, test, and benchmark components.
 
 | Hpack | Cabal | Default | Notes |
-| --- | --- | --- | --- | --- |
+| --- | --- | --- | --- |
 | `source-dirs` | `hs-source-dirs` | | |
 | `default-extensions` | `default-extensions` | | |
 | `other-extension` | `other-extensions` | | |
 | `ghc-options` | `ghc-options` | | |
 | `ghc-prof-options` | `ghc-prof-options` | | |
 | `cpp-options` | `cpp-options` | | |
+| `cc-options` | `cc-options` | | |
 | `c-sources` | `c-sources` | | |
 | `extra-lib-dirs` | `extra-lib-dirs` | | |
 | `extra-libraries` | `extra-libraries` | | |

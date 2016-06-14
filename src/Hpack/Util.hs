@@ -4,6 +4,7 @@ module Hpack.Util (
 , GhcOption
 , GhcProfOption
 , CppOption
+, CCOption
 , LdOption
 , parseMain
 , toModule
@@ -50,6 +51,7 @@ instance FromJSON a => FromJSON (List a) where
 type GhcOption = String
 type GhcProfOption = String
 type CppOption = String
+type CCOption = String
 type LdOption = String
 
 parseMain :: String -> (FilePath, [GhcOption])
