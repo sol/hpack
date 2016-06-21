@@ -212,7 +212,7 @@ spec = do
 
     context "when parsing a Dependency" $ do
       it "accepts simple dependencies" $ do
-        parseEither parseJSON "hpack" `shouldBe` Right (Dependency "hpack" Nothing)
+        parseEither parseJSON "hpack" `shouldBe` Right (dependency "hpack" Nothing)
 
       it "accepts git dependencies" $ do
         let value = [aesonQQ|{
@@ -221,7 +221,7 @@ spec = do
               ref: "master"
             }|]
             source = GitRef "https://github.com/sol/hpack" "master" Nothing
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
+        parseEither parseJSON value `shouldBe` Right (dependency "hpack" (Just source))
 
       it "accepts github dependencies" $ do
         let value = [aesonQQ|{
@@ -230,7 +230,7 @@ spec = do
               ref: "master"
             }|]
             source = GitRef "https://github.com/sol/hpack" "master" Nothing
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
+        parseEither parseJSON value `shouldBe` Right (dependency "hpack" (Just source))
 
       it "accepts an optional subdirectory for git dependencies" $ do
         let value = [aesonQQ|{
@@ -240,7 +240,7 @@ spec = do
               subdir: "warp"
             }|]
             source = GitRef "https://github.com/yesodweb/wai" "master" (Just "warp")
-        parseEither parseJSON value `shouldBe` Right (Dependency "warp" (Just source))
+        parseEither parseJSON value `shouldBe` Right (dependency "warp" (Just source))
 
       it "accepts local dependencies" $ do
         let value = [aesonQQ|{
@@ -248,12 +248,17 @@ spec = do
               path: "../hpack"
             }|]
             source = Local "../hpack"
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
+        parseEither parseJSON value `shouldBe` Right (dependency "hpack" (Just source))
 
       context "when parsing fails" $ do
         it "returns an error message" $ do
           let value = Number 23
           parseEither parseJSON value `shouldBe` (Left "Error in $: expected String or an Object, encountered Number" :: Either String Dependency)
+
+        it "returns an error message on wrong format" $ do
+          let value = "foo >= 0.1 <0.2"
+          parseEither parseJSON value `shouldBe` (Left "Error in $: invalid dependency: foo >= 0.1 <0.2" :: Either String Dependency)
+
 
         context "when ref is missing" $ do
           it "produces accurate error messages" $ do
@@ -897,7 +902,7 @@ spec = do
               main: test/Spec.hs
               dependencies: hspec
           |]
-          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec"]}]})
+          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = [dependency "hspec" Nothing]}]})
 
       it "accepts list of dependencies" $ do
         withPackageConfig_ [i|

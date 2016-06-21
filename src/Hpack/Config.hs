@@ -19,6 +19,8 @@ module Hpack.Config (
 , section
 , Package(..)
 , Dependency(..)
+, dependency
+, dependencyName
 , AddSource(..)
 , GitUrl
 , GitRef
@@ -58,6 +60,13 @@ import           Prelude.Compat
 import           System.Directory
 import           System.FilePath
 
+import qualified Distribution.Compat.ReadP as D
+import qualified Distribution.Package      as D
+import qualified Distribution.Text         as D
+import qualified Distribution.Version      as D
+
+import Text.PrettyPrint (renderStyle, Style(..), Mode(..))
+
 import           Hpack.GenericsUtil
 import           Hpack.Util
 import           Hpack.Yaml
@@ -77,7 +86,7 @@ renameDependencies :: String -> String -> Section a -> Section a
 renameDependencies old new sect@Section{..} = sect {sectionDependencies = map rename sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
   where
     rename dep
-      | dependencyName dep == old = dep {dependencyName = new}
+      | dependencyName dep == old = updateDependencyName dep new
       | otherwise = dep
 
     renameConditional :: Conditional -> Conditional
@@ -299,23 +308,51 @@ readPackageConfig file = do
       Right <$> mkPackage dir config
 
 data Dependency = Dependency {
-  dependencyName :: String
+  dependencyDep    :: D.Dependency
 , dependencyGitRef :: Maybe AddSource
-} deriving (Eq, Show, Ord, Generic)
+} deriving (Eq, Show, Generic)
+
+dependencyName :: Dependency -> String
+dependencyName (Dependency dep@(D.Dependency name versionRange) _)
+    | D.isAnyVersion versionRange = renderStyle style . D.disp $ name
+    | otherwise                   = renderStyle style . D.disp $ dep
+  where
+    style = Style OneLineMode 1000 1.5
+
+updateDependencyName :: Dependency -> String -> Dependency
+updateDependencyName (Dependency (D.Dependency _name versionRange) gitRef) newName =
+    Dependency (D.Dependency (D.PackageName newName) versionRange) gitRef
+
+dependency :: String -> Maybe AddSource -> Dependency
+dependency name gitref =
+  Dependency (D.Dependency (D.PackageName name) D.anyVersion) gitref
 
 instance IsString Dependency where
-  fromString name = Dependency name Nothing
+  fromString = flip dependency Nothing
+
+-- Newtype to avoid orphan instance
+newtype CD = CD { getCD :: D.Dependency }
+
+parseCabalDependency :: Text -> Parser D.Dependency
+parseCabalDependency t = case filter (null . snd) $ D.readP_to_S D.parse s of
+    [(d, "")] -> pure d
+    _         -> fail $ "invalid dependency: " ++ s
+  where
+    s = T.unpack t
+
+instance FromJSON CD where
+    parseJSON = fmap CD . withText "Cabal dependency" parseCabalDependency
 
 instance FromJSON Dependency where
   parseJSON v = case v of
-    String _ -> fromString <$> parseJSON v
+    String t -> Dependency <$> parseCabalDependency t <*> pure Nothing
     Object o -> addSourceDependency o
     _ -> typeMismatch "String or an Object" v
     where
       addSourceDependency o = Dependency <$> name <*> (Just <$> (local <|> git))
         where
-          name :: Parser String
-          name = o .: "name"
+          name :: Parser D.Dependency
+          name = getCD <$> o .: "name"
 
           local :: Parser AddSource
           local = Local <$> o .: "path"
