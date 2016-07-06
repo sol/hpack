@@ -59,6 +59,7 @@ import           System.Directory
 import           System.FilePath
 
 import           Hpack.GenericsUtil
+import           Hpack.OptionalExposure (OptionalExposure(..))
 import           Hpack.Util
 import           Hpack.Yaml
 
@@ -105,15 +106,6 @@ genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphen
     name :: String
     name = typeName (Proxy :: Proxy a)
 
-hyphenize :: String -> String -> String
-hyphenize name =
-#if MIN_VERSION_aeson(0,10,0)
-  camelTo2
-#else
-  camelTo
-#endif
-  '-' . drop (length name) . dropWhile (== '_')
-
 type FieldName = String
 
 class HasFieldNames a where
@@ -156,6 +148,7 @@ data LibrarySection = LibrarySection {
 , librarySectionExposedModules :: Maybe (List String)
 , librarySectionOtherModules :: Maybe (List String)
 , librarySectionReexportedModules :: Maybe (List String)
+, librarySectionOptionallyExposed :: Maybe (List OptionalExposure)
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames LibrarySection
@@ -190,6 +183,7 @@ data CommonOptions = CommonOptions {
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List ConditionalSection)
 , commonOptionsBuildTools :: Maybe (List Dependency)
+, commonOptionsOptionallyExposed :: Maybe (List OptionalExposure)
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames CommonOptions
@@ -371,6 +365,7 @@ data Library = Library {
 , libraryExposedModules :: [String]
 , libraryOtherModules :: [String]
 , libraryReexportedModules :: [String]
+, libraryOptionallyExposed :: [OptionalExposure]
 } deriving (Eq, Show)
 
 data Executable = Executable {
@@ -572,9 +567,14 @@ toLibrary dir name globalOptions library = traverse fromLibrarySection sect
     fromLibrarySection :: LibrarySection -> IO Library
     fromLibrarySection LibrarySection{..} = do
       modules <- concat <$> mapM (getModules dir) sourceDirs
-      let (exposedModules, otherModules) = determineModules name modules librarySectionExposedModules librarySectionOtherModules
+      let optionalExposures = fromMaybeList librarySectionOptionallyExposed
+          modules' = modules \\ foldMap (fromList . optionalExposureModules)
+                                        optionalExposures
+          (exposedModules, otherModules) = determineModules name modules' librarySectionExposedModules librarySectionOtherModules
           reexportedModules = fromMaybeList librarySectionReexportedModules
-      return (Library librarySectionExposed exposedModules otherModules reexportedModules)
+
+      return (Library librarySectionExposed exposedModules otherModules reexportedModules
+                      optionalExposures)
 
 toExecutables :: FilePath -> Section global -> [(String, Section ExecutableSection)] -> IO [Section Executable]
 toExecutables dir globalOptions executables = mapM toExecutable sections
@@ -621,7 +621,7 @@ mergeSections globalOptions options
 
 toSection :: a -> CommonOptions -> ([FieldName], Section a)
 toSection a CommonOptions{..}
-  = ( concat unknownFields 
+  = ( concat unknownFields
     , Section {
         sectionData = a
       , sectionSourceDirs = fromMaybeList commonOptionsSourceDirs

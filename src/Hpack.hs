@@ -9,6 +9,7 @@ module Hpack (
 #ifdef TEST
 , hpackWithVersion
 , parseVerbosity
+, parseBuildplan
 , extractVersion
 , parseVersion
 #endif
@@ -32,6 +33,7 @@ import           Text.ParserCombinators.ReadP
 
 import           Paths_hpack (version)
 import           Hpack.Config
+import           Hpack.OptionalExposure (readBuildPlan, BuildPlan(..))
 import           Hpack.Run
 
 programVersion :: Version -> String
@@ -51,17 +53,18 @@ main = do
   case args of
     ["--version"] -> putStrLn (programVersion version)
     ["--help"] -> printHelp
-    _ -> case parseVerbosity args of
-      (verbose, [dir]) -> hpack dir verbose
-      (verbose, []) -> hpack "" verbose
-      _ -> do
-        printHelp
-        exitFailure
+    _ -> case parseBuildplan args of
+           (bp, args') -> case parseVerbosity args' of
+                            (verbose, [dir]) -> hpack bp dir verbose
+                            (verbose, []) -> hpack bp "" verbose
+                            _ -> do
+                              printHelp
+                              exitFailure
 
 printHelp :: IO ()
 printHelp = do
   hPutStrLn stderr $ unlines [
-      "Usage: hpack [ --silent ] [ dir ]"
+      "Usage: hpack [ --silent ] [ --buildplan (min | file) ] [ dir ]"
     , "       hpack --version"
     ]
 
@@ -71,6 +74,15 @@ parseVerbosity xs = (verbose, ys)
     silentFlag = "--silent"
     verbose = not (silentFlag `elem` xs)
     ys = filter (/= silentFlag) xs
+
+parseBuildplan :: [String] -> (Either BuildPlan FilePath, [String])
+parseBuildplan = go id
+  where go acc [] = (Left MaximalBuildPlan, acc [])
+        go acc ("--buildplan":filePath:ys) =
+          case filePath of
+            "min" -> (Left MinimalBuildPlan, acc [] ++ ys)
+            _ -> (Right filePath, acc [] ++ ys)
+        go acc (y:ys) = go (acc . (y:)) ys
 
 safeInit :: [a] -> [a]
 safeInit [] = []
@@ -86,11 +98,11 @@ parseVersion xs = case [v | (v, "") <- readP_to_S Version.parseVersion xs] of
   [v] -> Just v
   _ -> Nothing
 
-hpack :: FilePath -> Bool -> IO ()
+hpack :: Either BuildPlan FilePath -> FilePath -> Bool -> IO ()
 hpack = hpackWithVersion version
 
 hpackResult :: FilePath -> IO Result
-hpackResult = hpackWithVersionResult version
+hpackResult = hpackWithVersionResult version (Left MaximalBuildPlan)
 
 data Result = Result {
   resultWarnings :: [String]
@@ -100,9 +112,9 @@ data Result = Result {
 
 data Status = Generated | AlreadyGeneratedByNewerHpack | OutputUnchanged
 
-hpackWithVersion :: Version -> FilePath -> Bool -> IO ()
-hpackWithVersion v dir verbose = do
-    r <- hpackWithVersionResult v dir
+hpackWithVersion :: Version -> Either BuildPlan FilePath -> FilePath -> Bool -> IO ()
+hpackWithVersion v buildPlan dir verbose = do
+    r <- hpackWithVersionResult v buildPlan dir
     forM_ (resultWarnings r) $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
     when verbose $ putStrLn $
       case resultStatus r of
@@ -110,9 +122,11 @@ hpackWithVersion v dir verbose = do
         OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
         AlreadyGeneratedByNewerHpack -> resultCabalFile r ++ " was generated with a newer version of hpack, please upgrade and try again."
 
-hpackWithVersionResult :: Version -> FilePath -> IO Result
-hpackWithVersionResult v dir = do
-  (warnings, cabalFile, new) <- run dir
+hpackWithVersionResult :: Version -> Either BuildPlan FilePath ->  FilePath -> IO Result
+hpackWithVersionResult v buildPlan dir = do
+  let bpErr msg = putStrLn ("Error parsing build plan: "++msg) >> exitFailure
+  buildPlan' <- either return (readBuildPlan >=> either bpErr return) buildPlan
+  (warnings, cabalFile, new) <- run buildPlan' dir
   old <- either (const Nothing) (Just . splitHeader) <$> tryJust (guard . isDoesNotExistError) (readFile cabalFile >>= (return $!!))
   let oldVersion = fmap fst old >>= extractVersion
   status <-

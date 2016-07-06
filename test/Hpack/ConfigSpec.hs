@@ -16,12 +16,14 @@ import           Data.Aeson.Types
 import           Data.String.Interpolate.IsString
 import           Control.Arrow
 import           System.Directory (createDirectory)
+import           Data.Maybe (fromJust)
 import           Data.Yaml
 import           Data.Either.Compat
 
 import           Hpack.Util
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
+import           Hpack.OptionalExposure
 
 package :: Package
 package = Config.package "foo" "0.0.0"
@@ -30,7 +32,7 @@ executable :: String -> String -> Executable
 executable name main_ = Executable name main_ []
 
 library :: Library
-library = Library Nothing [] [] []
+library = Library Nothing [] [] [] []
 
 withPackage :: String -> IO () -> (([String], Package) -> Expectation) -> Expectation
 withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
@@ -689,6 +691,32 @@ spec = do
           )
           (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}))
 
+      it "allows to specify optionally-exposed modules" $ do
+        withPackageConfig [i|
+          library:
+            source-dirs: src
+            optionally-exposed:
+              - dependencies: foo
+                modules: Foo.Bar
+              - dependencies:
+                  - quux
+                  - fig
+                modules: Geo.Graphic
+          |]
+          (do
+           touch "src/Foo/Bar.hs"
+           touch "src/Geo/Graphic.hs"
+          )
+          (packageLibrary >>>
+           (`shouldBe`
+            Just (section
+                  library{ libraryOptionallyExposed =
+                           [ fromJust (mkOptionalExposure (List ["foo"])
+                                                          (List ["Foo.Bar"]))
+                           , fromJust (mkOptionalExposure
+                                        (List ["quux","fig"])
+                                        (List ["Geo.Graphic"]))]}
+                 ) {sectionSourceDirs = ["src"]}))
       context "when neither exposed-modules nor other-modules are specified" $ do
         it "exposes all modules" $ do
           withPackageConfig [i|
