@@ -546,6 +546,30 @@ spec = do
         }
         )
 
+    it "accepts cc-options" $ do
+      withPackageConfig_ [i|
+        cc-options: -Wall
+        library:
+          cc-options: -fLIB
+
+        executables:
+          foo:
+            main: Main.hs
+            cc-options: -O2
+
+
+        tests:
+          spec:
+            main: Spec.hs
+            cc-options: -O0
+        |]
+        (`shouldBe` package {
+          packageLibrary = Just (section library) {sectionCCOptions = ["-Wall", "-fLIB"]}
+        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionCCOptions = ["-Wall", "-O2"]}]
+        , packageTests = [(section $ executable "spec" "Spec.hs") {sectionCCOptions = ["-Wall", "-O0"]}]
+        }
+        )
+
     it "accepts ld-options" $ do
       withPackageConfig_ [i|
         library:

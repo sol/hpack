@@ -91,7 +91,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . d
   ++ maybe [] sectionDependencies packageLibrary
 
 section :: a -> Section a
-section a = Section a [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] []
+section a = Section a [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -181,6 +181,7 @@ data CommonOptions = CommonOptions {
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
+, commonOptionsCCOptions :: Maybe (List CCOption)
 , commonOptionsCSources :: Maybe (List FilePath)
 , commonOptionsExtraLibDirs :: Maybe (List FilePath)
 , commonOptionsExtraLibraries :: Maybe (List FilePath)
@@ -388,6 +389,7 @@ data Section a = Section {
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
 , sectionCppOptions :: [CppOption]
+, sectionCCOptions :: [CCOption]
 , sectionCSources :: [FilePath]
 , sectionExtraLibDirs :: [FilePath]
 , sectionExtraLibraries :: [FilePath]
@@ -607,6 +609,7 @@ mergeSections globalOptions options
   , sectionGhcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
   , sectionGhcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
   , sectionCppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
+  , sectionCCOptions = sectionCCOptions globalOptions ++ sectionCCOptions options
   , sectionCSources = sectionCSources globalOptions ++ sectionCSources options
   , sectionExtraLibDirs = sectionExtraLibDirs globalOptions ++ sectionExtraLibDirs options
   , sectionExtraLibraries = sectionExtraLibraries globalOptions ++ sectionExtraLibraries options
@@ -621,7 +624,7 @@ mergeSections globalOptions options
 
 toSection :: a -> CommonOptions -> ([FieldName], Section a)
 toSection a CommonOptions{..}
-  = ( concat unknownFields 
+  = ( concat unknownFields
     , Section {
         sectionData = a
       , sectionSourceDirs = fromMaybeList commonOptionsSourceDirs
@@ -630,6 +633,7 @@ toSection a CommonOptions{..}
       , sectionGhcOptions = fromMaybeList commonOptionsGhcOptions
       , sectionGhcProfOptions = fromMaybeList commonOptionsGhcProfOptions
       , sectionCppOptions = fromMaybeList commonOptionsCppOptions
+      , sectionCCOptions = fromMaybeList commonOptionsCCOptions
       , sectionCSources = fromMaybeList commonOptionsCSources
       , sectionExtraLibDirs = fromMaybeList commonOptionsExtraLibDirs
       , sectionExtraLibraries = fromMaybeList commonOptionsExtraLibraries
