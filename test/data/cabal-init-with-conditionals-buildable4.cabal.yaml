@@ -1,0 +1,16 @@
+name: cabal-init-minimal
+version: '0.1.0.0'
+author: Pedro Tacla Yamada
+maintainer: tacla.yamada@gmail.com
+license: PublicDomain
+extra-source-files:
+- ChangeLog.md
+dependencies:
+- base >=4.8 && <4.9
+executables:
+  hello-world:
+    main: HelloWorld.hs
+    source-dirs: src
+    when:
+    - condition: os(linux)
+      buildable: false

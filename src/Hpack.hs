@@ -32,6 +32,7 @@ import           Text.ParserCombinators.ReadP
 
 import           Paths_hpack (version)
 import           Hpack.Config
+import           Hpack.Convert.Run
 import           Hpack.Run
 
 programVersion :: Version -> String
@@ -50,6 +51,7 @@ main = do
   args <- getArgs
   case args of
     ["--version"] -> putStrLn (programVersion version)
+    ("--convert":_) -> runConvert
     ["--help"] -> printHelp
     _ -> case parseVerbosity args of
       (verbose, [dir]) -> hpack dir verbose
@@ -62,6 +64,7 @@ printHelp :: IO ()
 printHelp = do
   hPutStrLn stderr $ unlines [
       "Usage: hpack [ --silent ] [ dir ]"
+    , "       hpack --convert [ dir | cabalfile ]"
     , "       hpack --version"
     ]
 

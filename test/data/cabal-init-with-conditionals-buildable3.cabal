@@ -1,0 +1,30 @@
+name:                cabal-init-minimal
+version:             0.1.0.0
+license:             PublicDomain
+author:              Pedro Tacla Yamada
+maintainer:          tacla.yamada@gmail.com
+build-type:          Simple
+extra-source-files:  ChangeLog.md
+cabal-version:       >=1.10
+
+Flag Something
+  default: False
+
+Flag SomethingElse
+  default: False
+
+executable hello-world
+  main-is: HelloWorld.hs
+  build-depends: base >=4.8 && <4.9
+  hs-source-dirs: src
+  default-language: Haskell2010
+  buildable: False
+
+  if os(darwin)
+    buildable: True
+    if flag(Something)
+      buildable: True
+      if flag(SomethingElse)
+        buildable: False
+  else
+    buildable: False
