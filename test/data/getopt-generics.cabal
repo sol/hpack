@@ -1,0 +1,106 @@
+-- This file has been generated from package.yaml by hpack version 0.5.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:           getopt-generics
+version:        0.13
+synopsis:       Create command line interfaces with ease
+description:    Create command line interfaces with ease
+category:       Console, System
+homepage:       https://github.com/soenkehahn/getopt-generics#readme
+bug-reports:    https://github.com/soenkehahn/getopt-generics/issues
+author:         Linh Nguyen, Sönke Hahn
+maintainer:     linh.nguyen@zalora.com, soenkehahn@gmail.com
+copyright:      Zalora South East Asia Pte Ltd
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >=1.10
+
+extra-source-files:
+    docs/stuff
+
+source-repository head
+  type: git
+  location: https://github.com/soenkehahn/getopt-generics
+
+library
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -fno-warn-name-shadowing
+  build-depends:
+      base ==4.*
+    , base-compat >=0.8
+    , base-orphans
+    , generics-sop >=0.1 && <0.3
+    , tagged
+  exposed-modules:
+      WithCli
+      WithCli.Pure
+  other-modules:
+      WithCli.Argument
+      WithCli.Flag
+      WithCli.HasArguments
+      WithCli.Modifier
+      WithCli.Modifier.Types
+      WithCli.Normalize
+      WithCli.Parser
+      WithCli.Pure.Internal
+      WithCli.Result
+  default-language: Haskell2010
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs:
+      src
+    , test
+    , docs
+  ghc-options: -Wall -fno-warn-name-shadowing -threaded -O0
+  build-depends:
+      base ==4.*
+    , base-compat >=0.8
+    , base-orphans
+    , generics-sop >=0.1 && <0.3
+    , tagged
+    , hspec >=2.1.8
+    , QuickCheck
+    , silently
+    , filepath
+    , safe
+  other-modules:
+      WithCli
+      WithCli.Argument
+      WithCli.Flag
+      WithCli.HasArguments
+      WithCli.Modifier
+      WithCli.Modifier.Types
+      WithCli.Normalize
+      WithCli.Parser
+      WithCli.Pure
+      WithCli.Pure.Internal
+      WithCli.Result
+      DocsSpec
+      ModifiersSpec
+      ModifiersSpec.RenameOptionsSpec
+      ModifiersSpec.UseForPositionalArgumentsSpec
+      ShellProtocol
+      Util
+      WithCli.ArgumentSpec
+      WithCli.HasArgumentsSpec
+      WithCli.ModifierSpec
+      WithCli.NormalizeSpec
+      WithCli.ParserSpec
+      WithCli.Pure.RecordSpec
+      WithCli.PureSpec
+      WithCli.ResultSpec
+      WithCliSpec
+      CustomOption
+      CustomOptionRecord
+      RecordType
+      Simple
+      Test01
+      Test02
+      Test03
+      Test04
+  default-language: Haskell2010

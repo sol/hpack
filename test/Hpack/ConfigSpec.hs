@@ -999,3 +999,54 @@ spec = do
         it "returns an error" $ \dir -> do
           let file = dir </> "package.yaml"
           readPackageConfig file `shouldReturn` Left [i|#{file}: Yaml file not found: #{file}|]
+
+  context "toJSON :: Conditinal -> Value" $ do
+    it "serializes conditionals properly" $ do
+      let s = emptySection { sectionBuildable = Just False }
+      toJSON (Conditional "os(darwin)" s Nothing)
+        `shouldBe` object [ "condition" .= String "os(darwin)"
+                          , "buildable" .= Bool False
+                          ]
+
+    it "serializes conditionals with an else branch properly" $ do
+      let s = emptySection { sectionBuildable = Just False }
+      toJSON (Conditional "os(darwin)" s (Just s))
+        `shouldBe` object [ "condition" .= String "os(darwin)"
+                          , "then" .= object [ "buildable" .= Bool False
+                                             ]
+                          , "else" .= object [ "buildable" .= Bool False
+                                             ]
+                          ]
+
+
+  context "toJSON :: Section a -> Value" $
+    it "serializes conditionals properly" $ do
+      let s = emptySection { sectionConditionals = [ Conditional "os(darwin)" emptySection { sectionBuildable = Just False } Nothing]
+                           }
+      toJSON s
+        `shouldBe` object [ "when" .= array [ object [ "condition" .= String "os(darwin)"
+                                                     , "buildable" .= Bool False
+                                                     ]
+                                            ]
+                          ]
+
+emptySection :: Section ()
+emptySection = Section { sectionData = ()
+                       , sectionSourceDirs = []
+                       , sectionDependencies = []
+                       , sectionDefaultExtensions = []
+                       , sectionOtherExtensions = []
+                       , sectionGhcOptions = []
+                       , sectionGhcProfOptions = []
+                       , sectionCppOptions = []
+                       , sectionCCOptions = []
+                       , sectionCSources = []
+                       , sectionExtraLibDirs = []
+                       , sectionExtraLibraries = []
+                       , sectionIncludeDirs = []
+                       , sectionInstallIncludes = []
+                       , sectionLdOptions = []
+                       , sectionBuildable = Nothing
+                       , sectionConditionals = []
+                       , sectionBuildTools = []
+                       }

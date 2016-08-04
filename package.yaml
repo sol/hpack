@@ -11,6 +11,8 @@ ghc-options: -Wall
 dependencies:
   - base >= 4.7 && < 5
   - base-compat >= 0.8
+  - Cabal
+  - pretty
   - deepseq
   - directory
   - filepath
@@ -19,6 +21,8 @@ dependencies:
   - containers
   - unordered-containers
   - yaml
+  - bytestring
+  - vector
 
 library:
   source-dirs: src

@@ -1,0 +1,42 @@
+name: getopt-generics
+version: '0.13'
+synopsis: Create command line interfaces with ease
+description: Create command line interfaces with ease
+category: Console, System
+author: Linh Nguyen, Sönke Hahn
+maintainer: linh.nguyen@zalora.com, soenkehahn@gmail.com
+copyright: Zalora South East Asia Pte Ltd
+license: BSD3
+github: soenkehahn/getopt-generics
+extra-source-files:
+- docs/stuff
+ghc-options:
+- -Wall
+- -fno-warn-name-shadowing
+dependencies:
+- base ==4.*
+- base-compat >=0.8
+- base-orphans
+- generics-sop >=0.1 && <0.3
+- tagged
+library:
+  source-dirs: src
+  exposed-modules:
+  - WithCli
+  - WithCli.Pure
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+    - src
+    - test
+    - docs
+    ghc-options:
+    - -threaded
+    - -O0
+    dependencies:
+    - hspec >=2.1.8
+    - QuickCheck
+    - silently
+    - filepath
+    - safe

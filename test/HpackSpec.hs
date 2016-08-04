@@ -5,13 +5,15 @@ import           Prelude.Compat
 
 import           Control.Monad.Compat
 import           Control.DeepSeq
-import           Data.Version (Version(..), showVersion)
+import           Data.Version (Version (..), showVersion)
 
 import           Test.Hspec
 import           Test.Mockery.Directory
 import           Test.QuickCheck
 
 import           Hpack
+import           Hpack.Config
+import           Hpack.Convert
 
 makeVersion :: [Int] -> Version
 makeVersion v = Version v []

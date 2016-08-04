@@ -1,0 +1,56 @@
+name: hpack
+version: '0.14.1'
+synopsis: An alternative format for Haskell packages
+category: Development
+maintainer: Simon Hengel <sol@typeful.net>
+license: MIT
+github: sol/hpack
+dependencies:
+- base >=4.7 && <5
+- base-compat >=0.8
+- Cabal
+- pretty
+- deepseq
+- directory
+- filepath
+- Glob
+- text
+- containers
+- unordered-containers
+- yaml
+- bytestring
+- vector
+library:
+  source-dirs: src
+  ghc-options: -Wall
+  exposed-modules:
+  - Hpack
+  - Hpack.Config
+  - Hpack.Run
+  - Hpack.Yaml
+  dependencies:
+  - aeson >=0.8
+executables:
+  hpack:
+    main: Main.hs
+    source-dirs: driver
+    ghc-options: -Wall
+    dependencies:
+    - hpack
+    - aeson >=0.8
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+    - test
+    - src
+    ghc-options: -Wall
+    cpp-options: -DTEST
+    dependencies:
+    - hspec ==2.*
+    - QuickCheck
+    - temporary
+    - mockery >=0.3
+    - interpolate
+    - aeson-qq
+    - aeson >=0.10

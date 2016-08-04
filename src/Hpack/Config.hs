@@ -6,13 +6,16 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Hpack.Config (
   packageConfig
 , readPackageConfig
+, encodePackage
+, writePackage
 , renamePackage
 , packageDependencies
 , package
@@ -41,17 +44,23 @@ module Hpack.Config (
 
 import           Control.Applicative
 import           Control.Monad.Compat
+import           Data.Aeson
 import           Data.Aeson.Types
+import           Data.ByteString (ByteString)
+import qualified Data.ByteString as ByteString
 import           Data.Data
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
-import           Data.List.Compat (nub, (\\), sortBy)
+import           Data.List.Compat (elemIndex, intersect, isPrefixOf, nub,
+                                   sortBy, (\\))
 import           Data.Maybe
 import           Data.Ord
 import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Vector as Vector
+import qualified Data.Yaml.Pretty as Yaml
 import           GHC.Generics (Generic, Rep)
 import           Prelude ()
 import           Prelude.Compat
@@ -99,8 +108,30 @@ packageConfig = "package.yaml"
 githubBaseUrl :: String
 githubBaseUrl = "https://github.com/"
 
+jsonOptions :: String -> Options
+jsonOptions name = defaultOptions { fieldLabelModifier = hyphenize name
+                                  , omitNothingFields = True
+                                  }
+
+genericToJSON_ :: forall a. (Generic a, GToJSON (Rep a), HasTypeName a) => a -> Value
+genericToJSON_ =
+    removeEmptyObjects .
+    removeEmptyArrays .
+    genericToJSON (jsonOptions name)
+  where
+    name :: String
+    name = typeName (Proxy :: Proxy a)
+
+removeEmptyObjects :: Value -> Value
+removeEmptyObjects (Object o) = Object $ HashMap.filter (/= Object mempty) o
+removeEmptyObjects v = v
+
+removeEmptyArrays :: Value -> Value
+removeEmptyArrays (Object o) = Object $ HashMap.filter (/= Array mempty) o
+removeEmptyArrays v = v
+
 genericParseJSON_ :: forall a. (Generic a, GFromJSON (Rep a), HasTypeName a) => Value -> Parser a
-genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphenize name}
+genericParseJSON_ = genericParseJSON (jsonOptions name)
   where
     name :: String
     name = typeName (Proxy :: Proxy a)
@@ -199,7 +230,7 @@ instance FromJSON CommonOptions where
   parseJSON = genericParseJSON_
 
 data ConditionalSection = ThenElseConditional (CaptureUnknownFields ThenElse) | FlatConditional (CaptureUnknownFields (Section Condition))
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 instance FromJSON ConditionalSection where
   parseJSON v
@@ -234,7 +265,7 @@ instance FromJSON ThenElse where
   parseJSON = genericParseJSON_
 
 data Empty = Empty
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 instance FromJSON Empty where
   parseJSON _ = return Empty
@@ -270,6 +301,252 @@ data PackageConfig = PackageConfig {
 
 instance HasFieldNames PackageConfig
 
+instance ToJSON Package where
+  toJSON p =
+      removeEmptyArrays $
+      removeEmptyObjects $
+      (\(Object o) -> Object $ case packageSourceRepository p of
+              Just repo ->
+                  let srepo = (sourceRepositoryUrl repo) ++
+                          (fromMaybe "" (sourceRepositorySubdir repo))
+                  in
+                  if githubBaseUrl `isPrefixOf` srepo
+                     then let dropIfGH (Just (String v))
+                                  | githubBaseUrl `isPrefixOf` T.unpack v = Nothing
+                              dropIfGH v = v
+                          in
+                          HashMap.insert "github" (String (T.pack (drop (length githubBaseUrl) srepo))) $
+                          HashMap.alter dropIfGH "bug-reports" $
+                          HashMap.alter dropIfGH "homepage" o
+                     else HashMap.insert "git" (String (T.pack srepo)) o
+              Nothing -> o
+      ) $
+      (\(Object o) -> Object $ HashMap.delete "source-repository" o) $
+      (\(Object o) -> Object $ HashMap.mapWithKey convertSingletons o) $
+      (\(Object o) ->
+           Object $
+           HashMap.alter
+           (\l -> case l of
+                      Just "LICENSE" -> Nothing
+                      _ -> l)
+           "license-file"
+           o
+      ) $
+      pullCommonFields "build-tools" $
+      pullCommonFields "conditionals" $
+      pullCommonFields "buildable" $
+      pullCommonFields "ld-options" $
+      pullCommonFields "install-includes" $
+      pullCommonFields "include-dirs" $
+      pullCommonFields "extra-libraries" $
+      pullCommonFields "extra-lib-dirs" $
+      pullCommonFields "c-sources" $
+      pullCommonFields "cc-options" $
+      pullCommonFields "cpp-options" $
+      pullCommonFields "ghc-prof-options" $
+      pullCommonFields "ghc-options" $
+      pullCommonFields "other-extensions" $
+      pullCommonFields "default-extensions" $
+      pullCommonFields "other-modules" $
+      pullCommonFields "source-dirs" $
+      pullCommonFields "dependencies" (genericToJSON_ p)
+
+pullCommonFields :: Text -> Value -> Value
+pullCommonFields field topLevel@(Object topLevelObj) =
+    let commonField = let deps = mapMaybe getField [ "library"
+                                                   , "executables"
+                                                   , "benchmarks"
+                                                   , "tests"
+                                                   ]
+                      in maybe [] (\h -> foldl intersect h deps) (listToMaybe deps)
+    in mergeObjects (Object (filterCommon commonField)) $
+       mergeObjects topLevel (object [ field .= commonField ])
+  where
+    filterCommon :: [Value] -> HashMap.HashMap Text Value
+    filterCommon commonField =
+        let helper :: Maybe Value -> Maybe Value
+            helper (Just (Array vs)) =
+                let v = Vector.filter (not . (`elem` commonField)) vs
+                in if Vector.null v then Nothing else Just (Array v)
+            helper Nothing = Nothing
+            helper (Just v) = Just v
+            outerHelper = (\(Object sectObj) -> Object $ HashMap.alter helper field sectObj)
+            outermostHelper = (\(Object e) -> Object $ HashMap.map outerHelper e)
+            o' = HashMap.adjust outerHelper "library" topLevelObj
+            o'' = HashMap.adjust outermostHelper "executables" o'
+            o''' = HashMap.adjust outermostHelper "benchmarks" o''
+            o'''' = HashMap.adjust outermostHelper "tests" o'''
+        in o''''
+    getField "library" =
+        case (HashMap.lookup "library" topLevelObj >>= unObject) of
+            Nothing -> Nothing
+            Just lib -> do
+                return $ fromMaybe [] (HashMap.lookup field lib >>= unArray)
+    getField name =
+        case (HashMap.lookup name topLevelObj >>= unObject) of
+            Nothing -> Nothing
+            Just sect -> do
+                blocks <- mapM unObject (map snd (HashMap.toList sect))
+                return $ concat $ mapMaybe (HashMap.lookup field >=> unArray) blocks
+    unArray (Array v) = Just (Vector.toList v)
+    unArray _ = Nothing
+    unObject (Object o) = Just o
+    unObject _ = Nothing
+pullCommonFields _ v = v
+
+omitBuildableTrue :: Value -> Value
+omitBuildableTrue (Object o) = Object (HashMap.filterWithKey f o)
+  where
+    f "buildable" (Bool True) = False
+    f _ _ = True
+omitBuildableTrue v = v
+
+omitSection :: Value -> Value
+omitSection (Object o) = Object $
+    HashMap.mapWithKey convertSingletons $
+    HashMap.filterWithKey omitSectionEntry o
+omitSection v = v
+
+convertSingletons :: Text -> Value -> Value
+convertSingletons "ghc-options" (Array a) = convertSingleton a
+convertSingletons "cpp-options" (Array a) = convertSingleton a
+convertSingletons "cc-options" (Array a) = convertSingleton a
+convertSingletons "c-sources" (Array a) = convertSingleton a
+convertSingletons "ld-options" (Array a) = convertSingleton a
+convertSingletons "ghc-prof-options" (Array a) = convertSingleton a
+convertSingletons "extra-lib-dirs" (Array a) = convertSingleton a
+convertSingletons "extra-libraries" (Array a) = convertSingleton a
+convertSingletons "copyright" (Array a) = convertSingleton a
+convertSingletons "maintainer" (Array a) = convertSingleton a
+convertSingletons "author" (Array a) = convertSingleton a
+convertSingletons "source-dirs" (Array a) = convertSingleton a
+convertSingletons _ v = v
+
+convertSingleton :: Vector.Vector Value -> Value
+convertSingleton a =
+    if Vector.length a == 1
+    then Vector.head a
+    else Array a
+
+omitSectionEntry :: Text -> Value -> Bool
+omitSectionEntry "license-file" "LICENSE" = False
+omitSectionEntry "data" _ =  False
+omitSectionEntry "conditionals" _ =  False
+omitSectionEntry "name" _ =  False
+omitSectionEntry "exposed" (Bool True) =  False
+omitSectionEntry "other-modules" _ =  False
+omitSectionEntry _ _ =  True
+
+mergeObjects :: Value -> Value -> Value
+mergeObjects (Object o1) (Object o2) = Object (o1 `mappend` o2)
+mergeObjects (Object o1) _ = Object o1
+mergeObjects _ (Object o2) = Object o2
+mergeObjects v _ = v
+
+instance ToJSON [Section Executable] where
+  toJSON ss = Object $
+      HashMap.fromList $ map helper ss
+    where
+      helper sect@Section{..} = ( T.pack (executableName sectionData)
+                                , toJSON sect
+                                )
+
+instance {-# OVERLAPS #-} ToJSON (Section ()) where
+  toJSON sect@Section{..} =
+    (omitSection
+      (mergeObjects
+       (mergeObjects
+        (genericToJSON_ sect)
+        (toJSON sectionData))
+       (object $ case sectionConditionals of
+          [] -> []
+          cs -> case toJSON (omitRedundantBuildables cs) of
+            Array [] -> []
+            Array csObjs -> case Vector.filter (/= Object mempty) csObjs of
+              [] -> []
+              csV -> ["when" .= csV]
+            v -> ["when" .= v])))
+    where
+      omitRedundantBuildables = map $ \(Conditional c i e) ->
+          Conditional c (omitRedundantBuildable i) (omitRedundantBuildable <$> e)
+      omitRedundantBuildable s
+        | fromMaybe True sectionBuildable ==
+          fromMaybe True (Hpack.Config.sectionBuildable s) =
+          s {sectionBuildable = Nothing}
+      omitRedundantBuildable s = s
+
+instance (Generic (Section a), GToJSON (Rep (Section a)), HasTypeName (Section a),
+          ToJSON a) => ToJSON (Section a) where
+  toJSON sect@Section{..} =
+    omitBuildableTrue (omitSection
+      (mergeObjects
+       (mergeObjects
+        (genericToJSON_ sect)
+        (toJSON sectionData))
+       (object $ case sectionConditionals of
+          [] -> []
+          cs -> case toJSON (omitRedundantBuildables cs) of
+            Array [] -> []
+            Array csObjs -> case Vector.filter (/= Object mempty) csObjs of
+              [] -> []
+              csV -> ["when" .= csV]
+            csArr -> ["when" .= csArr])))
+    where
+      omitRedundantBuildables = map $ \(Conditional c i e) ->
+          Conditional c (omitRedundantBuildable i) (omitRedundantBuildable <$> e)
+      omitRedundantBuildable s
+        | fromMaybe True sectionBuildable ==
+          fromMaybe True (Hpack.Config.sectionBuildable s) =
+          s {sectionBuildable = Nothing}
+      omitRedundantBuildable s = s
+
+instance ToJSON Conditional where
+  toJSON (Conditional cnd ifSection Nothing) = case toJSON ifSection of
+    -- If an empty block is generated strip it out
+    Object [] -> object []
+    ifSectionObj -> mergeObjects (object [ "condition" .= toJSON cnd ]) ifSectionObj
+  toJSON (Conditional cnd ifSection (Just elseSection)) = case toJSON ifSection of
+    -- If an empty block is at the if statement negate the condition
+    Object [] -> toJSON (Conditional ("!(" ++ cnd ++ ")") elseSection Nothing)
+    ifSectionObj -> case toJSON elseSection of
+      Object [] -> toJSON (Conditional cnd ifSection Nothing)
+      elseSectionObj ->
+        object [ "condition" .= toJSON cnd
+               , "then" .= ifSectionObj
+               , "else" .= elseSectionObj
+               ]
+
+instance ToJSON AddSource where
+  toJSON = genericToJSON_
+
+instance ToJSON Dependency where
+  toJSON (Dependency d Nothing) = fromString d
+  toJSON (Dependency d (Just ref)) =
+      object ([ "name" .= d
+              ] `mappend` case toJSON ref of
+                              Object ps -> HashMap.toList ps
+                              _ -> mempty)
+
+instance ToJSON Executable where
+  toJSON = genericToJSON_
+
+instance ToJSON Library where
+  toJSON = genericToJSON_
+
+instance ToJSON [Flag] where
+  toJSON fs = Object $
+      HashMap.fromList $ map helper fs
+    where
+      helper Flag{..} = ( T.pack flagName
+                        , object [ "description" .= toJSON flagDescription
+                                 , "manual" .= toJSON flagManual
+                                 , "default" .= toJSON flagDefault
+                                 ]
+                        )
+
+instance ToJSON SourceRepository where
+  toJSON = genericToJSON_
+
 instance FromJSON PackageConfig where
   parseJSON value = handleNullValues <$> genericParseJSON_ value
     where
@@ -289,6 +566,60 @@ isNull name value = case parseMaybe p value of
   _ -> False
   where
     p = parseJSON >=> (.: fromString name)
+
+encodePackage :: Package -> ByteString
+encodePackage pkg = Yaml.encodePretty config pkg
+  where
+    config = Yaml.setConfCompare keyWeight Yaml.defConfig
+    keys = [ "condition"
+           , "then"
+           , "else"
+           , "name"
+           , "version"
+           , "synopsis"
+           , "description"
+           , "category"
+           , "author"
+           , "maintainer"
+           , "copyright"
+           , "license"
+           , "license-file"
+           , "github"
+           , "homepage"
+           , "git"
+           , "bug-reports"
+           , "main"
+           , "source-dirs"
+           , "extra-source-files"
+           , "c-sources"
+           , "default-extensions"
+           , "other-extensions"
+           , "ghc-options"
+           , "ghc-prof-options"
+           , "cc-options"
+           , "cpp-options"
+           , "ld-options"
+           , "extra-lib-dirs"
+           , "extra-libraries"
+           , "include-dirs"
+           , "install-includes"
+           , "build-tools"
+           , "exposed-modules"
+           , "dependencies"
+           , "buildable"
+           , "when"
+           , "library"
+           , "executables"
+           , "tests"
+           , "benchmarks"
+           ]
+    keyWeight k1 k2 =
+        fromMaybe maxBound (elemIndex k1 keys)
+        `compare`
+        fromMaybe maxBound (elemIndex k2 keys)
+
+writePackage :: FilePath -> Package -> IO ()
+writePackage fp pkg = ByteString.writeFile fp (encodePackage pkg)
 
 readPackageConfig :: FilePath -> IO (Either String ([String], Package))
 readPackageConfig file = do
@@ -337,7 +668,7 @@ instance FromJSON Dependency where
           subdir = o .:? "subdir"
 
 data AddSource = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show, Ord, Generic)
 
 type GitUrl = String
 type GitRef = String
@@ -365,20 +696,20 @@ data Package = Package {
 , packageExecutables :: [Section Executable]
 , packageTests :: [Section Executable]
 , packageBenchmarks :: [Section Executable]
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data Library = Library {
   libraryExposed :: Maybe Bool
 , libraryExposedModules :: [String]
 , libraryOtherModules :: [String]
 , libraryReexportedModules :: [String]
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data Executable = Executable {
   executableName :: String
 , executableMain :: FilePath
 , executableOtherModules :: [String]
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 data Section a = Section {
   sectionData :: a
@@ -399,13 +730,13 @@ data Section a = Section {
 , sectionBuildable :: Maybe Bool
 , sectionConditionals :: [Conditional]
 , sectionBuildTools :: [Dependency]
-} deriving (Eq, Show, Functor, Foldable, Traversable)
+} deriving (Eq, Show, Functor, Foldable, Traversable, Generic)
 
 data Conditional = Conditional {
   conditionalCondition :: String
 , conditionalThen :: Section ()
 , conditionalElse :: Maybe (Section ())
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 instance HasFieldNames a => HasFieldNames (Section a) where
   fieldNames Proxy = fieldNames (Proxy :: Proxy a) ++ fieldNames (Proxy :: Proxy CommonOptions)
@@ -426,7 +757,7 @@ data Flag = Flag {
 , flagDescription :: Maybe String
 , flagManual :: Bool
 , flagDefault :: Bool
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 toFlag :: (String, FlagSection) -> Flag
 toFlag (name, FlagSection description manual def) = Flag name description manual def
@@ -434,7 +765,7 @@ toFlag (name, FlagSection description manual def) = Flag name description manual
 data SourceRepository = SourceRepository {
   sourceRepositoryUrl :: String
 , sourceRepositorySubdir :: Maybe String
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
 
 mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
 mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do

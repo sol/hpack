@@ -3,4 +3,5 @@ packages:
 - '.'
 extra-deps:
 - aeson-0.11.0.0
+- unordered-containers-0.2.7.1
 resolver: lts-5.3
