@@ -5,7 +5,8 @@ import           Prelude ()
 import           Prelude.Compat
 
 import           Control.Monad
-import qualified Data.ByteString as ByteString
+import qualified Data.ByteString as ByteString hiding (pack, unpack)
+import qualified Data.ByteString.Char8 as ByteString (unpack)
 import           System.Directory
 import           System.FilePath
 import           Test.Hspec
@@ -47,7 +48,10 @@ spec =
               pkg <- readPackageFromCabal cabalFp
               Right (_, pkg') <- readPackageConfig expectationFp
               -- ByteString.writeFile (cabalFp ++ ".yaml.out.2") (encodePackage pkg')
-              encodePackage pkg' `shouldBe` encodePackage pkg
+
+              -- This is here to make sure encoding is consistent with the cabal
+              -- file encoding
+              ByteString.unpack (encodePackage pkg') `shouldBe` ByteString.unpack (encodePackage pkg)
 
     describe "simple generated cabal file" $ do
       it "cabal init -m" $ do
