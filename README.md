@@ -36,7 +36,7 @@
 | `github` | `source-repository head` | | Accepts `user/repo` or `user/repo/subdir` | `github: foo/bar`
 | `git`    | `source-repository head` | | No effect if `github` given | `git: https://my.repo.com/foo` |
 | `flags`  | `flag <name>` | | Map from flag name to flag (see **flags** section below) | |
-| `library` | `library` | | See **library fields** section below | |
+| `library` | `library` | | See **library field** section below | |
 | `executables` | `executable <name>` | | Map from executable name to executable (see **executable fields** section below) | |
 | `tests` | `test-suite <name>` | | Map from test name to test (see **test fields** section below) | |
 | `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see **benchmark fields** section below) | |
@@ -65,7 +65,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `build-tools` | `build-tools` | | |
 | `when` | | | Accepts a list of conditionals (see **conditionals** section below) |
 
-#### Library fields
+#### Library field
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
