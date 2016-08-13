@@ -813,10 +813,8 @@ spec = do
           (do
           touch "src/Main.hs"
           touch "src/Foo.hs"
-          touch "src/Bar.hs"
-          touch "src/Baz.lhs"
           )
-          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Bar", "Baz", "Foo"]]))
+          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Foo"]]))
 
       it "allows to specify other-modules" $ do
         withPackageConfig [i|

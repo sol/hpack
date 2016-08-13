@@ -37,8 +37,14 @@ spec = do
       parseMain "Foo.bar" `shouldBe` ("Foo.hs", ["-main-is Foo.bar"])
 
   describe "toModule" $ do
-    it "maps paths to module names" $ do
-      toModule ["Foo", "Bar", "Baz.hs"] `shouldBe` Just "Foo.Bar.Baz"
+    it "maps .hs paths to module names" $ do
+      toModule ["Foo", "Bar", "Baz.hs"]  `shouldBe` Just "Foo.Bar.Baz"
+
+    it "maps .lhs paths to module names" $ do
+      toModule ["Foo", "Bar", "Baz.lhs"] `shouldBe` Just "Foo.Bar.Baz"
+
+    it "maps .hsc paths to module names" $ do
+      toModule ["Foo", "Bar", "Baz.hsc"] `shouldBe` Just "Foo.Bar.Baz"
 
     it "rejects invalid module names" $ do
       toModule ["resources", "hello.hs"] `shouldBe` Nothing
