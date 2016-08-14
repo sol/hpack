@@ -479,10 +479,10 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
     )
 
   (extraSourceFilesWarnings, extraSourceFiles) <-
-    expandGlobs dir (fromMaybeList packageConfigExtraSourceFiles)
+    expandGlobs "extra-source-files" dir (fromMaybeList packageConfigExtraSourceFiles)
 
   (dataFilesWarnings, dataFiles) <-
-    expandGlobs dir (fromMaybeList packageConfigDataFiles)
+    expandGlobs "data-files" dir (fromMaybeList packageConfigDataFiles)
 
   let pkg = Package {
         packageName = name
