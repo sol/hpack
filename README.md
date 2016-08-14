@@ -9,6 +9,12 @@
 
 ## Documentation
 
+### Getting started
+
+One easy way of getting started is to use
+[hpack-convert](http://hackage.haskell.org/package/hpack-convert) to convert an
+existing cabal file into a `package.yaml`.
+
 ### Quick-reference
 
 #### Top-level fields
