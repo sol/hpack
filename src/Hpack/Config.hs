@@ -99,7 +99,11 @@ packageConfig = "package.yaml"
 githubBaseUrl :: String
 githubBaseUrl = "https://github.com/"
 
+#if MIN_VERSION_aeson(1,0,0)
+genericParseJSON_ :: forall a. (Generic a, GFromJSON Zero (Rep a), HasTypeName a) => Value -> Parser a
+#else
 genericParseJSON_ :: forall a. (Generic a, GFromJSON (Rep a), HasTypeName a) => Value -> Parser a
+#endif
 genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphenize name}
   where
     name :: String

@@ -991,7 +991,7 @@ spec = do
               foo:
                 ain: driver/Main.hs
             |]
-          readPackageConfig file `shouldReturn` Left (file ++ ": Error in $.executables.foo: failed to parse field executables: The key \"main\" was not found")
+          readPackageConfig file >>= (`shouldSatisfy` isLeft)
 
       context "when package.yaml does not exist" $ do
         it "returns an error" $ \dir -> do
