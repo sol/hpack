@@ -112,10 +112,10 @@ spec = do
         let input = [i|
               c-sources:
                 - foo.c
-                - bar.c
+                - bar/*.c
               |]
         captureUnknownFieldsValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionCSources = ["foo.c", "bar.c"]}
+          `shouldBe` Right (section Empty){sectionCSources = ["foo.c", "bar/*.c"]}
 
       it "accepts extra-lib-dirs" $ do
         let input = [i|
@@ -663,6 +663,30 @@ spec = do
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = ["alex", "happy"]}))
 
+      it "accepts c-sources" $ do
+        withPackageConfig [i|
+          library:
+            c-sources:
+              - cbits/*.c
+          |]
+          (do
+          touch "cbits/foo.c"
+          touch "cbits/bar.c"
+          )
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}))
+
+      it "accepts global c-sources" $ do
+        withPackageConfig [i|
+          c-sources:
+            - cbits/*.c
+          library: {}
+          |]
+          (do
+          touch "cbits/foo.c"
+          touch "cbits/bar.c"
+          )
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}))
+
       it "allows to specify exposed" $ do
         withPackageConfig_ [i|
           library:
@@ -888,6 +912,33 @@ spec = do
           |]
           (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]}]})
 
+      it "accepts c-sources" $ do
+        withPackageConfig [i|
+          executables:
+            foo:
+              main: driver/Main.hs
+              c-sources:
+                - cbits/*.c
+          |]
+          (do
+          touch "cbits/foo.c"
+          touch "cbits/bar.c"
+          )
+          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}]})
+
+      it "accepts global c-sources" $ do
+        withPackageConfig [i|
+          c-sources:
+            - cbits/*.c
+          executables:
+            foo:
+              main: driver/Main.hs
+          |]
+          (do
+          touch "cbits/foo.c"
+          touch "cbits/bar.c"
+          )
+          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}]})
 
     context "when reading test section" $ do
       it "warns on unknown fields" $ do

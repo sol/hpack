@@ -444,25 +444,27 @@ mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([
 mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
   let name = fromMaybe (takeBaseName dir) packageConfigName
 
-  mLibrary <- mapM (toLibrary dir name globalOptions) mLibrarySection
-  executables <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
-  tests <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
-  benchmarks <- toExecutables dir globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
+  (globalCSourcesWarnings, globalOptions') <- globSectionCSources dir globalOptions
+
+  mLibrary <- mapM (toLibrary dir name globalOptions') mLibrarySection
+  (executablesCSourcesWarnings, executables) <- toExecutables dir globalOptions' (map (fmap captureUnknownFieldsValue) executableSections)
+  (testsCSourcesWarnings, tests) <- toExecutables dir globalOptions' (map (fmap captureUnknownFieldsValue) testsSections)
+  (benchmarksCSourcesWarnings, benchmarks) <- toExecutables dir globalOptions'  (map (fmap captureUnknownFieldsValue) benchmarkSections)
 
   licenseFileExists <- doesFileExist (dir </> "LICENSE")
 
   missingSourceDirs <- nub . sort <$> filterM (fmap not <$> doesDirectoryExist . (dir </>)) (
-       maybe [] sectionSourceDirs mLibrary
+       maybe [] sectionSourceDirs (fmap snd mLibrary)
     ++ concatMap sectionSourceDirs executables
     ++ concatMap sectionSourceDirs tests
     ++ concatMap sectionSourceDirs benchmarks
     )
 
   (extraSourceFilesWarnings, extraSourceFiles) <-
-    expandGlobs dir (fromMaybeList packageConfigExtraSourceFiles)
+    expandGlobs "extra-source-files" dir (fromMaybeList packageConfigExtraSourceFiles)
 
   (dataFilesWarnings, dataFiles) <-
-    expandGlobs dir (fromMaybeList packageConfigDataFiles)
+    expandGlobs "data-files" dir (fromMaybeList packageConfigDataFiles)
 
   let pkg = Package {
         packageName = name
@@ -483,7 +485,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       , packageExtraSourceFiles = extraSourceFiles
       , packageDataFiles = dataFiles
       , packageSourceRepository = sourceRepository
-      , packageLibrary = mLibrary
+      , packageLibrary = fmap snd mLibrary
       , packageExecutables = executables
       , packageTests = tests
       , packageBenchmarks = benchmarks
@@ -496,6 +498,11 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
         ++ formatUnknownSectionFields "executable" executableSections
         ++ formatUnknownSectionFields "test" testsSections
         ++ formatMissingSourceDirs missingSourceDirs
+        ++ globalCSourcesWarnings
+        ++ fromMaybe [] (fmap fst mLibrary)
+        ++ executablesCSourcesWarnings
+        ++ testsCSourcesWarnings
+        ++ benchmarksCSourcesWarnings
         ++ extraSourceFilesWarnings
         ++ dataFilesWarnings
 
@@ -566,12 +573,23 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> github
 
-toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO (Section Library)
-toLibrary dir name globalOptions library = traverse fromLibrarySection sect
-  where
-    sect :: Section LibrarySection
-    sect = mergeSections globalOptions library
+-- | Expand the @c-sources@ globs in a 'Section' and return the modified
+-- 'Section' along with any warnings emitted.
+globSectionCSources :: FilePath -> Section a -> IO ([String], Section a)
+globSectionCSources dir sect = do
+  (cSourcesWarnings, cSourcesFiles) <-
+    expandGlobs "c-sources" dir (sectionCSources sect)
+  return (cSourcesWarnings, sect {sectionCSources = cSourcesFiles})
 
+toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO ([String], Section Library)
+toLibrary dir name globalOptions librarySection = do
+  (cSourcesWarnings, librarySection') <- globSectionCSources dir librarySection
+  library <- toLibrary' dir name (mergeSections globalOptions librarySection')
+  return (cSourcesWarnings, library)
+
+toLibrary' :: FilePath -> String -> Section LibrarySection -> IO (Section Library)
+toLibrary' dir name sect = traverse fromLibrarySection sect
+  where
     sourceDirs :: [FilePath]
     sourceDirs = sectionSourceDirs sect
 
@@ -582,26 +600,31 @@ toLibrary dir name globalOptions library = traverse fromLibrarySection sect
           reexportedModules = fromMaybeList librarySectionReexportedModules
       return (Library librarySectionExposed exposedModules otherModules reexportedModules)
 
-toExecutables :: FilePath -> Section global -> [(String, Section ExecutableSection)] -> IO [Section Executable]
-toExecutables dir globalOptions executables = mapM toExecutable sections
+toExecutables :: FilePath -> Section global -> [(String, Section ExecutableSection)] -> IO ([String], [Section Executable])
+toExecutables dir globalOptions executableSections = do
+  (warnings, executables) <- unzip <$> mapM (toExecutable dir globalOptions) executableSections
+  return (concat warnings, executables)
+
+toExecutable :: FilePath -> Section global -> (String, Section ExecutableSection) -> IO ([String], Section Executable)
+toExecutable dir globalOptions (name, executableSection) = do
+  (cSourcesWarnings, executableSection') <- globSectionCSources dir executableSection
+  executable <- toExecutable' dir name (mergeSections globalOptions executableSection')
+  return (cSourcesWarnings, executable)
+
+toExecutable' :: FilePath -> String -> Section ExecutableSection -> IO (Section Executable)
+toExecutable' dir name sect@Section{..} = do
+  (executable, ghcOptions) <- fromExecutableSection sectionData
+  return (sect {sectionData = executable, sectionGhcOptions = sectionGhcOptions ++ ghcOptions})
   where
-    sections :: [(String, Section ExecutableSection)]
-    sections = map (fmap $ mergeSections globalOptions) executables
-
-    toExecutable :: (String, Section ExecutableSection) -> IO (Section Executable)
-    toExecutable (name, sect@Section{..}) = do
-      (executable, ghcOptions) <- fromExecutableSection sectionData
-      return (sect {sectionData = executable, sectionGhcOptions = sectionGhcOptions ++ ghcOptions})
+    fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
+    fromExecutableSection ExecutableSection{..} = do
+      modules <- maybe (filterMain . concat <$> mapM (getModules dir) sectionSourceDirs) (return . fromList) executableSectionOtherModules
+      return (Executable name mainSrcFile modules, ghcOptions)
       where
-        fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
-        fromExecutableSection ExecutableSection{..} = do
-          modules <- maybe (filterMain . concat <$> mapM (getModules dir) sectionSourceDirs) (return . fromList) executableSectionOtherModules
-          return (Executable name mainSrcFile modules, ghcOptions)
-          where
-            filterMain :: [String] -> [String]
-            filterMain = maybe id (filter . (/=)) (toModule $ splitDirectories executableSectionMain)
+        filterMain :: [String] -> [String]
+        filterMain = maybe id (filter . (/=)) (toModule $ splitDirectories executableSectionMain)
 
-            (mainSrcFile, ghcOptions) = parseMain executableSectionMain
+        (mainSrcFile, ghcOptions) = parseMain executableSectionMain
 
 mergeSections :: Section global -> Section a -> Section a
 mergeSections globalOptions options
