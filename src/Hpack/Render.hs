@@ -87,16 +87,20 @@ renderValue RenderSettings{..} v = case v of
   CommaSeparatedList xs -> renderCommaSeparatedList renderSettingsCommaStyle xs
 
 renderLineSeparatedList :: CommaStyle -> [String] -> Lines
-renderLineSeparatedList style = MultipleLines . map (padding ++)
+renderLineSeparatedList style = MultipleLines . map (padding ++) . map renderListValue
   where
     padding = case style of
       LeadingCommas -> "  "
       TrailingCommas -> ""
 
+renderListValue :: String -> String
+renderListValue "." = "./."
+renderListValue s = s
+
 renderCommaSeparatedList :: CommaStyle -> [String] -> Lines
 renderCommaSeparatedList style = MultipleLines . case style of
-  LeadingCommas -> map renderLeadingComma . zip (True : repeat False)
-  TrailingCommas -> map renderTrailingComma . reverse . zip (True : repeat False) . reverse
+  LeadingCommas -> map renderLeadingComma . zip (True : repeat False) . map renderListValue
+  TrailingCommas -> map renderTrailingComma . reverse . zip (True : repeat False) . reverse . map renderListValue
   where
     renderLeadingComma :: (Bool, String) -> String
     renderLeadingComma (isFirst, x)

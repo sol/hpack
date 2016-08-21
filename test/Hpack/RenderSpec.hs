@@ -72,6 +72,15 @@ spec = do
             let field = Field "foo" (CommaSeparatedList [])
             render_ field `shouldBe` []
 
+        context "when rendering a dot" $ do
+          it "replaces it with ./." $ do
+            let field = Field "foo" (CommaSeparatedList ["something", "."])
+            render defaultRenderSettings 1 field `shouldBe` [
+                "  foo:"
+              , "      something"
+              , "    , ./."
+              ]
+
       context "when rendering a SingleLine value" $ do
         it "returns a single line" $ do
           let field = Field "foo" (Literal "bar")
