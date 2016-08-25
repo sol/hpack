@@ -62,8 +62,8 @@ import           Hpack.GenericsUtil
 import           Hpack.Util
 import           Hpack.Yaml
 
-package :: String -> String -> Package
-package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] []
+package :: String -> String -> String -> Package
+package name version btype = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing btype Nothing [] [] [] Nothing Nothing [] [] []
 
 renamePackage :: String -> Package -> Package
 renamePackage name p@Package{..} = p {
@@ -360,6 +360,7 @@ data Package = Package {
 , packageCopyright :: [String]
 , packageLicense :: Maybe String
 , packageLicenseFile :: Maybe FilePath
+, packageBuildType :: String
 , packageTestedWith :: Maybe String
 , packageFlags :: [Flag]
 , packageExtraSourceFiles :: [FilePath]
@@ -451,6 +452,9 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
 
   licenseFileExists <- doesFileExist (dir </> "LICENSE")
 
+  setupFileExists <- liftM2 (||) (doesFileExist $ dir </> "Setup.hs")
+                     (doesFileExist $ dir </> "Setup.lhs")
+
   missingSourceDirs <- nub . sort <$> filterM (fmap not <$> doesDirectoryExist . (dir </>)) (
        maybe [] sectionSourceDirs mLibrary
     ++ concatMap sectionSourceDirs executables
@@ -478,6 +482,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       , packageCopyright = fromMaybeList packageConfigCopyright
       , packageLicense = packageConfigLicense
       , packageLicenseFile = packageConfigLicenseFile <|> (guard licenseFileExists >> Just "LICENSE")
+      , packageBuildType = if setupFileExists then "Custom" else "Simple"
       , packageTestedWith = packageConfigTestedWith
       , packageFlags = flags
       , packageExtraSourceFiles = extraSourceFiles

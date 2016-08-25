@@ -24,7 +24,7 @@ import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
 
 package :: Package
-package = Config.package "foo" "0.0.0"
+package = Config.package "foo" "0.0.0" "Simple"
 
 executable :: String -> String -> Executable
 executable name main_ = Executable name main_ []
