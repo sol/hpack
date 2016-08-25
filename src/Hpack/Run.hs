@@ -100,7 +100,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
       , ("license", packageLicense)
       , ("license-file", packageLicenseFile)
       , ("tested-with", packageTestedWith)
-      , ("build-type", Just "Simple")
+      , ("build-type", Just packageBuildType)
       , ("cabal-version", cabalVersion)
       ]
 
