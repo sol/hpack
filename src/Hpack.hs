@@ -35,7 +35,7 @@ import           Hpack.Config
 import           Hpack.Run
 
 programVersion :: Version -> String
-programVersion v = "hpack version " ++ Version.showVersion v
+programVersion v = "hpack (custom) version " ++ Version.showVersion v
 
 header :: Version -> String
 header v = unlines [
