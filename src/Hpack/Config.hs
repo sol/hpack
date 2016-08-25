@@ -62,8 +62,8 @@ import           Hpack.GenericsUtil
 import           Hpack.Util
 import           Hpack.Yaml
 
-package :: String -> String -> Package
-package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing [] Nothing [] [] [] Nothing Nothing [] [] []
+package :: String -> String -> String -> Package
+package name version btype = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing btype Nothing [] [] [] Nothing Nothing [] [] []
 
 renamePackage :: String -> Package -> Package
 renamePackage name p@Package{..} = p {
