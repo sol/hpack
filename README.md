@@ -31,11 +31,11 @@ existing cabal file into a `package.yaml`.
 | `bug-reports` | `bug-reports` | If `github` given, `<repo>/issues` | | |
 | `author` | `author` | | May be a list | |
 | `maintainer` | `maintainer` | | May be a list | |
-| `copyright` | `copyright`          |                                    | May be a list         |
+| `copyright` | `copyright` | | May be a list |
 | `license` | `license` | | | |
 | `license-file` | `license-file` | `LICENSE` if file exists | | |
 | `tested-with` | `tested-with` | | | |
-| | `build-type` | `Simple` | | |
+| `build-type` | `build-type` | `Simple` | Must be `Simple`, `Configure`, `Make`, or `Custom` | |
 | | `cabal-version` | `>= 1.10` or `>= 1.21` | `>= 1.21` if library component has `reexported-modules` field | |
 | `extra-source-files` | `extra-source-files` | | Accepts glob patterns | |
 | `data-files` | `data-files` | | Accepts glob patterns | |

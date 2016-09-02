@@ -5,6 +5,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -36,6 +37,7 @@ module Hpack.Config (
 , Empty(..)
 , getModules
 , determineModules
+, BuildType(..)
 #endif
 ) where
 
@@ -63,7 +65,7 @@ import           Hpack.Util
 import           Hpack.Yaml
 
 package :: String -> String -> Package
-package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] []
+package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Simple Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] []
 
 renamePackage :: String -> Package -> Package
 renamePackage name p@Package{..} = p {
@@ -246,6 +248,22 @@ instance FromJSON Empty where
 instance HasFieldNames Empty where
   fieldNames _ = []
 
+-- From Cabal the library, copied here to avoid a dependency on Cabal.
+data BuildType
+  = Simple
+  | Configure
+  | Make
+  | Custom
+  deriving (Eq, Show, Generic)
+
+instance FromJSON BuildType where
+  parseJSON = withText "String" $ \case
+    "Simple"    -> return Simple
+    "Configure" -> return Configure
+    "Make"      -> return Make
+    "Custom"    -> return Custom
+    _           -> fail "build-type must be one of: Simple, Configure, Make, Custom"
+
 data PackageConfig = PackageConfig {
   packageConfigName :: Maybe String
 , packageConfigVersion :: Maybe String
@@ -258,6 +276,7 @@ data PackageConfig = PackageConfig {
 , packageConfigAuthor :: Maybe (List String)
 , packageConfigMaintainer :: Maybe (List String)
 , packageConfigCopyright :: Maybe (List String)
+, packageConfigBuildType :: Maybe BuildType
 , packageConfigLicense :: Maybe String
 , packageConfigLicenseFile :: Maybe String
 , packageConfigTestedWith :: Maybe String
@@ -358,6 +377,7 @@ data Package = Package {
 , packageAuthor :: [String]
 , packageMaintainer :: [String]
 , packageCopyright :: [String]
+, packageBuildType :: BuildType
 , packageLicense :: Maybe String
 , packageLicenseFile :: Maybe FilePath
 , packageTestedWith :: Maybe String
@@ -476,6 +496,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       , packageAuthor = fromMaybeList packageConfigAuthor
       , packageMaintainer = fromMaybeList packageConfigMaintainer
       , packageCopyright = fromMaybeList packageConfigCopyright
+      , packageBuildType = fromMaybe Simple packageConfigBuildType
       , packageLicense = packageConfigLicense
       , packageLicenseFile = packageConfigLicenseFile <|> (guard licenseFileExists >> Just "LICENSE")
       , packageTestedWith = packageConfigTestedWith
