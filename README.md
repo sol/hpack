@@ -24,7 +24,7 @@ existing cabal file into a `package.yaml`.
 | `name` | `name` | | | |
 | `version` | `version` | `0.0.0` | | |
 | `synopsis` | `synopsis` | | | |
-| `description` | `description` | | | |
+| `description` | `description` | `synopsis` field | | |
 | `category` | `category` | | | |
 | `stability` | `stability` | | | |
 | `homepage` | `homepage` | If `github` given, `<repo>#readme` | | |
