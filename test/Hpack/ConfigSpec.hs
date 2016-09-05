@@ -457,6 +457,33 @@ spec = do
         |]
         (packageLicenseFile >>> (`shouldBe` Just "FOO"))
 
+    it "accepts build-type: Simple" $ do
+      withPackageConfig_ [i|
+        build-type: Simple
+        |]
+        (`shouldBe` package {packageBuildType = Simple})
+
+    it "accepts build-type: Configure" $ do
+      withPackageConfig_ [i|
+        build-type: Configure
+        |]
+        (`shouldBe` package {packageBuildType = Configure})
+
+    it "accepts build-type: Make" $ do
+      withPackageConfig_ [i|
+        build-type: Make
+        |]
+        (`shouldBe` package {packageBuildType = Make})
+
+    it "accepts build-type: Custom" $ do
+      withPackageConfig_ [i|
+        build-type: Custom
+        |]
+        (`shouldBe` package {packageBuildType = Custom})
+
+    it "rejects unknown build-type" $ do
+      parseEither parseJSON (String "foobar") `shouldBe` (Left "Error in $: build-type must be one of: Simple, Configure, Make, Custom" :: Either String BuildType)
+
     it "accepts flags" $ do
       withPackageConfig_ [i|
         flags:
