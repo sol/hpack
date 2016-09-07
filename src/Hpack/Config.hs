@@ -187,7 +187,7 @@ data CommonOptions = CommonOptions {
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
-, commonOptionsCCOptions :: Maybe (List CCOption)
+, commonOptionsCcOptions :: Maybe (List CcOption)
 , commonOptionsCSources :: Maybe (List FilePath)
 , commonOptionsExtraLibDirs :: Maybe (List FilePath)
 , commonOptionsExtraLibraries :: Maybe (List FilePath)
@@ -413,7 +413,7 @@ data Section a = Section {
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
 , sectionCppOptions :: [CppOption]
-, sectionCCOptions :: [CCOption]
+, sectionCcOptions :: [CcOption]
 , sectionCSources :: [FilePath]
 , sectionExtraLibDirs :: [FilePath]
 , sectionExtraLibraries :: [FilePath]
@@ -634,7 +634,7 @@ mergeSections globalOptions options
   , sectionGhcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
   , sectionGhcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
   , sectionCppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
-  , sectionCCOptions = sectionCCOptions globalOptions ++ sectionCCOptions options
+  , sectionCcOptions = sectionCcOptions globalOptions ++ sectionCcOptions options
   , sectionCSources = sectionCSources globalOptions ++ sectionCSources options
   , sectionExtraLibDirs = sectionExtraLibDirs globalOptions ++ sectionExtraLibDirs options
   , sectionExtraLibraries = sectionExtraLibraries globalOptions ++ sectionExtraLibraries options
@@ -658,7 +658,7 @@ toSection a CommonOptions{..}
       , sectionGhcOptions = fromMaybeList commonOptionsGhcOptions
       , sectionGhcProfOptions = fromMaybeList commonOptionsGhcProfOptions
       , sectionCppOptions = fromMaybeList commonOptionsCppOptions
-      , sectionCCOptions = fromMaybeList commonOptionsCCOptions
+      , sectionCcOptions = fromMaybeList commonOptionsCcOptions
       , sectionCSources = fromMaybeList commonOptionsCSources
       , sectionExtraLibDirs = fromMaybeList commonOptionsExtraLibDirs
       , sectionExtraLibraries = fromMaybeList commonOptionsExtraLibraries

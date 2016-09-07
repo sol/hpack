@@ -591,9 +591,9 @@ spec = do
             cc-options: -O0
         |]
         (`shouldBe` package {
-          packageLibrary = Just (section library) {sectionCCOptions = ["-Wall", "-fLIB"]}
-        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionCCOptions = ["-Wall", "-O2"]}]
-        , packageTests = [(section $ executable "spec" "Spec.hs") {sectionCCOptions = ["-Wall", "-O0"]}]
+          packageLibrary = Just (section library) {sectionCcOptions = ["-Wall", "-fLIB"]}
+        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionCcOptions = ["-Wall", "-O2"]}]
+        , packageTests = [(section $ executable "spec" "Spec.hs") {sectionCcOptions = ["-Wall", "-O0"]}]
         }
         )
 

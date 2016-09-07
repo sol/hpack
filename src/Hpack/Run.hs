@@ -209,7 +209,7 @@ renderSection Section{..} = [
   , renderGhcOptions sectionGhcOptions
   , renderGhcProfOptions sectionGhcProfOptions
   , renderCppOptions sectionCppOptions
-  , renderCCOptions sectionCCOptions
+  , renderCcOptions sectionCcOptions
   , Field "include-dirs" (LineSeparatedList sectionIncludeDirs)
   , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
   , Field "c-sources" (LineSeparatedList sectionCSources)
@@ -256,8 +256,8 @@ renderGhcProfOptions = Field "ghc-prof-options" . WordList
 renderCppOptions :: [CppOption] -> Element
 renderCppOptions = Field "cpp-options" . WordList
 
-renderCCOptions :: [CCOption] -> Element
-renderCCOptions = Field "cc-options" . WordList
+renderCcOptions :: [CcOption] -> Element
+renderCcOptions = Field "cc-options" . WordList
 
 renderLdOptions :: [LdOption] -> Element
 renderLdOptions = Field "ld-options" . WordList
