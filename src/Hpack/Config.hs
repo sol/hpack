@@ -464,10 +464,14 @@ mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([
 mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
   let name = fromMaybe (takeBaseName dir) packageConfigName
 
-  mLibrary <- mapM (toLibrary dir name globalOptions) mLibrarySection
-  executables <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
-  tests <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
-  benchmarks <- toExecutables dir globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
+  libraryResult <- mapM (toLibrary dir name globalOptions) mLibrarySection
+  let
+    mLibrary = fmap snd libraryResult
+    libraryWarnings = maybe [] fst libraryResult
+
+  (executablesWarnings, executables) <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
+  (testsWarnings, tests) <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
+  (benchmarksWarnings, benchmarks) <- toExecutables dir globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
 
   licenseFileExists <- doesFileExist (dir </> "LICENSE")
 
@@ -517,6 +521,10 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
         ++ formatUnknownSectionFields "executable" executableSections
         ++ formatUnknownSectionFields "test" testsSections
         ++ formatMissingSourceDirs missingSourceDirs
+        ++ libraryWarnings
+        ++ executablesWarnings
+        ++ testsWarnings
+        ++ benchmarksWarnings
         ++ extraSourceFilesWarnings
         ++ dataFilesWarnings
 
@@ -587,8 +595,13 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> github
 
-toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO (Section Library)
-toLibrary dir name globalOptions library = traverse fromLibrarySection sect
+expandCSources :: FilePath -> Section a -> IO ([String], Section a)
+expandCSources dir sect@Section{..} = do
+  (warnings, files) <- expandGlobs "c-sources" dir sectionCSources
+  return (warnings, sect {sectionCSources = files})
+
+toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO ([String], Section Library)
+toLibrary dir name globalOptions library = traverse fromLibrarySection sect >>= expandCSources dir
   where
     sect :: Section LibrarySection
     sect = mergeSections globalOptions library
@@ -603,8 +616,11 @@ toLibrary dir name globalOptions library = traverse fromLibrarySection sect
           reexportedModules = fromMaybeList librarySectionReexportedModules
       return (Library librarySectionExposed exposedModules otherModules reexportedModules)
 
-toExecutables :: FilePath -> Section global -> [(String, Section ExecutableSection)] -> IO [Section Executable]
-toExecutables dir globalOptions executables = mapM toExecutable sections
+toExecutables :: FilePath -> Section global -> [(String, Section ExecutableSection)] -> IO ([String], [Section Executable])
+toExecutables dir globalOptions executables = do
+  result <- mapM toExecutable sections >>= mapM (expandCSources dir)
+  let (warnings, xs) = unzip result
+  return (concat warnings, xs)
   where
     sections :: [(String, Section ExecutableSection)]
     sections = map (fmap $ mergeSections globalOptions) executables
