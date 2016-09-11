@@ -97,22 +97,22 @@ spec = do
   describe "expandGlobs" $ around withTempDirectory $ do
     it "accepts simple files" $ \dir -> do
         touch (dir </> "foo.js")
-        expandGlobs "" dir ["foo.js"] `shouldReturn` ([], ["foo.js"])
+        expandGlobs "field-name" dir ["foo.js"] `shouldReturn` ([], ["foo.js"])
 
     it "removes duplicates" $ \dir -> do
       touch (dir </> "foo.js")
-      expandGlobs "" dir ["foo.js", "*.js"] `shouldReturn` ([], ["foo.js"])
+      expandGlobs "field-name" dir ["foo.js", "*.js"] `shouldReturn` ([], ["foo.js"])
 
     it "rejects directories" $ \dir -> do
       touch (dir </> "foo")
       createDirectory (dir </> "bar")
-      expandGlobs "" dir ["*"] `shouldReturn` ([], ["foo"])
+      expandGlobs "field-name" dir ["*"] `shouldReturn` ([], ["foo"])
 
     it "rejects character ranges" $ \dir -> do
       touch (dir </> "foo1")
       touch (dir </> "foo2")
       touch (dir </> "foo[1,2]")
-      expandGlobs "" dir ["foo[1,2]"] `shouldReturn` ([], ["foo[1,2]"])
+      expandGlobs "field-name" dir ["foo[1,2]"] `shouldReturn` ([], ["foo[1,2]"])
 
     context "when expanding *" $ do
       it "expands by extension" $ \dir -> do
@@ -122,36 +122,36 @@ spec = do
               , "files/baz.js"]
         mapM_ (touch . (dir </>)) files
         touch (dir </> "files/foo.hs")
-        expandGlobs "" dir ["files/*.js"] `shouldReturn` ([], sort files)
+        expandGlobs "field-name" dir ["files/*.js"] `shouldReturn` ([], sort files)
 
       it "rejects dot-files" $ \dir -> do
         touch (dir </> "foo/bar")
         touch (dir </> "foo/.baz")
-        expandGlobs "" dir ["foo/*"] `shouldReturn` ([], ["foo/bar"])
+        expandGlobs "field-name" dir ["foo/*"] `shouldReturn` ([], ["foo/bar"])
 
       it "accepts dot-files when explicitly asked to" $ \dir -> do
         touch (dir </> "foo/bar")
         touch (dir </> "foo/.baz")
-        expandGlobs "" dir ["foo/.*"] `shouldReturn` ([], ["foo/.baz"])
+        expandGlobs "field-name" dir ["foo/.*"] `shouldReturn` ([], ["foo/.baz"])
 
       it "matches at most one directory component" $ \dir -> do
         touch (dir </> "foo/bar/baz.js")
         touch (dir </> "foo/bar.js")
-        expandGlobs "" dir ["*/*.js"] `shouldReturn` ([], ["foo/bar.js"])
+        expandGlobs "field-name" dir ["*/*.js"] `shouldReturn` ([], ["foo/bar.js"])
 
     context "when expanding **" $ do
       it "matches arbitrary many directory components" $ \dir -> do
         let file = "foo/bar/baz.js"
         touch (dir </> file)
-        expandGlobs "" dir ["**/*.js"] `shouldReturn` ([], [file])
+        expandGlobs "field-name" dir ["**/*.js"] `shouldReturn` ([], [file])
 
     context "when a pattern does not match anything" $ do
       it "warns" $ \dir -> do
-        expandGlobs "XXX" dir ["foo"] `shouldReturn`
-          (["Specified pattern \"foo\" for XXX does not match any files"], [])
+        expandGlobs "field-name" dir ["foo"] `shouldReturn`
+          (["Specified pattern \"foo\" for field-name does not match any files"], [])
 
     context "when a pattern only matches a directory" $ do
       it "warns" $ \dir -> do
         createDirectory (dir </> "foo")
-        expandGlobs "XXX" dir ["foo"] `shouldReturn`
-          (["Specified pattern \"foo\" for XXX does not match any files"], [])
+        expandGlobs "field-name" dir ["foo"] `shouldReturn`
+          (["Specified pattern \"foo\" for field-name does not match any files"], [])
