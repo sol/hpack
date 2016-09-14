@@ -30,6 +30,8 @@ library
     , filepath
     , Glob
     , text
+    , transformers
+    , transformers-compat
     , containers
     , unordered-containers
     , yaml
@@ -43,8 +45,10 @@ library
       Hpack.FormattingHints
       Hpack.GenericsUtil
       Hpack.Haskell
+      Hpack.OptionalExposure
       Hpack.Render
       Hpack.Util
+      Hpack.VersionRange
       Paths_hpack
   default-language: Haskell2010
 
@@ -61,6 +65,8 @@ executable hpack
     , filepath
     , Glob
     , text
+    , transformers
+    , transformers-compat
     , containers
     , unordered-containers
     , yaml
@@ -84,6 +90,8 @@ test-suite spec
     , filepath
     , Glob
     , text
+    , transformers
+    , transformers-compat
     , containers
     , unordered-containers
     , yaml
@@ -100,17 +108,21 @@ test-suite spec
       Hpack.FormattingHintsSpec
       Hpack.GenericsUtilSpec
       Hpack.HaskellSpec
+      Hpack.OptionalExposureSpec
       Hpack.RenderSpec
       Hpack.RunSpec
       Hpack.UtilSpec
+      Hpack.VersionRangeSpec
       HpackSpec
       Hpack
       Hpack.Config
       Hpack.FormattingHints
       Hpack.GenericsUtil
       Hpack.Haskell
+      Hpack.OptionalExposure
       Hpack.Render
       Hpack.Run
       Hpack.Util
+      Hpack.VersionRange
       Hpack.Yaml
   default-language: Haskell2010

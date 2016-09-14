@@ -16,6 +16,8 @@ dependencies:
   - filepath
   - Glob
   - text
+  - transformers
+  - transformers-compat
   - containers
   - unordered-containers
   - yaml

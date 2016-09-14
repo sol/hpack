@@ -30,11 +30,12 @@ import           System.FilePath
 
 import           Hpack.Util
 import           Hpack.Config
+import           Hpack.OptionalExposure
 import           Hpack.Render
 import           Hpack.FormattingHints
 
-run :: FilePath -> IO ([String], FilePath, String)
-run dir = do
+run :: BuildPlan -> FilePath -> IO ([String], FilePath, String)
+run buildPlan dir = do
   mPackage <- readPackageConfig (dir </> packageConfig)
   case mPackage of
     Right (warnings, pkg) -> do
@@ -47,13 +48,13 @@ run dir = do
         alignment = fromMaybe 16 formattingHintsAlignment
         settings = formattingHintsRenderSettings
 
-        output = renderPackage settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder pkg
+        output = renderPackage settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder buildPlan pkg
 
       return (warnings, cabalFile, output)
     Left err -> die err
 
-renderPackage :: RenderSettings -> Alignment -> [String] -> [(String, [String])] -> Package -> String
-renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
+renderPackage :: RenderSettings -> Alignment -> [String] -> [(String, [String])] -> BuildPlan -> Package -> String
+renderPackage settings alignment existingFieldOrder sectionsFieldOrder buildPlan Package{..} = intercalate "\n" (unlines header : chunks)
   where
     chunks :: [String]
     chunks = map unlines . filter (not . null) . map (render settings 0) $ sortSectionFields sectionsFieldOrder stanzas
@@ -69,7 +70,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
 
     sourceRepository = maybe [] (return . renderSourceRepository) packageSourceRepository
 
-    library = maybe [] (return . renderLibrary) packageLibrary
+    library = maybe [] (return . renderLibrary buildPlan) packageLibrary
 
     stanzas :: [Element]
     stanzas =
@@ -183,26 +184,28 @@ renderBenchmark sect@(sectionData -> Executable{..}) =
 
 renderExecutableSection :: Section Executable -> [Element]
 renderExecutableSection sect@(sectionData -> Executable{..}) =
-  mainIs : renderSection sect ++ [otherModules, defaultLanguage]
+  mainIs : renderSection [] sect ++ [otherModules, defaultLanguage]
   where
     mainIs = Field "main-is" (Literal executableMain)
     otherModules = renderOtherModules executableOtherModules
 
-renderLibrary :: Section Library -> Element
-renderLibrary sect@(sectionData -> Library{..}) = Stanza "library" $
-  renderSection sect ++
+renderLibrary :: BuildPlan -> Section Library -> Element
+renderLibrary buildPlan sect@(sectionData -> Library{..}) = Stanza "library" $
+  renderSection (concat optDep) sect ++
   maybe [] (return . renderExposed) libraryExposed ++ [
-    renderExposedModules libraryExposedModules
+    renderExposedModules (libraryExposedModules ++ concat optExp)
   , renderOtherModules libraryOtherModules
   , renderReexportedModules libraryReexportedModules
   , defaultLanguage
   ]
+  where (optDep, optExp) =
+          unzip $ map (optionallyExposed buildPlan) libraryOptionallyExposed
 
 renderExposed :: Bool -> Element
 renderExposed = Field "exposed" . Literal . show
 
-renderSection :: Section a -> [Element]
-renderSection Section{..} = [
+renderSection :: [String] -> Section a -> [Element]
+renderSection optionalDeps Section{..} = [
     renderSourceDirs sectionSourceDirs
   , renderDefaultExtensions sectionDefaultExtensions
   , renderOtherExtensions sectionOtherExtensions
@@ -216,7 +219,7 @@ renderSection Section{..} = [
   , Field "extra-lib-dirs" (LineSeparatedList sectionExtraLibDirs)
   , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
   , renderLdOptions sectionLdOptions
-  , renderDependencies sectionDependencies
+  , renderDependencies (sectionDependencies ++ map (flip Dependency Nothing) optionalDeps)
   , renderBuildTools sectionBuildTools
   ]
   ++ maybe [] (return . renderBuildable) sectionBuildable
@@ -225,9 +228,9 @@ renderSection Section{..} = [
 renderConditional :: Conditional -> Element
 renderConditional (Conditional condition sect mElse) = case mElse of
   Nothing -> if_
-  Just else_ -> Group if_ (Stanza "else" $ renderSection else_)
+  Just else_ -> Group if_ (Stanza "else" $ renderSection [] else_)
   where
-    if_ = Stanza ("if " ++ condition) (renderSection sect)
+    if_ = Stanza ("if " ++ condition) (renderSection [] sect)
 
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"
