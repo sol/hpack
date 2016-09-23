@@ -323,3 +323,11 @@ spec = do
           , "  location: https://github.com/hspec/hspec"
           , "  subdir: hspec-core"
           ]
+
+  describe "renderDirectories" $ do
+    it "replaces . with ./. (for compatibility with cabal syntax)" $ do
+      (render defaultRenderSettings 0 $ renderDirectories "name" ["."])
+        `shouldBe` [
+            "name:"
+          , "    ./."
+          ]

@@ -14,6 +14,7 @@ module Hpack.Run (
 , renderConditional
 , renderFlag
 , renderSourceRepository
+, renderDirectories
 , formatDescription
 #endif
 ) where
@@ -203,17 +204,17 @@ renderExposed = Field "exposed" . Literal . show
 
 renderSection :: Section a -> [Element]
 renderSection Section{..} = [
-    renderSourceDirs sectionSourceDirs
+    renderDirectories "hs-source-dirs" sectionSourceDirs
   , renderDefaultExtensions sectionDefaultExtensions
   , renderOtherExtensions sectionOtherExtensions
   , renderGhcOptions sectionGhcOptions
   , renderGhcProfOptions sectionGhcProfOptions
   , renderCppOptions sectionCppOptions
   , renderCcOptions sectionCcOptions
-  , Field "include-dirs" (LineSeparatedList sectionIncludeDirs)
+  , renderDirectories "include-dirs" sectionIncludeDirs
   , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
   , Field "c-sources" (LineSeparatedList sectionCSources)
-  , Field "extra-lib-dirs" (LineSeparatedList sectionExtraLibDirs)
+  , renderDirectories "extra-lib-dirs" sectionExtraLibDirs
   , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
   , renderLdOptions sectionLdOptions
   , renderDependencies sectionDependencies
@@ -232,8 +233,13 @@ renderConditional (Conditional condition sect mElse) = case mElse of
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"
 
-renderSourceDirs :: [String] -> Element
-renderSourceDirs = Field "hs-source-dirs" . CommaSeparatedList
+renderDirectories :: String -> [String] -> Element
+renderDirectories name = Field name . LineSeparatedList . replaceDots
+  where
+    replaceDots = map replaceDot
+    replaceDot xs = case xs of
+      "." -> "./."
+      _ -> xs
 
 renderExposedModules :: [String] -> Element
 renderExposedModules = Field "exposed-modules" . LineSeparatedList
