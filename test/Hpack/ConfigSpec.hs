@@ -306,6 +306,7 @@ spec = do
   describe "readPackageConfig" $ do
     it "warns on unknown fields" $ do
       withPackageWarnings_ [i|
+        name: foo
         bar: 23
         baz: 42
         |]
@@ -317,6 +318,7 @@ spec = do
 
     it "warns on unknown fields in when block, list" $ do
       withPackageWarnings_ [i|
+        name: foo
         when:
           - condition: impl(ghc)
             bar: 23
@@ -330,6 +332,7 @@ spec = do
 
     it "warns on unknown fields in when block, single" $ do
       withPackageWarnings_ [i|
+        name: foo
         when:
           condition: impl(ghc)
           github: foo/bar
@@ -341,6 +344,21 @@ spec = do
         , "Ignoring unknown field \"github\" in package description"
         ]
         )
+
+    it "warns on missing name" $ do
+      withPackageWarnings_ [i|
+        {}
+        |]
+        (`shouldBe` [
+          "Package name not specified, inferred \"foo\""
+        ]
+        )
+
+    it "infers name" $ do
+      withPackageConfig_ [i|
+        {}
+        |]
+        (packageName >>> (`shouldBe` "foo"))
 
     it "accepts name" $ do
       withPackageConfig_ [i|
@@ -496,6 +514,7 @@ spec = do
 
     it "warns on unknown fields in flag sections" $ do
       withPackageWarnings_ [i|
+        name: foo
         flags:
           integration-tests:
             description: Run the integration test suite
@@ -626,6 +645,7 @@ spec = do
     context "when reading library section" $ do
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|
+          name: foo
           library:
             bar: 23
             baz: 42
@@ -779,6 +799,7 @@ spec = do
     context "when reading executable section" $ do
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|
+          name: foo
           executables:
             foo:
               main: Main.hs
@@ -970,6 +991,7 @@ spec = do
     context "when reading test section" $ do
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|
+          name: foo
           tests:
             foo:
               main: Main.hs
@@ -1026,6 +1048,7 @@ spec = do
     context "when a specified source directory does not exist" $ do
       it "warns" $ do
         withPackageWarnings [i|
+          name: foo
           source-dirs:
             - some-dir
             - some-existing-dir

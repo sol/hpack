@@ -462,7 +462,9 @@ data SourceRepository = SourceRepository {
 
 mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
 mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
-  let name = fromMaybe (takeBaseName dir) packageConfigName
+  let
+    (nameWarnings, name) = maybe (["Package name not specified, inferred " ++ show inferredName], inferredName) ((,) []) packageConfigName
+      where inferredName = takeBaseName dir
 
   libraryResult <- mapM (toLibrary dir name globalOptions) mLibrarySection
   let
@@ -516,6 +518,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
 
       warnings =
            formatUnknownFields "package description" unknownFields
+        ++ nameWarnings
         ++ flagWarnings
         ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary)
         ++ formatUnknownSectionFields "executable" executableSections
