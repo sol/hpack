@@ -5,6 +5,8 @@ maintainer: Simon Hengel <sol@typeful.net>
 license: MIT
 github: sol/hpack
 category: Development
+extra-source-files:
+  - README.md
 
 ghc-options: -Wall
 
