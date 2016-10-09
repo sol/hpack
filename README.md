@@ -37,15 +37,15 @@ existing cabal file into a `package.yaml`.
 | `tested-with` | `tested-with` | | | |
 | `build-type` | `build-type` | `Simple` | Must be `Simple`, `Configure`, `Make`, or `Custom` | |
 | | `cabal-version` | `>= 1.10` or `>= 1.21` | `>= 1.21` if library component has `reexported-modules` field | |
-| `extra-source-files` | `extra-source-files` | | Accepts glob patterns | |
-| `data-files` | `data-files` | | Accepts glob patterns | |
+| `extra-source-files` | `extra-source-files` | | Accepts [glob patterns](#file-globbing) | |
+| `data-files` | `data-files` | | Accepts [glob patterns](#file-globbing) | |
 | `github` | `source-repository head` | | Accepts `user/repo` or `user/repo/subdir` | `github: foo/bar`
 | `git`    | `source-repository head` | | No effect if `github` given | `git: https://my.repo.com/foo` |
-| `flags`  | `flag <name>` | | Map from flag name to flag (see **flags** section below) | |
-| `library` | `library` | | See **library fields** section below | |
-| `executables` | `executable <name>` | | Map from executable name to executable (see **executable fields** section below) | |
-| `tests` | `test-suite <name>` | | Map from test name to test (see **test fields** section below) | |
-| `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see **benchmark fields** section below) | |
+| `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | |
+| `library` | `library` | | See [Library fields](#library-fields) | |
+| `executables` | `executable <name>` | | Map from executable name to executable (see [Executable fields](#executable-fields)) | |
+| `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | |
+| `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | |
 
 #### Global top-level fields
 
@@ -69,9 +69,9 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `buildable` | `buildable` | | May be overridden by later stanza |
 | `dependencies` | `build-depends` | | |
 | `build-tools` | `build-tools` | | |
-| `when` | | | Accepts a list of conditionals (see **conditionals** section below) |
+| `when` | | | Accepts a list of conditionals (see [Conditionals](#conditionals)) |
 
-#### Library fields
+#### <a name="library-fields"></a>Library fields
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
@@ -81,7 +81,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `reexported-modules` | `reexported-modules` | | |
 | | `default-language` | `Haskell2010` | |
 
-#### Executable fields
+#### <a name="executable-fields"></a>Executable fields
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
@@ -89,16 +89,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `other-modules` | `other-modules` | | |
 | | `default-language` | `Haskell2010` | |
 
-#### Test fields
-
-| Hpack | Cabal | Default | Notes |
-| --- | --- | --- | --- |
-| | `type` | `exitcode-stdio-1.0` | |
-| `main` | `main-is` | | |
-| `other-modules` | `other-modules` | | |
-| | `default-language` | `Haskell2010` | |
-
-#### Benchmark fields
+#### <a name="test-fields"></a>Test fields
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
@@ -107,7 +98,16 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `other-modules` | `other-modules` | | |
 | | `default-language` | `Haskell2010` | |
 
-#### Flags
+#### <a name="benchmark-fields"></a>Benchmark fields
+
+| Hpack | Cabal | Default | Notes |
+| --- | --- | --- | --- |
+| | `type` | `exitcode-stdio-1.0` | |
+| `main` | `main-is` | | |
+| `other-modules` | `other-modules` | | |
+| | `default-language` | `Haskell2010` | |
+
+#### <a name="flags"></a>Flags
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
@@ -115,7 +115,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `manual` | `manual` | | Required (unlike Cabal) |
 | `default` | `default` | | Required (unlike Cabal) |
 
-#### Conditionals
+#### <a name="conditionals"></a> Conditionals
 
 Conditionals with no else branch:
 
@@ -158,7 +158,7 @@ becomes
       ghc-options: -O0
 
 
-### File globbing
+### <a name="file-globbing"></a>File globbing
 
 At place where you can specify a list of files you can also use glob patterns.
 Glob patters and ordinary file names can be freely mixed, e.g.:
