@@ -20,8 +20,11 @@ import           Prelude.Compat
 import           Control.DeepSeq
 import           Control.Exception
 import           Control.Monad.Compat
+import qualified Data.ByteString as B
 import           Data.List.Compat
 import           Data.Maybe
+import qualified Data.Text as T
+import           Data.Text.Encoding (encodeUtf8)
 import           Data.Version (Version)
 import qualified Data.Version as Version
 import           System.Environment
@@ -120,7 +123,7 @@ hpackWithVersionResult v dir = do
       if (fmap snd old == Just (lines new)) then
         return OutputUnchanged
       else do
-        writeFile cabalFile $ header v ++ new
+        B.writeFile cabalFile $ encodeUtf8 $ T.pack $ header v ++ new
         return Generated
     else
       return AlreadyGeneratedByNewerHpack
