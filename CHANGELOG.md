@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ### Added
 - custom-setup section
   [#148](https://github.com/sol/hpack/pull/148)
+- Support `!include` directives
+  [#144](https://github.com/sol/hpack/pull/144)
 
 ## [0.16.0] - 2017-01-11
 ### Added

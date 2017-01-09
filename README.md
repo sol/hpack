@@ -190,6 +190,10 @@ It is possible to use YAML [anchors][yaml-anchor] (`&`), [aliases][yaml-alias]
 (`*`) and [merge keys][yaml-merge] (`<<`) to define fields and reference them
 later.
 
+[yaml-anchor]: http://yaml.org/spec/1.1/#anchor/syntax
+[yaml-alias]: http://yaml.org/spec/1.1/#alias/syntax
+[yaml-merge]: http://yaml.org/type/merge.html
+
 ```yaml
 executables:
   my-exe-1: &my-exe
@@ -214,9 +218,63 @@ executables:
     ghc-options: *exe-ghc-options
 ```
 
-[yaml-anchor]: http://yaml.org/spec/1.1/#anchor/syntax
-[yaml-alias]: http://yaml.org/spec/1.1/#alias/syntax
-[yaml-merge]: http://yaml.org/type/merge.html
+It is also possible to use the `!include` directive:
+
+```yaml
+# ...
+
+tests:
+  hlint: !include "../common/hlint.yaml"
+```
+
+`hlint.yaml`:
+
+```yaml
+source-dirs: test
+main: hlint.hs
+dependencies: [base, hlint]
+```
+
+This can also be used to provide entire libraries of snippets:
+
+```yaml
+_common/lib: !include "../common/lib.yaml"
+
+name: example1
+version: '0.1.0.0'
+synopsis: Example
+<<: *legal
+
+<<: *defaults
+
+library:
+  source-dirs: src
+
+tests:
+  hlint: *test_hlint
+```
+
+lib.yaml:
+
+```yaml
+- &legal
+  maintainer: Some One <someone@example.com>
+  copyright: (c) 2017 Some One
+  license: BSD3
+
+- &defaults
+  dependencies:
+    - base
+    - containers
+  ghc-options:
+    - -Wall
+    - -Werror
+
+- &test_hlint
+  source-dirs: test
+  main: hlint.hs
+  dependencies: [hlint]
+```
 
 ### Slides
 
