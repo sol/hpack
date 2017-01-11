@@ -3,7 +3,7 @@
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.15.0
+version:        0.16.0
 synopsis:       An alternative format for Haskell packages
 category:       Development
 homepage:       https://github.com/sol/hpack#readme
@@ -78,7 +78,7 @@ test-suite spec
   main-is: Spec.hs
   hs-source-dirs:
       test
-    , src
+      src
   ghc-options: -Wall
   cpp-options: -DTEST
   build-depends:
