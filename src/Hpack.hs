@@ -17,14 +17,14 @@ module Hpack (
 import           Prelude ()
 import           Prelude.Compat
 
-import           Control.DeepSeq
 import           Control.Exception
 import           Control.Monad.Compat
 import qualified Data.ByteString as B
 import           Data.List.Compat
 import           Data.Maybe
 import qualified Data.Text as T
-import           Data.Text.Encoding (encodeUtf8)
+import           Data.Text.Encoding (encodeUtf8, decodeUtf8With)
+import           Data.Text.Encoding.Error (lenientDecode)
 import           Data.Version (Version)
 import qualified Data.Version as Version
 import           System.Environment
@@ -116,7 +116,8 @@ hpackWithVersion v dir verbose = do
 hpackWithVersionResult :: Version -> FilePath -> IO Result
 hpackWithVersionResult v dir = do
   (warnings, cabalFile, new) <- run dir
-  old <- either (const Nothing) (Just . splitHeader) <$> tryJust (guard . isDoesNotExistError) (readFile cabalFile >>= (return $!!))
+  old <- either (const Nothing) (Just . splitHeader . T.unpack . decodeUtf8With lenientDecode)
+     <$> tryJust (guard . isDoesNotExistError) (B.readFile cabalFile)
   let oldVersion = fmap fst old >>= extractVersion
   status <-
     if (oldVersion <= Just v) then

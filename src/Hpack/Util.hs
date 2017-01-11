@@ -19,14 +19,17 @@ import           Prelude ()
 import           Prelude.Compat
 
 import           Control.Applicative
-import           Control.DeepSeq
 import           Control.Exception
 import           Control.Monad.Compat
 import           Data.Aeson.Types
+import qualified Data.ByteString as B
 import           Data.Char
 import           Data.Data
 import           Data.List.Compat hiding (sort)
 import           Data.Ord
+import qualified Data.Text as T
+import           Data.Text.Encoding (decodeUtf8With)
+import           Data.Text.Encoding.Error (lenientDecode)
 import           System.Directory
 import           System.FilePath
 import qualified System.FilePath.Posix as Posix
@@ -95,8 +98,8 @@ getFilesRecursive baseDir = go []
 
 tryReadFile :: FilePath -> IO (Maybe String)
 tryReadFile file = do
-  r <- try (readFile file) :: IO (Either IOException String)
-  return $!! either (const Nothing) Just r
+  r <- try (B.readFile file) :: IO (Either IOException B.ByteString)
+  return $ either (const Nothing) (Just . T.unpack . decodeUtf8With lenientDecode) r
 
 toPosixFilePath :: FilePath -> FilePath
 toPosixFilePath = Posix.joinPath . splitDirectories
