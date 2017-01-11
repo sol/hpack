@@ -30,6 +30,7 @@ import           Data.Ord
 import qualified Data.Text as T
 import           Data.Text.Encoding (decodeUtf8With)
 import           Data.Text.Encoding.Error (lenientDecode)
+import           System.IO.Error
 import           System.Directory
 import           System.FilePath
 import qualified System.FilePath.Posix as Posix
@@ -98,7 +99,7 @@ getFilesRecursive baseDir = go []
 
 tryReadFile :: FilePath -> IO (Maybe String)
 tryReadFile file = do
-  r <- try (B.readFile file) :: IO (Either IOException B.ByteString)
+  r <- tryJust (guard . isDoesNotExistError) (B.readFile file)
   return $ either (const Nothing) (Just . T.unpack . decodeUtf8With lenientDecode) r
 
 toPosixFilePath :: FilePath -> FilePath
