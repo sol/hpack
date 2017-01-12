@@ -309,6 +309,7 @@ spec = do
         name: foo
         bar: 23
         baz: 42
+        _qux: 66
         |]
         (`shouldBe` [
           "Ignoring unknown field \"bar\" in package description"
@@ -323,9 +324,11 @@ spec = do
           - condition: impl(ghc)
             bar: 23
             baz: 42
+            _qux: 66
         |]
         (`shouldBe` [
-          "Ignoring unknown field \"bar\" in package description"
+          "Ignoring unknown field \"_qux\" in package description"
+        , "Ignoring unknown field \"bar\" in package description"
         , "Ignoring unknown field \"baz\" in package description"
         ]
         )

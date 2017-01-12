@@ -48,7 +48,7 @@ import           Data.Data
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
-import           Data.List.Compat (nub, (\\), sortBy)
+import           Data.List.Compat (nub, (\\), sortBy, isPrefixOf)
 import           Data.Maybe
 import           Data.Ord
 import           Data.String
@@ -128,6 +128,9 @@ class HasFieldNames a where
   default fieldNames :: (HasTypeName a, Selectors (Rep a)) => Proxy a -> [String]
   fieldNames proxy = map (hyphenize $ typeName proxy) (selectors proxy)
 
+  ignoreUnderscoredUnknownFields :: Proxy a -> Bool
+  ignoreUnderscoredUnknownFields _ = False
+
 data CaptureUnknownFields a = CaptureUnknownFields {
   captureUnknownFieldsFields :: [FieldName]
 , captureUnknownFieldsValue :: a
@@ -150,11 +153,14 @@ instance FromJSON (CaptureUnknownFields FlagSection) where
 
 getUnknownFields :: forall a. HasFieldNames a => Value -> Proxy a -> [FieldName]
 getUnknownFields v _ = case v of
-  Object o -> unknown
+  Object o -> ignoreUnderscored unknown
     where
       unknown = keys \\ fields
       keys = map T.unpack (HashMap.keys o)
       fields = fieldNames (Proxy :: Proxy a)
+      ignoreUnderscored
+        | ignoreUnderscoredUnknownFields (Proxy :: Proxy a) = filter (not . isPrefixOf "_")
+        | otherwise = id
   _ -> []
 
 data LibrarySection = LibrarySection {
@@ -291,7 +297,8 @@ data PackageConfig = PackageConfig {
 , packageConfigBenchmarks :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
 } deriving (Eq, Show, Generic)
 
-instance HasFieldNames PackageConfig
+instance HasFieldNames PackageConfig where
+  ignoreUnderscoredUnknownFields _ = True
 
 instance FromJSON PackageConfig where
   parseJSON value = handleNullValues <$> genericParseJSON_ value
@@ -433,6 +440,7 @@ data Conditional = Conditional {
 
 instance HasFieldNames a => HasFieldNames (Section a) where
   fieldNames Proxy = fieldNames (Proxy :: Proxy a) ++ fieldNames (Proxy :: Proxy CommonOptions)
+  ignoreUnderscoredUnknownFields _ = ignoreUnderscoredUnknownFields (Proxy :: Proxy a)
 
 data FlagSection = FlagSection {
   _flagSectionDescription :: Maybe String
