@@ -645,6 +645,16 @@ spec = do
         }
         )
 
+    it "allows yaml merging and overriding fields" $ do
+      withPackageConfig_ [i|
+        _common: &common
+          name: n1
+
+        <<: *common
+        name: n2
+        |]
+        (packageName >>> (`shouldBe` "n2"))
+
     context "when reading library section" $ do
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|
