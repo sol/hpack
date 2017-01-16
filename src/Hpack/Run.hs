@@ -68,8 +68,13 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
     dataFiles :: Element
     dataFiles = Field "data-files" (LineSeparatedList packageDataFiles)
 
+    sourceRepository :: [Element]
     sourceRepository = maybe [] (return . renderSourceRepository) packageSourceRepository
 
+    customSetup :: [Element]
+    customSetup = maybe [] (return . renderCustomSetup) packageCustomSetup
+
+    library :: [Element]
     library = maybe [] (return . renderLibrary) packageLibrary
 
     stanzas :: [Element]
@@ -78,7 +83,8 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
       : dataFiles
       : sourceRepository
       ++ concat [
-        map renderFlag packageFlags
+        customSetup
+      , map renderFlag packageFlags
       , library
       , renderExecutables packageExecutables
       , renderTests packageTests
@@ -189,6 +195,10 @@ renderExecutableSection sect@(sectionData -> Executable{..}) =
     mainIs = Field "main-is" (Literal executableMain)
     otherModules = renderOtherModules executableOtherModules
 
+renderCustomSetup :: CustomSetup -> Element
+renderCustomSetup CustomSetup{..} =
+  Stanza "custom-setup" [renderSetupDepends customSetupDependencies]
+
 renderLibrary :: Section Library -> Element
 renderLibrary sect@(sectionData -> Library{..}) = Stanza "library" $
   renderSection sect ++
@@ -279,3 +289,6 @@ renderOtherExtensions = Field "other-extensions" . WordList
 
 renderBuildTools :: [Dependency] -> Element
 renderBuildTools = Field "build-tools" . CommaSeparatedList . map dependencyName
+
+renderSetupDepends :: [Dependency] -> Element
+renderSetupDepends = Field "setup-depends" . CommaSeparatedList . map dependencyName

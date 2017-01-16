@@ -78,7 +78,7 @@ test-suite spec
   main-is: Spec.hs
   hs-source-dirs:
       test
-      src
+    , src
   ghc-options: -Wall
   cpp-options: -DTEST
   build-depends:

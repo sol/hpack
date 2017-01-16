@@ -24,6 +24,7 @@ module Hpack.Config (
 , GitUrl
 , GitRef
 , GhcOption
+, CustomSetup(..)
 , Section(..)
 , Library(..)
 , Executable(..)
@@ -65,7 +66,32 @@ import           Hpack.Util
 import           Hpack.Yaml
 
 package :: String -> String -> Package
-package name version = Package name version Nothing Nothing Nothing Nothing Nothing Nothing [] [] [] Simple Nothing Nothing Nothing [] [] [] Nothing Nothing [] [] []
+package name version = Package {
+    packageName = name
+  , packageVersion = version
+  , packageSynopsis = Nothing
+  , packageDescription = Nothing
+  , packageHomepage = Nothing
+  , packageBugReports = Nothing
+  , packageCategory = Nothing
+  , packageStability = Nothing
+  , packageAuthor = []
+  , packageMaintainer = []
+  , packageCopyright = []
+  , packageBuildType = Simple
+  , packageLicense = Nothing
+  , packageLicenseFile = Nothing
+  , packageTestedWith = Nothing
+  , packageFlags = []
+  , packageExtraSourceFiles = []
+  , packageDataFiles = []
+  , packageSourceRepository = Nothing
+  , packageCustomSetup = Nothing
+  , packageLibrary = Nothing
+  , packageExecutables = []
+  , packageTests = []
+  , packageBenchmarks = []
+  }
 
 renamePackage :: String -> Package -> Package
 renamePackage name p@Package{..} = p {
@@ -148,6 +174,9 @@ instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields (Sectio
     where
       unknownSectionFields = getUnknownFields v (Proxy :: Proxy (Section a))
 
+instance FromJSON (CaptureUnknownFields CustomSetupSection) where
+  parseJSON = captureUnknownFields
+
 instance FromJSON (CaptureUnknownFields FlagSection) where
   parseJSON = captureUnknownFields
 
@@ -162,6 +191,15 @@ getUnknownFields v _ = case v of
         | ignoreUnderscoredUnknownFields (Proxy :: Proxy a) = filter (not . isPrefixOf "_")
         | otherwise = id
   _ -> []
+
+data CustomSetupSection = CustomSetupSection {
+  customSetupSectionDependencies :: Maybe (List Dependency)
+} deriving (Eq, Show, Generic)
+
+instance HasFieldNames CustomSetupSection
+
+instance FromJSON CustomSetupSection where
+  parseJSON = genericParseJSON_
 
 data LibrarySection = LibrarySection {
   librarySectionExposed :: Maybe Bool
@@ -291,6 +329,7 @@ data PackageConfig = PackageConfig {
 , packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigGithub :: Maybe Text
 , packageConfigGit :: Maybe String
+, packageConfigCustomSetup :: Maybe (CaptureUnknownFields CustomSetupSection)
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
 , packageConfigExecutables :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigTests :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
@@ -392,10 +431,15 @@ data Package = Package {
 , packageExtraSourceFiles :: [FilePath]
 , packageDataFiles :: [FilePath]
 , packageSourceRepository :: Maybe SourceRepository
+, packageCustomSetup :: Maybe CustomSetup
 , packageLibrary :: Maybe (Section Library)
 , packageExecutables :: [Section Executable]
 , packageTests :: [Section Executable]
 , packageBenchmarks :: [Section Executable]
+} deriving (Eq, Show)
+
+data CustomSetup = CustomSetup {
+  customSetupDependencies :: [Dependency]
 } deriving (Eq, Show)
 
 data Library = Library {
@@ -471,12 +515,20 @@ data SourceRepository = SourceRepository {
 mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
 mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
   let
+    nameWarnings :: [String]
+    name :: String
     (nameWarnings, name) = maybe (["Package name not specified, inferred " ++ show inferredName], inferredName) ((,) []) packageConfigName
       where inferredName = takeBaseName dir
 
+    mCustomSetup :: Maybe CustomSetup
+    mCustomSetup = toCustomSetup <$> mCustomSetupSection
+
   libraryResult <- mapM (toLibrary dir name globalOptions) mLibrarySection
   let
+    mLibrary :: Maybe (Section Library)
     mLibrary = fmap snd libraryResult
+
+    libraryWarnings :: [String]
     libraryWarnings = maybe [] fst libraryResult
 
   (executablesWarnings, executables) <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) executableSections)
@@ -498,7 +550,10 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
   (dataFilesWarnings, dataFiles) <-
     expandGlobs "data-files" dir (fromMaybeList packageConfigDataFiles)
 
-  let pkg = Package {
+  let defaultBuildType :: BuildType
+      defaultBuildType = maybe Simple (const Custom) mCustomSetup
+
+      pkg = Package {
         packageName = name
       , packageVersion = fromMaybe "0.0.0" packageConfigVersion
       , packageSynopsis = packageConfigSynopsis
@@ -510,7 +565,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       , packageAuthor = fromMaybeList packageConfigAuthor
       , packageMaintainer = fromMaybeList packageConfigMaintainer
       , packageCopyright = fromMaybeList packageConfigCopyright
-      , packageBuildType = fromMaybe Simple packageConfigBuildType
+      , packageBuildType = fromMaybe defaultBuildType packageConfigBuildType
       , packageLicense = packageConfigLicense
       , packageLicenseFile = packageConfigLicenseFile <|> (guard licenseFileExists >> Just "LICENSE")
       , packageTestedWith = packageConfigTestedWith
@@ -518,6 +573,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       , packageExtraSourceFiles = extraSourceFiles
       , packageDataFiles = dataFiles
       , packageSourceRepository = sourceRepository
+      , packageCustomSetup = mCustomSetup
       , packageLibrary = mLibrary
       , packageExecutables = executables
       , packageTests = tests
@@ -528,6 +584,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
            formatUnknownFields "package description" unknownFields
         ++ nameWarnings
         ++ flagWarnings
+        ++ maybe [] (formatUnknownFields "custom-setup section") (captureUnknownFieldsFields <$> packageConfigCustomSetup)
         ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary)
         ++ formatUnknownSectionFields "executable" executableSections
         ++ formatUnknownSectionFields "test" testsSections
@@ -561,6 +618,9 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
 
     toList :: Maybe (Map String a) -> [(String, a)]
     toList = Map.toList . fromMaybe mempty
+
+    mCustomSetupSection :: Maybe CustomSetupSection
+    mCustomSetupSection = captureUnknownFieldsValue <$> packageConfigCustomSetup
 
     mLibrarySection :: Maybe (Section LibrarySection)
     mLibrarySection = captureUnknownFieldsValue <$> packageConfigLibrary
@@ -610,6 +670,10 @@ expandCSources :: FilePath -> Section a -> IO ([String], Section a)
 expandCSources dir sect@Section{..} = do
   (warnings, files) <- expandGlobs "c-sources" dir sectionCSources
   return (warnings, sect {sectionCSources = files})
+
+toCustomSetup :: CustomSetupSection -> CustomSetup
+toCustomSetup CustomSetupSection{..} = CustomSetup
+  { customSetupDependencies = fromMaybeList customSetupSectionDependencies }
 
 toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO ([String], Section Library)
 toLibrary dir name globalOptions library = traverse fromLibrarySection sect >>= expandCSources dir

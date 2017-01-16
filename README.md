@@ -35,17 +35,23 @@ existing cabal file into a `package.yaml`.
 | `license` | `license` | | | |
 | `license-file` | `license-file` | `LICENSE` if file exists | | |
 | `tested-with` | `tested-with` | | | |
-| `build-type` | `build-type` | `Simple` | Must be `Simple`, `Configure`, `Make`, or `Custom` | |
+| `build-type` | `build-type` | `Simple`, or `Custom` if `custom-setup` section exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | |
 | | `cabal-version` | `>= 1.10` or `>= 1.21` | `>= 1.21` if library component has `reexported-modules` field | |
 | `extra-source-files` | `extra-source-files` | | Accepts [glob patterns](#file-globbing) | |
 | `data-files` | `data-files` | | Accepts [glob patterns](#file-globbing) | |
 | `github` | `source-repository head` | | Accepts `user/repo` or `user/repo/subdir` | `github: foo/bar`
 | `git`    | `source-repository head` | | No effect if `github` given | `git: https://my.repo.com/foo` |
+| `custom-setup` | `custom-setup` | | See [Custom setup](#custom-setup) | |
 | `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | |
 | `library` | `library` | | See [Library fields](#library-fields) | |
 | `executables` | `executable <name>` | | Map from executable name to executable (see [Executable fields](#executable-fields)) | |
 | `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | |
 | `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | |
+
+#### <a name="custom-setup"></a>Custom setup
+
+| Hpack | Cabal | Default | Notes | Example |
+| `dependencies` | `setup-depends` | --- | Existence implies `build-type: Custom` | --- |
 
 #### Global top-level fields
 
