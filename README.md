@@ -177,6 +177,40 @@ Glob patterns are expanded according to the following rules:
    separators)
  - `?`, `*` and `**` do not match a `.` at the beginning of a file/directory
 
+### Not repeating yourself
+
+It is possible to use YAML [anchors][yaml-anchor] (`&`), [aliases][yaml-alias]
+(`*`) and [merge keys][yaml-merge] (`<<`) to define fields and reference them
+later.
+
+```yaml
+executables:
+  my-exe-1: &my-exe
+    main: my-exe-1.hs
+    dependencies: [base, my-lib]
+    ghc-options: [-threaded]
+  my-exe-2:
+    <<: *my-exe
+    main: my-exe-2.hs
+```
+
+Warnings for unknown fields will not be emitted for top-level fields starting
+with an underscore, so you can declare global aliases too:
+
+```yaml
+_exe-ghc-options: &exe-ghc-options
+  - -threaded
+  - -rtsopts
+
+executables:
+  my-exe-1:
+    ghc-options: *exe-ghc-options
+```
+
+[yaml-anchor]: http://yaml.org/spec/1.1/#anchor/syntax
+[yaml-alias]: http://yaml.org/spec/1.1/#alias/syntax
+[yaml-merge]: http://yaml.org/type/merge.html
+
 ### Slides
 
  - Slides from my talk about `hpack` at the Singapore Haskell meetup:
