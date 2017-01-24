@@ -21,29 +21,29 @@ existing cabal file into a `package.yaml`.
 
 | Hpack | Cabal | Default | Notes | Example |
 | --- | --- | --- | --- | --- |
-| `name` | `name` | | | |
-| `version` | `version` | `0.0.0` | | |
-| `synopsis` | `synopsis` | | | |
-| `description` | `description` | | | |
-| `category` | `category` | | | |
-| `stability` | `stability` | | | |
-| `homepage` | `homepage` | If `github` given, `<repo>#readme` | | |
-| `bug-reports` | `bug-reports` | If `github` given, `<repo>/issues` | | |
-| `author` | `author` | | May be a list | |
-| `maintainer` | `maintainer` | | May be a list | |
-| `copyright` | `copyright` | | May be a list |
-| `license` | `license` | | | |
-| `license-file` | `license-file` | `LICENSE` if file exists | | |
-| `tested-with` | `tested-with` | | | |
-| `build-type` | `build-type` | `Simple`, or `Custom` if `custom-setup` section exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | |
+| `name` | · | | | |
+| `version` | · | `0.0.0` | | |
+| `synopsis` | · | | | |
+| `description` | · | | | |
+| `category` | · | | | |
+| `stability` | · | | | |
+| `homepage` | · | If `github` given, `<repo>#readme` | | |
+| `bug-reports` | · | If `github` given, `<repo>/issues` | | |
+| `author` | · | | May be a list | |
+| `maintainer` | · | | May be a list | |
+| `copyright` | · | | May be a list |
+| `license` | · | | | |
+| `license-file` | · | `LICENSE` if file exists | | |
+| `tested-with` | · | | | |
+| `build-type` | · | `Simple`, or `Custom` if `custom-setup` section exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | |
 | | `cabal-version` | `>= 1.10` or `>= 1.21` | `>= 1.21` if library component has `reexported-modules` field | |
-| `extra-source-files` | `extra-source-files` | | Accepts [glob patterns](#file-globbing) | |
-| `data-files` | `data-files` | | Accepts [glob patterns](#file-globbing) | |
+| `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | |
+| `data-files` | · | | Accepts [glob patterns](#file-globbing) | |
 | `github` | `source-repository head` | | Accepts `user/repo` or `user/repo/subdir` | `github: foo/bar`
 | `git`    | `source-repository head` | | No effect if `github` given | `git: https://my.repo.com/foo` |
-| `custom-setup` | `custom-setup` | | See [Custom setup](#custom-setup) | |
+| `custom-setup` | · | | See [Custom setup](#custom-setup) | |
 | `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | |
-| `library` | `library` | | See [Library fields](#library-fields) | |
+| `library` | · | | See [Library fields](#library-fields) | |
 | `executables` | `executable <name>` | | Map from executable name to executable (see [Executable fields](#executable-fields)) | |
 | `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | |
 | `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | |
@@ -61,31 +61,31 @@ These fields are merged with all library, executable, test, and benchmark compon
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | `source-dirs` | `hs-source-dirs` | | |
-| `default-extensions` | `default-extensions` | | |
-| `other-extension` | `other-extensions` | | |
-| `ghc-options` | `ghc-options` | | |
-| `ghc-prof-options` | `ghc-prof-options` | | |
-| `cpp-options` | `cpp-options` | | |
-| `cc-options` | `cc-options` | | |
-| `c-sources` | `c-sources` | | |
-| `extra-lib-dirs` | `extra-lib-dirs` | | |
-| `extra-libraries` | `extra-libraries` | | |
-| `include-dirs` | `include-dirs` | | |
-| `install-includes` | `install-includes` | | |
-| `ld-options` | `ld-options` | | |
-| `buildable` | `buildable` | | May be overridden by later stanza |
+| `default-extensions` | · | | |
+| `other-extensions` | · | | |
+| `ghc-options` | · | | |
+| `ghc-prof-options` | · | | |
+| `cpp-options` | · | | |
+| `cc-options` | · | | |
+| `c-sources` | · | | |
+| `extra-lib-dirs` | · | | |
+| `extra-libraries` | · | | |
+| `include-dirs` | · | | |
+| `install-includes` | · | | |
+| `ld-options` | · | | |
+| `buildable` | · | | May be overridden by later stanza |
 | `dependencies` | `build-depends` | | |
-| `build-tools` | `build-tools` | | |
+| `build-tools` | · | | |
 | `when` | | | Accepts a list of conditionals (see [Conditionals](#conditionals)) |
 
 #### <a name="library-fields"></a>Library fields
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
-| `exposed` | `exposed` | | |
-| `exposed-modules` | `exposed-modules` | All modules in `source-dirs` less `other-modules` | |
-| `other-modules` | `other-modules` | All modules in `source-dirs` less `exposed-modules` | |
-| `reexported-modules` | `reexported-modules` | | |
+| `exposed` | · | | |
+| `exposed-modules` | · | All modules in `source-dirs` less `other-modules` | |
+| `other-modules` | · | All modules in `source-dirs` less `exposed-modules` | |
+| `reexported-modules` | · | | |
 | | `default-language` | `Haskell2010` | |
 
 #### <a name="executable-fields"></a>Executable fields
@@ -93,7 +93,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | `main` | `main-is` | | |
-| `other-modules` | `other-modules` | | |
+| `other-modules` | · | | |
 | | `default-language` | `Haskell2010` | |
 
 #### <a name="test-fields"></a>Test fields
@@ -102,7 +102,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | --- | --- | --- | --- |
 | | `type` | `exitcode-stdio-1.0` | |
 | `main` | `main-is` | | |
-| `other-modules` | `other-modules` | | |
+| `other-modules` | · | | |
 | | `default-language` | `Haskell2010` | |
 
 #### <a name="benchmark-fields"></a>Benchmark fields
@@ -111,16 +111,16 @@ These fields are merged with all library, executable, test, and benchmark compon
 | --- | --- | --- | --- |
 | | `type` | `exitcode-stdio-1.0` | |
 | `main` | `main-is` | | |
-| `other-modules` | `other-modules` | | |
+| `other-modules` | · | | |
 | | `default-language` | `Haskell2010` | |
 
 #### <a name="flags"></a>Flags
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
-| `description` | `description` | | Optional |
-| `manual` | `manual` | | Required (unlike Cabal) |
-| `default` | `default` | | Required (unlike Cabal) |
+| `description` | · | | Optional |
+| `manual` | · | | Required (unlike Cabal) |
+| `default` | · | | Required (unlike Cabal) |
 
 #### <a name="conditionals"></a> Conditionals
 
