@@ -51,7 +51,8 @@ existing cabal file into a `package.yaml`.
 #### <a name="custom-setup"></a>Custom setup
 
 | Hpack | Cabal | Default | Notes | Example |
-| `dependencies` | `setup-depends` | --- | Existence implies `build-type: Custom` | --- |
+| --- | --- | --- | --- | --- |
+| `dependencies` | `setup-depends` | | Implies `build-type: Custom` | |
 
 #### Global top-level fields
 
