@@ -22,6 +22,7 @@ module Hpack.Run (
 import           Prelude ()
 import           Prelude.Compat
 
+import           Control.Applicative
 import           Control.Monad
 import           Data.Char
 import           Data.Maybe
@@ -96,7 +97,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
         ("name", Just packageName)
       , ("version", Just packageVersion)
       , ("synopsis", packageSynopsis)
-      , ("description", (formatDescription alignment <$> packageDescription))
+      , ("description", (formatDescription alignment <$> packageDescription) <|> packageSynopsis)
       , ("category", packageCategory)
       , ("stability", packageStability)
       , ("homepage", packageHomepage)

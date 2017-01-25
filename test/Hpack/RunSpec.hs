@@ -51,6 +51,16 @@ spec = do
         , "cabal-version:  >= 1.10"
         ]
 
+    it "defaults description to synopsis" $ do
+      renderPackage_ package {packageSynopsis = Just "foo"} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "synopsis: foo"
+        , "description: foo"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.10"
+        ]
+
     it "includes stability" $ do
       renderPackage_ package {packageStability = Just "experimental"} `shouldBe` unlines [
           "name: foo"
