@@ -1,5 +1,25 @@
 # hpack: An alternative format for Haskell packages
 
+## Motivation
+
+hpack makes the following improvements over the standard cabal file
+format:
+
+* YAML syntax is more ubiquitous than cabal syntax and a bit easier to
+  write. It is also very easy to parse from other languages.
+* `exposed-modules`/`other-modules` are set automatically. In a
+  standard cabal file these are easy to forget when new modules are
+  added and will result in obscure linker errors or worse.
+* Support for glob patterns for file fields like `extra-source-files`
+  and `data-files`.
+* Automatically sets a sensible `cabal-version`.
+* Automatically sets a `license-file` field if a `LICENSE` file exists.
+* For the common case of hosting on github, `homepage`, `bug-reports`, and
+  `source-repository` can be set automatically.
+* Some fields like `dependencies` can be set at the top level and
+  merged with the dependencies list of each compile target.
+* Automatically supported by `stack`.
+
 ## Examples
 
  * Given this [package.yaml](https://github.com/sol/hpack/blob/master/package.yaml) running `hpack` will generate [hpack.cabal](https://github.com/sol/hpack/blob/master/hpack.cabal)

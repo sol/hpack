@@ -1,6 +1,7 @@
 name: hpack
 version: 0.16.0
 synopsis: An alternative format for Haskell packages
+description: See README.md for more details.
 maintainer: Simon Hengel <sol@typeful.net>
 license: MIT
 github: sol/hpack
