@@ -67,7 +67,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `ghc-prof-options` | · | | |
 | `cpp-options` | · | | |
 | `cc-options` | · | | |
-| `c-sources` | · | | |
+| `c-sources` | · | | Accepts [glob patterns](#file-globbing) |
 | `extra-lib-dirs` | · | | |
 | `extra-libraries` | · | | |
 | `include-dirs` | · | | |
