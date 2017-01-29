@@ -1,7 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module Hpack.Yaml where
 
-import           Data.Yaml
+import           Data.Yaml hiding (decodeFile, decodeFileEither)
+import           Data.Yaml.Include
 
 decodeYaml :: FromJSON a => FilePath -> IO (Either String a)
 decodeYaml file = do
