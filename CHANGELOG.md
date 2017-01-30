@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [0.17.0] - 2017-01-30
 ### Added
 - custom-setup section
   [#148](https://github.com/sol/hpack/pull/148)
@@ -23,5 +25,6 @@ All notable changes to this project will be documented in this file.
   [#119](https://github.com/sol/hpack/issues/119)
   [#67](https://github.com/sol/hpack/issues/67)
 
-[Unreleased]: https://github.com/sol/hpack/compare/0.16.0...HEAD
+[Unreleased]: https://github.com/sol/hpack/compare/0.17.0...HEAD
+[0.17.0]: https://github.com/sol/hpack/compare/0.16.0...0.17.0
 [0.16.0]: https://github.com/sol/hpack/compare/0.15.0...0.16.0
