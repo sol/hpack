@@ -36,7 +36,7 @@ existing cabal file into a `package.yaml`.
 | `license-file` | · | `LICENSE` if file exists | | |
 | `tested-with` | · | | | |
 | `build-type` | · | `Simple`, or `Custom` if `custom-setup` section exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | |
-| | `cabal-version` | `>= 1.10` or `>= 1.21` | `>= 1.21` if library component has `reexported-modules` field | |
+| | `cabal-version` | `>= 1.10` or `>= 1.21` or `>= 1.24` | `>= 1.21` if library component has `reexported-modules` field; `>= 1.24` if `custom-setup` section exists | |
 | `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | |
 | `data-files` | · | | Accepts [glob patterns](#file-globbing) | |
 | `github` | `source-repository head` | | Accepts `user/repo` or `user/repo/subdir` | `github: foo/bar`

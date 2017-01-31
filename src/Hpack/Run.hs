@@ -120,6 +120,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
     cabalVersion = maximum [
         Just ">= 1.10"
       , packageLibrary >>= libCabalVersion
+      , ">= 1.24" <$ packageCustomSetup
       ]
      where
       libCabalVersion :: Section Library -> Maybe String

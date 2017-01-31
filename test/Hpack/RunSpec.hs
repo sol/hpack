@@ -104,14 +104,14 @@ spec = do
         ]
 
     context "when rendering custom-setup section" $ do
-      it "includes setup-depends" $ do
+      it "includes setup-depends and bumps cabal version" $ do
         let setup = CustomSetup
               { customSetupDependencies = ["foo >1.0", "bar ==2.0"] }
         renderPackage_ package {packageCustomSetup = Just setup} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
-          , "cabal-version: >= 1.10"
+          , "cabal-version: >= 1.24"
           , ""
           , "custom-setup"
           , "  setup-depends:"
