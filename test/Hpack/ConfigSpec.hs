@@ -470,13 +470,19 @@ spec = do
         (do
         touch "LICENSE"
         )
-        (packageLicenseFile >>> (`shouldBe` Just "LICENSE"))
+        (packageLicenseFile >>> (`shouldBe` ["LICENSE"]))
 
     it "accepts license file" $ do
       withPackageConfig_ [i|
         license-file: FOO
         |]
-        (packageLicenseFile >>> (`shouldBe` Just "FOO"))
+        (packageLicenseFile >>> (`shouldBe` ["FOO"]))
+
+    it "accepts list of license files" $ do
+      withPackageConfig_ [i|
+        license-file: [FOO, BAR]
+        |]
+        (packageLicenseFile >>> (`shouldBe` ["FOO", "BAR"]))
 
     it "accepts build-type: Simple" $ do
       withPackageConfig_ [i|
