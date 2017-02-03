@@ -1,5 +1,14 @@
 # hpack: An alternative format for Haskell packages
 
+The Hpack package format is based on [YAML](http://yaml.org/).  Hpack packages
+are specified in a file named `package.yaml`.
+
+Hpack is designed to remove redundancies from your package descriptions.
+
+There is reference documentation below, but introductory documentation is still
+lacking. For the time being, take a look at the slides from my talk about Hpack at the Singapore Haskell
+meetup: http://typeful.net/talks/hpack
+
 ## Examples
 
  * Given this [package.yaml](https://github.com/sol/hpack/blob/master/package.yaml) running `hpack` will generate [hpack.cabal](https://github.com/sol/hpack/blob/master/hpack.cabal)
@@ -276,11 +285,6 @@ lib.yaml:
   dependencies: [hlint]
 ```
 
-### Slides
-
- - Slides from my talk about `hpack` at the Singapore Haskell meetup:
-   http://typeful.net/talks/hpack
-
 ## Vim integration
 
 To run `hpack` automatically on modifications to `package.yaml` add the
@@ -289,3 +293,9 @@ following to your `~/.vimrc`:
 ```vim
 autocmd BufWritePost package.yaml silent !hpack --silent
 ```
+
+### Stack support
+
+[Stack](https://haskellstack.org) has built-in support for Hpack.
+If you are using Stack you can use `package.yaml` instead of a `.cabal` file.  No additional
+steps are required.
