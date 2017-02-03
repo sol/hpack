@@ -1,7 +1,7 @@
 # hpack: An alternative format for Haskell packages
 
-The Hpack package format is based on [YAML](http://yaml.org/).  Hpack packages
-are specified in a file named `package.yaml`.
+The Hpack package format is based on [YAML](http://yaml.org/).  Packages
+are described in a file named `package.yaml`.
 
 Hpack is designed to remove redundancies from your package descriptions.
 
@@ -294,7 +294,7 @@ following to your `~/.vimrc`:
 autocmd BufWritePost package.yaml silent !hpack --silent
 ```
 
-### Stack support
+## Stack support
 
 [Stack](https://haskellstack.org) has built-in support for Hpack.
 If you are using Stack you can use `package.yaml` instead of a `.cabal` file.  No additional
