@@ -105,7 +105,9 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
       , ("maintainer", formatList packageMaintainer)
       , ("copyright", formatList packageCopyright)
       , ("license", packageLicense)
-      , ("license-file", packageLicenseFile)
+      , case packageLicenseFile of
+          [file] -> ("license-file", Just file)
+          files  -> ("license-files", formatList files)
       , ("tested-with", packageTestedWith)
       , ("build-type", Just (show packageBuildType))
       , ("cabal-version", cabalVersion)

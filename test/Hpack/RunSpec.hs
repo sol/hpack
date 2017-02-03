@@ -60,6 +60,25 @@ spec = do
         , "cabal-version: >= 1.10"
         ]
 
+    it "includes license-file" $ do
+      renderPackage_ package {packageLicenseFile = ["FOO"]} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "license-file: FOO"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.10"
+        ]
+
+    it "aligns license-files" $ do
+      renderPackage defaultRenderSettings 16 [] [] package {packageLicenseFile = ["FOO", "BAR"]} `shouldBe` unlines [
+          "name:           foo"
+        , "version:        0.0.0"
+        , "license-files:  FOO,"
+        , "                BAR"
+        , "build-type:     Simple"
+        , "cabal-version:  >= 1.10"
+        ]
+
     it "includes copyright holder" $ do
       renderPackage_ package {packageCopyright = ["(c) 2015 Simon Hengel"]} `shouldBe` unlines [
           "name: foo"

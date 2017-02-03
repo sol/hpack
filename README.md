@@ -42,7 +42,7 @@ existing cabal file into a `package.yaml`.
 | `maintainer` | · | | May be a list | |
 | `copyright` | · | | May be a list |
 | `license` | · | | | |
-| `license-file` | · | `LICENSE` if file exists | | |
+| `license-file` | `license-file` or `license-files` | `LICENSE` if file exists | May be a list | |
 | `tested-with` | · | | | |
 | `build-type` | · | `Simple`, or `Custom` if `custom-setup` section exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | |
 | | `cabal-version` | `>= 1.10` or `>= 1.21` | `>= 1.21` if library component has `reexported-modules` field | |

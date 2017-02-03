@@ -80,7 +80,7 @@ package name version = Package {
   , packageCopyright = []
   , packageBuildType = Simple
   , packageLicense = Nothing
-  , packageLicenseFile = Nothing
+  , packageLicenseFile = []
   , packageTestedWith = Nothing
   , packageFlags = []
   , packageExtraSourceFiles = []
@@ -322,7 +322,7 @@ data PackageConfig = PackageConfig {
 , packageConfigCopyright :: Maybe (List String)
 , packageConfigBuildType :: Maybe BuildType
 , packageConfigLicense :: Maybe String
-, packageConfigLicenseFile :: Maybe String
+, packageConfigLicenseFile :: Maybe (List String)
 , packageConfigTestedWith :: Maybe String
 , packageConfigFlags :: Maybe (Map String (CaptureUnknownFields FlagSection))
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
@@ -425,7 +425,7 @@ data Package = Package {
 , packageCopyright :: [String]
 , packageBuildType :: BuildType
 , packageLicense :: Maybe String
-, packageLicenseFile :: Maybe FilePath
+, packageLicenseFile :: [FilePath]
 , packageTestedWith :: Maybe String
 , packageFlags :: [Flag]
 , packageExtraSourceFiles :: [FilePath]
@@ -553,6 +553,11 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
   let defaultBuildType :: BuildType
       defaultBuildType = maybe Simple (const Custom) mCustomSetup
 
+      configLicenseFiles :: Maybe (List String)
+      configLicenseFiles = packageConfigLicenseFile <|> do
+        guard licenseFileExists
+        Just (List ["LICENSE"])
+
       pkg = Package {
         packageName = name
       , packageVersion = fromMaybe "0.0.0" packageConfigVersion
@@ -567,7 +572,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       , packageCopyright = fromMaybeList packageConfigCopyright
       , packageBuildType = fromMaybe defaultBuildType packageConfigBuildType
       , packageLicense = packageConfigLicense
-      , packageLicenseFile = packageConfigLicenseFile <|> (guard licenseFileExists >> Just "LICENSE")
+      , packageLicenseFile = fromMaybeList configLicenseFiles
       , packageTestedWith = packageConfigTestedWith
       , packageFlags = flags
       , packageExtraSourceFiles = extraSourceFiles
