@@ -6,7 +6,6 @@ module Hpack.ConfigSpec (
 
 , package
 , executable
-, library
 ) where
 
 import           Helper
@@ -30,7 +29,7 @@ executable :: String -> String -> Executable
 executable name main_ = Executable name main_ []
 
 library :: Library
-library = Library Nothing [] [] []
+library = Library Nothing [] ["Paths_foo"] []
 
 withPackage :: String -> IO () -> (([String], Package) -> Expectation) -> Expectation
 withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do

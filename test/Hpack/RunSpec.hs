@@ -9,6 +9,9 @@ import           Hpack.Config hiding (package)
 import           Hpack.Render
 import           Hpack.Run
 
+library :: Library
+library = Library Nothing [] [] []
+
 spec :: Spec
 spec = do
   describe "renderPackage" $ do
