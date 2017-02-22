@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Hpack.RunSpec (spec) where
 
-import           Test.Hspec
+import           Helper
 import           Data.List.Compat
 
 import           Hpack.ConfigSpec hiding (spec)
@@ -266,6 +266,7 @@ spec = do
           , "  ghc-prof-options: -fprof-auto -rtsopts"
           , "  default-language: Haskell2010"
           ]
+
   describe "renderConditional" $ do
     it "renders conditionals" $ do
       let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} Nothing

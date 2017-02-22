@@ -34,9 +34,10 @@ import           Hpack.Config
 import           Hpack.Render
 import           Hpack.FormattingHints
 
-run :: FilePath -> IO ([String], FilePath, String)
-run dir = do
-  mPackage <- readPackageConfig (dir </> packageConfig)
+run :: Maybe FilePath -> FilePath -> IO ([String], FilePath, String)
+run mDir c = do
+  let dir = fromMaybe "" mDir
+  mPackage <- readPackageConfig (dir </> c)
   case mPackage of
     Right (warnings, pkg) -> do
       let cabalFile = dir </> (packageName pkg ++ ".cabal")

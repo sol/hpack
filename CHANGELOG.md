@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 - Allow `license-file` to be a list
+- Accept input file on command-line (#106)
 
 ## [0.17.0] - 2017-01-30
 ### Added

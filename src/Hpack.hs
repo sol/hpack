@@ -11,6 +11,7 @@ module Hpack (
 , parseVerbosity
 , extractVersion
 , parseVersion
+, splitDirectory
 #endif
 ) where
 
@@ -28,6 +29,8 @@ import qualified Data.Version as Version
 import           System.Environment
 import           System.Exit
 import           System.IO
+import           System.FilePath
+import           System.Directory
 import           Text.ParserCombinators.ReadP
 
 import           Paths_hpack (version)
@@ -38,9 +41,9 @@ import           Hpack.Util
 programVersion :: Version -> String
 programVersion v = "hpack version " ++ Version.showVersion v
 
-header :: Version -> String
-header v = unlines [
-    "-- This file has been generated from " ++ packageConfig ++ " by " ++ programVersion v ++ "."
+header :: FilePath -> Version -> String
+header p v = unlines [
+    "-- This file has been generated from " ++ p ++ " by " ++ programVersion v ++ "."
   , "--"
   , "-- see: https://github.com/sol/hpack"
   , ""
@@ -53,8 +56,8 @@ main = do
     ["--version"] -> putStrLn (programVersion version)
     ["--help"] -> printHelp
     _ -> case parseVerbosity args of
-      (verbose, [dir]) -> hpack dir verbose
-      (verbose, []) -> hpack "" verbose
+      (verbose, [dir]) -> hpack (Just dir) verbose
+      (verbose, []) -> hpack Nothing verbose
       _ -> do
         printHelp
         exitFailure
@@ -87,10 +90,10 @@ parseVersion xs = case [v | (v, "") <- readP_to_S Version.parseVersion xs] of
   [v] -> Just v
   _ -> Nothing
 
-hpack :: FilePath -> Bool -> IO ()
+hpack :: Maybe FilePath -> Bool -> IO ()
 hpack = hpackWithVersion version
 
-hpackResult :: FilePath -> IO Result
+hpackResult :: Maybe FilePath -> IO Result
 hpackResult = hpackWithVersionResult version
 
 data Result = Result {
@@ -101,9 +104,9 @@ data Result = Result {
 
 data Status = Generated | AlreadyGeneratedByNewerHpack | OutputUnchanged
 
-hpackWithVersion :: Version -> FilePath -> Bool -> IO ()
-hpackWithVersion v dir verbose = do
-    r <- hpackWithVersionResult v dir
+hpackWithVersion :: Version -> Maybe FilePath -> Bool -> IO ()
+hpackWithVersion v p verbose = do
+    r <- hpackWithVersionResult v p
     forM_ (resultWarnings r) $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
     when verbose $ putStrLn $
       case resultStatus r of
@@ -111,9 +114,21 @@ hpackWithVersion v dir verbose = do
         OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
         AlreadyGeneratedByNewerHpack -> resultCabalFile r ++ " was generated with a newer version of hpack, please upgrade and try again."
 
-hpackWithVersionResult :: Version -> FilePath -> IO Result
-hpackWithVersionResult v dir = do
-  (warnings, cabalFile, new) <- run dir
+splitDirectory :: Maybe FilePath -> IO (Maybe FilePath, FilePath)
+splitDirectory Nothing = return (Nothing, packageConfig)
+splitDirectory (Just p) = do
+  isDirectory <- doesDirectoryExist p
+  return $ if isDirectory
+    then (Just p, packageConfig)
+    else let
+      file = takeFileName p
+      dir = takeDirectory p
+      in (guard (p /= file) >> Just dir, if null file then packageConfig else file)
+
+hpackWithVersionResult :: Version -> Maybe FilePath -> IO Result
+hpackWithVersionResult v p = do
+  (dir, file) <- splitDirectory p
+  (warnings, cabalFile, new) <- run dir file
   old <- fmap splitHeader <$> tryReadFile cabalFile
   let oldVersion = fmap fst old >>= extractVersion
   status <-
@@ -121,7 +136,7 @@ hpackWithVersionResult v dir = do
       if (fmap snd old == Just (lines new)) then
         return OutputUnchanged
       else do
-        B.writeFile cabalFile $ encodeUtf8 $ T.pack $ header v ++ new
+        B.writeFile cabalFile $ encodeUtf8 $ T.pack $ header file v ++ new
         return Generated
     else
       return AlreadyGeneratedByNewerHpack
