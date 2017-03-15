@@ -3,6 +3,7 @@ module Hpack.Util (
   List(..)
 , GhcOption
 , GhcProfOption
+, GhcjsOption
 , CppOption
 , CcOption
 , LdOption
@@ -54,6 +55,7 @@ instance FromJSON a => FromJSON (List a) where
 
 type GhcOption = String
 type GhcProfOption = String
+type GhcjsOption = String
 type CppOption = String
 type CcOption = String
 type LdOption = String

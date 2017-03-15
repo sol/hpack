@@ -74,9 +74,11 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `other-extensions` | · | | |
 | `ghc-options` | · | | |
 | `ghc-prof-options` | · | | |
+| `ghcjs-options` | · | | |
 | `cpp-options` | · | | |
 | `cc-options` | · | | |
 | `c-sources` | · | | Accepts [glob patterns](#file-globbing) |
+| `js-sources` | · | | Accepts [glob patterns](#file-globbing) |
 | `extra-lib-dirs` | · | | |
 | `extra-libraries` | · | | |
 | `include-dirs` | · | | |

@@ -119,7 +119,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . d
   ++ maybe [] sectionDependencies packageLibrary
 
 section :: a -> Section a
-section a = Section a [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] []
+section a = Section a [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -230,9 +230,11 @@ data CommonOptions = CommonOptions {
 , commonOptionsOtherExtensions :: Maybe (List String)
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
+, commonOptionsGhcjsOptions :: Maybe (List GhcjsOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
 , commonOptionsCcOptions :: Maybe (List CcOption)
 , commonOptionsCSources :: Maybe (List FilePath)
+, commonOptionsJsSources :: Maybe (List FilePath)
 , commonOptionsExtraLibDirs :: Maybe (List FilePath)
 , commonOptionsExtraLibraries :: Maybe (List FilePath)
 , commonOptionsIncludeDirs :: Maybe (List FilePath)
@@ -463,9 +465,11 @@ data Section a = Section {
 , sectionOtherExtensions :: [String]
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
+, sectionGhcjsOptions :: [GhcjsOption]
 , sectionCppOptions :: [CppOption]
 , sectionCcOptions :: [CcOption]
 , sectionCSources :: [FilePath]
+, sectionJsSources :: [FilePath]
 , sectionExtraLibDirs :: [FilePath]
 , sectionExtraLibraries :: [FilePath]
 , sectionIncludeDirs :: [FilePath]
@@ -676,12 +680,23 @@ expandCSources dir sect@Section{..} = do
   (warnings, files) <- expandGlobs "c-sources" dir sectionCSources
   return (warnings, sect {sectionCSources = files})
 
+expandJsSources :: FilePath -> Section a -> IO ([String], Section a)
+expandJsSources dir sect@Section{..} = do
+  (warnings, files) <- expandGlobs "js-sources" dir sectionJsSources
+  return (warnings, sect {sectionJsSources = files})
+
+expandForeignSources :: FilePath -> Section a -> IO ([String], Section a)
+expandForeignSources dir sect = do
+  (cWarnings, sect') <- expandCSources dir sect
+  (jsWarnings, sect'') <- expandJsSources dir sect'
+  return (cWarnings ++ jsWarnings, sect'')
+
 toCustomSetup :: CustomSetupSection -> CustomSetup
 toCustomSetup CustomSetupSection{..} = CustomSetup
   { customSetupDependencies = fromMaybeList customSetupSectionDependencies }
 
 toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO ([String], Section Library)
-toLibrary dir name globalOptions library = traverse fromLibrarySection sect >>= expandCSources dir
+toLibrary dir name globalOptions library = traverse fromLibrarySection sect >>= expandForeignSources dir
   where
     sect :: Section LibrarySection
     sect = mergeSections globalOptions library
@@ -698,7 +713,7 @@ toLibrary dir name globalOptions library = traverse fromLibrarySection sect >>= 
 
 toExecutables :: FilePath -> Section global -> [(String, Section ExecutableSection)] -> IO ([String], [Section Executable])
 toExecutables dir globalOptions executables = do
-  result <- mapM toExecutable sections >>= mapM (expandCSources dir)
+  result <- mapM toExecutable sections >>= mapM (expandForeignSources dir)
   let (warnings, xs) = unzip result
   return (concat warnings, xs)
   where
@@ -729,9 +744,11 @@ mergeSections globalOptions options
   , sectionOtherExtensions = sectionOtherExtensions globalOptions ++ sectionOtherExtensions options
   , sectionGhcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
   , sectionGhcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
+  , sectionGhcjsOptions = sectionGhcjsOptions globalOptions ++ sectionGhcjsOptions options
   , sectionCppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
   , sectionCcOptions = sectionCcOptions globalOptions ++ sectionCcOptions options
   , sectionCSources = sectionCSources globalOptions ++ sectionCSources options
+  , sectionJsSources = sectionJsSources globalOptions ++ sectionJsSources options
   , sectionExtraLibDirs = sectionExtraLibDirs globalOptions ++ sectionExtraLibDirs options
   , sectionExtraLibraries = sectionExtraLibraries globalOptions ++ sectionExtraLibraries options
   , sectionIncludeDirs = sectionIncludeDirs globalOptions ++ sectionIncludeDirs options
@@ -753,9 +770,11 @@ toSection a CommonOptions{..}
       , sectionOtherExtensions = fromMaybeList commonOptionsOtherExtensions
       , sectionGhcOptions = fromMaybeList commonOptionsGhcOptions
       , sectionGhcProfOptions = fromMaybeList commonOptionsGhcProfOptions
+      , sectionGhcjsOptions = fromMaybeList commonOptionsGhcjsOptions
       , sectionCppOptions = fromMaybeList commonOptionsCppOptions
       , sectionCcOptions = fromMaybeList commonOptionsCcOptions
       , sectionCSources = fromMaybeList commonOptionsCSources
+      , sectionJsSources = fromMaybeList commonOptionsJsSources
       , sectionExtraLibDirs = fromMaybeList commonOptionsExtraLibDirs
       , sectionExtraLibraries = fromMaybeList commonOptionsExtraLibraries
       , sectionIncludeDirs = fromMaybeList commonOptionsIncludeDirs

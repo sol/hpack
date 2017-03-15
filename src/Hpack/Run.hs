@@ -222,11 +222,13 @@ renderSection Section{..} = [
   , renderOtherExtensions sectionOtherExtensions
   , renderGhcOptions sectionGhcOptions
   , renderGhcProfOptions sectionGhcProfOptions
+  , renderGhcjsOptions sectionGhcjsOptions
   , renderCppOptions sectionCppOptions
   , renderCcOptions sectionCcOptions
   , renderDirectories "include-dirs" sectionIncludeDirs
   , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
   , Field "c-sources" (LineSeparatedList sectionCSources)
+  , Field "js-sources" (LineSeparatedList sectionJsSources)
   , renderDirectories "extra-lib-dirs" sectionExtraLibDirs
   , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
   , renderLdOptions sectionLdOptions
@@ -271,6 +273,9 @@ renderGhcOptions = Field "ghc-options" . WordList
 
 renderGhcProfOptions :: [GhcProfOption] -> Element
 renderGhcProfOptions = Field "ghc-prof-options" . WordList
+
+renderGhcjsOptions :: [GhcjsOption] -> Element
+renderGhcjsOptions = Field "ghcjs-options" . WordList
 
 renderCppOptions :: [CppOption] -> Element
 renderCppOptions = Field "cpp-options" . WordList

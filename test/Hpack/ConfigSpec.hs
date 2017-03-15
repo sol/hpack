@@ -116,6 +116,15 @@ spec = do
         captureUnknownFieldsValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionCSources = ["foo.c", "bar/*.c"]}
 
+      it "accepts js-sources" $ do
+        let input = [i|
+              js-sources:
+                - foo.js
+                - bar/*.js
+              |]
+        captureUnknownFieldsValue <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionJsSources = ["foo.js", "bar/*.js"]}
+
       it "accepts extra-lib-dirs" $ do
         let input = [i|
               extra-lib-dirs:
@@ -627,6 +636,30 @@ spec = do
         }
         )
 
+    it "accepts ghcjs-options" $ do
+      withPackageConfig_ [i|
+        ghcjs-options: -dedupe
+        library:
+          ghcjs-options: -ghcjs1
+
+        executables:
+          foo:
+            main: Main.hs
+            ghcjs-options: -ghcjs2
+
+
+        tests:
+          spec:
+            main: Spec.hs
+            ghcjs-options: -ghcjs3
+        |]
+        (`shouldBe` package {
+          packageLibrary = Just (section library) {sectionGhcjsOptions = ["-dedupe", "-ghcjs1"]}
+        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs2"]}]
+        , packageTests = [(section $ executable "spec" "Spec.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs3"]}]
+        }
+        )
+
     it "accepts ld-options" $ do
       withPackageConfig_ [i|
         library:
@@ -794,6 +827,30 @@ spec = do
           touch "cbits/bar.c"
           )
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}))
+
+      it "accepts js-sources" $ do
+        withPackageConfig [i|
+          library:
+            js-sources:
+              - jsbits/*.js
+          |]
+          (do
+          touch "jsbits/foo.js"
+          touch "jsbits/bar.js"
+          )
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]}))
+
+      it "accepts global js-sources" $ do
+        withPackageConfig [i|
+          js-sources:
+            - jsbits/*.js
+          library: {}
+          |]
+          (do
+          touch "jsbits/foo.js"
+          touch "jsbits/bar.js"
+          )
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]}))
 
       it "allows to specify exposed" $ do
         withPackageConfig_ [i|
@@ -1048,6 +1105,34 @@ spec = do
           touch "cbits/bar.c"
           )
           (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}]})
+
+      it "accepts js-sources" $ do
+        withPackageConfig [i|
+          executables:
+            foo:
+              main: driver/Main.hs
+              js-sources:
+                - jsbits/*.js
+          |]
+          (do
+          touch "jsbits/foo.js"
+          touch "jsbits/bar.js"
+          )
+          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]}]})
+
+      it "accepts global js-sources" $ do
+        withPackageConfig [i|
+          js-sources:
+            - jsbits/*.js
+          executables:
+            foo:
+              main: driver/Main.hs
+          |]
+          (do
+          touch "jsbits/foo.js"
+          touch "jsbits/bar.js"
+          )
+          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]}]})
 
     context "when reading test section" $ do
       it "warns on unknown fields" $ do
