@@ -687,9 +687,9 @@ expandJsSources dir sect@Section{..} = do
 
 expandForeignSources :: FilePath -> Section a -> IO ([String], Section a)
 expandForeignSources dir sect = do
-  (cWarnings, sect') <- expandCSources dir sect
-  (jsWarnings, sect'') <- expandJsSources dir sect'
-  return (cWarnings ++ jsWarnings, sect'')
+  (cWarnings, sect_) <- expandCSources dir sect
+  (jsWarnings, sect__) <- expandJsSources dir sect_
+  return (cWarnings ++ jsWarnings, sect__)
 
 toCustomSetup :: CustomSetupSection -> CustomSetup
 toCustomSetup CustomSetupSection{..} = CustomSetup

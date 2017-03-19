@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+- Add support for `ghcjs-options` and `js-sources` (#161)
 - Allow `license-file` to be a list
 - Accept input file on command-line (#106)
 
