@@ -930,13 +930,40 @@ spec = do
           ]
           )
 
-      it "reads executable section" $ do
+      it "reads executables section" $ do
         withPackageConfig_ [i|
           executables:
             foo:
               main: driver/Main.hs
           |]
           (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main.hs"]))
+
+      it "reads executable section" $ do
+        withPackageConfig_ [i|
+          executable:
+            main: driver/Main.hs
+          |]
+          (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main.hs"]))
+
+      it "prefers executable to executables section" $ do
+        withPackageConfig_ [i|
+          executable:
+            main: driver/Main1.hs
+          executables:
+            foo:
+              main: driver/Main2.hs
+          |]
+          (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main1.hs"]))
+
+      it "allows both executable and executables sections" $ do
+        withPackageConfig_ [i|
+          executable:
+            main: driver/Main1.hs
+          executables:
+            foo2:
+              main: driver/Main2.hs
+          |]
+          (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main1.hs", section $ executable "foo2" "driver/Main2.hs"]))
 
       it "accepts arbitrary entry points as main" $ do
         withPackageConfig_ [i|

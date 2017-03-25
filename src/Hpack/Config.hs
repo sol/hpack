@@ -333,6 +333,7 @@ data PackageConfig = PackageConfig {
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe (CaptureUnknownFields CustomSetupSection)
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
+, packageConfigExecutable :: Maybe (CaptureUnknownFields (Section ExecutableSection))
 , packageConfigExecutables :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigTests :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigBenchmarks :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
@@ -527,6 +528,13 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
     mCustomSetup :: Maybe CustomSetup
     mCustomSetup = toCustomSetup <$> mCustomSetupSection
 
+    executableSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
+    executableSections = toList $ case packageConfigExecutable of
+      Nothing -> packageConfigExecutables
+      Just executable -> Just $ case packageConfigExecutables of
+        Nothing -> Map.singleton name executable
+        Just executables -> Map.insert name executable executables
+
   libraryResult <- mapM (toLibrary dir name globalOptions) mLibrarySection
   let
     mLibrary :: Maybe (Section Library)
@@ -607,9 +615,6 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
 
   return (warnings, pkg)
   where
-    executableSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
-    executableSections = toList packageConfigExecutables
-
     testsSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     testsSections = toList packageConfigTests
 
