@@ -955,6 +955,17 @@ spec = do
           |]
           (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main1.hs"]))
 
+      it "warns when executable section clobbers executables" $ do
+        withPackageWarnings_ [i|
+          name: foo
+          executable:
+            main: driver/Main1.hs
+          executables:
+            foo:
+              main: driver/Main2.hs
+          |]
+          (`shouldBe` ["Ignoring field \"foo\" in executables section in favor of implicit \"executable\" section"])
+
       it "allows both executable and executables sections" $ do
         withPackageConfig_ [i|
           executable:
