@@ -945,6 +945,15 @@ spec = do
           |]
           (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main.hs"]))
 
+      it "warns on unknown executable fields" $ do
+        withPackageWarnings_ [i|
+          name: foo
+          executable:
+            main: Main.hs
+            unknown: true
+          |]
+          (`shouldBe` ["Ignoring unknown field \"unknown\" in executable section \"foo\""])
+
       it "prefers executable to executables section" $ do
         withPackageConfig_ [i|
           executable:
