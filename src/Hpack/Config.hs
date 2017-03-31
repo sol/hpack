@@ -519,30 +519,21 @@ data SourceRepository = SourceRepository {
 
 mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
 mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
+  libraryResult <- mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
   let
-    nameWarnings :: [String]
-    name :: String
-    (nameWarnings, name) = maybe (["Package name not specified, inferred " ++ show inferredName], inferredName) ((,) []) packageConfigName
-      where inferredName = takeBaseName dir
-
-    mCustomSetup :: Maybe CustomSetup
-    mCustomSetup = toCustomSetup <$> mCustomSetupSection
-
     executableWarnings :: [String]
     executableSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     (executableWarnings, executableSections) = case packageConfigExecutable of
       Nothing -> ([], toList packageConfigExecutables)
       Just executable -> case packageConfigExecutables of
-        Nothing -> ([], [(name, executable)])
-        Just executables -> case Map.insertLookupWithKey (\_ x _ -> x) name executable executables of
+        Nothing -> ([], [(packageName_, executable)])
+        Just executables -> case Map.insertLookupWithKey (\_ x _ -> x) packageName_ executable executables of
           (Nothing, m) -> ([], Map.toList m)
           (Just _, m) ->
-            ( ["Ignoring field " ++ show name ++ " in executables section in favor of implicit \"executable\" section"]
+            ( ["Ignoring field " ++ show packageName_ ++ " in executables section in favor of implicit \"executable\" section"]
             , Map.toList m
             )
 
-  libraryResult <- mapM (toLibrary dir name globalOptions) mLibrarySection
-  let
     mLibrary :: Maybe (Section Library)
     mLibrary = fmap snd libraryResult
 
@@ -577,7 +568,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
         Just (List ["LICENSE"])
 
       pkg = Package {
-        packageName = name
+        packageName = packageName_
       , packageVersion = fromMaybe "0.0.0" packageConfigVersion
       , packageSynopsis = packageConfigSynopsis
       , packageDescription = packageConfigDescription
@@ -622,6 +613,16 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
 
   return (warnings, pkg)
   where
+    nameWarnings :: [String]
+    packageName_ :: String
+    (nameWarnings, packageName_) = case packageConfigName of
+      Nothing -> let inferredName = takeBaseName dir in
+        (["Package name not specified, inferred " ++ show inferredName], inferredName)
+      Just n -> ([], n)
+
+    mCustomSetup :: Maybe CustomSetup
+    mCustomSetup = toCustomSetup <$> mCustomSetupSection
+
     testsSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     testsSections = toList packageConfigTests
 
