@@ -952,7 +952,7 @@ spec = do
             main: Main.hs
             unknown: true
           |]
-          (`shouldBe` ["Ignoring unknown field \"unknown\" in executable section \"foo\""])
+          (`shouldBe` ["Ignoring unknown field \"unknown\" in executable section"])
 
       it "ignoes executable section if executables section exists" $ do
         withPackageConfig_ [i|

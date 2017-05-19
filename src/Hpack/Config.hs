@@ -599,8 +599,8 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
         ++ flagWarnings
         ++ maybe [] (formatUnknownFields "custom-setup section") (captureUnknownFieldsFields <$> packageConfigCustomSetup)
         ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary)
-        ++ formatUnknownSectionFields "executable" executableSections
-        ++ formatUnknownSectionFields "test" testsSections
+        ++ formatUnknownSectionFields (isJust packageConfigExecutables) "executable" executableSections
+        ++ formatUnknownSectionFields True "test" testsSections
         ++ formatMissingSourceDirs missingSourceDirs
         ++ libraryWarnings
         ++ executableWarnings
@@ -651,11 +651,13 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       where
         f field = "Ignoring unknown field " ++ show field ++ " in " ++ name
 
-    formatUnknownSectionFields :: String -> [(String, CaptureUnknownFields a)] -> [String]
-    formatUnknownSectionFields sectionType = concatMap f . map (fmap captureUnknownFieldsFields)
+    formatUnknownSectionFields :: Bool -> String -> [(String, CaptureUnknownFields a)] -> [String]
+    formatUnknownSectionFields showSect sectionType = concatMap f . map (fmap captureUnknownFieldsFields)
       where
         f :: (String, [String]) -> [String]
-        f (sect, fields) = formatUnknownFields (sectionType ++ " section " ++ show sect) fields
+        f (sect, fields) = formatUnknownFields
+          (sectionType ++ " section" ++ if showSect then " " ++ show sect else "")
+          fields
 
     formatMissingSourceDirs = map f
       where
