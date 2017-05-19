@@ -333,6 +333,7 @@ data PackageConfig = PackageConfig {
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe (CaptureUnknownFields CustomSetupSection)
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
+, packageConfigExecutable :: Maybe (CaptureUnknownFields (Section ExecutableSection))
 , packageConfigExecutables :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigTests :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigBenchmarks :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
@@ -520,6 +521,18 @@ mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([
 mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
   libraryResult <- mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
   let
+    executableWarnings :: [String]
+    executableSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
+    (executableWarnings, executableSections) =
+      case (packageConfigExecutable, packageConfigExecutables) of
+        (Nothing, Nothing) -> ([], [])
+        (Just executable, Nothing) -> ([], [(packageName_, executable)])
+        (Nothing, Just executables) -> ([], Map.toList executables)
+        (Just _, Just executables) ->
+          ( ["Ignoring executable section because executables section exists"]
+          , Map.toList executables
+          )
+
     mLibrary :: Maybe (Section Library)
     mLibrary = fmap snd libraryResult
 
@@ -586,10 +599,11 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
         ++ flagWarnings
         ++ maybe [] (formatUnknownFields "custom-setup section") (captureUnknownFieldsFields <$> packageConfigCustomSetup)
         ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary)
-        ++ formatUnknownSectionFields "executable" executableSections
-        ++ formatUnknownSectionFields "test" testsSections
+        ++ formatUnknownSectionFields (isJust packageConfigExecutables) "executable" executableSections
+        ++ formatUnknownSectionFields True "test" testsSections
         ++ formatMissingSourceDirs missingSourceDirs
         ++ libraryWarnings
+        ++ executableWarnings
         ++ executablesWarnings
         ++ testsWarnings
         ++ benchmarksWarnings
@@ -607,9 +621,6 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
 
     mCustomSetup :: Maybe CustomSetup
     mCustomSetup = toCustomSetup <$> mCustomSetupSection
-
-    executableSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
-    executableSections = toList packageConfigExecutables
 
     testsSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     testsSections = toList packageConfigTests
@@ -640,11 +651,13 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       where
         f field = "Ignoring unknown field " ++ show field ++ " in " ++ name
 
-    formatUnknownSectionFields :: String -> [(String, CaptureUnknownFields a)] -> [String]
-    formatUnknownSectionFields sectionType = concatMap f . map (fmap captureUnknownFieldsFields)
+    formatUnknownSectionFields :: Bool -> String -> [(String, CaptureUnknownFields a)] -> [String]
+    formatUnknownSectionFields showSect sectionType = concatMap f . map (fmap captureUnknownFieldsFields)
       where
         f :: (String, [String]) -> [String]
-        f (sect, fields) = formatUnknownFields (sectionType ++ " section " ++ show sect) fields
+        f (sect, fields) = formatUnknownFields
+          (sectionType ++ " section" ++ if showSect then " " ++ show sect else "")
+          fields
 
     formatMissingSourceDirs = map f
       where
