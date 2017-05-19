@@ -523,16 +523,15 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
   let
     executableWarnings :: [String]
     executableSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
-    (executableWarnings, executableSections) = case packageConfigExecutable of
-      Nothing -> ([], toList packageConfigExecutables)
-      Just executable -> case packageConfigExecutables of
-        Nothing -> ([], [(packageName_, executable)])
-        Just executables -> case Map.insertLookupWithKey (\_ x _ -> x) packageName_ executable executables of
-          (Nothing, m) -> ([], Map.toList m)
-          (Just _, m) ->
-            ( ["Ignoring field " ++ show packageName_ ++ " in executables section in favor of implicit \"executable\" section"]
-            , Map.toList m
-            )
+    (executableWarnings, executableSections) =
+      case (packageConfigExecutable, packageConfigExecutables) of
+        (Nothing, Nothing) -> ([], [])
+        (Just executable, Nothing) -> ([], [(packageName_, executable)])
+        (Nothing, Just executables) -> ([], Map.toList executables)
+        (Just _, Just executables) ->
+          ( ["Ignoring executable section because executables section exists"]
+          , Map.toList executables
+          )
 
     mLibrary :: Maybe (Section Library)
     mLibrary = fmap snd libraryResult
