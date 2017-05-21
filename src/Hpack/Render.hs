@@ -40,7 +40,7 @@ data Value =
 data Element = Stanza String [Element] | Group Element Element | Field String Value
   deriving (Eq, Show)
 
-data Lines = SingleLine String | MultipleLines [String]
+data Lines = SingleLine String | MultipleLines [String] | MultipleLinesWithDot [String]
   deriving (Eq, Show)
 
 data CommaStyle = LeadingCommas | TrailingCommas
@@ -75,9 +75,17 @@ renderField settings@RenderSettings{..} nesting name value = case renderValue se
   SingleLine x -> [indent settings nesting (name ++ ": " ++ padding ++ x)]
   MultipleLines [] -> []
   MultipleLines xs -> (indent settings nesting name ++ ":") : map (indent settings $ succ nesting) xs
+  MultipleLinesWithDot [] -> []
+  MultipleLinesWithDot xs ->
+      (indent settings nesting name ++ ":" ++ renderDot renderSettingsCommaStyle value) :
+      map (indent settings $ succ nesting) xs
   where
     Alignment fieldAlignment = renderSettingsFieldAlignment
     padding = replicate (fieldAlignment - length name - 2) ' '
+
+renderDot :: CommaStyle -> Value -> String
+renderDot TrailingCommas (CommaSeparatedList _) = " .,"
+renderDot _ _ = " ."
 
 renderValue :: RenderSettings -> Value -> Lines
 renderValue RenderSettings{..} v = case v of
@@ -87,17 +95,27 @@ renderValue RenderSettings{..} v = case v of
   CommaSeparatedList xs -> renderCommaSeparatedList renderSettingsCommaStyle xs
 
 renderLineSeparatedList :: CommaStyle -> [String] -> Lines
-renderLineSeparatedList style = MultipleLines . map (padding ++)
+renderLineSeparatedList style l
+  | "." `elem` l = MultipleLinesWithDot out
+  | otherwise = MultipleLines out
   where
+    l' = filter (/= ".") l
+    out = map (padding ++) l'
     padding = case style of
       LeadingCommas -> "  "
       TrailingCommas -> ""
 
 renderCommaSeparatedList :: CommaStyle -> [String] -> Lines
-renderCommaSeparatedList style = MultipleLines . case style of
-  LeadingCommas -> map renderLeadingComma . zip (True : repeat False)
-  TrailingCommas -> map renderTrailingComma . reverse . zip (True : repeat False) . reverse
+renderCommaSeparatedList style l
+  | hasDot = MultipleLinesWithDot out
+  | otherwise = MultipleLines out
   where
+    hasDot = "." `elem` l
+    l' = filter (/= ".") l
+    out = case style of
+      LeadingCommas -> map renderLeadingComma $ zip (not hasDot : repeat False) l'
+      TrailingCommas -> map renderTrailingComma $ reverse $ zip (True : repeat False) $ reverse l'
+
     renderLeadingComma :: (Bool, String) -> String
     renderLeadingComma (isFirst, x)
       | isFirst   = "  " ++ x
