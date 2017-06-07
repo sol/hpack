@@ -588,6 +588,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
         ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary)
         ++ formatUnknownSectionFields "executable" executableSections
         ++ formatUnknownSectionFields "test" testsSections
+        ++ formatUnknownSectionFields "benchmark" benchmarkSections
         ++ formatMissingSourceDirs missingSourceDirs
         ++ libraryWarnings
         ++ executablesWarnings

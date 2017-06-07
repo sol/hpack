@@ -1134,6 +1134,22 @@ spec = do
           )
           (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]}]})
 
+    context "when reading benchmark section" $ do
+      it "warns on unknown fields" $ do
+        withPackageWarnings_ [i|
+          name: foo
+          benchmarks:
+            foo:
+              main: Main.hs
+              bar: 42
+              baz: 23
+          |]
+          (`shouldBe` [
+            "Ignoring unknown field \"bar\" in benchmark section \"foo\""
+          , "Ignoring unknown field \"baz\" in benchmark section \"foo\""
+          ]
+          )
+
     context "when reading test section" $ do
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|
