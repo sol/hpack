@@ -954,26 +954,27 @@ spec = do
           |]
           (`shouldBe` ["Ignoring unknown field \"unknown\" in executable section"])
 
-      it "ignoes executable section if executables section exists" $ do
-        withPackageConfig_ [i|
-          executable:
-            main: driver/Main1.hs
-          executables:
-            foo2:
-              main: driver/Main2.hs
-          |]
-          (packageExecutables >>> (`shouldBe` [section $ executable "foo2" "driver/Main2.hs"]))
+      context "with both executable and executables" $ do
+        it "gives executable precedence" $ do
+          withPackageConfig_ [i|
+            executable:
+              main: driver/Main1.hs
+            executables:
+              foo2:
+                main: driver/Main2.hs
+            |]
+            (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main1.hs"]))
 
-      it "warns with both executable and executables sections" $ do
-        withPackageWarnings_ [i|
-          name: foo
-          executable:
-            main: driver/Main1.hs
-          executables:
-            foo2:
-              main: driver/Main2.hs
-          |]
-          (`shouldBe` ["Ignoring executable section because executables section exists"])
+        it "warns" $ do
+          withPackageWarnings_ [i|
+            name: foo
+            executable:
+              main: driver/Main1.hs
+            executables:
+              foo2:
+                main: driver/Main2.hs
+            |]
+            (`shouldBe` ["Ignoring field \"executables\" in favor of \"executable\""])
 
       it "accepts arbitrary entry points as main" $ do
         withPackageConfig_ [i|

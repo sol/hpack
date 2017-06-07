@@ -310,6 +310,8 @@ instance FromJSON BuildType where
     "Custom"    -> return Custom
     _           -> fail "build-type must be one of: Simple, Configure, Make, Custom"
 
+type ExecutableConfig = CaptureUnknownFields (Section ExecutableSection)
+
 data PackageConfig = PackageConfig {
   packageConfigName :: Maybe String
 , packageConfigVersion :: Maybe String
@@ -333,11 +335,17 @@ data PackageConfig = PackageConfig {
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe (CaptureUnknownFields CustomSetupSection)
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
-, packageConfigExecutable :: Maybe (CaptureUnknownFields (Section ExecutableSection))
-, packageConfigExecutables :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
+, packageConfigExecutable :: Maybe (Sum (Map String ExecutableConfig) ExecutableConfig)
+, packageConfigExecutables :: Maybe (Sum (Map String ExecutableConfig) ExecutableConfig)
 , packageConfigTests :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigBenchmarks :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
 } deriving (Eq, Show, Generic)
+
+data Sum a b = A a | B b
+  deriving (Eq, Show)
+
+instance (FromJSON a, FromJSON b) => FromJSON (Sum a b) where
+  parseJSON value = (A <$> parseJSON value) <|> (B <$> parseJSON value)
 
 instance HasFieldNames PackageConfig where
   ignoreUnderscoredUnknownFields _ = True
@@ -524,14 +532,18 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
     executableWarnings :: [String]
     executableSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     (executableWarnings, executableSections) =
-      case (packageConfigExecutable, packageConfigExecutables) of
-        (Nothing, Nothing) -> ([], [])
-        (Just executable, Nothing) -> ([], [(packageName_, executable)])
-        (Nothing, Just executables) -> ([], Map.toList executables)
-        (Just _, Just executables) ->
-          ( ["Ignoring executable section because executables section exists"]
-          , Map.toList executables
-          )
+      case (packageConfigExecutable <|> packageConfigExecutables) of
+        Nothing -> ([], [])
+        Just exec -> (warnings, sections)
+          where
+            (showSect, sections) = case exec of
+              A executables -> (True, Map.toList executables)
+              B executable -> (False, [(packageName_, executable)])
+            warnings = ignoringExecutablesWarning ++ unknownFieldWarnings
+            ignoringExecutablesWarning = case (packageConfigExecutable, packageConfigExecutables) of
+              (Just _, Just _) -> ["Ignoring field \"executables\" in favor of \"executable\""]
+              _ -> []
+            unknownFieldWarnings = formatUnknownSectionFields showSect "executable" executableSections
 
     mLibrary :: Maybe (Section Library)
     mLibrary = fmap snd libraryResult
@@ -599,7 +611,6 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
         ++ flagWarnings
         ++ maybe [] (formatUnknownFields "custom-setup section") (captureUnknownFieldsFields <$> packageConfigCustomSetup)
         ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary)
-        ++ formatUnknownSectionFields (isJust packageConfigExecutables) "executable" executableSections
         ++ formatUnknownSectionFields True "test" testsSections
         ++ formatUnknownSectionFields True "benchmark" benchmarkSections
         ++ formatMissingSourceDirs missingSourceDirs
