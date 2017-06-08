@@ -1,9 +1,9 @@
--- This file has been generated from package.yaml by hpack version 0.15.0.
+-- This file has been generated from package.yaml by hpack version 0.17.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.17.0
+version:        0.17.1
 synopsis:       An alternative format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
@@ -76,7 +76,7 @@ test-suite spec
   main-is: Spec.hs
   hs-source-dirs:
       test
-    , src
+      src
   ghc-options: -Wall
   cpp-options: -DTEST
   build-depends:
