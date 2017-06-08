@@ -311,6 +311,7 @@ instance FromJSON BuildType where
     _           -> fail "build-type must be one of: Simple, Configure, Make, Custom"
 
 type ExecutableConfig = CaptureUnknownFields (Section ExecutableSection)
+type Executables = Maybe (Sum ExecutableConfig (Map String ExecutableConfig))
 
 data PackageConfig = PackageConfig {
   packageConfigName :: Maybe String
@@ -335,8 +336,8 @@ data PackageConfig = PackageConfig {
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe (CaptureUnknownFields CustomSetupSection)
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
-, packageConfigExecutable :: Maybe (Sum (Map String ExecutableConfig) ExecutableConfig)
-, packageConfigExecutables :: Maybe (Sum (Map String ExecutableConfig) ExecutableConfig)
+, packageConfigExecutable :: Executables
+, packageConfigExecutables :: Executables
 , packageConfigTests :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
 , packageConfigBenchmarks :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
 } deriving (Eq, Show, Generic)
@@ -537,8 +538,8 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
         Just exec -> (warnings, sections)
           where
             (showSect, sections) = case exec of
-              A executables -> (True, Map.toList executables)
-              B executable -> (False, [(packageName_, executable)])
+              A executable -> (False, [(packageName_, executable)])
+              B executables -> (True, Map.toList executables)
             warnings = ignoringExecutablesWarning ++ unknownFieldWarnings
             ignoringExecutablesWarning = case (packageConfigExecutable, packageConfigExecutables) of
               (Just _, Just _) -> ["Ignoring field \"executables\" in favor of \"executable\""]
