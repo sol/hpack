@@ -49,18 +49,27 @@ spec = do
     it "rejects invalid module names" $ do
       toModule ["resources", "hello.hs"] `shouldBe` Nothing
 
-  describe "getFilesRecursive" $ do
-    it "gets all files from given directory and all its subdirectories" $ do
-      inTempDirectoryNamed "test" $ do
+  describe "getModuleFilesRecursive" $ do
+    it "gets all files from given directory" $ do
+      inTempDirectory $ do
         touch "foo/bar"
         touch "foo/baz"
-        touch "foo/foobar/baz"
-        actual <- getFilesRecursive "foo"
+        actual <- getModuleFilesRecursive "foo"
         actual `shouldMatchList` [
             ["bar"]
           , ["baz"]
-          , ["foobar", "baz"]
           ]
+
+    it "descends into subdirectories" $ do
+      inTempDirectory $ do
+        touch "foo/Bar/baz"
+        getModuleFilesRecursive "foo" `shouldReturn` [["Bar", "baz"]]
+
+    context "when a subdirectory is not a valid module name" $ do
+      it "does not descend" $ do
+        inTempDirectory $ do
+          touch "foo/bar/baz"
+          getModuleFilesRecursive "foo" `shouldReturn` empty
 
   describe "List" $ do
     let invalid = [aesonQQ|{

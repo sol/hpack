@@ -792,7 +792,7 @@ getModules dir src_ = sort <$> do
   if exists
     then do
       src <- canonicalizePath (dir </> src_)
-      removeSetup src . toModules <$> getFilesRecursive src
+      removeSetup src . toModules <$> getModuleFilesRecursive src
     else return []
   where
     toModules :: [[FilePath]] -> [String]
