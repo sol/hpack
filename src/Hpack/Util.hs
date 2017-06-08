@@ -9,7 +9,7 @@ module Hpack.Util (
 , LdOption
 , parseMain
 , toModule
-, getFilesRecursive
+, getModuleFilesRecursive
 , tryReadFile
 , expandGlobs
 , sort
@@ -86,13 +86,13 @@ toModule path = case reverse path of
     stripSuffix :: String -> String -> Maybe String
     stripSuffix suffix x = reverse <$> stripPrefix (reverse suffix) (reverse x)
 
-getFilesRecursive :: FilePath -> IO [[String]]
-getFilesRecursive baseDir = go []
+getModuleFilesRecursive :: FilePath -> IO [[String]]
+getModuleFilesRecursive baseDir = go []
   where
     go :: [FilePath] -> IO [[FilePath]]
     go dir = do
       c <- map ((dir ++) . return) . filter (`notElem` [".", ".."]) <$> getDirectoryContents (pathTo dir)
-      subdirsFiles  <- filterM (doesDirectoryExist . pathTo) c >>= mapM go
+      subdirsFiles  <- filterM (doesDirectoryExist . pathTo) c >>= mapM go . filter isModule
       files <- filterM (doesFileExist . pathTo) c
       return (files ++ concat subdirsFiles)
       where
