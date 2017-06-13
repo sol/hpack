@@ -33,12 +33,11 @@ library:
     - Hpack.Run
     - Hpack.Yaml
 
-executables:
-  hpack:
-    main: Main.hs
-    source-dirs: driver
-    dependencies:
-      - hpack
+executable:
+  main: Main.hs
+  source-dirs: driver
+  dependencies:
+    - hpack
 
 tests:
   spec:
