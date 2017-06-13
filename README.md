@@ -54,7 +54,7 @@ existing cabal file into a `package.yaml`.
 | `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | |
 | `library` | · | | See [Library fields](#library-fields) | |
 | `executables` | `executable <name>` | | Map from executable name to executable (see [Executable fields](#executable-fields)) | |
-| `executable` | | | Alias for `executables` (since `0.18.0`) | |
+| `executable` | `executable <package-name>` | | Shortcut for `executables: { package-name: ... }` | |
 | `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | |
 | `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | |
 
