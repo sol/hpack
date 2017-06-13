@@ -8,7 +8,6 @@ module Hpack (
 , main
 #ifdef TEST
 , hpackWithVersion
-, parseVerbosity
 , extractVersion
 , parseVersion
 , splitDirectory
@@ -34,6 +33,7 @@ import           System.Directory
 import           Text.ParserCombinators.ReadP
 
 import           Paths_hpack (version)
+import           Hpack.Options
 import           Hpack.Config
 import           Hpack.Run
 import           Hpack.Util
@@ -52,29 +52,22 @@ header p v = unlines [
 main :: IO ()
 main = do
   args <- getArgs
-  case args of
-    ["--version"] -> putStrLn (programVersion version)
-    ["--help"] -> printHelp
-    _ -> case parseVerbosity args of
-      (verbose, [dir]) -> hpack (Just dir) verbose
-      (verbose, []) -> hpack Nothing verbose
-      _ -> do
-        printHelp
-        exitFailure
+  case parseOptions args of
+    PrintVersion -> putStrLn (programVersion version)
+    Help -> printHelp
+    Run options -> case options of
+      Options _verbose True dir -> hpackStdOut dir
+      Options verbose False dir -> hpack dir verbose
+    ParseError -> do
+      printHelp
+      exitFailure
 
 printHelp :: IO ()
 printHelp = do
   hPutStrLn stderr $ unlines [
-      "Usage: hpack [ --silent ] [ dir ]"
+      "Usage: hpack [ --silent ] [ dir ] [ - ]"
     , "       hpack --version"
     ]
-
-parseVerbosity :: [String] -> (Bool, [String])
-parseVerbosity xs = (verbose, ys)
-  where
-    silentFlag = "--silent"
-    verbose = not (silentFlag `elem` xs)
-    ys = filter (/= silentFlag) xs
 
 safeInit :: [a] -> [a]
 safeInit [] = []
@@ -107,12 +100,16 @@ data Status = Generated | AlreadyGeneratedByNewerHpack | OutputUnchanged
 hpackWithVersion :: Version -> Maybe FilePath -> Bool -> IO ()
 hpackWithVersion v p verbose = do
     r <- hpackWithVersionResult v p
-    forM_ (resultWarnings r) $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
+    printWarnings (resultWarnings r)
     when verbose $ putStrLn $
       case resultStatus r of
         Generated -> "generated " ++ resultCabalFile r
         OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
         AlreadyGeneratedByNewerHpack -> resultCabalFile r ++ " was generated with a newer version of hpack, please upgrade and try again."
+
+printWarnings :: [String] -> IO ()
+printWarnings warnings = do
+  forM_ warnings $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
 
 splitDirectory :: Maybe FilePath -> IO (Maybe FilePath, FilePath)
 splitDirectory Nothing = return (Nothing, packageConfig)
@@ -148,3 +145,10 @@ hpackWithVersionResult v p = do
   where
     splitHeader :: String -> ([String], [String])
     splitHeader = fmap (dropWhile null) . span ("--" `isPrefixOf`) . lines
+
+hpackStdOut :: Maybe FilePath -> IO ()
+hpackStdOut p = do
+  (dir, file) <- splitDirectory p
+  (warnings, _cabalFile, new) <- run dir file
+  B.putStr $ encodeUtf8 $ T.pack new
+  printWarnings warnings

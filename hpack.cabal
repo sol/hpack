@@ -48,6 +48,7 @@ library
       Hpack.FormattingHints
       Hpack.GenericsUtil
       Hpack.Haskell
+      Hpack.Options
       Hpack.Render
       Hpack.Util
       Paths_hpack
@@ -107,6 +108,7 @@ test-suite spec
       Hpack.FormattingHintsSpec
       Hpack.GenericsUtilSpec
       Hpack.HaskellSpec
+      Hpack.OptionsSpec
       Hpack.RenderSpec
       Hpack.RunSpec
       Hpack.UtilSpec
@@ -116,6 +118,7 @@ test-suite spec
       Hpack.FormattingHints
       Hpack.GenericsUtil
       Hpack.Haskell
+      Hpack.Options
       Hpack.Render
       Hpack.Run
       Hpack.Util

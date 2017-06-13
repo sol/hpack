@@ -1,3 +1,7 @@
+## next
+  - Output generated cabal file to `stdout` when `-` is given as a command-line
+    option (see #113)
+
 ## Change in 0.18.0
   - Make `executable` a shortcut of `executables: { package-name: ... }`
   - Add support for `ghcjs-options` and `js-sources` (see #161)
