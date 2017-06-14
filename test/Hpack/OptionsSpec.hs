@@ -36,3 +36,6 @@ spec = do
       context "with -" $ do
         it "sets optionsToStdout to True" $ do
           parseOptions ["-"] `shouldBe` Run (Options True True Nothing)
+
+        it "rejects - for target" $ do
+          parseOptions ["-", "-"] `shouldBe` ParseError

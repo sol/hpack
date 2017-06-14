@@ -26,6 +26,7 @@ parseOptions xs = case xs of
 
       targets = case ys of
         ["-"] -> Just (Nothing, True)
+        ["-", "-"] -> Nothing
         [dir] -> Just (Just dir, False)
         [dir, "-"] -> Just (Just dir, True)
         [] -> Just (Nothing, False)
