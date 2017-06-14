@@ -28,35 +28,35 @@ existing cabal file into a `package.yaml`.
 
 #### Top-level fields
 
-| Hpack | Cabal | Default | Notes | Example |
-| --- | --- | --- | --- | --- |
-| `name` | · | | | |
-| `version` | · | `0.0.0` | | |
-| `synopsis` | · | | | |
-| `description` | · | | | |
-| `category` | · | | | |
-| `stability` | · | | | |
-| `homepage` | · | If `github` given, `<repo>#readme` | | |
-| `bug-reports` | · | If `github` given, `<repo>/issues` | | |
-| `author` | · | | May be a list | |
-| `maintainer` | · | | May be a list | |
-| `copyright` | · | | May be a list |
-| `license` | · | | | |
-| `license-file` | `license-file` or `license-files` | `LICENSE` if file exists | May be a list | |
-| `tested-with` | · | | | |
-| `build-type` | · | `Simple`, or `Custom` if `custom-setup` section exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | |
-| | `cabal-version` | `>= 1.10` or `>= 1.21` | `>= 1.21` if library component has `reexported-modules` field | |
-| `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | |
-| `data-files` | · | | Accepts [glob patterns](#file-globbing) | |
-| `github` | `source-repository head` | | Accepts `user/repo` or `user/repo/subdir` | `github: foo/bar`
-| `git`    | `source-repository head` | | No effect if `github` given | `git: https://my.repo.com/foo` |
-| `custom-setup` | · | | See [Custom setup](#custom-setup) | |
-| `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | |
-| `library` | · | | See [Library fields](#library-fields) | |
-| `executables` | `executable <name>` | | Map from executable name to executable (see [Executable fields](#executable-fields)) | |
-| `executable` | `executable <package-name>` | | Shortcut for `executables: { package-name: ... }` | |
-| `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | |
-| `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | |
+| Hpack | Cabal | Default | Notes | Example | Since |
+| --- | --- | --- | --- | --- | --- |
+| `name` | · | | | | |
+| `version` | · | `0.0.0` | | | |
+| `synopsis` | · | | | | |
+| `description` | · | | | | |
+| `category` | · | | | | |
+| `stability` | · | | | | |
+| `homepage` | · | If `github` given, `<repo>#readme` | | | |
+| `bug-reports` | · | If `github` given, `<repo>/issues` | | | |
+| `author` | · | | May be a list | | |
+| `maintainer` | · | | May be a list | | |
+| `copyright` | · | | May be a list | |
+| `license` | · | | | | |
+| `license-file` | `license-file` or `license-files` | `LICENSE` if file exists | May be a list | | |
+| `tested-with` | · | | | | |
+| `build-type` | · | `Simple`, or `Custom` if `custom-setup` section exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | | |
+| | `cabal-version` | `>= 1.10` or `>= 1.21` | `>= 1.21` if library component has `reexported-modules` field | | |
+| `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | | |
+| `data-files` | · | | Accepts [glob patterns](#file-globbing) | | |
+| `github` | `source-repository head` | | Accepts `user/repo` or `user/repo/subdir` | `github: foo/bar` |
+| `git`    | `source-repository head` | | No effect if `github` given | `git: https://my.repo.com/foo` | |
+| `custom-setup` | · | | See [Custom setup](#custom-setup) | | |
+| `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | | |
+| `library` | · | | See [Library fields](#library-fields) | | |
+| `executables` | `executable <name>` | | Map from executable name to executable (see [Executable fields](#executable-fields)) | | |
+| `executable` | `executable <package-name>` | | Shortcut for `executables: { package-name: ... }` | | `0.18.0` |
+| `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | | |
+| `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | | |
 
 #### <a name="custom-setup"></a>Custom setup
 
