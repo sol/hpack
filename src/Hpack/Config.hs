@@ -119,7 +119,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . d
   ++ maybe [] sectionDependencies packageLibrary
 
 section :: a -> Section a
-section a = Section a [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] []
+section a = Section a [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] [] []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -243,6 +243,7 @@ data CommonOptions = CommonOptions {
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List ConditionalSection)
 , commonOptionsBuildTools :: Maybe (List Dependency)
+, commonOptionsPkgConfigs :: Maybe (List String)
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames CommonOptions
@@ -481,6 +482,7 @@ data Section a = Section {
 , sectionBuildable :: Maybe Bool
 , sectionConditionals :: [Conditional]
 , sectionBuildTools :: [Dependency]
+, sectionPkgConfigs :: [String]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Conditional = Conditional {
@@ -777,6 +779,7 @@ mergeSections globalOptions options
   , sectionDependencies = sectionDependencies globalOptions ++ sectionDependencies options
   , sectionConditionals = sectionConditionals globalOptions ++ sectionConditionals options
   , sectionBuildTools = sectionBuildTools globalOptions ++ sectionBuildTools options
+  , sectionPkgConfigs = sectionPkgConfigs globalOptions ++ sectionPkgConfigs options
   }
 
 toSection :: a -> CommonOptions -> ([FieldName], Section a)
@@ -803,6 +806,7 @@ toSection a CommonOptions{..}
       , sectionDependencies = fromMaybeList commonOptionsDependencies
       , sectionConditionals = conditionals
       , sectionBuildTools = fromMaybeList commonOptionsBuildTools
+      , sectionPkgConfigs = fromMaybeList commonOptionsPkgConfigs
       }
     )
   where

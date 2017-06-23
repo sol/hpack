@@ -143,6 +143,15 @@ spec = do
         captureUnknownFieldsValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionExtraLibraries = ["foo", "bar"]}
 
+      it "accepts pkg-configs" $ do
+        let input = [i|
+              pkg-configs:
+                - QtWebKit
+                - weston
+              |]
+        captureUnknownFieldsValue <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionPkgConfigs = [ "QtWebKit", "weston" ]}
+
       context "when parsing conditionals" $ do
         it "accepts conditionals" $ do
           let input = [i|
