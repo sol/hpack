@@ -1,6 +1,8 @@
 ## next
   - Output generated cabal file to `stdout` when `-` is given as a command-line
     option (see #113)
+  - Recognize `.chs`, `.y`, `.ly` and `.x` as Haskell modules when inferring
+    modules for
 
 ## Change in 0.18.0
   - Make `executable` a shortcut of `executables: { package-name: ... }`

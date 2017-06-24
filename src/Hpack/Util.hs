@@ -19,7 +19,6 @@ module Hpack.Util (
 import           Prelude ()
 import           Prelude.Compat
 
-import           Control.Applicative
 import           Control.Exception
 import           Control.Monad.Compat
 import           Data.Aeson.Types
@@ -79,11 +78,15 @@ toModule :: [FilePath] -> Maybe String
 toModule path = case reverse path of
   [] -> Nothing
   x : xs -> do
-    m <- stripSuffix ".hs" x
-      <|> stripSuffix ".lhs" x
-      <|> stripSuffix ".hsc" x
-      <|> stripSuffix ".x" x
-      <|> stripSuffix ".y" x
+    m <- msum $ map (`stripSuffix` x) [
+        ".hs"
+      , ".lhs"
+      , ".chs"
+      , ".hsc"
+      , ".y"
+      , ".ly"
+      , ".x"
+      ]
     let name = reverse (m : xs)
     guard (isModule name) >> return (intercalate "." name)
   where
