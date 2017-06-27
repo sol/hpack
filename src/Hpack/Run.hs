@@ -234,7 +234,7 @@ renderSection Section{..} = [
   , renderLdOptions sectionLdOptions
   , renderDependencies sectionDependencies
   , renderBuildTools sectionBuildTools
-  , Field "pkgconfig-depends" (LineSeparatedList sectionPkgConfigs)
+  , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigs)
   ]
   ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ map renderConditional sectionConditionals
