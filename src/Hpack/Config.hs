@@ -388,7 +388,7 @@ instance FromJSON Dependencies where
         Null -> pure (Dependency (T.unpack k) Nothing)
         Object _ -> Dependency <$> pure (T.unpack k) <*> (Just <$> parseJSON v')
         String s -> pure (Dependency (unwords (map T.unpack [k, s])) Nothing)
-        _ -> typeMismatch "Object or String" v')
+        _ -> typeMismatch "Null, Object, or String" v')
       (HashMap.toList o)
     String s -> pure (Dependencies [fromString (T.unpack s)])
     _ -> typeMismatch "Array, Object, or String" v

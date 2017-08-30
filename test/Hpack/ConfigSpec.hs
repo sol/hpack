@@ -783,6 +783,16 @@ spec = do
             |]
             [Dependency "yesod-core" (Just (GitRef "https://github.com/yesodweb/yesod" "498d373e2d0cffe38b4cba598e17f0afaf720e6e" (Just "yesod-core")))]
 
+        it "ignores name in nested hash" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                outer-name:
+                  name: inner-name
+                  path: somewhere
+            |]
+            [Dependency "outer-name" (Just (Local "somewhere"))]
+
         it "overwrites earlier keys with later ones" $ do
           checkDependencies [i|
             library:
