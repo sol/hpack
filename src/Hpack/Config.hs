@@ -383,8 +383,15 @@ newtype Dependencies = Dependencies {
 instance FromJSON Dependencies where
   parseJSON v = case v of
     Array a -> Dependencies <$> mapM parseJSON (V.toList a)
+    Object o -> Dependencies <$> mapM
+      (\(k, v') -> case v' of
+        Null -> pure (Dependency (T.unpack k) Nothing)
+        Object _ -> Dependency <$> pure (T.unpack k) <*> (Just <$> parseJSON v')
+        String s -> pure (Dependency (unwords (map T.unpack [k, s])) Nothing)
+        _ -> typeMismatch "Object or String" v')
+      (HashMap.toList o)
     String s -> pure (Dependencies [fromString (T.unpack s)])
-    _ -> typeMismatch "Array or String" v
+    _ -> typeMismatch "Array, Object, or String" v
 
 instance Monoid Dependencies where
   mempty = Dependencies mempty

@@ -737,6 +737,69 @@ spec = do
         (packageName >>> (`shouldBe` "n2"))
 
     context "when reading library section" $ do
+      context "dependencies" $ do
+        let checkDependencies yaml dependencies = withPackageConfig_ yaml (packageLibrary >>> (`shouldBe` Just (section library) {sectionDependencies = Dependencies dependencies}))
+
+        it "accepts a string" $ do
+          checkDependencies [i|
+            library:
+              dependencies: base ==4.10.0.0
+            |]
+            ["base ==4.10.0.0"]
+
+        it "accepts an array of strings" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                - base ==4.10.*
+            |]
+            ["base ==4.10.*"]
+
+        it "accepts an array of hashes" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                - name: hpack
+                  path: ../hpack
+            |]
+            [Dependency "hpack" (Just (Local "../hpack"))]
+
+        it "accepts a hash of strings" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                base: '>=4.10.0 && < 4.11'
+            |]
+            ["base >=4.10.0 && < 4.11"]
+
+        it "accepts a hash of hashes" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                yesod-core:
+                  github: yesodweb/yesod
+                  ref: 498d373e2d0cffe38b4cba598e17f0afaf720e6e
+                  subdir: yesod-core
+            |]
+            [Dependency "yesod-core" (Just (GitRef "https://github.com/yesodweb/yesod" "498d373e2d0cffe38b4cba598e17f0afaf720e6e" (Just "yesod-core")))]
+
+        it "overwrites earlier keys with later ones" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                base: ==4.10.*
+                base: ==4.8.*
+            |]
+            ["base ==4.8.*"]
+
+        it "allows null constraints" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                base:
+            |]
+            ["base"]
+
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|
           name: foo
