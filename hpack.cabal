@@ -1,4 +1,4 @@
--- This file has been generated from package.yaml by hpack version 0.18.0.
+-- This file has been generated from package.yaml by hpack version 0.18.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -39,6 +39,7 @@ library
     , unordered-containers
     , yaml
     , aeson >= 0.11
+    , vector
   exposed-modules:
       Hpack
       Hpack.Config
@@ -72,6 +73,7 @@ executable hpack
     , unordered-containers
     , yaml
     , aeson >= 0.11
+    , vector
     , hpack
   default-language: Haskell2010
 
@@ -96,6 +98,7 @@ test-suite spec
     , unordered-containers
     , yaml
     , aeson >= 0.11
+    , vector
     , hspec == 2.*
     , QuickCheck
     , temporary
