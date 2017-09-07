@@ -223,7 +223,7 @@ instance HasFieldNames ExecutableSection
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_
 
-data CommonOptions = CommonOptions {
+data CommonOptions a = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
 , commonOptionsDependencies :: Maybe (List Dependency)
 , commonOptionsDefaultExtensions :: Maybe (List String)
@@ -241,19 +241,19 @@ data CommonOptions = CommonOptions {
 , commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
-, commonOptionsWhen :: Maybe (List ConditionalSection)
+, commonOptionsWhen :: Maybe (List (ConditionalSection a))
 , commonOptionsBuildTools :: Maybe (List Dependency)
 } deriving (Eq, Show, Generic)
 
-instance HasFieldNames CommonOptions
+instance HasFieldNames a => HasFieldNames (CommonOptions a)
 
-instance FromJSON CommonOptions where
+instance (FromJSON a, HasFieldNames a) => FromJSON (CommonOptions a) where
   parseJSON = genericParseJSON_
 
-data ConditionalSection = ThenElseConditional (CaptureUnknownFields ThenElse) | FlatConditional (CaptureUnknownFields (Section Condition))
+data ConditionalSection a = ThenElseConditional (CaptureUnknownFields (ThenElse a)) | FlatConditional (CaptureUnknownFields (Section Condition))
   deriving (Eq, Show)
 
-instance FromJSON ConditionalSection where
+instance (FromJSON a, HasFieldNames a) => FromJSON (ConditionalSection a) where
   parseJSON v
     | hasKey "then" v || hasKey "else" v = ThenElseConditional <$> parseJSON v
     | otherwise = FlatConditional <$> parseJSON v
@@ -271,18 +271,18 @@ instance FromJSON Condition where
 
 instance HasFieldNames Condition
 
-data ThenElse = ThenElse {
+data ThenElse a = ThenElse {
   _thenElseCondition :: String
-, _thenElseThen :: (CaptureUnknownFields (Section Empty))
-, _thenElseElse :: (CaptureUnknownFields (Section Empty))
+, _thenElseThen :: CaptureUnknownFields (Section a)
+, _thenElseElse :: CaptureUnknownFields (Section a)
 } deriving (Eq, Show, Generic)
 
-instance FromJSON (CaptureUnknownFields ThenElse) where
+instance (FromJSON a, HasFieldNames a) => FromJSON (CaptureUnknownFields (ThenElse a)) where
   parseJSON = captureUnknownFields
 
-instance HasFieldNames ThenElse
+instance HasFieldNames a => HasFieldNames (ThenElse a)
 
-instance FromJSON ThenElse where
+instance (FromJSON a, HasFieldNames a) => FromJSON (ThenElse a) where
   parseJSON = genericParseJSON_
 
 data Empty = Empty
@@ -490,7 +490,7 @@ data Conditional = Conditional {
 } deriving (Eq, Show)
 
 instance HasFieldNames a => HasFieldNames (Section a) where
-  fieldNames Proxy = fieldNames (Proxy :: Proxy a) ++ fieldNames (Proxy :: Proxy CommonOptions)
+  fieldNames Proxy = fieldNames (Proxy :: Proxy a) ++ fieldNames (Proxy :: Proxy (CommonOptions a))
   ignoreUnderscoredUnknownFields _ = ignoreUnderscoredUnknownFields (Proxy :: Proxy a)
 
 data FlagSection = FlagSection {
@@ -779,7 +779,7 @@ mergeSections globalOptions options
   , sectionBuildTools = sectionBuildTools globalOptions ++ sectionBuildTools options
   }
 
-toSection :: a -> CommonOptions -> ([FieldName], Section a)
+toSection :: a -> CommonOptions a -> ([FieldName], Section a)
 toSection a CommonOptions{..}
   = ( concat unknownFields
     , Section {
@@ -808,7 +808,7 @@ toSection a CommonOptions{..}
   where
     (unknownFields, conditionals) = unzip (map toConditional $ fromMaybeList commonOptionsWhen)
 
-toConditional :: ConditionalSection -> ([FieldName], Conditional)
+toConditional :: ConditionalSection a -> ([FieldName], Conditional)
 toConditional x = case x of
   ThenElseConditional (CaptureUnknownFields fields (ThenElse condition (CaptureUnknownFields fieldsThen then_) (CaptureUnknownFields fieldsElse else_))) ->
       (fields ++ fieldsThen ++ fieldsElse, Conditional condition (() <$ then_) (Just (() <$ else_)))
