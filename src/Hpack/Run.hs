@@ -13,6 +13,7 @@ module Hpack.Run (
 #ifdef TEST
 , renderConditional
 , renderFlag
+, renderSection
 , renderSourceRepository
 , renderDirectories
 , formatDescription
@@ -125,10 +126,10 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
       , packageLibrary >>= libCabalVersion
       ]
      where
-      libCabalVersion :: Section Library -> Maybe String
+      libCabalVersion :: Section Library Library -> Maybe String
       libCabalVersion sect = ">= 1.21" <$ guard (hasReexportedModules sect)
 
-      hasReexportedModules :: Section Library -> Bool
+      hasReexportedModules :: Section Library Library -> Bool
       hasReexportedModules = not . null . libraryReexportedModules . sectionData
 
 sortSectionFields :: [(String, [String])] -> [Element] -> [Element]
@@ -168,55 +169,60 @@ renderFlag Flag {..} = Stanza ("flag " ++ flagName) $ description ++ [
   where
     description = maybe [] (return . Field "description" . Literal) flagDescription
 
-renderExecutables :: [Section Executable] -> [Element]
+renderExecutables :: [Section Executable Executable] -> [Element]
 renderExecutables = map renderExecutable
 
-renderExecutable :: Section Executable -> Element
+renderExecutable :: Section Executable Executable -> Element
 renderExecutable sect@(sectionData -> Executable{..}) =
-  Stanza ("executable " ++ executableName) (renderExecutableSection sect)
+  Stanza ("executable " ++ fromMaybe "" executableName) (renderExecutableSection sect)
 
-renderTests :: [Section Executable] -> [Element]
+renderTests :: [Section Executable Executable] -> [Element]
 renderTests = map renderTest
 
-renderTest :: Section Executable -> Element
+renderTest :: Section Executable Executable -> Element
 renderTest sect@(sectionData -> Executable{..}) =
-  Stanza ("test-suite " ++ executableName)
+  Stanza ("test-suite " ++ fromMaybe "" executableName)
     (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
 
-renderBenchmarks :: [Section Executable] -> [Element]
+renderBenchmarks :: [Section Executable Executable] -> [Element]
 renderBenchmarks = map renderBenchmark
 
-renderBenchmark :: Section Executable -> Element
+renderBenchmark :: Section Executable Executable -> Element
 renderBenchmark sect@(sectionData -> Executable{..}) =
-  Stanza ("benchmark " ++ executableName)
+  Stanza ("benchmark " ++ fromMaybe "" executableName)
     (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
 
-renderExecutableSection :: Section Executable -> [Element]
-renderExecutableSection sect@(sectionData -> Executable{..}) =
-  mainIs : renderSection sect ++ [otherModules, defaultLanguage]
+renderExecutableSection :: Section Executable Executable -> [Element]
+renderExecutableSection sect = renderExecutableSectionBody sect ++ [defaultLanguage]
+
+renderExecutableSectionBody :: Section Executable Executable -> [Element]
+renderExecutableSectionBody sect@(sectionData -> Executable{..}) =
+  mainIs ++ renderSection renderExecutableSectionBody sect ++ [otherModules]
   where
-    mainIs = Field "main-is" (Literal executableMain)
+    mainIs = maybe [] (pure . Field "main-is" . Literal) executableMain
     otherModules = renderOtherModules executableOtherModules
 
 renderCustomSetup :: CustomSetup -> Element
 renderCustomSetup CustomSetup{..} =
   Stanza "custom-setup" [renderSetupDepends customSetupDependencies]
 
-renderLibrary :: Section Library -> Element
-renderLibrary sect@(sectionData -> Library{..}) = Stanza "library" $
-  renderSection sect ++
+renderLibrary :: Section Library Library -> Element
+renderLibrary sect = Stanza "library" $ renderLibraryBody sect ++ [defaultLanguage]
+
+renderLibraryBody :: Section Library Library -> [Element]
+renderLibraryBody sect@(sectionData -> Library{..}) =
+  renderSection renderLibraryBody sect ++
   maybe [] (return . renderExposed) libraryExposed ++ [
     renderExposedModules libraryExposedModules
   , renderOtherModules libraryOtherModules
   , renderReexportedModules libraryReexportedModules
-  , defaultLanguage
   ]
 
 renderExposed :: Bool -> Element
 renderExposed = Field "exposed" . Literal . show
 
-renderSection :: Section a -> [Element]
-renderSection Section{..} = [
+renderSection :: (Section b b -> [Element]) -> Section b a -> [Element]
+renderSection renderAll Section{..} = [
     renderDirectories "hs-source-dirs" sectionSourceDirs
   , renderDefaultExtensions sectionDefaultExtensions
   , renderOtherExtensions sectionOtherExtensions
@@ -236,14 +242,14 @@ renderSection Section{..} = [
   , renderBuildTools sectionBuildTools
   ]
   ++ maybe [] (return . renderBuildable) sectionBuildable
-  ++ map renderConditional sectionConditionals
+  ++ map (renderConditional renderAll) sectionConditionals
 
-renderConditional :: Conditional -> Element
-renderConditional (Conditional condition sect mElse) = case mElse of
+renderConditional :: (Section a a -> [Element]) -> Conditional a -> Element
+renderConditional renderBody (Conditional condition sect mElse) = case mElse of
   Nothing -> if_
-  Just else_ -> Group if_ (Stanza "else" $ renderSection else_)
+  Just else_ -> Group if_ (Stanza "else" $ renderSection renderBody else_)
   where
-    if_ = Stanza ("if " ++ condition) (renderSection sect)
+    if_ = Stanza ("if " ++ condition) (renderSection renderBody sect)
 
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"

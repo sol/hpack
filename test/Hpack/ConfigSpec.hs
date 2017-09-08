@@ -26,7 +26,7 @@ package :: Package
 package = Config.package "foo" "0.0.0"
 
 executable :: String -> String -> Executable
-executable name main_ = Executable name main_ []
+executable name main_ = Executable (Just name) (Just main_) []
 
 library :: Library
 library = Library Nothing [] ["Paths_foo"] []
@@ -152,7 +152,7 @@ spec = do
                 |]
               conditionals = [
                 Conditional "os(windows)"
-                (section ()){sectionDependencies = ["Win32"]}
+                (section Empty){sectionDependencies = ["Win32"]}
                 Nothing
                 ]
           captureUnknownFieldsValue <$> decodeEither input
@@ -170,7 +170,7 @@ spec = do
                   - condition: os(windows)
                     baz: 23
                 |]
-          captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
+          captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty Empty)))
             `shouldBe` Right ["foo", "bar", "bar2", "baz"]
 
         context "when parsing conditionals with else-branch" $ do
@@ -185,10 +185,10 @@ spec = do
                   |]
                 conditionals = [
                   Conditional "os(windows)"
-                  (section ()){sectionDependencies = ["Win32"]}
-                  (Just (section ()){sectionDependencies = ["unix"]})
+                  (section Empty){sectionDependencies = ["Win32"]}
+                  (Just (section Empty){sectionDependencies = ["unix"]})
                   ]
-                r :: Either String (Section Empty)
+                r :: Either String (Section Empty Empty)
                 r = captureUnknownFieldsValue <$> decodeEither input
             sectionConditionals <$> r `shouldBe` Right conditionals
 
@@ -201,7 +201,7 @@ spec = do
                     else: null
                   |]
 
-                r :: Either String (Section Empty)
+                r :: Either String (Section Empty Empty)
                 r = captureUnknownFieldsValue <$> decodeEither input
             sectionConditionals <$> r `shouldSatisfy` isLeft
 
@@ -215,7 +215,7 @@ spec = do
                     else:
                       baz: null
                   |]
-            captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
+            captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty Empty)))
               `shouldBe` Right ["foo", "bar", "baz"]
 
     context "when parsing a Dependency" $ do
