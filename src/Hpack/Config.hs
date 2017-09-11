@@ -389,7 +389,15 @@ readPackageConfig file = do
     Left err -> return (Left err)
     Right config -> do
       dir <- takeDirectory <$> canonicalizePath file
-      Right <$> mkPackage dir config
+      result@(_, pkg) <- mkPackage dir config
+      case traverse validateExecutable $ packageExecutables pkg ++ packageTests pkg ++ packageBenchmarks pkg of
+        Left err' -> return (Left err')
+        Right _ -> return (Right result)
+      where
+        validateExecutable :: Section Executable Executable -> Either String ()
+        validateExecutable ex = case executableMain . sectionData $ ex of
+          Nothing -> Left "Missing main"
+          Just _ -> Right ()
 
 data Dependency = Dependency {
   dependencyName :: String
