@@ -524,7 +524,7 @@ instance Functor Conditional where
     where
     condMap s = s { sectionConditionals = (fmap . fmap) f (sectionConditionals s) }
 
-instance (HasFieldNames a, HasFieldNames b) => HasFieldNames (Section a b) where
+instance (HasFieldNames a, HasFieldNames b) => HasFieldNames (Section b a) where
   fieldNames Proxy = fieldNames (Proxy :: Proxy a) ++ fieldNames (Proxy :: Proxy (CommonOptions a))
   ignoreUnderscoredUnknownFields _ = ignoreUnderscoredUnknownFields (Proxy :: Proxy a)
 
