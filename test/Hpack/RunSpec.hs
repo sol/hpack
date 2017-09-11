@@ -301,6 +301,22 @@ spec = do
         , "        Win32"
         ]
 
+    it "renders library-specific property in conditional" $ do
+      let conditional = Conditional "os(windows)" (section library{libraryExposedModules=["Foo"]}) Nothing
+      render defaultRenderSettings 0 (renderConditional renderLibraryBody conditional) `shouldBe` [
+          "if os(windows)"
+        , "  exposed-modules:"
+        , "      Foo"
+        ]
+
+    it "renders executable-specific property in conditional" $ do
+      let conditional = Conditional "os(windows)" (section $ Executable Nothing Nothing ["Foo"]) Nothing
+      render defaultRenderSettings 0 (renderConditional renderExecutableSectionBody conditional) `shouldBe` [
+          "if os(windows)"
+        , "  other-modules:"
+        , "      Foo"
+        ]
+
   describe "renderFlag" $ do
     it "renders flags" $ do
       let flag = (Flag "foo" (Just "some flag") True False)

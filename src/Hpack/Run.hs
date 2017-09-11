@@ -12,7 +12,9 @@ module Hpack.Run (
 , defaultRenderSettings
 #ifdef TEST
 , renderConditional
+, renderExecutableSectionBody
 , renderFlag
+, renderLibraryBody
 , renderSection
 , renderSourceRepository
 , renderDirectories
@@ -247,9 +249,9 @@ renderSection renderAll Section{..} = [
 renderConditional :: (Section a a -> [Element]) -> Conditional a -> Element
 renderConditional renderBody (Conditional condition sect mElse) = case mElse of
   Nothing -> if_
-  Just else_ -> Group if_ (Stanza "else" $ renderSection renderBody else_)
+  Just else_ -> Group if_ (Stanza "else" $ renderBody else_)
   where
-    if_ = Stanza ("if " ++ condition) (renderSection renderBody sect)
+    if_ = Stanza ("if " ++ condition) (renderBody sect)
 
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"
