@@ -22,7 +22,7 @@ module Hpack.Config (
 , section
 , Package(..)
 , Dependency(..)
-, AddSource(..)
+, SourceDependency(..)
 , GitUrl
 , GitRef
 , GhcOption
@@ -377,7 +377,7 @@ readPackageConfig file = do
 
 data Dependency = Dependency {
   dependencyName :: String
-, dependencyGitRef :: Maybe AddSource
+, dependencyGitRef :: Maybe SourceDependency
 } deriving (Eq, Show, Ord, Generic)
 
 instance IsString Dependency where
@@ -394,10 +394,10 @@ instance FromJSON Dependency where
           name :: Parser String
           name = o .: "name"
 
-          local :: Parser AddSource
+          local :: Parser SourceDependency
           local = Local <$> o .: "path"
 
-          git :: Parser AddSource
+          git :: Parser SourceDependency
           git = GitRef <$> url <*> ref <*> subdir
 
           url :: Parser String
@@ -412,7 +412,7 @@ instance FromJSON Dependency where
           subdir :: Parser (Maybe FilePath)
           subdir = o .:? "subdir"
 
-data AddSource = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
+data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
   deriving (Eq, Show, Ord)
 
 type GitUrl = String
