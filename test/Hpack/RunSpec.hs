@@ -225,7 +225,7 @@ spec = do
 
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionDependencies = ["foo", "bar", "foo", "baz"]}]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionDependencies = [Dependency "foo" (VersionRange "== 0.1.0"), Dependency "bar" AnyVersion]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -234,10 +234,8 @@ spec = do
           , "executable foo"
           , "  main-is: Main.hs"
           , "  build-depends:"
-          , "      foo"
+          , "      foo == 0.1.0"
           , "    , bar"
-          , "    , foo"
-          , "    , baz"
           , "  default-language: Haskell2010"
           ]
 

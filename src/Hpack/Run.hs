@@ -200,7 +200,7 @@ renderExecutableSection sect@(sectionData -> Executable{..}) =
 
 renderCustomSetup :: CustomSetup -> Element
 renderCustomSetup CustomSetup{..} =
-  Stanza "custom-setup" [renderSetupDepends customSetupDependencies]
+  Stanza "custom-setup" [renderDependencies "setup-depends" customSetupDependencies]
 
 renderLibrary :: Section Library -> Element
 renderLibrary sect@(sectionData -> Library{..}) = Stanza "library" $
@@ -232,8 +232,8 @@ renderSection Section{..} = [
   , renderDirectories "extra-lib-dirs" sectionExtraLibDirs
   , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
   , renderLdOptions sectionLdOptions
-  , renderDependencies sectionDependencies
-  , renderBuildTools sectionBuildTools
+  , renderDependencies "build-depends" sectionDependencies
+  , renderDependencies "build-tools" sectionBuildTools
   ]
   ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ map renderConditional sectionConditionals
@@ -265,8 +265,16 @@ renderOtherModules = Field "other-modules" . LineSeparatedList
 renderReexportedModules :: [String] -> Element
 renderReexportedModules = Field "reexported-modules" . LineSeparatedList
 
-renderDependencies :: [Dependency] -> Element
-renderDependencies = Field "build-depends" . CommaSeparatedList . map dependencyName
+renderDependencies :: String -> [Dependency] -> Element
+renderDependencies name = Field name . CommaSeparatedList . map renderDependency
+
+renderDependency :: Dependency -> String
+renderDependency (Dependency name version) = name ++ v
+  where
+    v = case version of
+      AnyVersion -> ""
+      VersionRange x -> " " ++ x
+      SourceDependency _ -> ""
 
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList
@@ -294,9 +302,3 @@ renderDefaultExtensions = Field "default-extensions" . WordList
 
 renderOtherExtensions :: [String] -> Element
 renderOtherExtensions = Field "other-extensions" . WordList
-
-renderBuildTools :: [Dependency] -> Element
-renderBuildTools = Field "build-tools" . CommaSeparatedList . map dependencyName
-
-renderSetupDepends :: [Dependency] -> Element
-renderSetupDepends = Field "setup-depends" . CommaSeparatedList . map dependencyName

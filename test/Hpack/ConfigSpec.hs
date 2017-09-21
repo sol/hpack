@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Hpack.ConfigSpec (
   spec
 
@@ -17,10 +18,14 @@ import           Control.Arrow
 import           System.Directory (createDirectory)
 import           Data.Yaml
 import           Data.Either.Compat
+import           Data.String
 
 import           Hpack.Util
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
+
+instance IsString Dependency where
+  fromString name = Dependency name AnyVersion
 
 package :: Package
 package = Config.package "foo" "0.0.0"
@@ -219,67 +224,76 @@ spec = do
               `shouldBe` Right ["foo", "bar", "baz"]
 
     context "when parsing a Dependency" $ do
-      it "accepts simple dependencies" $ do
-        parseEither parseJSON "hpack" `shouldBe` Right (Dependency "hpack" Nothing)
+      context "when parsing simple dependencies" $ do
+        it "accepts simple dependencies" $ do
+          parseEither parseJSON "hpack" `shouldBe` Right (Dependency "hpack" AnyVersion)
 
-      it "accepts git dependencies" $ do
-        let value = [aesonQQ|{
-              name: "hpack",
-              git: "https://github.com/sol/hpack",
-              ref: "master"
-            }|]
-            source = GitRef "https://github.com/sol/hpack" "master" Nothing
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
+        it "accepts dependencies with version" $ do
+          parseEither parseJSON "hpack >= 2 && < 3" `shouldBe` Right (Dependency "hpack" (VersionRange ">=2 && <3"))
 
-      it "accepts github dependencies" $ do
-        let value = [aesonQQ|{
-              name: "hpack",
-              github: "sol/hpack",
-              ref: "master"
-            }|]
-            source = GitRef "https://github.com/sol/hpack" "master" Nothing
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
+        context "with invalid version" $ do
+          it "returns an error message" $ do
+            parseEither parseJSON "hpack ==" `shouldBe` (Left "Error in $: invalid dependency \"hpack ==\"" :: Either String Dependency)
 
-      it "accepts an optional subdirectory for git dependencies" $ do
-        let value = [aesonQQ|{
-              name: "warp",
-              github: "yesodweb/wai",
-              ref: "master",
-              subdir: "warp"
-            }|]
-            source = GitRef "https://github.com/yesodweb/wai" "master" (Just "warp")
-        parseEither parseJSON value `shouldBe` Right (Dependency "warp" (Just source))
+      context "when parsing source dependencies" $ do
+        it "accepts git dependencies" $ do
+          let value = [aesonQQ|{
+                name: "hpack",
+                git: "https://github.com/sol/hpack",
+                ref: "master"
+              }|]
+              source = GitRef "https://github.com/sol/hpack" "master" Nothing
+          parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (SourceDependency source))
 
-      it "accepts local dependencies" $ do
-        let value = [aesonQQ|{
-              name: "hpack",
-              path: "../hpack"
-            }|]
-            source = Local "../hpack"
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
+        it "accepts github dependencies" $ do
+          let value = [aesonQQ|{
+                name: "hpack",
+                github: "sol/hpack",
+                ref: "master"
+              }|]
+              source = GitRef "https://github.com/sol/hpack" "master" Nothing
+          parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (SourceDependency source))
 
-      context "when parsing fails" $ do
-        it "returns an error message" $ do
-          let value = Number 23
-          parseEither parseJSON value `shouldBe` (Left "Error in $: expected String or an Object, encountered Number" :: Either String Dependency)
+        it "accepts an optional subdirectory for git dependencies" $ do
+          let value = [aesonQQ|{
+                name: "warp",
+                github: "yesodweb/wai",
+                ref: "master",
+                subdir: "warp"
+              }|]
+              source = GitRef "https://github.com/yesodweb/wai" "master" (Just "warp")
+          parseEither parseJSON value `shouldBe` Right (Dependency "warp" (SourceDependency source))
 
-        context "when ref is missing" $ do
-          it "produces accurate error messages" $ do
-            let value = [aesonQQ|{
-                  name: "hpack",
-                  git: "sol/hpack",
-                  ef: "master"
-                }|]
-            parseEither parseJSON value `shouldBe` (Left "Error in $: key \"ref\" not present" :: Either String Dependency)
+        it "accepts local dependencies" $ do
+          let value = [aesonQQ|{
+                name: "hpack",
+                path: "../hpack"
+              }|]
+              source = Local "../hpack"
+          parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (SourceDependency source))
 
-        context "when both git and github are missing" $ do
-          it "produces accurate error messages" $ do
-            let value = [aesonQQ|{
-                  name: "hpack",
-                  gi: "sol/hpack",
-                  ref: "master"
-                }|]
-            parseEither parseJSON value `shouldBe` (Left "Error in $: neither key \"git\" nor key \"github\" present" :: Either String Dependency)
+        context "when parsing fails" $ do
+          it "returns an error message" $ do
+            let value = Number 23
+            parseEither parseJSON value `shouldBe` (Left "Error in $: expected String or an Object, encountered Number" :: Either String Dependency)
+
+          context "when ref is missing" $ do
+            it "produces accurate error messages" $ do
+              let value = [aesonQQ|{
+                    name: "hpack",
+                    git: "sol/hpack",
+                    ef: "master"
+                  }|]
+              parseEither parseJSON value `shouldBe` (Left "Error in $: key \"ref\" not present" :: Either String Dependency)
+
+          context "when both git and github are missing" $ do
+            it "produces accurate error messages" $ do
+              let value = [aesonQQ|{
+                    name: "hpack",
+                    gi: "sol/hpack",
+                    ref: "master"
+                  }|]
+              parseEither parseJSON value `shouldBe` (Left "Error in $: neither key \"git\" nor key \"github\" present" :: Either String Dependency)
 
   describe "getModules" $ around withTempDirectory $ do
     it "returns Haskell modules in specified source directory" $ \dir -> do
@@ -721,10 +735,14 @@ spec = do
         withPackageConfig_ [i|
           custom-setup:
             dependencies:
-              - foo >1.0
-              - bar ==2.0
+              - foo > 1.0
+              - bar == 2.0
           |]
-          (packageCustomSetup >>> fmap customSetupDependencies >>> (`shouldBe` Just ["foo >1.0", "bar ==2.0"]))
+          (packageCustomSetup >>> fmap customSetupDependencies >>> (`shouldBe` Just [
+              Dependency "foo" (VersionRange ">1.0")
+            , Dependency "bar" (VersionRange "==2.0")
+            ])
+          )
 
     it "allows yaml merging and overriding fields" $ do
       withPackageConfig_ [i|

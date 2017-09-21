@@ -22,9 +22,10 @@ module Hpack.Config (
 , section
 , Package(..)
 , Dependency(..)
+, DependencyVersion(..)
 , SourceDependency(..)
-, GitUrl
 , GitRef
+, GitUrl
 , GhcOption
 , CustomSetup(..)
 , Section(..)
@@ -66,6 +67,7 @@ import           System.FilePath
 import           Hpack.GenericsUtil
 import           Hpack.Util
 import           Hpack.Yaml
+import           Hpack.Dependency
 
 package :: String -> String -> Package
 package name version = Package {
@@ -377,19 +379,18 @@ readPackageConfig file = do
 
 data Dependency = Dependency {
   dependencyName :: String
-, dependencyGitRef :: Maybe SourceDependency
-} deriving (Eq, Show, Ord, Generic)
-
-instance IsString Dependency where
-  fromString name = Dependency name Nothing
+, dependencyVersion :: DependencyVersion
+} deriving (Eq, Show)
 
 instance FromJSON Dependency where
   parseJSON v = case v of
-    String _ -> fromString <$> parseJSON v
+    String _ -> do
+      (name, versionRange) <- parseJSON v >>= parseDependency
+      return (Dependency name $ maybe AnyVersion VersionRange versionRange)
     Object o -> addSourceDependency o
     _ -> typeMismatch "String or an Object" v
     where
-      addSourceDependency o = Dependency <$> name <*> (Just <$> (local <|> git))
+      addSourceDependency o = Dependency <$> name <*> (SourceDependency <$> (local <|> git))
         where
           name :: Parser String
           name = o .: "name"
@@ -412,8 +413,14 @@ instance FromJSON Dependency where
           subdir :: Parser (Maybe FilePath)
           subdir = o .:? "subdir"
 
+data DependencyVersion =
+    AnyVersion
+  | VersionRange String
+  | SourceDependency SourceDependency
+  deriving (Eq, Show)
+
 data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show)
 
 type GitUrl = String
 type GitRef = String

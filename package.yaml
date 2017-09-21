@@ -24,6 +24,8 @@ dependencies:
   - unordered-containers
   - yaml
   - aeson >= 0.11
+  - Cabal
+  - pretty
 
 library:
   source-dirs: src
