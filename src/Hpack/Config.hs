@@ -11,6 +11,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
 module Hpack.Config (
   packageConfig
 , readPackageConfig
@@ -128,9 +130,9 @@ githubBaseUrl :: String
 githubBaseUrl = "https://github.com/"
 
 #if MIN_VERSION_aeson(1,0,0)
-genericParseJSON_ :: forall a. (Generic a, GFromJSON Zero (Rep a), HasTypeName a) => Value -> Parser a
+genericParseJSON_ :: forall a d m. (GFromJSON Zero (Rep a), HasTypeName a d m) => Value -> Parser a
 #else
-genericParseJSON_ :: forall a. (Generic a, GFromJSON (Rep a), HasTypeName a) => Value -> Parser a
+genericParseJSON_ :: forall a d m. (GFromJSON (Rep a), HasTypeName a d m) => Value -> Parser a
 #endif
 genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphenize name}
   where
@@ -151,7 +153,7 @@ type FieldName = String
 class HasFieldNames a where
   fieldNames :: Proxy a -> [FieldName]
 
-  default fieldNames :: (HasTypeName a, Selectors (Rep a)) => Proxy a -> [String]
+  default fieldNames :: (HasTypeName a d m, Selectors (Rep a)) => Proxy a -> [String]
   fieldNames proxy = map (hyphenize $ typeName proxy) (selectors proxy)
 
   ignoreUnderscoredUnknownFields :: Proxy a -> Bool
