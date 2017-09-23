@@ -7,6 +7,7 @@ module Hpack.ConfigSpec (
 
 , package
 , executable
+, deps
 ) where
 
 import           Helper
@@ -19,6 +20,7 @@ import           System.Directory (createDirectory)
 import           Data.Yaml
 import           Data.Either.Compat
 import           Data.String
+import qualified Data.Map.Lazy as Map
 
 import           Hpack.Util
 import           Hpack.Config hiding (package)
@@ -26,6 +28,9 @@ import qualified Hpack.Config as Config
 
 instance IsString Dependency where
   fromString name = Dependency name AnyVersion
+
+deps :: [String] -> Dependencies
+deps = Map.fromList . map (flip (,) AnyVersion)
 
 package :: Package
 package = Config.package "foo" "0.0.0"
@@ -64,11 +69,11 @@ spec = do
       renamePackage "bar" package `shouldBe` package {packageName = "bar"}
 
     it "renames dependencies on self" $ do
-      let packageWithExecutable dependencies = package {packageExecutables = [(section $ executable "main" "Main.hs") {sectionDependencies = dependencies}]}
+      let packageWithExecutable dependencies = package {packageExecutables = [(section $ executable "main" "Main.hs") {sectionDependencies = deps dependencies}]}
       renamePackage "bar" (packageWithExecutable ["foo"]) `shouldBe` (packageWithExecutable ["bar"]) {packageName = "bar"}
 
   describe "renameDependencies" $ do
-    let sectionWithDeps dependencies = (section ()) {sectionDependencies = dependencies}
+    let sectionWithDeps dependencies = (section ()) {sectionDependencies = deps dependencies}
 
     it "renames dependencies" $ do
       renameDependencies "bar" "baz" (sectionWithDeps ["foo", "bar"]) `shouldBe` sectionWithDeps ["foo", "baz"]
@@ -92,7 +97,7 @@ spec = do
               dependencies: hpack
               |]
         captureUnknownFieldsValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionDependencies = ["hpack"]}
+          `shouldBe` Right (section Empty){sectionDependencies = deps ["hpack"]}
 
       it "accepts includes-dirs" $ do
         let input = [i|
@@ -157,7 +162,7 @@ spec = do
                 |]
               conditionals = [
                 Conditional "os(windows)"
-                (section ()){sectionDependencies = ["Win32"]}
+                (section ()){sectionDependencies = deps ["Win32"]}
                 Nothing
                 ]
           captureUnknownFieldsValue <$> decodeEither input
@@ -190,8 +195,8 @@ spec = do
                   |]
                 conditionals = [
                   Conditional "os(windows)"
-                  (section ()){sectionDependencies = ["Win32"]}
-                  (Just (section ()){sectionDependencies = ["unix"]})
+                  (section ()){sectionDependencies = deps ["Win32"]}
+                  (Just (section ()){sectionDependencies = deps ["unix"]})
                   ]
                 r :: Either String (Section Empty)
                 r = captureUnknownFieldsValue <$> decodeEither input
@@ -738,9 +743,9 @@ spec = do
               - foo > 1.0
               - bar == 2.0
           |]
-          (packageCustomSetup >>> fmap customSetupDependencies >>> (`shouldBe` Just [
-              Dependency "foo" (VersionRange ">1.0")
-            , Dependency "bar" (VersionRange "==2.0")
+          (packageCustomSetup >>> fmap customSetupDependencies >>> fmap Map.toList >>> (`shouldBe` Just [
+              ("bar", VersionRange "==2.0")
+            , ("foo", VersionRange ">1.0")
             ])
           )
 
@@ -784,7 +789,7 @@ spec = do
               - alex
               - happy
           |]
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = ["alex", "happy"]}))
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
 
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
@@ -820,7 +825,7 @@ spec = do
             - happy
           library: {}
           |]
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = ["alex", "happy"]}))
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
 
       it "accepts c-sources" $ do
         withPackageConfig [i|
@@ -1025,7 +1030,7 @@ spec = do
                 - alex
                 - happy
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = ["alex", "happy"]}]))
+          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = deps ["alex", "happy"]}]))
 
       it "accepts global source-dirs" $ do
         withPackageConfig_ [i|
@@ -1047,7 +1052,7 @@ spec = do
             foo:
               main: Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = ["alex", "happy"]}]))
+          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = deps ["alex", "happy"]}]))
 
       it "infers other-modules" $ do
         withPackageConfig [i|
@@ -1237,7 +1242,7 @@ spec = do
               main: test/Spec.hs
               dependencies: hspec
           |]
-          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec"]}]})
+          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = deps ["hspec"]}]})
 
       it "accepts list of dependencies" $ do
         withPackageConfig_ [i|
@@ -1248,7 +1253,7 @@ spec = do
                 - hspec
                 - QuickCheck
           |]
-          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec", "QuickCheck"]}]})
+          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = deps ["hspec", "QuickCheck"]}]})
 
       context "when both global and section specific dependencies are specified" $ do
         it "combines dependencies" $ do
@@ -1261,7 +1266,19 @@ spec = do
                 main: test/Spec.hs
                 dependencies: hspec
             |]
-            (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["base", "hspec"]}]})
+            (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = deps ["base", "hspec"]}]})
+
+        it "gives section specific dependencies precedence" $ do
+          withPackageConfig_ [i|
+            dependencies:
+              - base
+
+            tests:
+              spec:
+                main: test/Spec.hs
+                dependencies: base >= 2
+            |]
+            (packageTests >>> map (Map.toList . sectionDependencies) >>> (`shouldBe` [[("base", VersionRange ">=2")]]))
 
     context "when a specified source directory does not exist" $ do
       it "warns" $ do

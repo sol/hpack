@@ -21,6 +21,7 @@ module Hpack.Config (
 , package
 , section
 , Package(..)
+, Dependencies
 , Dependency(..)
 , DependencyVersion(..)
 , SourceDependency(..)
@@ -54,6 +55,7 @@ import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
 import           Data.List.Compat (nub, (\\), sortBy, isPrefixOf)
 import           Data.Maybe
+import           Data.Monoid
 import           Data.Ord
 import           Data.String
 import           Data.Text (Text)
@@ -106,10 +108,10 @@ renamePackage name p@Package{..} = p {
   }
 
 renameDependencies :: String -> String -> Section a -> Section a
-renameDependencies old new sect@Section{..} = sect {sectionDependencies = map rename sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
+renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Map.fromList . map rename . Map.toList) sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
   where
-    rename dep
-      | dependencyName dep == old = dep {dependencyName = new}
+    rename dep@(name, version)
+      | name == old = (new, version)
       | otherwise = dep
 
     renameConditional :: Conditional -> Conditional
@@ -117,13 +119,15 @@ renameDependencies old new sect@Section{..} = sect {sectionDependencies = map re
 
 packageDependencies :: Package -> [Dependency]
 packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . dependencyName)) $
-     (concatMap sectionDependencies packageExecutables)
-  ++ (concatMap sectionDependencies packageTests)
-  ++ (concatMap sectionDependencies packageBenchmarks)
-  ++ maybe [] sectionDependencies packageLibrary
+     (concatMap deps packageExecutables)
+  ++ (concatMap deps packageTests)
+  ++ (concatMap deps packageBenchmarks)
+  ++ maybe [] deps packageLibrary
+  where
+    deps xs = [Dependency name version | (name, version) <- (Map.toList . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] []
+section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -226,6 +230,9 @@ instance HasFieldNames ExecutableSection
 
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_
+
+dependenciesFromList :: Maybe (List Dependency) -> Map String DependencyVersion
+dependenciesFromList xs = Map.fromList [(name, version) | Dependency name version <- fromMaybeList xs]
 
 data CommonOptions = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
@@ -413,6 +420,8 @@ instance FromJSON Dependency where
           subdir :: Parser (Maybe FilePath)
           subdir = o .:? "subdir"
 
+type Dependencies = Map String DependencyVersion
+
 data DependencyVersion =
     AnyVersion
   | VersionRange String
@@ -453,7 +462,7 @@ data Package = Package {
 } deriving (Eq, Show)
 
 data CustomSetup = CustomSetup {
-  customSetupDependencies :: [Dependency]
+  customSetupDependencies :: Dependencies
 } deriving (Eq, Show)
 
 data Library = Library {
@@ -472,7 +481,7 @@ data Executable = Executable {
 data Section a = Section {
   sectionData :: a
 , sectionSourceDirs :: [FilePath]
-, sectionDependencies :: [Dependency]
+, sectionDependencies :: Dependencies
 , sectionDefaultExtensions :: [String]
 , sectionOtherExtensions :: [String]
 , sectionGhcOptions :: [GhcOption]
@@ -489,7 +498,7 @@ data Section a = Section {
 , sectionLdOptions :: [LdOption]
 , sectionBuildable :: Maybe Bool
 , sectionConditionals :: [Conditional]
-, sectionBuildTools :: [Dependency]
+, sectionBuildTools :: Dependencies
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Conditional = Conditional {
@@ -721,7 +730,7 @@ expandForeignSources dir sect = do
 
 toCustomSetup :: CustomSetupSection -> CustomSetup
 toCustomSetup CustomSetupSection{..} = CustomSetup
-  { customSetupDependencies = fromMaybeList customSetupSectionDependencies }
+  { customSetupDependencies = dependenciesFromList customSetupSectionDependencies }
 
 toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO ([String], Section Library)
 toLibrary dir name globalOptions library = traverse fromLibrarySection sect >>= expandForeignSources dir
@@ -783,9 +792,9 @@ mergeSections globalOptions options
   , sectionInstallIncludes = sectionInstallIncludes globalOptions ++ sectionInstallIncludes options
   , sectionLdOptions = sectionLdOptions globalOptions ++ sectionLdOptions options
   , sectionBuildable = sectionBuildable options <|> sectionBuildable globalOptions
-  , sectionDependencies = sectionDependencies globalOptions ++ sectionDependencies options
+  , sectionDependencies = sectionDependencies options <> sectionDependencies globalOptions
   , sectionConditionals = sectionConditionals globalOptions ++ sectionConditionals options
-  , sectionBuildTools = sectionBuildTools globalOptions ++ sectionBuildTools options
+  , sectionBuildTools = sectionBuildTools options <> sectionBuildTools globalOptions
   }
 
 toSection :: a -> CommonOptions -> ([FieldName], Section a)
@@ -809,9 +818,9 @@ toSection a CommonOptions{..}
       , sectionInstallIncludes = fromMaybeList commonOptionsInstallIncludes
       , sectionLdOptions = fromMaybeList commonOptionsLdOptions
       , sectionBuildable = commonOptionsBuildable
-      , sectionDependencies = fromMaybeList commonOptionsDependencies
+      , sectionDependencies = dependenciesFromList commonOptionsDependencies
       , sectionConditionals = conditionals
-      , sectionBuildTools = fromMaybeList commonOptionsBuildTools
+      , sectionBuildTools = dependenciesFromList commonOptionsBuildTools
       }
     )
   where

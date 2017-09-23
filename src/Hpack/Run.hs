@@ -28,6 +28,7 @@ import           Data.Maybe
 import           Data.List.Compat
 import           System.Exit.Compat
 import           System.FilePath
+import qualified Data.Map.Lazy as Map
 
 import           Hpack.Util
 import           Hpack.Config
@@ -265,11 +266,11 @@ renderOtherModules = Field "other-modules" . LineSeparatedList
 renderReexportedModules :: [String] -> Element
 renderReexportedModules = Field "reexported-modules" . LineSeparatedList
 
-renderDependencies :: String -> [Dependency] -> Element
-renderDependencies name = Field name . CommaSeparatedList . map renderDependency
+renderDependencies :: String -> Dependencies -> Element
+renderDependencies name = Field name . CommaSeparatedList . map renderDependency . Map.toList
 
-renderDependency :: Dependency -> String
-renderDependency (Dependency name version) = name ++ v
+renderDependency :: (String, DependencyVersion) -> String
+renderDependency (name, version) = name ++ v
   where
     v = case version of
       AnyVersion -> ""

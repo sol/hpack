@@ -3,6 +3,7 @@ module Hpack.RunSpec (spec) where
 
 import           Helper
 import           Data.List.Compat
+import qualified Data.Map.Lazy as Map
 
 import           Hpack.ConfigSpec hiding (spec)
 import           Hpack.Config hiding (package)
@@ -128,7 +129,7 @@ spec = do
     context "when rendering custom-setup section" $ do
       it "includes setup-depends" $ do
         let setup = CustomSetup
-              { customSetupDependencies = ["foo >1.0", "bar ==2.0"] }
+              { customSetupDependencies = deps ["foo", "bar"] }
         renderPackage_ package {packageCustomSetup = Just setup} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
@@ -137,8 +138,8 @@ spec = do
           , ""
           , "custom-setup"
           , "  setup-depends:"
-          , "      foo >1.0"
-          , "    , bar ==2.0"
+          , "      bar"
+          , "    , foo"
           ]
 
     context "when rendering library section" $ do
@@ -225,7 +226,8 @@ spec = do
 
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionDependencies = [Dependency "foo" (VersionRange "== 0.1.0"), Dependency "bar" AnyVersion]}]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionDependencies = Map.fromList
+        [("foo", VersionRange "== 0.1.0"), ("bar", AnyVersion)]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -234,8 +236,8 @@ spec = do
           , "executable foo"
           , "  main-is: Main.hs"
           , "  build-depends:"
-          , "      foo == 0.1.0"
-          , "    , bar"
+          , "      bar"
+          , "    , foo == 0.1.0"
           , "  default-language: Haskell2010"
           ]
 
@@ -267,7 +269,7 @@ spec = do
 
   describe "renderConditional" $ do
     it "renders conditionals" $ do
-      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} Nothing
+      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = deps ["Win32"]} Nothing
       render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
@@ -275,7 +277,7 @@ spec = do
         ]
 
     it "renders conditionals with else-branch" $ do
-      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} (Just $ (section ()) {sectionDependencies = ["unix"]})
+      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = deps ["Win32"]} (Just $ (section ()) {sectionDependencies = deps ["unix"]})
       render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
@@ -287,7 +289,7 @@ spec = do
 
     it "renders nested conditionals" $ do
       let conditional = Conditional "arch(i386)" (section ()) {sectionGhcOptions = ["-threaded"], sectionConditionals = [innerConditional]} Nothing
-          innerConditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} Nothing
+          innerConditional = Conditional "os(windows)" (section ()) {sectionDependencies = deps ["Win32"]} Nothing
       render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
           "if arch(i386)"
         , "  ghc-options: -threaded"
