@@ -24,6 +24,7 @@ dependencies:
   - unordered-containers
   - yaml
   - aeson >= 0.11
+  - vector
 
 library:
   source-dirs: src

@@ -128,7 +128,7 @@ spec = do
     context "when rendering custom-setup section" $ do
       it "includes setup-depends" $ do
         let setup = CustomSetup
-              { customSetupDependencies = ["foo >1.0", "bar ==2.0"] }
+              { customSetupDependencies = Dependencies ["foo >1.0", "bar ==2.0"] }
         renderPackage_ package {packageCustomSetup = Just setup} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
@@ -225,7 +225,7 @@ spec = do
 
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionDependencies = ["foo", "bar", "foo", "baz"]}]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionDependencies = Dependencies ["foo", "bar", "foo", "baz"]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -269,7 +269,7 @@ spec = do
 
   describe "renderConditional" $ do
     it "renders conditionals" $ do
-      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} Nothing
+      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = Dependencies ["Win32"]} Nothing
       render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
@@ -277,7 +277,7 @@ spec = do
         ]
 
     it "renders conditionals with else-branch" $ do
-      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} (Just $ (section ()) {sectionDependencies = ["unix"]})
+      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = Dependencies ["Win32"]} (Just $ (section ()) {sectionDependencies = Dependencies ["unix"]})
       render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
@@ -289,7 +289,7 @@ spec = do
 
     it "renders nested conditionals" $ do
       let conditional = Conditional "arch(i386)" (section ()) {sectionGhcOptions = ["-threaded"], sectionConditionals = [innerConditional]} Nothing
-          innerConditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} Nothing
+          innerConditional = Conditional "os(windows)" (section ()) {sectionDependencies = Dependencies ["Win32"]} Nothing
       render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
           "if arch(i386)"
         , "  ghc-options: -threaded"

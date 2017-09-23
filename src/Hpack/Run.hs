@@ -265,8 +265,8 @@ renderOtherModules = Field "other-modules" . LineSeparatedList
 renderReexportedModules :: [String] -> Element
 renderReexportedModules = Field "reexported-modules" . LineSeparatedList
 
-renderDependencies :: [Dependency] -> Element
-renderDependencies = Field "build-depends" . CommaSeparatedList . map dependencyName
+renderDependencies :: Dependencies -> Element
+renderDependencies = Field "build-depends" . CommaSeparatedList . map dependencyName . dependenciesValue
 
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList
@@ -295,8 +295,8 @@ renderDefaultExtensions = Field "default-extensions" . WordList
 renderOtherExtensions :: [String] -> Element
 renderOtherExtensions = Field "other-extensions" . WordList
 
-renderBuildTools :: [Dependency] -> Element
-renderBuildTools = Field "build-tools" . CommaSeparatedList . map dependencyName
+renderBuildTools :: Dependencies -> Element
+renderBuildTools = Field "build-tools" . CommaSeparatedList . map dependencyName . dependenciesValue
 
-renderSetupDepends :: [Dependency] -> Element
-renderSetupDepends = Field "setup-depends" . CommaSeparatedList . map dependencyName
+renderSetupDepends :: Dependencies -> Element
+renderSetupDepends = Field "setup-depends" . CommaSeparatedList . map dependencyName . dependenciesValue
