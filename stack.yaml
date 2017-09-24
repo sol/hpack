@@ -1,7 +1,1 @@
-flags: {}
-packages:
-- '.'
-extra-deps:
-- aeson-0.11.0.0
-- yaml-0.8.21.2
-resolver: lts-5.3
+resolver: lts-9.0
