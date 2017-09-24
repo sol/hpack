@@ -595,9 +595,9 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
     libraryWarnings :: [String]
     libraryWarnings = maybe [] fst libraryResult
 
-  (executablesWarnings, executables) <- toExecutables dir globalOptions executableSections
-  (testsWarnings, tests) <- toExecutables dir globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
-  (benchmarksWarnings, benchmarks) <- toExecutables dir globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
+  (executablesWarnings, executables) <- toExecutables dir packageName_ globalOptions executableSections
+  (testsWarnings, tests) <- toExecutables dir packageName_ globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
+  (benchmarksWarnings, benchmarks) <- toExecutables dir packageName_ globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
 
   licenseFileExists <- doesFileExist (dir </> "LICENSE")
 
@@ -781,8 +781,8 @@ toLibrary dir name globalOptions library = traverse fromLibrarySection sect >>= 
           reexportedModules = fromMaybeList librarySectionReexportedModules
       return (Library librarySectionExposed exposedModules otherModules reexportedModules)
 
-toExecutables :: FilePath -> Section global -> [(String, Section ExecutableSection)] -> IO ([String], [Section Executable])
-toExecutables dir globalOptions executables = do
+toExecutables :: FilePath -> String -> Section global -> [(String, Section ExecutableSection)] -> IO ([String], [Section Executable])
+toExecutables dir packageName_ globalOptions executables = do
   result <- mapM toExecutable sections >>= mapM (expandForeignSources dir)
   let (warnings, xs) = unzip result
   return (concat warnings, xs)
@@ -797,9 +797,14 @@ toExecutables dir globalOptions executables = do
       where
         fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
         fromExecutableSection ExecutableSection{..} = do
-          modules <- maybe (filterMain . concat <$> mapM (getModules dir) sectionSourceDirs) (return . fromList) executableSectionOtherModules
+          modules <- maybe inferModules (return . fromList) executableSectionOtherModules
           return (Executable name mainSrcFile modules, ghcOptions)
           where
+            inferModules :: IO [String]
+            inferModules = filterMain . (++ [pathsModule]) . concat <$> mapM (getModules dir) sectionSourceDirs
+
+            pathsModule = pathsModuleFromPackageName packageName_
+
             filterMain :: [String] -> [String]
             filterMain = maybe id (filter . (/=)) (toModule $ splitDirectories executableSectionMain)
 
