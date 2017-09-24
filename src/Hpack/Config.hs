@@ -417,10 +417,21 @@ instance FromJSON Dependencies where
     Array a -> do
       dependencies <- mapM parseJSON $ Foldable.toList a
       pure . Dependencies . Map.fromList . map (dependencyName &&& dependencyVersion) $ dependencies
+    Object o -> do
+      dependencies <- forM (HashMap.toList o) $ \ (key, value) ->
+        let name = T.unpack key
+        in case value of
+          Null -> pure (name, AnyVersion)
+          Object _ -> do
+            source <- parseJSON value
+            pure (name, SourceDependency source)
+          String s -> pure (name, VersionRange $ T.unpack s)
+          _ -> typeMismatch "Null, Object, or String" value
+      pure . Dependencies . Map.fromList $ dependencies
     String _ -> do
       Dependency name version <- parseJSON v
       pure . Dependencies $ Map.singleton name version
-    _ -> typeMismatch "Array or String" v
+    _ -> typeMismatch "Array, Object, or String" v
 
 data DependencyVersion =
     AnyVersion
