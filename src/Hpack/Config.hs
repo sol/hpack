@@ -21,7 +21,7 @@ module Hpack.Config (
 , package
 , section
 , Package(..)
-, Dependencies
+, Dependencies(..)
 , Dependency(..)
 , DependencyVersion(..)
 , SourceDependency(..)
@@ -108,7 +108,7 @@ renamePackage name p@Package{..} = p {
   }
 
 renameDependencies :: String -> String -> Section a -> Section a
-renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Map.fromList . map rename . Map.toList) sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
+renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Dependencies . Map.fromList . map rename . Map.toList . unwrapDependencies) sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
   where
     rename dep@(name, version)
       | name == old = (new, version)
@@ -124,7 +124,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . d
   ++ (concatMap deps packageBenchmarks)
   ++ maybe [] deps packageLibrary
   where
-    deps xs = [Dependency name version | (name, version) <- (Map.toList . sectionDependencies) xs]
+    deps xs = [Dependency name version | (name, version) <- (Map.toList . unwrapDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
 section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty
@@ -231,8 +231,8 @@ instance HasFieldNames ExecutableSection
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_
 
-dependenciesFromList :: Maybe (List Dependency) -> Map String DependencyVersion
-dependenciesFromList xs = Map.fromList [(name, version) | Dependency name version <- fromMaybeList xs]
+dependenciesFromList :: Maybe (List Dependency) -> Dependencies
+dependenciesFromList xs = Dependencies $ Map.fromList [(name, version) | Dependency name version <- fromMaybeList xs]
 
 data CommonOptions = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
@@ -402,7 +402,13 @@ instance FromJSON Dependency where
           name :: Parser String
           name = o .: "name"
 
-type Dependencies = Map String DependencyVersion
+newtype Dependencies = Dependencies {
+  unwrapDependencies :: Map String DependencyVersion
+} deriving (Eq, Show)
+
+instance Monoid Dependencies where
+  mempty = Dependencies mempty
+  mappend (Dependencies x) (Dependencies y) = Dependencies $ mappend x y
 
 data DependencyVersion =
     AnyVersion
