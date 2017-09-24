@@ -47,9 +47,11 @@ module Hpack.Config (
 ) where
 
 import           Control.Applicative
+import           Control.Arrow ((&&&))
 import           Control.Monad.Compat
 import           Data.Aeson.Types
 import           Data.Data
+import qualified Data.Foldable as Foldable
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
@@ -201,7 +203,7 @@ getUnknownFields v _ = case v of
   _ -> []
 
 data CustomSetupSection = CustomSetupSection {
-  customSetupSectionDependencies :: Maybe (List Dependency)
+  customSetupSectionDependencies :: Maybe Dependencies
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames CustomSetupSection
@@ -231,12 +233,12 @@ instance HasFieldNames ExecutableSection
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_
 
-dependenciesFromList :: Maybe (List Dependency) -> Dependencies
-dependenciesFromList xs = Dependencies $ Map.fromList [(name, version) | Dependency name version <- fromMaybeList xs]
+dependenciesFromList :: Maybe Dependencies -> Dependencies
+dependenciesFromList = fromMaybe mempty
 
 data CommonOptions = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
-, commonOptionsDependencies :: Maybe (List Dependency)
+, commonOptionsDependencies :: Maybe Dependencies
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsOtherExtensions :: Maybe (List String)
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
@@ -253,7 +255,7 @@ data CommonOptions = CommonOptions {
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List ConditionalSection)
-, commonOptionsBuildTools :: Maybe (List Dependency)
+, commonOptionsBuildTools :: Maybe Dependencies
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames CommonOptions
@@ -409,6 +411,16 @@ newtype Dependencies = Dependencies {
 instance Monoid Dependencies where
   mempty = Dependencies mempty
   mappend (Dependencies x) (Dependencies y) = Dependencies $ mappend x y
+
+instance FromJSON Dependencies where
+  parseJSON v = case v of
+    Array a -> do
+      dependencies <- mapM parseJSON $ Foldable.toList a
+      pure . Dependencies . Map.fromList . map (dependencyName &&& dependencyVersion) $ dependencies
+    String _ -> do
+      Dependency name version <- parseJSON v
+      pure . Dependencies $ Map.singleton name version
+    _ -> typeMismatch "Array or String" v
 
 data DependencyVersion =
     AnyVersion
