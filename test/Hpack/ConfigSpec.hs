@@ -6,7 +6,6 @@ module Hpack.ConfigSpec (
   spec
 
 , package
-, executable
 , deps
 ) where
 
@@ -36,7 +35,7 @@ package :: Package
 package = Config.package "foo" "0.0.0"
 
 executable :: String -> String -> Executable
-executable name main_ = Executable name main_ []
+executable name main_ = Executable name main_ ["Paths_foo"]
 
 library :: Library
 library = Library Nothing [] ["Paths_foo"] []
@@ -1065,7 +1064,7 @@ spec = do
           touch "src/Main.hs"
           touch "src/Foo.hs"
           )
-          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Foo"]]))
+          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Foo", "Paths_foo"]]))
 
       it "allows to specify other-modules" $ do
         withPackageConfig [i|
