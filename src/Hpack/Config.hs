@@ -21,7 +21,7 @@ module Hpack.Config (
 , package
 , section
 , Package(..)
-, Dependencies
+, Dependencies(..)
 , Dependency(..)
 , DependencyVersion(..)
 , SourceDependency(..)
@@ -47,9 +47,11 @@ module Hpack.Config (
 ) where
 
 import           Control.Applicative
+import           Control.Arrow ((&&&))
 import           Control.Monad.Compat
 import           Data.Aeson.Types
 import           Data.Data
+import qualified Data.Foldable as Foldable
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
@@ -108,7 +110,7 @@ renamePackage name p@Package{..} = p {
   }
 
 renameDependencies :: String -> String -> Section a -> Section a
-renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Map.fromList . map rename . Map.toList) sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
+renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Dependencies . Map.fromList . map rename . Map.toList . unwrapDependencies) sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
   where
     rename dep@(name, version)
       | name == old = (new, version)
@@ -124,7 +126,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . d
   ++ (concatMap deps packageBenchmarks)
   ++ maybe [] deps packageLibrary
   where
-    deps xs = [Dependency name version | (name, version) <- (Map.toList . sectionDependencies) xs]
+    deps xs = [Dependency name version | (name, version) <- (Map.toList . unwrapDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
 section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty
@@ -201,7 +203,7 @@ getUnknownFields v _ = case v of
   _ -> []
 
 data CustomSetupSection = CustomSetupSection {
-  customSetupSectionDependencies :: Maybe (List Dependency)
+  customSetupSectionDependencies :: Maybe Dependencies
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames CustomSetupSection
@@ -231,12 +233,12 @@ instance HasFieldNames ExecutableSection
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_
 
-dependenciesFromList :: Maybe (List Dependency) -> Map String DependencyVersion
-dependenciesFromList xs = Map.fromList [(name, version) | Dependency name version <- fromMaybeList xs]
+dependenciesFromList :: Maybe Dependencies -> Dependencies
+dependenciesFromList = fromMaybe mempty
 
 data CommonOptions = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
-, commonOptionsDependencies :: Maybe (List Dependency)
+, commonOptionsDependencies :: Maybe Dependencies
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsOtherExtensions :: Maybe (List String)
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
@@ -253,7 +255,7 @@ data CommonOptions = CommonOptions {
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List ConditionalSection)
-, commonOptionsBuildTools :: Maybe (List Dependency)
+, commonOptionsBuildTools :: Maybe Dependencies
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames CommonOptions
@@ -397,30 +399,39 @@ instance FromJSON Dependency where
     Object o -> addSourceDependency o
     _ -> typeMismatch "String or an Object" v
     where
-      addSourceDependency o = Dependency <$> name <*> (SourceDependency <$> (local <|> git))
+      addSourceDependency o = Dependency <$> name <*> (SourceDependency <$> parseJSON v)
         where
           name :: Parser String
           name = o .: "name"
 
-          local :: Parser SourceDependency
-          local = Local <$> o .: "path"
+newtype Dependencies = Dependencies {
+  unwrapDependencies :: Map String DependencyVersion
+} deriving (Eq, Show)
 
-          git :: Parser SourceDependency
-          git = GitRef <$> url <*> ref <*> subdir
+instance Monoid Dependencies where
+  mempty = Dependencies mempty
+  mappend (Dependencies x) (Dependencies y) = Dependencies $ mappend x y
 
-          url :: Parser String
-          url =
-                ((githubBaseUrl ++) <$> o .: "github")
-            <|> (o .: "git")
-            <|> fail "neither key \"git\" nor key \"github\" present"
-
-          ref :: Parser String
-          ref = o .: "ref"
-
-          subdir :: Parser (Maybe FilePath)
-          subdir = o .:? "subdir"
-
-type Dependencies = Map String DependencyVersion
+instance FromJSON Dependencies where
+  parseJSON v = case v of
+    Array a -> do
+      dependencies <- mapM parseJSON $ Foldable.toList a
+      pure . Dependencies . Map.fromList . map (dependencyName &&& dependencyVersion) $ dependencies
+    Object o -> do
+      dependencies <- forM (HashMap.toList o) $ \ (key, value) ->
+        let name = T.unpack key
+        in case value of
+          Null -> pure (name, AnyVersion)
+          Object _ -> do
+            source <- parseJSON value
+            pure (name, SourceDependency source)
+          String s -> pure (name, VersionRange $ T.unpack s)
+          _ -> typeMismatch "Null, Object, or String" value
+      pure . Dependencies . Map.fromList $ dependencies
+    String _ -> do
+      Dependency name version <- parseJSON v
+      pure . Dependencies $ Map.singleton name version
+    _ -> typeMismatch "Array, Object, or String" v
 
 data DependencyVersion =
     AnyVersion
@@ -430,6 +441,28 @@ data DependencyVersion =
 
 data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
   deriving (Eq, Show)
+
+instance FromJSON SourceDependency where
+  parseJSON = withObject "SourceDependency" (\o -> let
+    local :: Parser SourceDependency
+    local = Local <$> o .: "path"
+
+    git :: Parser SourceDependency
+    git = GitRef <$> url <*> ref <*> subdir
+
+    url :: Parser String
+    url =
+          ((githubBaseUrl ++) <$> o .: "github")
+      <|> (o .: "git")
+      <|> fail "neither key \"git\" nor key \"github\" present"
+
+    ref :: Parser String
+    ref = o .: "ref"
+
+    subdir :: Parser (Maybe FilePath)
+    subdir = o .:? "subdir"
+
+    in local <|> git)
 
 type GitUrl = String
 type GitRef = String

@@ -29,7 +29,7 @@ instance IsString Dependency where
   fromString name = Dependency name AnyVersion
 
 deps :: [String] -> Dependencies
-deps = Map.fromList . map (flip (,) AnyVersion)
+deps = Dependencies . Map.fromList . map (flip (,) AnyVersion)
 
 package :: Package
 package = Config.package "foo" "0.0.0"
@@ -742,7 +742,7 @@ spec = do
               - foo > 1.0
               - bar == 2.0
           |]
-          (packageCustomSetup >>> fmap customSetupDependencies >>> fmap Map.toList >>> (`shouldBe` Just [
+          (packageCustomSetup >>> fmap customSetupDependencies >>> fmap unwrapDependencies >>> fmap Map.toList >>> (`shouldBe` Just [
               ("bar", VersionRange "==2.0")
             , ("foo", VersionRange ">1.0")
             ])
@@ -759,6 +759,81 @@ spec = do
         (packageName >>> (`shouldBe` "n2"))
 
     context "when reading library section" $ do
+      context "dependencies" $ do
+        let checkDependencies yaml dependencies = withPackageConfig_ yaml (\ x -> do
+              let expected = Just dependencies
+              let actual = Map.toAscList . unwrapDependencies . sectionDependencies <$> packageLibrary x
+              actual `shouldBe` expected)
+
+        it "accepts a string without constraints" $ do
+          checkDependencies [i|
+            library:
+              dependencies: base
+          |] [("base", AnyVersion)]
+
+        it "accepts a string with constraints" $ do
+          checkDependencies [i|
+            library:
+              dependencies: mtl ==2.2.1
+          |] [("mtl", VersionRange "==2.2.1")]
+
+        it "accepts an array of strings" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                - containers
+          |] [("containers", AnyVersion)]
+
+        it "accepts an array of hashes" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                - name: hpack
+                  path: ../hpack
+          |] [("hpack", SourceDependency (Local "../hpack"))]
+
+        it "accepts a hash of strings" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                bytestring: 0.10.8.2
+          |] [("bytestring", VersionRange "0.10.8.2")]
+
+        it "accepts a hash of hashes" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                Cabal:
+                  github: haskell/cabal
+                  ref: d53b6e0d908dfedfdf4337b2935519fb1d689e76
+                  subdir: Cabal
+          |] [("Cabal", SourceDependency (GitRef "https://github.com/haskell/cabal" "d53b6e0d908dfedfdf4337b2935519fb1d689e76" (Just "Cabal")))]
+
+        it "ignores names in nested hashes" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                outer-name:
+                  name: inner-name
+                  path: somewhere
+          |] [("outer-name", SourceDependency (Local "somewhere"))]
+
+        it "overwrites values from earlier keys with later ones" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                deepseq: '>=1.4.1'
+                deepseq: '>=1.4.2'
+                deepseq: '>=1.4.3'
+          |] [("deepseq", VersionRange ">=1.4.3")]
+
+        it "allows null constraints" $ do
+          checkDependencies [i|
+            library:
+              dependencies:
+                array:
+          |] [("array", AnyVersion)]
+
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|
           name: foo
@@ -1277,7 +1352,7 @@ spec = do
                 main: test/Spec.hs
                 dependencies: base >= 2
             |]
-            (packageTests >>> map (Map.toList . sectionDependencies) >>> (`shouldBe` [[("base", VersionRange ">=2")]]))
+            (packageTests >>> map (Map.toList . unwrapDependencies . sectionDependencies) >>> (`shouldBe` [[("base", VersionRange ">=2")]]))
 
     context "when a specified source directory does not exist" $ do
       it "warns" $ do

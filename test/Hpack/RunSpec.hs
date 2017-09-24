@@ -226,7 +226,7 @@ spec = do
 
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage_ package {packageExecutables = [(section $ Executable "foo" "Main.hs" []) {sectionDependencies = Map.fromList
+        renderPackage_ package {packageExecutables = [(section $ Executable "foo" "Main.hs" []) {sectionDependencies = Dependencies $ Map.fromList
         [("foo", VersionRange "== 0.1.0"), ("bar", AnyVersion)]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
