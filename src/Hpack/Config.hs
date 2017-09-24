@@ -397,28 +397,10 @@ instance FromJSON Dependency where
     Object o -> addSourceDependency o
     _ -> typeMismatch "String or an Object" v
     where
-      addSourceDependency o = Dependency <$> name <*> (SourceDependency <$> (local <|> git))
+      addSourceDependency o = Dependency <$> name <*> (SourceDependency <$> parseJSON v)
         where
           name :: Parser String
           name = o .: "name"
-
-          local :: Parser SourceDependency
-          local = Local <$> o .: "path"
-
-          git :: Parser SourceDependency
-          git = GitRef <$> url <*> ref <*> subdir
-
-          url :: Parser String
-          url =
-                ((githubBaseUrl ++) <$> o .: "github")
-            <|> (o .: "git")
-            <|> fail "neither key \"git\" nor key \"github\" present"
-
-          ref :: Parser String
-          ref = o .: "ref"
-
-          subdir :: Parser (Maybe FilePath)
-          subdir = o .:? "subdir"
 
 type Dependencies = Map String DependencyVersion
 
@@ -430,6 +412,28 @@ data DependencyVersion =
 
 data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
   deriving (Eq, Show)
+
+instance FromJSON SourceDependency where
+  parseJSON = withObject "SourceDependency" (\o -> let
+    local :: Parser SourceDependency
+    local = Local <$> o .: "path"
+
+    git :: Parser SourceDependency
+    git = GitRef <$> url <*> ref <*> subdir
+
+    url :: Parser String
+    url =
+          ((githubBaseUrl ++) <$> o .: "github")
+      <|> (o .: "git")
+      <|> fail "neither key \"git\" nor key \"github\" present"
+
+    ref :: Parser String
+    ref = o .: "ref"
+
+    subdir :: Parser (Maybe FilePath)
+    subdir = o .:? "subdir"
+
+    in local <|> git)
 
 type GitUrl = String
 type GitRef = String
