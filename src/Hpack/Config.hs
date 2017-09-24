@@ -13,6 +13,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Hpack.Config (
   packageConfig
 , readPackageConfig
@@ -110,7 +111,7 @@ renamePackage name p@Package{..} = p {
   }
 
 renameDependencies :: String -> String -> Section a -> Section a
-renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Dependencies . Map.fromList . map rename . Map.toList . unwrapDependencies) sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
+renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Dependencies . Map.fromList . map rename . Map.toList . unDependencies) sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
   where
     rename dep@(name, version)
       | name == old = (new, version)
@@ -126,7 +127,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . d
   ++ (concatMap deps packageBenchmarks)
   ++ maybe [] deps packageLibrary
   where
-    deps xs = [Dependency name version | (name, version) <- (Map.toList . unwrapDependencies . sectionDependencies) xs]
+    deps xs = [Dependency name version | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
 section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty
@@ -232,9 +233,6 @@ instance HasFieldNames ExecutableSection
 
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_
-
-dependenciesFromList :: Maybe Dependencies -> Dependencies
-dependenciesFromList = fromMaybe mempty
 
 data CommonOptions = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
@@ -405,12 +403,8 @@ instance FromJSON Dependency where
           name = o .: "name"
 
 newtype Dependencies = Dependencies {
-  unwrapDependencies :: Map String DependencyVersion
-} deriving (Eq, Show)
-
-instance Monoid Dependencies where
-  mempty = Dependencies mempty
-  mappend (Dependencies x) (Dependencies y) = Dependencies $ mappend x y
+  unDependencies :: Map String DependencyVersion
+} deriving (Eq, Show, Monoid)
 
 instance FromJSON Dependencies where
   parseJSON v = case v of
@@ -763,7 +757,7 @@ expandForeignSources dir sect = do
 
 toCustomSetup :: CustomSetupSection -> CustomSetup
 toCustomSetup CustomSetupSection{..} = CustomSetup
-  { customSetupDependencies = dependenciesFromList customSetupSectionDependencies }
+  { customSetupDependencies = fromMaybe mempty customSetupSectionDependencies }
 
 toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO ([String], Section Library)
 toLibrary dir name globalOptions library = traverse fromLibrarySection sect >>= expandForeignSources dir
@@ -856,9 +850,9 @@ toSection a CommonOptions{..}
       , sectionInstallIncludes = fromMaybeList commonOptionsInstallIncludes
       , sectionLdOptions = fromMaybeList commonOptionsLdOptions
       , sectionBuildable = commonOptionsBuildable
-      , sectionDependencies = dependenciesFromList commonOptionsDependencies
+      , sectionDependencies = fromMaybe mempty commonOptionsDependencies
       , sectionConditionals = conditionals
-      , sectionBuildTools = dependenciesFromList commonOptionsBuildTools
+      , sectionBuildTools = fromMaybe mempty commonOptionsBuildTools
       }
     )
   where

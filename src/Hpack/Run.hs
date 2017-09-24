@@ -267,7 +267,7 @@ renderReexportedModules :: [String] -> Element
 renderReexportedModules = Field "reexported-modules" . LineSeparatedList
 
 renderDependencies :: String -> Dependencies -> Element
-renderDependencies name = Field name . CommaSeparatedList . map renderDependency . Map.toList . unwrapDependencies
+renderDependencies name = Field name . CommaSeparatedList . map renderDependency . Map.toList . unDependencies
 
 renderDependency :: (String, DependencyVersion) -> String
 renderDependency (name, version) = name ++ v

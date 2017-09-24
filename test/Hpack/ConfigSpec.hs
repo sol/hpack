@@ -742,7 +742,7 @@ spec = do
               - foo > 1.0
               - bar == 2.0
           |]
-          (packageCustomSetup >>> fmap customSetupDependencies >>> fmap unwrapDependencies >>> fmap Map.toList >>> (`shouldBe` Just [
+          (packageCustomSetup >>> fmap customSetupDependencies >>> fmap unDependencies >>> fmap Map.toList >>> (`shouldBe` Just [
               ("bar", VersionRange "==2.0")
             , ("foo", VersionRange ">1.0")
             ])
@@ -762,7 +762,7 @@ spec = do
       context "dependencies" $ do
         let checkDependencies yaml dependencies = withPackageConfig_ yaml (\ x -> do
               let expected = Just dependencies
-              let actual = Map.toAscList . unwrapDependencies . sectionDependencies <$> packageLibrary x
+              let actual = Map.toAscList . unDependencies . sectionDependencies <$> packageLibrary x
               actual `shouldBe` expected)
 
         it "accepts a string without constraints" $ do
@@ -1352,7 +1352,7 @@ spec = do
                 main: test/Spec.hs
                 dependencies: base >= 2
             |]
-            (packageTests >>> map (Map.toList . unwrapDependencies . sectionDependencies) >>> (`shouldBe` [[("base", VersionRange ">=2")]]))
+            (packageTests >>> map (Map.toList . unDependencies . sectionDependencies) >>> (`shouldBe` [[("base", VersionRange ">=2")]]))
 
     context "when a specified source directory does not exist" $ do
       it "warns" $ do
