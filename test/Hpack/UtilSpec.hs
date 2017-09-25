@@ -8,7 +8,7 @@ import           Data.Aeson.Types
 import           Helper
 import           System.Directory
 
-import           Hpack.Config
+import           Hpack.Dependency
 import           Hpack.Util
 
 main :: IO ()

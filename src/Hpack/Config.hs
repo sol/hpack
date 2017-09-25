@@ -13,7 +13,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Hpack.Config (
   packageConfig
 , readPackageConfig
@@ -23,7 +22,6 @@ module Hpack.Config (
 , section
 , Package(..)
 , Dependencies(..)
-, Dependency(..)
 , DependencyVersion(..)
 , SourceDependency(..)
 , GitRef
@@ -48,11 +46,9 @@ module Hpack.Config (
 ) where
 
 import           Control.Applicative
-import           Control.Arrow ((&&&))
 import           Control.Monad.Compat
 import           Data.Aeson.Types
 import           Data.Data
-import qualified Data.Foldable as Foldable
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
@@ -120,23 +116,20 @@ renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Depen
     renameConditional :: Conditional -> Conditional
     renameConditional (Conditional condition then_ else_) = Conditional condition (renameDependencies old new then_) (renameDependencies old new <$> else_)
 
-packageDependencies :: Package -> [Dependency]
-packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . dependencyName)) $
+packageDependencies :: Package -> [(String, DependencyVersion)]
+packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . fst)) $
      (concatMap deps packageExecutables)
   ++ (concatMap deps packageTests)
   ++ (concatMap deps packageBenchmarks)
   ++ maybe [] deps packageLibrary
   where
-    deps xs = [Dependency name version | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
+    deps xs = [(name, version) | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
 section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
-
-githubBaseUrl :: String
-githubBaseUrl = "https://github.com/"
 
 #if MIN_VERSION_aeson(1,0,0)
 genericParseJSON_ :: forall a d m. (GFromJSON Zero (Rep a), HasTypeName a d m) => Value -> Parser a
@@ -383,83 +376,6 @@ readPackageConfig file = do
     Right config -> do
       dir <- takeDirectory <$> canonicalizePath file
       Right <$> mkPackage dir config
-
-data Dependency = Dependency {
-  dependencyName :: String
-, dependencyVersion :: DependencyVersion
-} deriving (Eq, Show)
-
-instance FromJSON Dependency where
-  parseJSON v = case v of
-    String _ -> do
-      (name, versionRange) <- parseJSON v >>= parseDependency
-      return (Dependency name $ maybe AnyVersion VersionRange versionRange)
-    Object o -> addSourceDependency o
-    _ -> typeMismatch "String or an Object" v
-    where
-      addSourceDependency o = Dependency <$> name <*> (SourceDependency <$> parseJSON v)
-        where
-          name :: Parser String
-          name = o .: "name"
-
-newtype Dependencies = Dependencies {
-  unDependencies :: Map String DependencyVersion
-} deriving (Eq, Show, Monoid)
-
-instance FromJSON Dependencies where
-  parseJSON v = case v of
-    Array a -> do
-      dependencies <- mapM parseJSON $ Foldable.toList a
-      pure . Dependencies . Map.fromList . map (dependencyName &&& dependencyVersion) $ dependencies
-    Object o -> do
-      dependencies <- forM (HashMap.toList o) $ \ (key, value) ->
-        let name = T.unpack key
-        in case value of
-          Null -> pure (name, AnyVersion)
-          Object _ -> do
-            source <- parseJSON value
-            pure (name, SourceDependency source)
-          String s -> pure (name, VersionRange $ T.unpack s)
-          _ -> typeMismatch "Null, Object, or String" value
-      pure . Dependencies . Map.fromList $ dependencies
-    String _ -> do
-      Dependency name version <- parseJSON v
-      pure . Dependencies $ Map.singleton name version
-    _ -> typeMismatch "Array, Object, or String" v
-
-data DependencyVersion =
-    AnyVersion
-  | VersionRange String
-  | SourceDependency SourceDependency
-  deriving (Eq, Show)
-
-data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
-  deriving (Eq, Show)
-
-instance FromJSON SourceDependency where
-  parseJSON = withObject "SourceDependency" (\o -> let
-    local :: Parser SourceDependency
-    local = Local <$> o .: "path"
-
-    git :: Parser SourceDependency
-    git = GitRef <$> url <*> ref <*> subdir
-
-    url :: Parser String
-    url =
-          ((githubBaseUrl ++) <$> o .: "github")
-      <|> (o .: "git")
-      <|> fail "neither key \"git\" nor key \"github\" present"
-
-    ref :: Parser String
-    ref = o .: "ref"
-
-    subdir :: Parser (Maybe FilePath)
-    subdir = o .:? "subdir"
-
-    in local <|> git)
-
-type GitUrl = String
-type GitRef = String
 
 data Package = Package {
   packageName :: String

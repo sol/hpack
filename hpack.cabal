@@ -93,6 +93,7 @@ test-suite spec
   build-depends:
       Cabal
     , Glob
+    , HUnit
     , QuickCheck
     , aeson >=0.11
     , aeson-qq

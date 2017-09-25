@@ -50,6 +50,7 @@ tests:
       - src
     dependencies:
       - hspec == 2.*
+      - HUnit
       - QuickCheck
       - temporary
       - mockery >= 0.3

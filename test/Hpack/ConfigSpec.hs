@@ -11,7 +11,6 @@ module Hpack.ConfigSpec (
 
 import           Helper
 
-import           Data.Aeson.QQ
 import           Data.Aeson.Types
 import           Data.String.Interpolate.IsString
 import           Control.Arrow
@@ -22,6 +21,7 @@ import           Data.String
 import qualified Data.Map.Lazy as Map
 
 import           Hpack.Util
+import           Hpack.Dependency
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
 
@@ -226,78 +226,6 @@ spec = do
                   |]
             captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
               `shouldBe` Right ["foo", "bar", "baz"]
-
-    context "when parsing a Dependency" $ do
-      context "when parsing simple dependencies" $ do
-        it "accepts simple dependencies" $ do
-          parseEither parseJSON "hpack" `shouldBe` Right (Dependency "hpack" AnyVersion)
-
-        it "accepts dependencies with version" $ do
-          parseEither parseJSON "hpack >= 2 && < 3" `shouldBe` Right (Dependency "hpack" (VersionRange ">=2 && <3"))
-
-        context "with invalid version" $ do
-          it "returns an error message" $ do
-            parseEither parseJSON "hpack ==" `shouldBe` (Left "Error in $: invalid dependency \"hpack ==\"" :: Either String Dependency)
-
-      context "when parsing source dependencies" $ do
-        it "accepts git dependencies" $ do
-          let value = [aesonQQ|{
-                name: "hpack",
-                git: "https://github.com/sol/hpack",
-                ref: "master"
-              }|]
-              source = GitRef "https://github.com/sol/hpack" "master" Nothing
-          parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (SourceDependency source))
-
-        it "accepts github dependencies" $ do
-          let value = [aesonQQ|{
-                name: "hpack",
-                github: "sol/hpack",
-                ref: "master"
-              }|]
-              source = GitRef "https://github.com/sol/hpack" "master" Nothing
-          parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (SourceDependency source))
-
-        it "accepts an optional subdirectory for git dependencies" $ do
-          let value = [aesonQQ|{
-                name: "warp",
-                github: "yesodweb/wai",
-                ref: "master",
-                subdir: "warp"
-              }|]
-              source = GitRef "https://github.com/yesodweb/wai" "master" (Just "warp")
-          parseEither parseJSON value `shouldBe` Right (Dependency "warp" (SourceDependency source))
-
-        it "accepts local dependencies" $ do
-          let value = [aesonQQ|{
-                name: "hpack",
-                path: "../hpack"
-              }|]
-              source = Local "../hpack"
-          parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (SourceDependency source))
-
-        context "when parsing fails" $ do
-          it "returns an error message" $ do
-            let value = Number 23
-            parseEither parseJSON value `shouldBe` (Left "Error in $: expected String or an Object, encountered Number" :: Either String Dependency)
-
-          context "when ref is missing" $ do
-            it "produces accurate error messages" $ do
-              let value = [aesonQQ|{
-                    name: "hpack",
-                    git: "sol/hpack",
-                    ef: "master"
-                  }|]
-              parseEither parseJSON value `shouldBe` (Left "Error in $: key \"ref\" not present" :: Either String Dependency)
-
-          context "when both git and github are missing" $ do
-            it "produces accurate error messages" $ do
-              let value = [aesonQQ|{
-                    name: "hpack",
-                    gi: "sol/hpack",
-                    ref: "master"
-                  }|]
-              parseEither parseJSON value `shouldBe` (Left "Error in $: neither key \"git\" nor key \"github\" present" :: Either String Dependency)
 
   describe "getModules" $ around withTempDirectory $ do
     it "returns Haskell modules in specified source directory" $ \dir -> do
@@ -759,81 +687,6 @@ spec = do
         (packageName >>> (`shouldBe` "n2"))
 
     context "when reading library section" $ do
-      context "dependencies" $ do
-        let checkDependencies yaml dependencies = withPackageConfig_ yaml (\ x -> do
-              let expected = Just dependencies
-              let actual = Map.toAscList . unDependencies . sectionDependencies <$> packageLibrary x
-              actual `shouldBe` expected)
-
-        it "accepts a string without constraints" $ do
-          checkDependencies [i|
-            library:
-              dependencies: base
-          |] [("base", AnyVersion)]
-
-        it "accepts a string with constraints" $ do
-          checkDependencies [i|
-            library:
-              dependencies: mtl ==2.2.1
-          |] [("mtl", VersionRange "==2.2.1")]
-
-        it "accepts an array of strings" $ do
-          checkDependencies [i|
-            library:
-              dependencies:
-                - containers
-          |] [("containers", AnyVersion)]
-
-        it "accepts an array of hashes" $ do
-          checkDependencies [i|
-            library:
-              dependencies:
-                - name: hpack
-                  path: ../hpack
-          |] [("hpack", SourceDependency (Local "../hpack"))]
-
-        it "accepts a hash of strings" $ do
-          checkDependencies [i|
-            library:
-              dependencies:
-                bytestring: 0.10.8.2
-          |] [("bytestring", VersionRange "0.10.8.2")]
-
-        it "accepts a hash of hashes" $ do
-          checkDependencies [i|
-            library:
-              dependencies:
-                Cabal:
-                  github: haskell/cabal
-                  ref: d53b6e0d908dfedfdf4337b2935519fb1d689e76
-                  subdir: Cabal
-          |] [("Cabal", SourceDependency (GitRef "https://github.com/haskell/cabal" "d53b6e0d908dfedfdf4337b2935519fb1d689e76" (Just "Cabal")))]
-
-        it "ignores names in nested hashes" $ do
-          checkDependencies [i|
-            library:
-              dependencies:
-                outer-name:
-                  name: inner-name
-                  path: somewhere
-          |] [("outer-name", SourceDependency (Local "somewhere"))]
-
-        it "overwrites values from earlier keys with later ones" $ do
-          checkDependencies [i|
-            library:
-              dependencies:
-                deepseq: '>=1.4.1'
-                deepseq: '>=1.4.2'
-                deepseq: '>=1.4.3'
-          |] [("deepseq", VersionRange ">=1.4.3")]
-
-        it "allows null constraints" $ do
-          checkDependencies [i|
-            library:
-              dependencies:
-                array:
-          |] [("array", AnyVersion)]
-
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|
           name: foo
