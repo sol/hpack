@@ -146,6 +146,12 @@ spec = do
               path: somewhere
           |] `parsesAs` Right [("outer-name", SourceDependency (Local "somewhere"))]
 
+        context "with invalid value" $ do
+          it "returns an error message" $ do
+            [i|
+              hpack: 23
+            |] `parsesAs` Left "Error in $.hpack: expected Null, Object, or String, encountered Number"
+
   describe "parseDependency" $ do
     it "parses a dependency" $ do
       parseDependency "foo" `shouldBe` Just ("foo", Nothing)

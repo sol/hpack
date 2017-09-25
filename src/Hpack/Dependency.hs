@@ -28,9 +28,6 @@ import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import           Data.Aeson.Types
 import           Control.Applicative
-import qualified Data.Foldable as Foldable
-import qualified Data.HashMap.Lazy as HashMap
-import           Control.Arrow ((&&&))
 
 githubBaseUrl :: String
 githubBaseUrl = "https://github.com/"
@@ -53,24 +50,23 @@ type GitRef = String
 
 instance FromJSON Dependencies where
   parseJSON v = case v of
-    Array a -> do
-      dependencies <- mapM parseJSON $ Foldable.toList a
-      pure . Dependencies . Map.fromList . map (dependencyName &&& dependencyVersion) $ dependencies
-    Object o -> do
-      dependencies <- forM (HashMap.toList o) $ \ (key, value) ->
-        let name = T.unpack key
-        in case value of
-          Null -> pure (name, AnyVersion)
-          Object _ -> do
-            source <- parseJSON value
-            pure (name, SourceDependency source)
-          String s -> pure (name, VersionRange $ T.unpack s)
-          _ -> typeMismatch "Null, Object, or String" value
-      pure . Dependencies . Map.fromList $ dependencies
-    String _ -> do
-      Dependency name version <- parseJSON v
-      pure . Dependencies $ Map.singleton name version
+    String _ -> dependenciesFromList . return <$> parseJSON v
+    Array _ -> dependenciesFromList <$> parseJSON v
+    Object _ -> Dependencies <$> parseJSON v
     _ -> typeMismatch "Array, Object, or String" v
+    where
+      fromDependency :: Dependency -> (String, DependencyVersion)
+      fromDependency (Dependency name version) = (name, version)
+
+      dependenciesFromList :: [Dependency] -> Dependencies
+      dependenciesFromList = Dependencies . Map.fromList . map fromDependency
+
+instance FromJSON DependencyVersion where
+  parseJSON v = case v of
+    Null -> return AnyVersion
+    Object _ -> SourceDependency <$> parseJSON v
+    String s -> return (VersionRange $ T.unpack s)
+    _ -> typeMismatch "Null, Object, or String" v
 
 instance FromJSON SourceDependency where
   parseJSON = withObject "SourceDependency" (\o -> let
@@ -95,8 +91,8 @@ instance FromJSON SourceDependency where
     in local <|> git)
 
 data Dependency = Dependency {
-  dependencyName :: String
-, dependencyVersion :: DependencyVersion
+  _dependencyName :: String
+, _dependencyVersion :: DependencyVersion
 } deriving (Eq, Show)
 
 instance FromJSON Dependency where
