@@ -1,4 +1,4 @@
-## next
+## next (0.19.0)
   - Add Paths_* module to executables (see #195, for GHC 8.2.1 compatibility)
   - Allow specifying dependencies as a hash (see #198)
 

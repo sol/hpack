@@ -1,9 +1,9 @@
--- This file has been generated from package.yaml by hpack version 0.18.0.
+-- This file has been generated from package.yaml by hpack version 0.19.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.18.1
+version:        0.19.0
 synopsis:       An alternative format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
@@ -27,20 +27,20 @@ library
       src
   ghc-options: -Wall
   build-depends:
-      base >= 4.7 && < 5
-    , base-compat >= 0.8
+      Cabal
+    , Glob
+    , aeson >=0.11
+    , base >=4.7 && <5
+    , base-compat >=0.8
     , bytestring
+    , containers
     , deepseq
     , directory
     , filepath
-    , Glob
+    , pretty
     , text
-    , containers
     , unordered-containers
     , yaml
-    , aeson >= 0.11
-    , Cabal
-    , pretty
   exposed-modules:
       Hpack
       Hpack.Config
@@ -63,21 +63,23 @@ executable hpack
       driver
   ghc-options: -Wall
   build-depends:
-      base >= 4.7 && < 5
-    , base-compat >= 0.8
+      Cabal
+    , Glob
+    , aeson >=0.11
+    , base >=4.7 && <5
+    , base-compat >=0.8
     , bytestring
+    , containers
     , deepseq
     , directory
     , filepath
-    , Glob
+    , hpack
+    , pretty
     , text
-    , containers
     , unordered-containers
     , yaml
-    , aeson >= 0.11
-    , Cabal
-    , pretty
-    , hpack
+  other-modules:
+      Paths_hpack
   default-language: Haskell2010
 
 test-suite spec
@@ -89,26 +91,26 @@ test-suite spec
   ghc-options: -Wall
   cpp-options: -DTEST
   build-depends:
-      base >= 4.7 && < 5
-    , base-compat >= 0.8
+      Cabal
+    , Glob
+    , QuickCheck
+    , aeson >=0.11
+    , aeson-qq
+    , base >=4.7 && <5
+    , base-compat >=0.8
     , bytestring
+    , containers
     , deepseq
     , directory
     , filepath
-    , Glob
+    , hspec ==2.*
+    , interpolate
+    , mockery >=0.3
+    , pretty
+    , temporary
     , text
-    , containers
     , unordered-containers
     , yaml
-    , aeson >= 0.11
-    , Cabal
-    , pretty
-    , hspec == 2.*
-    , QuickCheck
-    , temporary
-    , mockery >= 0.3
-    , interpolate
-    , aeson-qq
   other-modules:
       Helper
       Hpack.ConfigSpec
@@ -132,4 +134,5 @@ test-suite spec
       Hpack.Run
       Hpack.Util
       Hpack.Yaml
+      Paths_hpack
   default-language: Haskell2010
