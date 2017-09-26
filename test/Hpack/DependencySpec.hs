@@ -118,6 +118,21 @@ spec = do
               hpack: '>=2'
             |] `parsesAs` Right [("hpack", VersionRange ">=2")]
 
+          it "accepts specific versions" $ do
+            [i|
+              hpack: 0.10.8.2
+            |] `parsesAs` Right [("hpack", VersionRange "==0.10.8.2")]
+
+          it "accepts wildcard versions" $ do
+            [i|
+              hpack: 2.*
+            |] `parsesAs` Right [("hpack", VersionRange "==2.*")]
+
+          it "reports parse errors" $ do
+            [i|
+              hpack: foo
+            |] `parsesAs` Left "Error in $.hpack: invalid constraint \"foo\""
+
         context "when the constraint is an Object" $ do
           it "accepts github dependencies" $ do
             [i|

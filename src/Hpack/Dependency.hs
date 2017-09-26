@@ -61,7 +61,10 @@ instance FromJSON DependencyVersion where
   parseJSON v = case v of
     Null -> return AnyVersion
     Object _ -> SourceDependency <$> parseJSON v
-    String s -> return (VersionRange $ T.unpack s)
+    String s -> parseVersionRange ("== " ++ input) <|> parseVersionRange input
+      where
+        input = T.unpack s
+
     _ -> typeMismatch "Null, Object, or String" v
 
 instance FromJSON SourceDependency where
@@ -132,6 +135,15 @@ dependencyVersionFromCabal versionRange
     style = Style OneLineMode 0 0
 
 parseCabalDependency :: Monad m => String -> m D.Dependency
-parseCabalDependency s = case [d | (d, "") <- D.readP_to_S D.parse s] of
+parseCabalDependency = cabalParse "dependency"
+
+parseVersionRange :: Monad m => String -> m DependencyVersion
+parseVersionRange = liftM dependencyVersionFromCabal . parseCabalVersionRange
+
+parseCabalVersionRange :: Monad m => String -> m D.VersionRange
+parseCabalVersionRange = cabalParse "constraint"
+
+cabalParse :: (Monad m, D.Text a) => String -> String -> m a
+cabalParse subject s = case [d | (d, "") <- D.readP_to_S D.parse s] of
   [d] -> return d
-  _ -> fail $ "invalid dependency " ++ show s
+  _ -> fail $ unwords ["invalid",  subject, show s]
