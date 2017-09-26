@@ -156,7 +156,7 @@ spec = do
 
   describe "parseDependency" $ do
     it "parses a dependency" $ do
-      parseDependency "foo" `shouldBe` Just ("foo", Nothing)
+      parseDependency "foo" `shouldBe` Just ("foo", AnyVersion)
 
     it "parses a dependency with version range" $ do
-      parseDependency "foo == 1.0" `shouldBe` Just ("foo", Just "==1.0")
+      parseDependency "foo == 1.0" `shouldBe` Just ("foo", VersionRange "==1.0")

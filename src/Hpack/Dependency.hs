@@ -99,7 +99,7 @@ instance FromJSON Dependency where
   parseJSON v = case v of
     String _ -> do
       (name, versionRange) <- parseJSON v >>= parseDependency
-      return (Dependency name $ maybe AnyVersion VersionRange versionRange)
+      return (Dependency name versionRange)
     Object o -> addSourceDependency o
     _ -> typeMismatch "String or an Object" v
     where
@@ -122,20 +122,18 @@ depVerRange = D.depVerRange
 depVerRange (D.Dependency _ versionRange) = versionRange
 #endif
 
-parseDependency :: Monad m => String -> m (String, Maybe String)
-parseDependency = liftM render . parseCabalDependency
+parseDependency :: Monad m => String -> m (String, DependencyVersion)
+parseDependency = liftM fromCabal . parseCabalDependency
   where
-    render :: D.Dependency -> (String, Maybe String)
-    render d = (name, range)
-      where
-        name = depPkgName d
-        versionRange = depVerRange d
+    fromCabal :: D.Dependency -> (String, DependencyVersion)
+    fromCabal d = (depPkgName d, dependencyVersionFromCabal $ depVerRange d)
 
-        range
-          | D.isAnyVersion versionRange = Nothing
-          | otherwise = Just . renderStyle style . D.disp $ versionRange
-          where
-            style = Style OneLineMode 0 0
+dependencyVersionFromCabal :: D.VersionRange -> DependencyVersion
+dependencyVersionFromCabal versionRange
+  | D.isAnyVersion versionRange = AnyVersion
+  | otherwise = VersionRange . renderStyle style . D.disp $ versionRange
+  where
+    style = Style OneLineMode 0 0
 
 parseCabalDependency :: Monad m => String -> m D.Dependency
 parseCabalDependency s = case [d | (d, "") <- D.readP_to_S D.parse s] of
