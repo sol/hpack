@@ -133,10 +133,3 @@ spec = do
                 name: inner-name
                 path: somewhere
             |] `parsesAs` Right [("outer-name", SourceDependency (Local "somewhere"))]
-
-  describe "parseDependency" $ do
-    it "parses a dependency" $ do
-      parseDependency "foo" `shouldBe` Just ("foo", AnyVersion)
-
-    it "parses a dependency with version range" $ do
-      parseDependency "foo == 1.0" `shouldBe` Just ("foo", VersionRange "==1.0")

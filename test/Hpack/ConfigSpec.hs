@@ -17,16 +17,12 @@ import           Control.Arrow
 import           System.Directory (createDirectory)
 import           Data.Yaml
 import           Data.Either.Compat
-import           Data.String
 import qualified Data.Map.Lazy as Map
 
 import           Hpack.Util
 import           Hpack.Dependency
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
-
-instance IsString Dependency where
-  fromString name = Dependency name AnyVersion
 
 deps :: [String] -> Dependencies
 deps = Dependencies . Map.fromList . map (flip (,) AnyVersion)

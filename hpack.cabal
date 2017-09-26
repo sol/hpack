@@ -93,10 +93,9 @@ test-suite spec
   build-depends:
       Cabal
     , Glob
-    , HUnit
+    , HUnit >=1.6.0.0
     , QuickCheck
     , aeson >=0.11
-    , aeson-qq
     , base >=4.7 && <5
     , base-compat >=0.8
     , bytestring

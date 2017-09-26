@@ -8,10 +8,6 @@ module Hpack.Dependency (
 , GitRef
 , GitUrl
 , githubBaseUrl
-, parseDependency
-#ifdef TEST
-, Dependency(..)
-#endif
 ) where
 
 import           Prelude ()
