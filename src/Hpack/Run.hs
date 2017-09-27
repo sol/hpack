@@ -91,6 +91,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
         customSetup
       , map renderFlag packageFlags
       , library
+      , renderInternalLibraries packageInternalLibraries
       , renderExecutables packageExecutables
       , renderTests packageTests
       , renderBenchmarks packageBenchmarks
@@ -128,6 +129,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
         Just ">= 1.10"
       , packageCabalVersion
       , packageLibrary >>= libraryCabalVersion
+      , internalLibsCabalVersion packageInternalLibraries
       ]
      where
       packageCabalVersion :: Maybe String
@@ -140,6 +142,9 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
 
       hasReexportedModules :: Section Library -> Bool
       hasReexportedModules = not . null . libraryReexportedModules . sectionData
+
+      internalLibsCabalVersion :: Map String (Section InternalLibrary) -> Maybe String
+      internalLibsCabalVersion internalLibraries = ">= 2.0" <$ guard (not (Map.null internalLibraries))
 
 sortSectionFields :: [(String, [String])] -> [Element] -> [Element]
 sortSectionFields sectionsFieldOrder = go
@@ -177,6 +182,24 @@ renderFlag Flag {..} = Stanza ("flag " ++ flagName) $ description ++ [
   ]
   where
     description = maybe [] (return . Field "description" . Literal) flagDescription
+
+renderInternalLibraries :: Map String (Section InternalLibrary) -> [Element]
+renderInternalLibraries = map renderInternalLibrary . Map.toList
+
+renderInternalLibrary :: (String, Section InternalLibrary) -> Element
+renderInternalLibrary (name, sect) =
+  Stanza ("library " ++ name) (renderInternalLibrarySection sect)
+
+renderInternalLibrarySection :: Section InternalLibrary -> [Element]
+renderInternalLibrarySection sect =
+  renderSection renderInternalLibraryFields sect ++ [defaultLanguage]
+
+renderInternalLibraryFields :: InternalLibrary -> [Element]
+renderInternalLibraryFields InternalLibrary{..} =
+  [ renderExposedModules internalLibraryExposedModules
+  , renderOtherModules internalLibraryOtherModules
+  , renderReexportedModules internalLibraryReexportedModules
+  ]
 
 renderExecutables :: Map String (Section Executable) -> [Element]
 renderExecutables = map renderExecutable . Map.toList

@@ -53,6 +53,7 @@ existing cabal file into a `package.yaml`.
 | `custom-setup` | · | | See [Custom setup](#custom-setup) | | |
 | `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | | |
 | `library` | · | | See [Library fields](#library-fields) | | |
+| `internal-libraries` | `library <name>` | | Map from internal library name to a dict of [internal library fields](#internal-library-fields) and global top-level fields. | | `0.20.0` |
 | `executables` | `executable <name>` | | Map from executable name to executable (see [Executable fields](#executable-fields)) | | |
 | `executable` | `executable <package-name>` | | Shortcut for `executables: { package-name: ... }` | | `0.18.0` |
 | `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | | |
@@ -97,6 +98,15 @@ These fields are merged with all library, executable, test, and benchmark compon
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | `exposed` | · | | |
+| `exposed-modules` | · | All modules in `source-dirs` less `other-modules` | |
+| `other-modules` | · | All modules in `source-dirs` less `exposed-modules` | |
+| `reexported-modules` | · | | |
+| | `default-language` | `Haskell2010` | |
+
+#### <a name="internal-library-fields"></a>Internal library fields
+
+| Hpack | Cabal | Default | Notes |
+| --- | --- | --- | --- |
 | `exposed-modules` | · | All modules in `source-dirs` less `other-modules` | |
 | `other-modules` | · | All modules in `source-dirs` less `exposed-modules` | |
 | `reexported-modules` | · | | |

@@ -859,6 +859,124 @@ spec = do
             )
             (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Bar", "Foo"]}) {sectionSourceDirs = ["src"]}))
 
+    context "with an internal-libraries section" $ do
+      it "reads the internal libraries correctly" $ do
+        withPackageConfig [i|
+          internal-libraries:
+            example-a:
+              source-dirs: src1
+              exposed-modules:
+                - Foo
+              other-modules: []
+            example-b:
+              source-dirs: src2
+              dependencies:
+                - base
+              exposed-modules:
+                - Bar
+              other-modules: []
+              reexported-modules:
+                - base:Data.Monoid as Baz
+          |]
+          (do
+          touch "src1/Foo.hs"
+          touch "src2/Bar.hs"
+          )
+          (packageInternalLibraries >>> (`shouldBe` Map.fromList [("example-a", (section $ InternalLibrary ["Foo"] [] []) {sectionSourceDirs = ["src1"]}), ("example-b", (section $ InternalLibrary ["Bar"] [] ["base:Data.Monoid as Baz"]) {sectionDependencies = deps ["base"], sectionSourceDirs = ["src2"]})]))
+
+      it "warns on unknown fields" $ do
+        withPackageWarnings_ [i|
+          name: example
+          internal-libraries:
+            example-foo:
+              bar: 42
+              baz: 23
+          |]
+          (`shouldBe` [
+            "Ignoring unknown field \"bar\" in internal-libraries section \"example-foo\""
+          , "Ignoring unknown field \"baz\" in internal-libraries section \"example-foo\""
+          ]
+          )
+
+      it "warns on missing source-dirs" $ do
+        withPackageWarnings_ [i|
+          name: example
+          internal-libraries:
+            example-foo:
+              source-dirs: bogus
+          |]
+          (`shouldBe` [
+            "Specified source-dir \"bogus\" does not exist"
+          ]
+          )
+
+      it "does not recognise exposed" $ do
+        withPackageWarnings_ [i|
+          name: example
+          internal-libraries:
+            example-foo:
+              exposed: true
+          |]
+          (`shouldBe` [
+            "Ignoring unknown field \"exposed\" in internal-libraries section \"example-foo\""
+          ]
+          )
+
+      it "accepts explicit exposed-modules and other-modules" $ do
+        withPackageConfig [i|
+          internal-libraries:
+            example-foo:
+              exposed-modules:
+                - Foo
+              other-modules:
+                - FooInternal
+          |]
+          (do
+          touch "Foo.hs"
+          touch "FooInternal.hs"
+          )
+          (packageInternalLibraries >>> (`shouldBe` (Map.singleton "example-foo" (section $ InternalLibrary ["Foo"] ["FooInternal"] []))))
+
+      it "infers other-modules from explicit exposed-modules" $ do
+        withPackageConfig [i|
+          internal-libraries:
+            example-foo:
+              source-dirs: src
+              exposed-modules:
+                - Foo
+          |]
+          (do
+          touch "src/Foo.hs"
+          touch "src/FooInternal.hs"
+          )
+          (packageInternalLibraries >>> (`shouldBe` (Map.singleton "example-foo" (section $ InternalLibrary ["Foo"] ["FooInternal", "Paths_foo"] []) {sectionSourceDirs = ["src"]})))
+
+      it "infers exposed-modules from explicit other-modules" $ do
+        withPackageConfig [i|
+          internal-libraries:
+            example-foo:
+              source-dirs: src
+              other-modules:
+                - FooInternal
+          |]
+          (do
+          touch "src/Foo.hs"
+          touch "src/FooInternal.hs"
+          )
+          (packageInternalLibraries >>> (`shouldBe` (Map.singleton "example-foo" (section $ InternalLibrary ["Foo"] ["FooInternal"] []) {sectionSourceDirs = ["src"]})))
+
+      it "combines global build options with its specific build options" $ do
+        withPackageConfig [i|
+          ghc-options: -O2
+          internal-libraries:
+            example-foo:
+              ghc-options: -Wall
+              source-dirs: src
+              other-modules: []
+          |]
+          (touch "src/Foo.hs")
+          (packageInternalLibraries >>> (`shouldBe` (Map.singleton "example-foo" (section $ InternalLibrary ["Foo"] [] []) {sectionGhcOptions = ["-O2", "-Wall"], sectionSourceDirs = ["src"]})))
+
     context "when reading executable section" $ do
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|
