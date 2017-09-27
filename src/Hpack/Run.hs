@@ -91,6 +91,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
         customSetup
       , map renderFlag packageFlags
       , library
+      , renderInternalLibraries packageInternalLibraries
       , renderExecutables packageExecutables
       , renderTests packageTests
       , renderBenchmarks packageBenchmarks
@@ -128,6 +129,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
         Just ">= 1.10"
       , packageCabalVersion
       , packageLibrary >>= libraryCabalVersion
+      , internalLibsCabalVersion packageInternalLibraries
       ]
      where
       packageCabalVersion :: Maybe String
@@ -140,6 +142,9 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
 
       hasReexportedModules :: Section Library -> Bool
       hasReexportedModules = not . null . libraryReexportedModules . sectionData
+
+      internalLibsCabalVersion :: Map String (Section Library) -> Maybe String
+      internalLibsCabalVersion internalLibraries = ">= 2.0" <$ guard (not (Map.null internalLibraries))
 
 sortSectionFields :: [(String, [String])] -> [Element] -> [Element]
 sortSectionFields sectionsFieldOrder = go
@@ -178,6 +183,13 @@ renderFlag Flag {..} = Stanza ("flag " ++ flagName) $ description ++ [
   where
     description = maybe [] (return . Field "description" . Literal) flagDescription
 
+renderInternalLibraries :: Map String (Section Library) -> [Element]
+renderInternalLibraries = map renderInternalLibrary . Map.toList
+
+renderInternalLibrary :: (String, Section Library) -> Element
+renderInternalLibrary (name, sect) =
+  Stanza ("library " ++ name) (renderLibrarySection sect)
+
 renderExecutables :: Map String (Section Executable) -> [Element]
 renderExecutables = map renderExecutable . Map.toList
 
@@ -215,7 +227,10 @@ renderCustomSetup CustomSetup{..} =
   Stanza "custom-setup" [renderDependencies "setup-depends" customSetupDependencies]
 
 renderLibrary :: Section Library -> Element
-renderLibrary sect = Stanza "library" $ renderSection renderLibraryFields sect ++ [defaultLanguage]
+renderLibrary sect = Stanza "library" $ renderLibrarySection sect
+
+renderLibrarySection :: Section Library -> [Element]
+renderLibrarySection sect = renderSection renderLibraryFields sect ++ [defaultLanguage]
 
 renderLibraryFields :: Library -> [Element]
 renderLibraryFields Library{..} =
