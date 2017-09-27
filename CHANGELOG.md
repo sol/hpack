@@ -1,6 +1,7 @@
 ## Changes in 0.20.0
   - Accept section-specific fields in conditionals (see #175, thanks to Scott
     Fleischman)
+  - New section: `internal-libraries`, for Cabal 2's internal libraries (see #200).
 
 ## Changes in 0.19.3
   - Add support for `frameworks` and `extra-frameworks-dirs`

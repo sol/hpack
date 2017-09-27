@@ -95,6 +95,7 @@ package name version = Package {
   , packageSourceRepository = Nothing
   , packageCustomSetup = Nothing
   , packageLibrary = Nothing
+  , packageInternalLibraries = mempty
   , packageExecutables = mempty
   , packageTests = mempty
   , packageBenchmarks = mempty
@@ -357,6 +358,7 @@ data PackageConfig = PackageConfig {
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe (CaptureUnknownFields CustomSetupSection)
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (WithCommonOptions LibrarySection))
+, packageConfigInternalLibraries :: Maybe (Map String (CaptureUnknownFields (WithCommonOptions LibrarySection)))
 , packageConfigExecutable :: Maybe ExecutableConfig
 , packageConfigExecutables :: Maybe (Map String ExecutableConfig)
 , packageConfigTests :: Maybe (Map String ExecutableConfig)
@@ -417,6 +419,7 @@ data Package = Package {
 , packageSourceRepository :: Maybe SourceRepository
 , packageCustomSetup :: Maybe CustomSetup
 , packageLibrary :: Maybe (Section Library)
+, packageInternalLibraries :: Map String (Section Library)
 , packageExecutables :: Map String (Section Executable)
 , packageTests :: Map String (Section Executable)
 , packageBenchmarks :: Map String (Section Executable)
@@ -534,6 +537,7 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
     libraryWarnings :: [String]
     libraryWarnings = maybe [] fst libraryResult
 
+  (internalLibrariesWarnings, internalLibraries) <- toInternalLibraries dir packageName_ globalOptions (map (fmap captureUnknownFieldsValue) internalLibrariesSections)
   (executablesWarnings, executables) <- toExecutables dir packageName_ globalOptions executableSections
   (testsWarnings, tests) <- toExecutables dir packageName_ globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
   (benchmarksWarnings, benchmarks) <- toExecutables dir packageName_ globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
@@ -542,6 +546,7 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
 
   missingSourceDirs <- nub . sort <$> filterM (fmap not <$> doesDirectoryExist . (dir </>)) (
        maybe [] sectionSourceDirs mLibrary
+    ++ concatMap sectionSourceDirs internalLibraries
     ++ concatMap sectionSourceDirs executables
     ++ concatMap sectionSourceDirs tests
     ++ concatMap sectionSourceDirs benchmarks
@@ -583,6 +588,7 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
       , packageSourceRepository = sourceRepository
       , packageCustomSetup = mCustomSetup
       , packageLibrary = mLibrary
+      , packageInternalLibraries = internalLibraries
       , packageExecutables = executables
       , packageTests = tests
       , packageBenchmarks = benchmarks
@@ -594,10 +600,12 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
         ++ flagWarnings
         ++ maybe [] (formatUnknownFields "custom-setup section") (captureUnknownFieldsFields <$> packageConfigCustomSetup)
         ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary_)
+        ++ formatUnknownSectionFields True "internal-libraries" internalLibrariesSections
         ++ formatUnknownSectionFields True "test" testsSections
         ++ formatUnknownSectionFields True "benchmark" benchmarkSections
         ++ formatMissingSourceDirs missingSourceDirs
         ++ libraryWarnings
+        ++ internalLibrariesWarnings
         ++ executableWarnings
         ++ executablesWarnings
         ++ testsWarnings
@@ -618,6 +626,9 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
     mCustomSetup = toCustomSetup <$> mCustomSetupSection
 
     packageConfigLibrary_ = toSection <$> packageConfigLibrary
+
+    internalLibrariesSections :: [(String, CaptureUnknownFields (Section LibrarySection))]
+    internalLibrariesSections = map (fmap toSection) $ toList packageConfigInternalLibraries
 
     testsSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
     testsSections = map (fmap toSection) $ toList packageConfigTests
@@ -758,6 +769,13 @@ mapSectionAcc f = go
         sectionData = b
       , sectionConditionals = map (go acc <$>) sectionConditionals
       }
+
+toInternalLibraries :: FilePath -> String -> Section global -> [(String, Section LibrarySection)] -> IO ([String], Map String (Section Library))
+toInternalLibraries dir packageName_ globalOptions internalLibraries = do
+  results <- mapM (traverse $ toLibrary dir packageName_ globalOptions) internalLibraries
+  let warnings = map (fst . snd) results
+      internalLibraries' = map (fmap snd) results
+  return (concat warnings, Map.fromList internalLibraries')
 
 traverseNamedSections :: (Ord name, Monad m) => (a -> m ([warning], b)) -> [(name, a)] -> m ([warning], Map name b)
 traverseNamedSections f namedSections = do
