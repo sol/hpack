@@ -1,32 +1,37 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Hpack.ConfigSpec (
   spec
 
 , package
-, executable
+, deps
 ) where
 
 import           Helper
 
-import           Data.Aeson.QQ
 import           Data.Aeson.Types
 import           Data.String.Interpolate.IsString
 import           Control.Arrow
 import           System.Directory (createDirectory)
 import           Data.Yaml
 import           Data.Either.Compat
+import qualified Data.Map.Lazy as Map
 
 import           Hpack.Util
+import           Hpack.Dependency
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
+
+deps :: [String] -> Dependencies
+deps = Dependencies . Map.fromList . map (flip (,) AnyVersion)
 
 package :: Package
 package = Config.package "foo" "0.0.0"
 
 executable :: String -> String -> Executable
-executable name main_ = Executable (Just name) (Just main_) []
+executable name main_ = Executable (Just name) (Just main_) ["Paths_foo"]
 
 library :: Library
 library = Library Nothing [] ["Paths_foo"] []
@@ -59,11 +64,11 @@ spec = do
       renamePackage "bar" package `shouldBe` package {packageName = "bar"}
 
     it "renames dependencies on self" $ do
-      let packageWithExecutable dependencies = package {packageExecutables = [(section $ executable "main" "Main.hs") {sectionDependencies = dependencies}]}
+      let packageWithExecutable dependencies = package {packageExecutables = [(section $ executable "main" "Main.hs") {sectionDependencies = deps dependencies}]}
       renamePackage "bar" (packageWithExecutable ["foo"]) `shouldBe` (packageWithExecutable ["bar"]) {packageName = "bar"}
 
   describe "renameDependencies" $ do
-    let sectionWithDeps dependencies = (section ()) {sectionDependencies = dependencies}
+    let sectionWithDeps dependencies = (section ()) {sectionDependencies = deps dependencies}
 
     it "renames dependencies" $ do
       renameDependencies "bar" "baz" (sectionWithDeps ["foo", "bar"]) `shouldBe` sectionWithDeps ["foo", "baz"]
@@ -87,7 +92,7 @@ spec = do
               dependencies: hpack
               |]
         captureUnknownFieldsValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionDependencies = ["hpack"]}
+          `shouldBe` Right (section Empty){sectionDependencies = deps ["hpack"]}
 
       it "accepts includes-dirs" $ do
         let input = [i|
@@ -152,7 +157,7 @@ spec = do
                 |]
               conditionals = [
                 Conditional "os(windows)"
-                (section Empty){sectionDependencies = ["Win32"]}
+                (section Empty){sectionDependencies = deps ["Win32"]}
                 Nothing
                 ]
           captureUnknownFieldsValue <$> decodeEither input
@@ -185,8 +190,8 @@ spec = do
                   |]
                 conditionals = [
                   Conditional "os(windows)"
-                  (section Empty){sectionDependencies = ["Win32"]}
-                  (Just (section Empty){sectionDependencies = ["unix"]})
+                  (section Empty){sectionDependencies = deps ["Win32"]}
+                  (Just (section Empty){sectionDependencies = deps ["unix"]})
                   ]
                 r :: Either String (Section Empty Empty)
                 r = captureUnknownFieldsValue <$> decodeEither input
@@ -217,69 +222,6 @@ spec = do
                   |]
             captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty Empty)))
               `shouldBe` Right ["foo", "bar", "baz"]
-
-    context "when parsing a Dependency" $ do
-      it "accepts simple dependencies" $ do
-        parseEither parseJSON "hpack" `shouldBe` Right (Dependency "hpack" Nothing)
-
-      it "accepts git dependencies" $ do
-        let value = [aesonQQ|{
-              name: "hpack",
-              git: "https://github.com/sol/hpack",
-              ref: "master"
-            }|]
-            source = GitRef "https://github.com/sol/hpack" "master" Nothing
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
-
-      it "accepts github dependencies" $ do
-        let value = [aesonQQ|{
-              name: "hpack",
-              github: "sol/hpack",
-              ref: "master"
-            }|]
-            source = GitRef "https://github.com/sol/hpack" "master" Nothing
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
-
-      it "accepts an optional subdirectory for git dependencies" $ do
-        let value = [aesonQQ|{
-              name: "warp",
-              github: "yesodweb/wai",
-              ref: "master",
-              subdir: "warp"
-            }|]
-            source = GitRef "https://github.com/yesodweb/wai" "master" (Just "warp")
-        parseEither parseJSON value `shouldBe` Right (Dependency "warp" (Just source))
-
-      it "accepts local dependencies" $ do
-        let value = [aesonQQ|{
-              name: "hpack",
-              path: "../hpack"
-            }|]
-            source = Local "../hpack"
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
-
-      context "when parsing fails" $ do
-        it "returns an error message" $ do
-          let value = Number 23
-          parseEither parseJSON value `shouldBe` (Left "Error in $: expected String or an Object, encountered Number" :: Either String Dependency)
-
-        context "when ref is missing" $ do
-          it "produces accurate error messages" $ do
-            let value = [aesonQQ|{
-                  name: "hpack",
-                  git: "sol/hpack",
-                  ef: "master"
-                }|]
-            parseEither parseJSON value `shouldBe` (Left "Error in $: key \"ref\" not present" :: Either String Dependency)
-
-        context "when both git and github are missing" $ do
-          it "produces accurate error messages" $ do
-            let value = [aesonQQ|{
-                  name: "hpack",
-                  gi: "sol/hpack",
-                  ref: "master"
-                }|]
-            parseEither parseJSON value `shouldBe` (Left "Error in $: neither key \"git\" nor key \"github\" present" :: Either String Dependency)
 
   describe "getModules" $ around withTempDirectory $ do
     it "returns Haskell modules in specified source directory" $ \dir -> do
@@ -721,10 +663,14 @@ spec = do
         withPackageConfig_ [i|
           custom-setup:
             dependencies:
-              - foo >1.0
-              - bar ==2.0
+              - foo > 1.0
+              - bar == 2.0
           |]
-          (packageCustomSetup >>> fmap customSetupDependencies >>> (`shouldBe` Just ["foo >1.0", "bar ==2.0"]))
+          (packageCustomSetup >>> fmap customSetupDependencies >>> fmap unDependencies >>> fmap Map.toList >>> (`shouldBe` Just [
+              ("bar", VersionRange "==2.0")
+            , ("foo", VersionRange ">1.0")
+            ])
+          )
 
     it "allows yaml merging and overriding fields" $ do
       withPackageConfig_ [i|
@@ -766,7 +712,7 @@ spec = do
               - alex
               - happy
           |]
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = ["alex", "happy"]}))
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
 
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
@@ -802,7 +748,7 @@ spec = do
             - happy
           library: {}
           |]
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = ["alex", "happy"]}))
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
 
       it "accepts c-sources" $ do
         withPackageConfig [i|
@@ -941,7 +887,7 @@ spec = do
           (do
           touch "Bar.hs"
           )
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs")
+          (`shouldBe` package {packageExecutables = [(section $ Executable (Just "foo") (Just "driver/Main.hs") [])
             {sectionConditionals = [Conditional "os(windows)" (section $ Executable Nothing Nothing ["Bar"]) Nothing]}]})
 
       context "when neither exposed-modules nor other-modules are specified" $ do
@@ -1049,7 +995,7 @@ spec = do
                 - alex
                 - happy
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = ["alex", "happy"]}]))
+          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = deps ["alex", "happy"]}]))
 
       it "accepts global source-dirs" $ do
         withPackageConfig_ [i|
@@ -1071,7 +1017,7 @@ spec = do
             foo:
               main: Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = ["alex", "happy"]}]))
+          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = deps ["alex", "happy"]}]))
 
       it "infers other-modules" $ do
         withPackageConfig [i|
@@ -1084,7 +1030,7 @@ spec = do
           touch "src/Main.hs"
           touch "src/Foo.hs"
           )
-          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Foo"]]))
+          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Foo", "Paths_foo"]]))
 
       it "allows to specify other-modules" $ do
         withPackageConfig [i|
@@ -1261,7 +1207,7 @@ spec = do
               main: test/Spec.hs
               dependencies: hspec
           |]
-          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec"]}]})
+          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = deps ["hspec"]}]})
 
       it "accepts list of dependencies" $ do
         withPackageConfig_ [i|
@@ -1272,7 +1218,7 @@ spec = do
                 - hspec
                 - QuickCheck
           |]
-          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec", "QuickCheck"]}]})
+          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = deps ["hspec", "QuickCheck"]}]})
 
       it "accepts other-modules in conditional" $ do
         withPackageConfig [i|
@@ -1287,7 +1233,7 @@ spec = do
           (do
           touch "Foo.hs"
           )
-          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs")
+          (`shouldBe` package {packageTests = [(section $ Executable (Just "spec") (Just "test/Spec.hs") [])
             {sectionConditionals = [Conditional "os(windows)" (section $ Executable Nothing Nothing ["Foo"]) Nothing]}]})
 
       context "when both global and section specific dependencies are specified" $ do
@@ -1301,7 +1247,19 @@ spec = do
                 main: test/Spec.hs
                 dependencies: hspec
             |]
-            (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["base", "hspec"]}]})
+            (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = deps ["base", "hspec"]}]})
+
+        it "gives section specific dependencies precedence" $ do
+          withPackageConfig_ [i|
+            dependencies:
+              - base
+
+            tests:
+              spec:
+                main: test/Spec.hs
+                dependencies: base >= 2
+            |]
+            (packageTests >>> map (Map.toList . unDependencies . sectionDependencies) >>> (`shouldBe` [[("base", VersionRange ">=2")]]))
 
     context "when a specified source directory does not exist" $ do
       it "warns" $ do

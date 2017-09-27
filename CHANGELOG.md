@@ -1,4 +1,8 @@
-## next
+## next (0.19.0)
+  - Add Paths_* module to executables (see #195, for GHC 8.2.1 compatibility)
+  - Allow specifying dependencies as a hash (see #198)
+
+## Change in 0.18.1
   - Output generated cabal file to `stdout` when `-` is given as a command-line
     option (see #113)
   - Recognize `.chs`, `.y`, `.ly` and `.x` as Haskell modules when inferring
