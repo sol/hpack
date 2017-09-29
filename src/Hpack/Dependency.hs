@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 module Hpack.Dependency (
   Dependencies(..)
 , DependencyVersion(..)
@@ -24,6 +25,7 @@ import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import           Data.Aeson.Types
 import           Control.Applicative
+import           GHC.Exts
 
 githubBaseUrl :: String
 githubBaseUrl = "https://github.com/"
@@ -31,6 +33,11 @@ githubBaseUrl = "https://github.com/"
 newtype Dependencies = Dependencies {
   unDependencies :: Map String DependencyVersion
 } deriving (Eq, Show, Monoid)
+
+instance IsList Dependencies where
+  type Item Dependencies = (String, DependencyVersion)
+  fromList = Dependencies . Map.fromList
+  toList = Map.toList . unDependencies
 
 data DependencyVersion =
     AnyVersion
