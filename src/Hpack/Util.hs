@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 module Hpack.Util (
   List(..)
@@ -116,14 +117,29 @@ toPosixFilePath = Posix.joinPath . splitDirectories
 
 expandGlobs :: String -> FilePath -> [String] -> IO ([String], [FilePath])
 expandGlobs name dir patterns = do
-  files <- (fst <$> globDir compiledPatterns dir) >>= mapM removeDirectories
+  files <- globDir_ compiledPatterns dir >>= mapM removeDirectories
   let warnings = [warn pattern | ([], pattern) <- zip files patterns]
   return (warnings, combineResults files)
   where
+    globDir_ :: [Pattern] -> FilePath -> IO [[FilePath]]
+#if MIN_VERSION_Glob(0,9,0)
+    globDir_ = globDir
+#else
+    globDir_ xs = fmap fst . globDir xs
+#endif
+    combineResults :: [[FilePath]] -> [FilePath]
     combineResults = nub . sort . map (toPosixFilePath . makeRelative dir) . concat
+
+    warn :: String -> String
     warn pattern = "Specified pattern " ++ show pattern ++ " for " ++ name ++ " does not match any files"
+
+    compiledPatterns :: [Pattern]
     compiledPatterns = map (compileWith options) patterns
+
+    removeDirectories :: [FilePath] -> IO [FilePath]
     removeDirectories = filterM doesFileExist
+
+    options :: CompOptions
     options = CompOptions {
         characterClasses = False
       , characterRanges = False
