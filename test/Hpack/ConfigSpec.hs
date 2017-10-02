@@ -31,7 +31,7 @@ package :: Package
 package = Config.package "foo" "0.0.0"
 
 executable :: String -> String -> Executable
-executable name main_ = Executable name main_ ["Paths_foo"]
+executable name main_ = Executable (Just name) (Just main_) ["Paths_foo"]
 
 library :: Library
 library = Library Nothing [] ["Paths_foo"] []
@@ -157,7 +157,7 @@ spec = do
                 |]
               conditionals = [
                 Conditional "os(windows)"
-                (section ()){sectionDependencies = deps ["Win32"]}
+                (section Empty){sectionDependencies = deps ["Win32"]}
                 Nothing
                 ]
           captureUnknownFieldsValue <$> decodeEither input
@@ -175,7 +175,7 @@ spec = do
                   - condition: os(windows)
                     baz: 23
                 |]
-          captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
+          captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty Empty)))
             `shouldBe` Right ["foo", "bar", "bar2", "baz"]
 
         context "when parsing conditionals with else-branch" $ do
@@ -190,10 +190,10 @@ spec = do
                   |]
                 conditionals = [
                   Conditional "os(windows)"
-                  (section ()){sectionDependencies = deps ["Win32"]}
-                  (Just (section ()){sectionDependencies = deps ["unix"]})
+                  (section Empty){sectionDependencies = deps ["Win32"]}
+                  (Just (section Empty){sectionDependencies = deps ["unix"]})
                   ]
-                r :: Either String (Section Empty)
+                r :: Either String (Section Empty Empty)
                 r = captureUnknownFieldsValue <$> decodeEither input
             sectionConditionals <$> r `shouldBe` Right conditionals
 
@@ -206,7 +206,7 @@ spec = do
                     else: null
                   |]
 
-                r :: Either String (Section Empty)
+                r :: Either String (Section Empty Empty)
                 r = captureUnknownFieldsValue <$> decodeEither input
             sectionConditionals <$> r `shouldSatisfy` isLeft
 
@@ -220,7 +220,7 @@ spec = do
                     else:
                       baz: null
                   |]
-            captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
+            captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty Empty)))
               `shouldBe` Right ["foo", "bar", "baz"]
 
   describe "getModules" $ around withTempDirectory $ do
@@ -848,6 +848,48 @@ spec = do
           )
           (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}))
 
+      it "allows to specify exposed-modules in conditional" $ do
+        withPackageConfig [i|
+          library:
+            source-dirs: src
+            exposed-modules: Foo
+            other-modules: []
+            when:
+              condition: os(windows)
+              exposed-modules:
+              - Bar
+          |]
+          (do
+          touch "src/Foo.hs"
+          touch "src/Bar.hs"
+          )
+          (packageLibrary >>> (`shouldBe` Just
+            (section library
+              { libraryExposedModules = ["Foo"]
+              , libraryOtherModules = []
+              })
+              { sectionSourceDirs = ["src"]
+              , sectionConditionals =
+                [ Conditional "os(windows)" (section library{ libraryExposedModules = ["Bar"], libraryOtherModules = [] }) Nothing
+                ]
+              }))
+
+      it "accepts other-modules in conditional" $ do
+        withPackageConfig [i|
+          executables:
+            foo:
+              main: driver/Main.hs
+              other-modules: []
+              when:
+                condition: os(windows)
+                other-modules: Bar
+          |]
+          (do
+          touch "Bar.hs"
+          )
+          (`shouldBe` package {packageExecutables = [(section $ Executable (Just "foo") (Just "driver/Main.hs") [])
+            {sectionConditionals = [Conditional "os(windows)" (section $ Executable Nothing Nothing ["Bar"]) Nothing]}]})
+
       context "when neither exposed-modules nor other-modules are specified" $ do
         it "exposes all modules" $ do
           withPackageConfig [i|
@@ -1177,6 +1219,22 @@ spec = do
                 - QuickCheck
           |]
           (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = deps ["hspec", "QuickCheck"]}]})
+
+      it "accepts other-modules in conditional" $ do
+        withPackageConfig [i|
+          tests:
+            spec:
+              main: test/Spec.hs
+              other-modules: []
+              when:
+                condition: os(windows)
+                other-modules: Foo
+          |]
+          (do
+          touch "Foo.hs"
+          )
+          (`shouldBe` package {packageTests = [(section $ Executable (Just "spec") (Just "test/Spec.hs") [])
+            {sectionConditionals = [Conditional "os(windows)" (section $ Executable Nothing Nothing ["Foo"]) Nothing]}]})
 
       context "when both global and section specific dependencies are specified" $ do
         it "combines dependencies" $ do

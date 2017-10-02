@@ -8,7 +8,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -106,14 +106,14 @@ renamePackage name p@Package{..} = p {
   , packageBenchmarks = map (renameDependencies packageName name) packageBenchmarks
   }
 
-renameDependencies :: String -> String -> Section a -> Section a
+renameDependencies :: String -> String -> Section a b -> Section a b
 renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Dependencies . Map.fromList . map rename . Map.toList . unDependencies) sectionDependencies, sectionConditionals = map renameConditional sectionConditionals}
   where
     rename dep@(name, version)
       | name == old = (new, version)
       | otherwise = dep
 
-    renameConditional :: Conditional -> Conditional
+    renameConditional :: Conditional b -> Conditional b
     renameConditional (Conditional condition then_ else_) = Conditional condition (renameDependencies old new then_) (renameDependencies old new <$> else_)
 
 packageDependencies :: Package -> [(String, DependencyVersion)]
@@ -125,7 +125,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
   where
     deps xs = [(name, version) | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
-section :: a -> Section a
+section :: a -> Section a a
 section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty
 
 packageConfig :: FilePath
@@ -171,12 +171,12 @@ captureUnknownFields v = CaptureUnknownFields unknown <$> parseJSON v
   where
     unknown = getUnknownFields v (Proxy :: Proxy a)
 
-instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields (Section a)) where
+instance (HasFieldNames a, FromJSON a, HasFieldNames b, FromJSON b) => FromJSON (CaptureUnknownFields (Section a b)) where
   parseJSON v = do
     (unknownFields, sect) <- toSection <$> parseJSON v <*> parseJSON v
     return (CaptureUnknownFields (unknownSectionFields ++ unknownFields) sect)
     where
-      unknownSectionFields = getUnknownFields v (Proxy :: Proxy (Section a))
+      unknownSectionFields = getUnknownFields v (Proxy :: Proxy (Section a b))
 
 instance FromJSON (CaptureUnknownFields CustomSetupSection) where
   parseJSON = captureUnknownFields
@@ -218,7 +218,7 @@ instance FromJSON LibrarySection where
   parseJSON = genericParseJSON_
 
 data ExecutableSection = ExecutableSection {
-  executableSectionMain :: FilePath
+  executableSectionMain :: Maybe FilePath
 , executableSectionOtherModules :: Maybe (List String)
 } deriving (Eq, Show, Generic)
 
@@ -227,7 +227,7 @@ instance HasFieldNames ExecutableSection
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_
 
-data CommonOptions = CommonOptions {
+data CommonOptions a = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
 , commonOptionsDependencies :: Maybe Dependencies
 , commonOptionsDefaultExtensions :: Maybe (List String)
@@ -245,19 +245,19 @@ data CommonOptions = CommonOptions {
 , commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
-, commonOptionsWhen :: Maybe (List ConditionalSection)
+, commonOptionsWhen :: Maybe (List (ConditionalSection a))
 , commonOptionsBuildTools :: Maybe Dependencies
 } deriving (Eq, Show, Generic)
 
-instance HasFieldNames CommonOptions
+instance HasFieldNames a => HasFieldNames (CommonOptions a)
 
-instance FromJSON CommonOptions where
+instance (FromJSON a, HasFieldNames a) => FromJSON (CommonOptions a) where
   parseJSON = genericParseJSON_
 
-data ConditionalSection = ThenElseConditional (CaptureUnknownFields ThenElse) | FlatConditional (CaptureUnknownFields (Section Condition))
+data ConditionalSection a = ThenElseConditional (CaptureUnknownFields (ThenElse a)) | FlatConditional (CaptureUnknownFields (FlatThen a))
   deriving (Eq, Show)
 
-instance FromJSON ConditionalSection where
+instance (FromJSON a, HasFieldNames a) => FromJSON (ConditionalSection a) where
   parseJSON v
     | hasKey "then" v || hasKey "else" v = ThenElseConditional <$> parseJSON v
     | otherwise = FlatConditional <$> parseJSON v
@@ -275,18 +275,36 @@ instance FromJSON Condition where
 
 instance HasFieldNames Condition
 
-data ThenElse = ThenElse {
-  _thenElseCondition :: String
-, _thenElseThen :: (CaptureUnknownFields (Section Empty))
-, _thenElseElse :: (CaptureUnknownFields (Section Empty))
+data FlatThen a = FlatThen {
+  _flatThenCondition :: String
+, _flatThenBody :: CaptureUnknownFields (Section a a)
 } deriving (Eq, Show, Generic)
 
-instance FromJSON (CaptureUnknownFields ThenElse) where
+instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields (FlatThen a)) where
+  parseJSON v = do
+    Condition condition <- parseJSON v
+    CaptureUnknownFields fields body <- parseJSON v
+    let unknown = fields \\ fieldNames (Proxy :: Proxy Condition)
+    return $ CaptureUnknownFields unknown (FlatThen condition (CaptureUnknownFields [] body))
+
+instance HasFieldNames a => HasFieldNames (FlatThen a) where
+  fieldNames _ = fieldNames (Proxy :: Proxy Condition) ++ fieldNames (Proxy :: Proxy a)
+
+instance (HasFieldNames a, FromJSON a) => FromJSON (FlatThen a) where
+  parseJSON v = FlatThen <$> fmap conditionCondition (parseJSON v) <*> parseJSON v
+
+data ThenElse a = ThenElse {
+  _thenElseCondition :: String
+, _thenElseThen :: CaptureUnknownFields (Section a a)
+, _thenElseElse :: CaptureUnknownFields (Section a a)
+} deriving (Eq, Show, Generic)
+
+instance (FromJSON a, HasFieldNames a) => FromJSON (CaptureUnknownFields (ThenElse a)) where
   parseJSON = captureUnknownFields
 
-instance HasFieldNames ThenElse
+instance HasFieldNames a => HasFieldNames (ThenElse a)
 
-instance FromJSON ThenElse where
+instance (FromJSON a, HasFieldNames a) => FromJSON (ThenElse a) where
   parseJSON = genericParseJSON_
 
 data Empty = Empty
@@ -314,7 +332,7 @@ instance FromJSON BuildType where
     "Custom"    -> return Custom
     _           -> fail "build-type must be one of: Simple, Configure, Make, Custom"
 
-type ExecutableConfig = CaptureUnknownFields (Section ExecutableSection)
+type ExecutableConfig = CaptureUnknownFields (Section ExecutableSection ExecutableSection)
 
 data PackageConfig = PackageConfig {
   packageConfigName :: Maybe String
@@ -338,11 +356,11 @@ data PackageConfig = PackageConfig {
 , packageConfigGithub :: Maybe Text
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe (CaptureUnknownFields CustomSetupSection)
-, packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
+, packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection LibrarySection))
 , packageConfigExecutable :: Maybe ExecutableConfig
 , packageConfigExecutables :: Maybe (Map String ExecutableConfig)
-, packageConfigTests :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
-, packageConfigBenchmarks :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
+, packageConfigTests :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection ExecutableSection)))
+, packageConfigBenchmarks :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection ExecutableSection)))
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames PackageConfig where
@@ -375,7 +393,15 @@ readPackageConfig file = do
     Left err -> return (Left err)
     Right config -> do
       dir <- takeDirectory <$> canonicalizePath file
-      Right <$> mkPackage dir config
+      result@(_, pkg) <- mkPackage dir config
+      case traverse validateExecutable $ packageExecutables pkg ++ packageTests pkg ++ packageBenchmarks pkg of
+        Left err' -> return (Left err')
+        Right _ -> return (Right result)
+      where
+        validateExecutable :: Section Executable Executable -> Either String ()
+        validateExecutable ex = case executableMain . sectionData $ ex of
+          Nothing -> Left "Missing main"
+          Just _ -> Right ()
 
 data Package = Package {
   packageName :: String
@@ -398,10 +424,10 @@ data Package = Package {
 , packageDataFiles :: [FilePath]
 , packageSourceRepository :: Maybe SourceRepository
 , packageCustomSetup :: Maybe CustomSetup
-, packageLibrary :: Maybe (Section Library)
-, packageExecutables :: [Section Executable]
-, packageTests :: [Section Executable]
-, packageBenchmarks :: [Section Executable]
+, packageLibrary :: Maybe (Section Library Library)
+, packageExecutables :: [Section Executable Executable]
+, packageTests :: [Section Executable Executable]
+, packageBenchmarks :: [Section Executable Executable]
 } deriving (Eq, Show)
 
 data CustomSetup = CustomSetup {
@@ -416,12 +442,12 @@ data Library = Library {
 } deriving (Eq, Show)
 
 data Executable = Executable {
-  executableName :: String
-, executableMain :: FilePath
+  executableName :: Maybe String
+, executableMain :: Maybe FilePath
 , executableOtherModules :: [String]
 } deriving (Eq, Show)
 
-data Section a = Section {
+data Section b a = Section {
   sectionData :: a
 , sectionSourceDirs :: [FilePath]
 , sectionDependencies :: Dependencies
@@ -440,18 +466,27 @@ data Section a = Section {
 , sectionInstallIncludes :: [FilePath]
 , sectionLdOptions :: [LdOption]
 , sectionBuildable :: Maybe Bool
-, sectionConditionals :: [Conditional]
+, sectionConditionals :: [Conditional b]
 , sectionBuildTools :: Dependencies
-} deriving (Eq, Show, Functor, Foldable, Traversable)
+} deriving (Show)
+deriving instance (Eq b, Eq a) => Eq (Section b a)
+deriving instance Functor (Section b)
+deriving instance Foldable (Section b)
+deriving instance Traversable (Section b)
 
-data Conditional = Conditional {
+data Conditional a = Conditional {
   conditionalCondition :: String
-, conditionalThen :: Section ()
-, conditionalElse :: Maybe (Section ())
+, conditionalThen :: Section a a
+, conditionalElse :: Maybe (Section a a)
 } deriving (Eq, Show)
 
-instance HasFieldNames a => HasFieldNames (Section a) where
-  fieldNames Proxy = fieldNames (Proxy :: Proxy a) ++ fieldNames (Proxy :: Proxy CommonOptions)
+instance Functor Conditional where
+  fmap f (Conditional c t e) = Conditional c (condMap . fmap f $ t) (fmap (condMap . fmap f) e)
+    where
+    condMap s = s { sectionConditionals = (fmap . fmap) f (sectionConditionals s) }
+
+instance HasFieldNames a => HasFieldNames (Section b a) where
+  fieldNames Proxy = fieldNames (Proxy :: Proxy a) ++ fieldNames (Proxy :: Proxy (CommonOptions a))
   ignoreUnderscoredUnknownFields _ = ignoreUnderscoredUnknownFields (Proxy :: Proxy a)
 
 data FlagSection = FlagSection {
@@ -480,12 +515,12 @@ data SourceRepository = SourceRepository {
 , sourceRepositorySubdir :: Maybe String
 } deriving (Eq, Show)
 
-mkPackage :: FilePath -> (CaptureUnknownFields (Section PackageConfig)) -> IO ([String], Package)
+mkPackage :: FilePath -> (CaptureUnknownFields (Section Empty PackageConfig)) -> IO ([String], Package)
 mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionData = PackageConfig{..}}) = do
   libraryResult <- mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
   let
     executableWarnings :: [String]
-    executableSections :: [(String, Section ExecutableSection)]
+    executableSections :: [(String, Section ExecutableSection ExecutableSection)]
     (executableWarnings, executableSections) = (warnings, map (fmap captureUnknownFieldsValue) sections)
       where
         sections = case (packageConfigExecutable, packageConfigExecutables) of
@@ -499,7 +534,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
           _ -> []
         unknownFieldWarnings = formatUnknownSectionFields (isJust packageConfigExecutables) "executable" sections
 
-    mLibrary :: Maybe (Section Library)
+    mLibrary :: Maybe (Section Library Library)
     mLibrary = fmap snd libraryResult
 
     libraryWarnings :: [String]
@@ -588,10 +623,10 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
     mCustomSetup :: Maybe CustomSetup
     mCustomSetup = toCustomSetup <$> mCustomSetupSection
 
-    testsSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
+    testsSections :: [(String, CaptureUnknownFields (Section ExecutableSection ExecutableSection))]
     testsSections = toList packageConfigTests
 
-    benchmarkSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
+    benchmarkSections :: [(String, CaptureUnknownFields (Section ExecutableSection ExecutableSection))]
     benchmarkSections = toList packageConfigBenchmarks
 
     (flagWarnings, flags) = (concatMap formatUnknownFlagFields xs, map (toFlag . fmap captureUnknownFieldsValue) xs)
@@ -609,7 +644,7 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
     mCustomSetupSection :: Maybe CustomSetupSection
     mCustomSetupSection = captureUnknownFieldsValue <$> packageConfigCustomSetup
 
-    mLibrarySection :: Maybe (Section LibrarySection)
+    mLibrarySection :: Maybe (Section LibrarySection LibrarySection)
     mLibrarySection = captureUnknownFieldsValue <$> packageConfigLibrary
 
     formatUnknownFields :: String -> [FieldName] -> [String]
@@ -655,17 +690,17 @@ mkPackage dir (CaptureUnknownFields unknownFields globalOptions@Section{sectionD
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> github
 
-expandCSources :: FilePath -> Section a -> IO ([String], Section a)
+expandCSources :: FilePath -> Section a b -> IO ([String], Section a b)
 expandCSources dir sect@Section{..} = do
   (warnings, files) <- expandGlobs "c-sources" dir sectionCSources
   return (warnings, sect {sectionCSources = files})
 
-expandJsSources :: FilePath -> Section a -> IO ([String], Section a)
+expandJsSources :: FilePath -> Section a b -> IO ([String], Section a b)
 expandJsSources dir sect@Section{..} = do
   (warnings, files) <- expandGlobs "js-sources" dir sectionJsSources
   return (warnings, sect {sectionJsSources = files})
 
-expandForeignSources :: FilePath -> Section a -> IO ([String], Section a)
+expandForeignSources :: FilePath -> Section a b -> IO ([String], Section a b)
 expandForeignSources dir sect = do
   (cWarnings, sect_) <- expandCSources dir sect
   (jsWarnings, sect__) <- expandJsSources dir sect_
@@ -675,11 +710,14 @@ toCustomSetup :: CustomSetupSection -> CustomSetup
 toCustomSetup CustomSetupSection{..} = CustomSetup
   { customSetupDependencies = fromMaybe mempty customSetupSectionDependencies }
 
-toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO ([String], Section Library)
-toLibrary dir name globalOptions library = traverse fromLibrarySection sect >>= expandForeignSources dir
+toLibrary :: FilePath -> String -> Section Empty global -> Section LibrarySection LibrarySection -> IO ([String], Section Library Library)
+toLibrary dir name globalOptions library = fmap (updateConditionals sect) (traverse fromLibrarySection sect) >>= expandForeignSources dir
   where
-    sect :: Section LibrarySection
-    sect = mergeSections globalOptions library
+    sect :: Section LibrarySection LibrarySection
+    sect = mergeSections emptyLibrary globalOptions library
+
+    emptyLibrary :: LibrarySection
+    emptyLibrary = LibrarySection Nothing Nothing Nothing Nothing
 
     sourceDirs :: [FilePath]
     sourceDirs = sectionSourceDirs sect
@@ -691,24 +729,37 @@ toLibrary dir name globalOptions library = traverse fromLibrarySection sect >>= 
           reexportedModules = fromMaybeList librarySectionReexportedModules
       return (Library librarySectionExposed exposedModules otherModules reexportedModules)
 
-toExecutables :: FilePath -> String -> Section global -> [(String, Section ExecutableSection)] -> IO ([String], [Section Executable])
+    updateConditionals :: Section LibrarySection LibrarySection -> Section LibrarySection Library -> Section Library Library
+    updateConditionals source target = target { sectionConditionals = (fmap . fmap) fromLibrarySectionPlain (sectionConditionals source) }
+
+    fromLibrarySectionPlain :: LibrarySection -> Library
+    fromLibrarySectionPlain LibrarySection{..} = Library librarySectionExposed (fromMaybeList librarySectionExposedModules) (fromMaybeList librarySectionOtherModules) (fromMaybeList librarySectionReexportedModules)
+
+toExecutables :: FilePath -> String -> Section Empty global -> [(String, Section ExecutableSection ExecutableSection)] -> IO ([String], [Section Executable Executable])
 toExecutables dir packageName_ globalOptions executables = do
   result <- mapM toExecutable sections >>= mapM (expandForeignSources dir)
   let (warnings, xs) = unzip result
   return (concat warnings, xs)
   where
-    sections :: [(String, Section ExecutableSection)]
-    sections = map (fmap $ mergeSections globalOptions) executables
+    sections :: [(String, Section ExecutableSection ExecutableSection)]
+    sections = map (fmap $ mergeSections emptyExecutable globalOptions) executables
 
-    toExecutable :: (String, Section ExecutableSection) -> IO (Section Executable)
+    emptyExecutable :: ExecutableSection
+    emptyExecutable = ExecutableSection Nothing Nothing
+
+    toExecutable :: (String, Section ExecutableSection ExecutableSection) -> IO (Section Executable Executable)
     toExecutable (name, sect@Section{..}) = do
       (executable, ghcOptions) <- fromExecutableSection sectionData
-      return (sect {sectionData = executable, sectionGhcOptions = sectionGhcOptions ++ ghcOptions})
+      return (sect
+        { sectionData = executable
+        , sectionGhcOptions = sectionGhcOptions ++ ghcOptions
+        , sectionConditionals = (fmap . fmap) fromExecutableSectionNamed sectionConditionals
+        })
       where
         fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
         fromExecutableSection ExecutableSection{..} = do
           modules <- maybe inferModules (return . fromList) executableSectionOtherModules
-          return (Executable name mainSrcFile modules, ghcOptions)
+          return (Executable (Just name) mainSrcFile modules, ghcOptions)
           where
             inferModules :: IO [String]
             inferModules = filterMain . (++ [pathsModule]) . concat <$> mapM (getModules dir) sectionSourceDirs
@@ -716,12 +767,17 @@ toExecutables dir packageName_ globalOptions executables = do
             pathsModule = pathsModuleFromPackageName packageName_
 
             filterMain :: [String] -> [String]
-            filterMain = maybe id (filter . (/=)) (toModule $ splitDirectories executableSectionMain)
+            filterMain = maybe (const []) (\m -> maybe id (filter . (/=)) (toModule $ splitDirectories m)) executableSectionMain
 
-            (mainSrcFile, ghcOptions) = parseMain executableSectionMain
+            (mainSrcFile, ghcOptions) = case executableSectionMain of
+              Nothing -> (Nothing, [])
+              Just m -> let (f, o) = parseMain m in (Just f, o)
 
-mergeSections :: Section global -> Section a -> Section a
-mergeSections globalOptions options
+        fromExecutableSectionNamed :: ExecutableSection -> Executable
+        fromExecutableSectionNamed (ExecutableSection main other) = Executable Nothing main (fromMaybeList other)
+
+mergeSections :: a -> Section Empty global -> Section a a -> Section a a
+mergeSections a globalOptions options
   = Section {
     sectionData = sectionData options
   , sectionSourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
@@ -741,11 +797,11 @@ mergeSections globalOptions options
   , sectionLdOptions = sectionLdOptions globalOptions ++ sectionLdOptions options
   , sectionBuildable = sectionBuildable options <|> sectionBuildable globalOptions
   , sectionDependencies = sectionDependencies options <> sectionDependencies globalOptions
-  , sectionConditionals = sectionConditionals globalOptions ++ sectionConditionals options
+  , sectionConditionals = (fmap . fmap) (const a) (sectionConditionals globalOptions) ++ sectionConditionals options
   , sectionBuildTools = sectionBuildTools options <> sectionBuildTools globalOptions
   }
 
-toSection :: a -> CommonOptions -> ([FieldName], Section a)
+toSection :: a -> CommonOptions b -> ([FieldName], Section b a)
 toSection a CommonOptions{..}
   = ( concat unknownFields
     , Section {
@@ -774,11 +830,12 @@ toSection a CommonOptions{..}
   where
     (unknownFields, conditionals) = unzip (map toConditional $ fromMaybeList commonOptionsWhen)
 
-toConditional :: ConditionalSection -> ([FieldName], Conditional)
+toConditional :: ConditionalSection a -> ([FieldName], Conditional a)
 toConditional x = case x of
   ThenElseConditional (CaptureUnknownFields fields (ThenElse condition (CaptureUnknownFields fieldsThen then_) (CaptureUnknownFields fieldsElse else_))) ->
-      (fields ++ fieldsThen ++ fieldsElse, Conditional condition (() <$ then_) (Just (() <$ else_)))
-  FlatConditional (CaptureUnknownFields fields sect) -> (fields, Conditional (conditionCondition $ sectionData sect) (() <$ sect) Nothing)
+      (fields ++ fieldsThen ++ fieldsElse, Conditional condition then_ (Just else_))
+  FlatConditional (CaptureUnknownFields fields (FlatThen condition (CaptureUnknownFields fieldsThen then_))) ->
+      (fields ++ fieldsThen, Conditional condition then_ Nothing)
 
 pathsModuleFromPackageName :: String -> String
 pathsModuleFromPackageName name = "Paths_" ++ map f name

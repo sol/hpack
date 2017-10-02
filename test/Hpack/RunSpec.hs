@@ -13,6 +13,9 @@ import           Hpack.Run
 library :: Library
 library = Library Nothing [] [] []
 
+renderEmptySection :: Section Empty Empty -> [Element]
+renderEmptySection = renderSection renderEmptySection
+
 spec :: Spec
 spec = do
   describe "renderPackage" $ do
@@ -211,7 +214,7 @@ spec = do
           ]
 
       it "retains section field order" $ do
-        renderPackage defaultRenderSettings 0 [] [("executable foo", ["default-language", "main-is", "ghc-options"])] package {packageExecutables = [(section $ Executable "foo" "Main.hs" []) {sectionGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
+        renderPackage defaultRenderSettings 0 [] [("executable foo", ["default-language", "main-is", "ghc-options"])] package {packageExecutables = [(section $ Executable (Just "foo") (Just "Main.hs") []) {sectionGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -226,7 +229,7 @@ spec = do
 
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage_ package {packageExecutables = [(section $ Executable "foo" "Main.hs" []) {sectionDependencies = Dependencies $ Map.fromList
+        renderPackage_ package {packageExecutables = [(section $ Executable (Just "foo") (Just "Main.hs") []) {sectionDependencies = Dependencies $ Map.fromList
         [("foo", VersionRange "== 0.1.0"), ("bar", AnyVersion)]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
@@ -242,7 +245,7 @@ spec = do
           ]
 
       it "includes GHC options" $ do
-        renderPackage_ package {packageExecutables = [(section $ Executable "foo" "Main.hs" []) {sectionGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [(section $ Executable (Just "foo") (Just "Main.hs") []) {sectionGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -255,7 +258,7 @@ spec = do
           ]
 
       it "includes GHC profiling options" $ do
-        renderPackage_ package {packageExecutables = [(section $ Executable "foo" "Main.hs" []) {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]}]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [(section $ Executable (Just "foo") (Just "Main.hs") []) {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]}]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -269,16 +272,16 @@ spec = do
 
   describe "renderConditional" $ do
     it "renders conditionals" $ do
-      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = deps ["Win32"]} Nothing
-      render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
+      let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} Nothing
+      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"
         ]
 
     it "renders conditionals with else-branch" $ do
-      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = deps ["Win32"]} (Just $ (section ()) {sectionDependencies = deps ["unix"]})
-      render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
+      let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} (Just $ (section Empty) {sectionDependencies = deps ["unix"]})
+      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"
@@ -288,14 +291,30 @@ spec = do
         ]
 
     it "renders nested conditionals" $ do
-      let conditional = Conditional "arch(i386)" (section ()) {sectionGhcOptions = ["-threaded"], sectionConditionals = [innerConditional]} Nothing
-          innerConditional = Conditional "os(windows)" (section ()) {sectionDependencies = deps ["Win32"]} Nothing
-      render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
+      let conditional = Conditional "arch(i386)" (section Empty) {sectionGhcOptions = ["-threaded"], sectionConditionals = [innerConditional]} Nothing
+          innerConditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} Nothing
+      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
           "if arch(i386)"
         , "  ghc-options: -threaded"
         , "  if os(windows)"
         , "    build-depends:"
         , "        Win32"
+        ]
+
+    it "renders library-specific property in conditional" $ do
+      let conditional = Conditional "os(windows)" (section library{libraryExposedModules=["Foo"]}) Nothing
+      render defaultRenderSettings 0 (renderConditional renderLibraryBody conditional) `shouldBe` [
+          "if os(windows)"
+        , "  exposed-modules:"
+        , "      Foo"
+        ]
+
+    it "renders executable-specific property in conditional" $ do
+      let conditional = Conditional "os(windows)" (section $ Executable Nothing Nothing ["Foo"]) Nothing
+      render defaultRenderSettings 0 (renderConditional renderExecutableSectionBody conditional) `shouldBe` [
+          "if os(windows)"
+        , "  other-modules:"
+        , "      Foo"
         ]
 
   describe "renderFlag" $ do
