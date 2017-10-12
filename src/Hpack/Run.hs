@@ -232,6 +232,8 @@ renderSection Section{..} = [
   , Field "js-sources" (LineSeparatedList sectionJsSources)
   , renderDirectories "extra-lib-dirs" sectionExtraLibDirs
   , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
+  , renderDirectories "extra-frameworks-dirs" sectionExtraFrameworksDirs
+  , Field "frameworks" (LineSeparatedList sectionFrameworks)
   , renderLdOptions sectionLdOptions
   , renderDependencies "build-depends" sectionDependencies
   , renderDependencies "build-tools" sectionBuildTools

@@ -148,6 +148,24 @@ spec = do
         captureUnknownFieldsValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionExtraLibraries = ["foo", "bar"]}
 
+      it "accepts extra-frameworks-dirs" $ do
+        let input = [i|
+              extra-frameworks-dirs:
+                - foo
+                - bar
+              |]
+        captureUnknownFieldsValue <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionExtraFrameworksDirs = ["foo", "bar"]}
+
+      it "accepts frameworks" $ do
+        let input = [i|
+              frameworks:
+                - foo
+                - bar
+              |]
+        captureUnknownFieldsValue <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionFrameworks = ["foo", "bar"]}
+
       context "when parsing conditionals" $ do
         it "accepts conditionals" $ do
           let input = [i|
