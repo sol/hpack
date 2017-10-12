@@ -1,3 +1,9 @@
+## Changes in 0.19.3
+  - Add support for `frameworks` and `extra-frameworks-dirs`
+
+## Changes in 0.19.2
+ - Compatibility with `Glob >= 0.9.0`
+
 ## Changes in 0.19.1
   - Add `IsList` instance for `Dependencies`
 
