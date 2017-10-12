@@ -126,7 +126,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, version) | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty
+section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -241,6 +241,8 @@ data CommonOptions = CommonOptions {
 , commonOptionsJsSources :: Maybe (List FilePath)
 , commonOptionsExtraLibDirs :: Maybe (List FilePath)
 , commonOptionsExtraLibraries :: Maybe (List FilePath)
+, commonOptionsExtraFrameworksDirs :: Maybe (List FilePath)
+, commonOptionsFrameworks :: Maybe (List String)
 , commonOptionsIncludeDirs :: Maybe (List FilePath)
 , commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
@@ -436,6 +438,8 @@ data Section a = Section {
 , sectionJsSources :: [FilePath]
 , sectionExtraLibDirs :: [FilePath]
 , sectionExtraLibraries :: [FilePath]
+, sectionExtraFrameworksDirs :: [FilePath]
+, sectionFrameworks :: [FilePath]
 , sectionIncludeDirs :: [FilePath]
 , sectionInstallIncludes :: [FilePath]
 , sectionLdOptions :: [LdOption]
@@ -736,6 +740,8 @@ mergeSections globalOptions options
   , sectionJsSources = sectionJsSources globalOptions ++ sectionJsSources options
   , sectionExtraLibDirs = sectionExtraLibDirs globalOptions ++ sectionExtraLibDirs options
   , sectionExtraLibraries = sectionExtraLibraries globalOptions ++ sectionExtraLibraries options
+  , sectionExtraFrameworksDirs = sectionExtraFrameworksDirs globalOptions ++ sectionExtraFrameworksDirs options
+  , sectionFrameworks = sectionFrameworks globalOptions ++ sectionFrameworks options
   , sectionIncludeDirs = sectionIncludeDirs globalOptions ++ sectionIncludeDirs options
   , sectionInstallIncludes = sectionInstallIncludes globalOptions ++ sectionInstallIncludes options
   , sectionLdOptions = sectionLdOptions globalOptions ++ sectionLdOptions options
@@ -762,6 +768,8 @@ toSection a CommonOptions{..}
       , sectionJsSources = fromMaybeList commonOptionsJsSources
       , sectionExtraLibDirs = fromMaybeList commonOptionsExtraLibDirs
       , sectionExtraLibraries = fromMaybeList commonOptionsExtraLibraries
+      , sectionExtraFrameworksDirs = fromMaybeList commonOptionsExtraFrameworksDirs
+      , sectionFrameworks = fromMaybeList commonOptionsFrameworks
       , sectionIncludeDirs = fromMaybeList commonOptionsIncludeDirs
       , sectionInstallIncludes = fromMaybeList commonOptionsInstallIncludes
       , sectionLdOptions = fromMaybeList commonOptionsLdOptions

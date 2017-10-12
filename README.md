@@ -84,6 +84,8 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `extra-libraries` | · | | |
 | `include-dirs` | · | | |
 | `install-includes` | · | | |
+| `frameworks` | · | | |
+| `extra-frameworks-dirs` | · | | |
 | `ld-options` | · | | |
 | `buildable` | · | | May be overridden by later stanza |
 | `dependencies` | `build-depends` | | |

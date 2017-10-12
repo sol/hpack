@@ -254,6 +254,36 @@ spec = do
           , "  default-language: Haskell2010"
           ]
 
+      it "includes frameworks" $ do
+        renderPackage_ package {packageExecutables = [(section $ Executable "foo" "Main.hs" []) {sectionFrameworks = ["foo", "bar"]}]} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.10"
+          , ""
+          , "executable foo"
+          , "  main-is: Main.hs"
+          , "  frameworks:"
+          , "      foo"
+          , "      bar"
+          , "  default-language: Haskell2010"
+          ]
+
+      it "includes extra-framework-dirs" $ do
+        renderPackage_ package {packageExecutables = [(section $ Executable "foo" "Main.hs" []) {sectionExtraFrameworksDirs = ["foo", "bar"]}]} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.10"
+          , ""
+          , "executable foo"
+          , "  main-is: Main.hs"
+          , "  extra-frameworks-dirs:"
+          , "      foo"
+          , "      bar"
+          , "  default-language: Haskell2010"
+          ]
+
       it "includes GHC profiling options" $ do
         renderPackage_ package {packageExecutables = [(section $ Executable "foo" "Main.hs" []) {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]}]} `shouldBe` unlines [
             "name: foo"
