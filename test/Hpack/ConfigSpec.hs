@@ -30,8 +30,8 @@ deps = Dependencies . Map.fromList . map (flip (,) AnyVersion)
 package :: Package
 package = Config.package "foo" "0.0.0"
 
-executable :: String -> String -> Executable
-executable name main_ = Executable name main_ ["Paths_foo"]
+executable :: String -> Executable
+executable main_ = Executable main_ ["Paths_foo"]
 
 library :: Library
 library = Library Nothing [] ["Paths_foo"] []
@@ -64,7 +64,7 @@ spec = do
       renamePackage "bar" package `shouldBe` package {packageName = "bar"}
 
     it "renames dependencies on self" $ do
-      let packageWithExecutable dependencies = package {packageExecutables = [(section $ executable "main" "Main.hs") {sectionDependencies = deps dependencies}]}
+      let packageWithExecutable dependencies = package {packageExecutables = Map.fromList [("main", (section $ executable "Main.hs") {sectionDependencies = deps dependencies})]}
       renamePackage "bar" (packageWithExecutable ["foo"]) `shouldBe` (packageWithExecutable ["bar"]) {packageName = "bar"}
 
   describe "renameDependencies" $ do
@@ -567,8 +567,8 @@ spec = do
         |]
         (`shouldBe` package {
           packageLibrary = Just (section library) {sectionCppOptions = ["-DFOO", "-DLIB"]}
-        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionCppOptions = ["-DFOO", "-DFOO"]}]
-        , packageTests = [(section $ executable "spec" "Spec.hs") {sectionCppOptions = ["-DFOO", "-DTEST"]}]
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionCppOptions = ["-DFOO", "-DFOO"]})]
+        , packageTests = Map.fromList [("spec", (section $ executable "Spec.hs") {sectionCppOptions = ["-DFOO", "-DTEST"]})]
         }
         )
 
@@ -591,8 +591,8 @@ spec = do
         |]
         (`shouldBe` package {
           packageLibrary = Just (section library) {sectionCcOptions = ["-Wall", "-fLIB"]}
-        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionCcOptions = ["-Wall", "-O2"]}]
-        , packageTests = [(section $ executable "spec" "Spec.hs") {sectionCcOptions = ["-Wall", "-O0"]}]
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionCcOptions = ["-Wall", "-O2"]})]
+        , packageTests = Map.fromList [("spec", (section $ executable "Spec.hs") {sectionCcOptions = ["-Wall", "-O0"]})]
         }
         )
 
@@ -615,8 +615,8 @@ spec = do
         |]
         (`shouldBe` package {
           packageLibrary = Just (section library) {sectionGhcjsOptions = ["-dedupe", "-ghcjs1"]}
-        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs2"]}]
-        , packageTests = [(section $ executable "spec" "Spec.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs3"]}]
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs2"]})]
+        , packageTests = Map.fromList [("spec", (section $ executable "Spec.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs3"]})]
         }
         )
 
@@ -642,7 +642,7 @@ spec = do
         |]
         (`shouldBe` package {
           packageLibrary = Just (section library) {sectionBuildable = Just True}
-        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionBuildable = Just False}]
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildable = Just False})]
         }
         )
 
@@ -900,14 +900,14 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main.hs"]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", section $ executable "driver/Main.hs")]))
 
       it "reads executable section" $ do
         withPackageConfig_ [i|
           executable:
             main: driver/Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main.hs"]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", section $ executable "driver/Main.hs")]))
 
       it "warns on unknown executable fields" $ do
         withPackageWarnings_ [i|
@@ -927,7 +927,7 @@ spec = do
               foo2:
                 main: driver/Main2.hs
             |]
-            (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main1.hs"]))
+            (packageExecutables >>> (`shouldBe` Map.fromList [("foo", section $ executable "driver/Main1.hs")]))
 
         it "warns" $ do
           withPackageWarnings_ [i|
@@ -946,8 +946,8 @@ spec = do
             foo:
               main: Foo
           |]
-          (packageExecutables >>> (`shouldBe` [
-            (section $ executable "foo" "Foo.hs") {sectionGhcOptions = ["-main-is Foo"]}
+          (packageExecutables >>> (`shouldBe` Map.fromList [
+            ("foo", (section $ executable "Foo.hs") {sectionGhcOptions = ["-main-is Foo"]})
           ]
           ))
 
@@ -960,7 +960,7 @@ spec = do
                 - foo
                 - bar
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionSourceDirs = ["foo", "bar"]})]))
 
       it "accepts build-tools" $ do
         withPackageConfig_ [i|
@@ -971,7 +971,7 @@ spec = do
                 - alex
                 - happy
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = deps ["alex", "happy"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildTools = deps ["alex", "happy"]})]))
 
       it "accepts global source-dirs" $ do
         withPackageConfig_ [i|
@@ -982,7 +982,7 @@ spec = do
             foo:
               main: Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionSourceDirs = ["foo", "bar"]})]))
 
       it "accepts global build-tools" $ do
         withPackageConfig_ [i|
@@ -993,7 +993,7 @@ spec = do
             foo:
               main: Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = deps ["alex", "happy"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildTools = deps ["alex", "happy"]})]))
 
       it "infers other-modules" $ do
         withPackageConfig [i|
@@ -1006,7 +1006,7 @@ spec = do
           touch "src/Main.hs"
           touch "src/Foo.hs"
           )
-          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Foo", "Paths_foo"]]))
+          (map (executableOtherModules . sectionData . snd) . Map.toList . packageExecutables >>> (`shouldBe` [["Foo", "Paths_foo"]]))
 
       it "allows to specify other-modules" $ do
         withPackageConfig [i|
@@ -1020,7 +1020,7 @@ spec = do
           touch "src/Foo.hs"
           touch "src/Bar.hs"
           )
-          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Baz"]]))
+          (map (executableOtherModules . sectionData . snd) . Map.toList . packageExecutables >>> (`shouldBe` [["Baz"]]))
 
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
@@ -1031,7 +1031,7 @@ spec = do
                 - Foo
                 - Bar
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]})]))
 
       it "accepts global default-extensions" $ do
         withPackageConfig_ [i|
@@ -1042,7 +1042,7 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]})]))
 
       it "accepts GHC options" $ do
         withPackageConfig_ [i|
@@ -1051,7 +1051,7 @@ spec = do
               main: driver/Main.hs
               ghc-options: -Wall
           |]
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcOptions = ["-Wall"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall"]})]})
 
       it "accepts global GHC options" $ do
         withPackageConfig_ [i|
@@ -1060,7 +1060,7 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcOptions = ["-Wall"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall"]})]})
 
       it "accepts GHC profiling options" $ do
         withPackageConfig_ [i|
@@ -1069,7 +1069,7 @@ spec = do
               main: driver/Main.hs
               ghc-prof-options: -fprof-auto
           |]
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]})]})
 
       it "accepts global GHC profiling options" $ do
         withPackageConfig_ [i|
@@ -1078,7 +1078,7 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]})]})
 
       it "accepts c-sources" $ do
         withPackageConfig [i|
@@ -1092,7 +1092,7 @@ spec = do
           touch "cbits/foo.c"
           touch "cbits/bar.c"
           )
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]})]})
 
       it "accepts global c-sources" $ do
         withPackageConfig [i|
@@ -1106,7 +1106,7 @@ spec = do
           touch "cbits/foo.c"
           touch "cbits/bar.c"
           )
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]})]})
 
       it "accepts js-sources" $ do
         withPackageConfig [i|
@@ -1120,7 +1120,7 @@ spec = do
           touch "jsbits/foo.js"
           touch "jsbits/bar.js"
           )
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]})]})
 
       it "accepts global js-sources" $ do
         withPackageConfig [i|
@@ -1134,7 +1134,7 @@ spec = do
           touch "jsbits/foo.js"
           touch "jsbits/bar.js"
           )
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]})]})
 
     context "when reading benchmark section" $ do
       it "warns on unknown fields" $ do
@@ -1174,7 +1174,7 @@ spec = do
             spec:
               main: test/Spec.hs
           |]
-          (`shouldBe` package {packageTests = [section $ executable "spec" "test/Spec.hs"]})
+          (`shouldBe` package {packageTests = Map.fromList [("spec", section $ executable "test/Spec.hs")]})
 
       it "accepts single dependency" $ do
         withPackageConfig_ [i|
@@ -1183,7 +1183,7 @@ spec = do
               main: test/Spec.hs
               dependencies: hspec
           |]
-          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = deps ["hspec"]}]})
+          (`shouldBe` package {packageTests = Map.fromList [("spec", (section $ executable "test/Spec.hs") {sectionDependencies = deps ["hspec"]})]})
 
       it "accepts list of dependencies" $ do
         withPackageConfig_ [i|
@@ -1194,7 +1194,7 @@ spec = do
                 - hspec
                 - QuickCheck
           |]
-          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = deps ["hspec", "QuickCheck"]}]})
+          (`shouldBe` package {packageTests = Map.fromList [("spec", (section $ executable "test/Spec.hs") {sectionDependencies = deps ["hspec", "QuickCheck"]})]})
 
       context "when both global and section specific dependencies are specified" $ do
         it "combines dependencies" $ do
@@ -1207,7 +1207,7 @@ spec = do
                 main: test/Spec.hs
                 dependencies: hspec
             |]
-            (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = deps ["base", "hspec"]}]})
+            (`shouldBe` package {packageTests = Map.fromList [("spec", (section $ executable "test/Spec.hs") {sectionDependencies = deps ["base", "hspec"]})]})
 
         it "gives section specific dependencies precedence" $ do
           withPackageConfig_ [i|
@@ -1219,7 +1219,7 @@ spec = do
                 main: test/Spec.hs
                 dependencies: base >= 2
             |]
-            (packageTests >>> map (Map.toList . unDependencies . sectionDependencies) >>> (`shouldBe` [[("base", VersionRange ">=2")]]))
+            (packageTests >>> Map.toList >>> map (Map.toList . unDependencies . sectionDependencies . snd) >>> (`shouldBe` [[("base", VersionRange ">=2")]]))
 
     context "when a specified source directory does not exist" $ do
       it "warns" $ do

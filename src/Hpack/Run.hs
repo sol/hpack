@@ -28,6 +28,7 @@ import           Data.Maybe
 import           Data.List.Compat
 import           System.Exit.Compat
 import           System.FilePath
+import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 
 import           Hpack.Util
@@ -169,27 +170,27 @@ renderFlag Flag {..} = Stanza ("flag " ++ flagName) $ description ++ [
   where
     description = maybe [] (return . Field "description" . Literal) flagDescription
 
-renderExecutables :: [Section Executable] -> [Element]
-renderExecutables = map renderExecutable
+renderExecutables :: Map String (Section Executable) -> [Element]
+renderExecutables = map renderExecutable . Map.toList
 
-renderExecutable :: Section Executable -> Element
-renderExecutable sect@(sectionData -> Executable{..}) =
-  Stanza ("executable " ++ executableName) (renderExecutableSection sect)
+renderExecutable :: (String, Section Executable) -> Element
+renderExecutable (name, sect@(sectionData -> Executable{..})) =
+  Stanza ("executable " ++ name) (renderExecutableSection sect)
 
-renderTests :: [Section Executable] -> [Element]
-renderTests = map renderTest
+renderTests :: Map String (Section Executable) -> [Element]
+renderTests = map renderTest . Map.toList
 
-renderTest :: Section Executable -> Element
-renderTest sect@(sectionData -> Executable{..}) =
-  Stanza ("test-suite " ++ executableName)
+renderTest :: (String, Section Executable) -> Element
+renderTest (name, sect) =
+  Stanza ("test-suite " ++ name)
     (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
 
-renderBenchmarks :: [Section Executable] -> [Element]
-renderBenchmarks = map renderBenchmark
+renderBenchmarks :: Map String (Section Executable) -> [Element]
+renderBenchmarks = map renderBenchmark . Map.toList
 
-renderBenchmark :: Section Executable -> Element
-renderBenchmark sect@(sectionData -> Executable{..}) =
-  Stanza ("benchmark " ++ executableName)
+renderBenchmark :: (String, Section Executable) -> Element
+renderBenchmark (name, sect) =
+  Stanza ("benchmark " ++ name)
     (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
 
 renderExecutableSection :: Section Executable -> [Element]

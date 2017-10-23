@@ -93,17 +93,17 @@ package name version = Package {
   , packageSourceRepository = Nothing
   , packageCustomSetup = Nothing
   , packageLibrary = Nothing
-  , packageExecutables = []
-  , packageTests = []
-  , packageBenchmarks = []
+  , packageExecutables = mempty
+  , packageTests = mempty
+  , packageBenchmarks = mempty
   }
 
 renamePackage :: String -> Package -> Package
 renamePackage name p@Package{..} = p {
     packageName = name
-  , packageExecutables = map (renameDependencies packageName name) packageExecutables
-  , packageTests = map (renameDependencies packageName name) packageTests
-  , packageBenchmarks = map (renameDependencies packageName name) packageBenchmarks
+  , packageExecutables = fmap (renameDependencies packageName name) packageExecutables
+  , packageTests = fmap (renameDependencies packageName name) packageTests
+  , packageBenchmarks = fmap (renameDependencies packageName name) packageBenchmarks
   }
 
 renameDependencies :: String -> String -> Section a -> Section a
@@ -343,8 +343,8 @@ data PackageConfig = PackageConfig {
 , packageConfigLibrary :: Maybe (CaptureUnknownFields (Section LibrarySection))
 , packageConfigExecutable :: Maybe ExecutableConfig
 , packageConfigExecutables :: Maybe (Map String ExecutableConfig)
-, packageConfigTests :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
-, packageConfigBenchmarks :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
+, packageConfigTests :: Maybe (Map String ExecutableConfig)
+, packageConfigBenchmarks :: Maybe (Map String ExecutableConfig)
 } deriving (Eq, Show, Generic)
 
 instance HasFieldNames PackageConfig where
@@ -401,9 +401,9 @@ data Package = Package {
 , packageSourceRepository :: Maybe SourceRepository
 , packageCustomSetup :: Maybe CustomSetup
 , packageLibrary :: Maybe (Section Library)
-, packageExecutables :: [Section Executable]
-, packageTests :: [Section Executable]
-, packageBenchmarks :: [Section Executable]
+, packageExecutables :: Map String (Section Executable)
+, packageTests :: Map String (Section Executable)
+, packageBenchmarks :: Map String (Section Executable)
 } deriving (Eq, Show)
 
 data CustomSetup = CustomSetup {
@@ -418,8 +418,7 @@ data Library = Library {
 } deriving (Eq, Show)
 
 data Executable = Executable {
-  executableName :: String
-, executableMain :: FilePath
+  executableMain :: FilePath
 , executableOtherModules :: [String]
 } deriving (Eq, Show)
 
@@ -695,24 +694,27 @@ toLibrary dir name globalOptions library = traverse fromLibrarySection sect >>= 
           reexportedModules = fromMaybeList librarySectionReexportedModules
       return (Library librarySectionExposed exposedModules otherModules reexportedModules)
 
-toExecutables :: FilePath -> String -> Section global -> [(String, Section ExecutableSection)] -> IO ([String], [Section Executable])
+toExecutables :: FilePath -> String -> Section global -> [(String, Section ExecutableSection)] -> IO ([String], Map String (Section Executable))
 toExecutables dir packageName_ globalOptions executables = do
   result <- mapM toExecutable sections >>= mapM (expandForeignSources dir)
   let (warnings, xs) = unzip result
-  return (concat warnings, xs)
+  return (concat warnings, Map.fromList $ zip names xs)
   where
-    sections :: [(String, Section ExecutableSection)]
-    sections = map (fmap $ mergeSections globalOptions) executables
+    namedSections :: [(String, Section ExecutableSection)]
+    namedSections = map (fmap $ mergeSections globalOptions) executables
 
-    toExecutable :: (String, Section ExecutableSection) -> IO (Section Executable)
-    toExecutable (name, sect@Section{..}) = do
+    names = map fst namedSections
+    sections = map snd namedSections
+
+    toExecutable :: Section ExecutableSection -> IO (Section Executable)
+    toExecutable sect@Section{..} = do
       (executable, ghcOptions) <- fromExecutableSection sectionData
-      return (sect {sectionData = executable, sectionGhcOptions = sectionGhcOptions ++ ghcOptions})
+      return sect {sectionData = executable, sectionGhcOptions = sectionGhcOptions ++ ghcOptions}
       where
         fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
         fromExecutableSection ExecutableSection{..} = do
           modules <- maybe inferModules (return . fromList) executableSectionOtherModules
-          return (Executable name mainSrcFile modules, ghcOptions)
+          return (Executable mainSrcFile modules, ghcOptions)
           where
             inferModules :: IO [String]
             inferModules = filterMain . (++ [pathsModule]) . concat <$> mapM (getModules dir) sectionSourceDirs
