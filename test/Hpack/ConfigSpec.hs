@@ -91,7 +91,7 @@ spec = do
         let input = [i|
               dependencies: hpack
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionDependencies = deps ["hpack"]}
 
       it "accepts includes-dirs" $ do
@@ -100,7 +100,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionIncludeDirs = ["foo", "bar"]}
 
       it "accepts install-includes" $ do
@@ -109,7 +109,7 @@ spec = do
                 - foo.h
                 - bar.h
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionInstallIncludes = ["foo.h", "bar.h"]}
 
       it "accepts c-sources" $ do
@@ -118,7 +118,7 @@ spec = do
                 - foo.c
                 - bar/*.c
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionCSources = ["foo.c", "bar/*.c"]}
 
       it "accepts js-sources" $ do
@@ -127,7 +127,7 @@ spec = do
                 - foo.js
                 - bar/*.js
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionJsSources = ["foo.js", "bar/*.js"]}
 
       it "accepts extra-lib-dirs" $ do
@@ -136,7 +136,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionExtraLibDirs = ["foo", "bar"]}
 
       it "accepts extra-libraries" $ do
@@ -145,7 +145,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionExtraLibraries = ["foo", "bar"]}
 
       it "accepts extra-frameworks-dirs" $ do
@@ -154,7 +154,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionExtraFrameworksDirs = ["foo", "bar"]}
 
       it "accepts frameworks" $ do
@@ -163,7 +163,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionFrameworks = ["foo", "bar"]}
 
       context "when parsing conditionals" $ do
@@ -178,7 +178,7 @@ spec = do
                 (section ()){sectionDependencies = deps ["Win32"]}
                 Nothing
                 ]
-          captureUnknownFieldsValue <$> decodeEither input
+          captureUnknownFieldsValue . toSection <$> decodeEither input
             `shouldBe` Right (section Empty){sectionConditionals = conditionals}
 
         it "warns on unknown fields" $ do
@@ -193,7 +193,7 @@ spec = do
                   - condition: os(windows)
                     baz: 23
                 |]
-          captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
+          captureUnknownFieldsFields <$> (toSection <$> decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
             `shouldBe` Right ["foo", "bar", "bar2", "baz"]
 
         context "when parsing conditionals with else-branch" $ do
@@ -212,7 +212,7 @@ spec = do
                   (Just (section ()){sectionDependencies = deps ["unix"]})
                   ]
                 r :: Either String (Section Empty)
-                r = captureUnknownFieldsValue <$> decodeEither input
+                r = captureUnknownFieldsValue . toSection <$> decodeEither input
             sectionConditionals <$> r `shouldBe` Right conditionals
 
           it "rejects invalid conditionals" $ do
@@ -225,7 +225,7 @@ spec = do
                   |]
 
                 r :: Either String (Section Empty)
-                r = captureUnknownFieldsValue <$> decodeEither input
+                r = captureUnknownFieldsValue . toSection <$> decodeEither input
             sectionConditionals <$> r `shouldSatisfy` isLeft
 
           it "warns on unknown fields" $ do
@@ -236,9 +236,13 @@ spec = do
                     then:
                       bar: null
                     else:
-                      baz: null
+                      when:
+                        condition: os(windows)
+                        then: {}
+                        else:
+                          baz: null
                   |]
-            captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
+            captureUnknownFieldsFields <$> (toSection <$> decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
               `shouldBe` Right ["foo", "bar", "baz"]
 
   describe "getModules" $ around withTempDirectory $ do
@@ -316,6 +320,34 @@ spec = do
         (`shouldBe` [
           "Ignoring unknown field \"baz\" in package description"
         , "Ignoring unknown field \"github\" in package description"
+        ]
+        )
+
+    it "warns on unknown fields in when block in library section" $ do
+      withPackageWarnings_ [i|
+        name: foo
+        library:
+          when:
+            condition: impl(ghc)
+            baz: 42
+        |]
+        (`shouldBe` [
+          "Ignoring unknown field \"baz\" in library section"
+        ]
+        )
+
+    it "warns on unknown fields in when block in executable section" $ do
+      withPackageWarnings_ [i|
+        name: foo
+        executables:
+          foo:
+            main: Main.hs
+            when:
+              condition: impl(ghc)
+              baz: 42
+        |]
+        (`shouldBe` [
+          "Ignoring unknown field \"baz\" in executable section \"foo\""
         ]
         )
 
