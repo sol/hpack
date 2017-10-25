@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 module Hpack.Util (
   List(..)
 , GhcOption
@@ -25,7 +24,6 @@ import           Control.Monad.Compat
 import           Data.Aeson.Types
 import qualified Data.ByteString as B
 import           Data.Char
-import           Data.Data
 import           Data.List.Compat hiding (sort)
 import           Data.Ord
 import qualified Data.Text as T
@@ -46,7 +44,7 @@ lexicographically :: String -> (String, String)
 lexicographically x = (map toLower x, x)
 
 newtype List a = List {fromList :: [a]}
-  deriving (Eq, Show, Data, Typeable)
+  deriving (Eq, Show)
 
 instance FromJSON a => FromJSON (List a) where
   parseJSON v = List <$> case v of
