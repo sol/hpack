@@ -493,12 +493,12 @@ toSection :: CaptureUnknownFields (WithCommonOptions a) -> CaptureUnknownFields 
 toSection (CaptureUnknownFields unknownSectionFields (Product common a)) = case toSection_ a common of
   (unknownFields, sect) -> CaptureUnknownFields (unknownSectionFields ++ unknownFields) sect
 
-toEmptySection :: CaptureUnknownFields (WithCommonOptions a) -> CaptureUnknownFields (Section (), a)
-toEmptySection (CaptureUnknownFields unknownSectionFields (Product common a)) = case toSection_ () common of
+toUnitSection :: CaptureUnknownFields (WithCommonOptions a) -> CaptureUnknownFields (Section (), a)
+toUnitSection (CaptureUnknownFields unknownSectionFields (Product common a)) = case toSection_ () common of
   (unknownFields, sect) -> CaptureUnknownFields (unknownSectionFields ++ unknownFields) (sect, a)
 
 toPackage :: FilePath -> (CaptureUnknownFields (WithCommonOptions PackageConfig)) -> IO ([String], Package)
-toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptions, PackageConfig{..})) = do
+toPackage dir (toUnitSection -> CaptureUnknownFields unknownFields (globalOptions, PackageConfig{..})) = do
   libraryResult <- mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
   let
     packageConfigExecutables_ :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
@@ -731,7 +731,10 @@ toExecutables dir packageName_ globalOptions executables = do
     toExecutable :: Section ExecutableSection -> IO (Section Executable)
     toExecutable sect@Section{..} = do
       (executable, ghcOptions) <- fromExecutableSection sectionData
-      return sect {sectionData = executable, sectionGhcOptions = sectionGhcOptions ++ ghcOptions}
+      return sect {
+          sectionData = executable
+        , sectionGhcOptions = sectionGhcOptions ++ ghcOptions
+        }
       where
         fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
         fromExecutableSection ExecutableSection{..} = do
@@ -811,7 +814,7 @@ toConditional x = case x of
   ThenElseConditional (CaptureUnknownFields fields (ThenElse condition (toSect -> CaptureUnknownFields fieldsThen then_) (toSect -> CaptureUnknownFields fieldsElse else_))) ->
     (fields ++ fieldsThen ++ fieldsElse, Conditional condition then_ (Just else_))
 
-  FlatConditional (toEmptySection -> CaptureUnknownFields fields (common, c)) ->
+  FlatConditional (toUnitSection -> CaptureUnknownFields fields (common, c)) ->
     (fields, Conditional (conditionCondition c) common Nothing)
   where
     toSect :: CaptureUnknownFields CommonOptions -> CaptureUnknownFields (Section ())
