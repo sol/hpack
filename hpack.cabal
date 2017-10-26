@@ -115,6 +115,7 @@ test-suite spec
     , unordered-containers
     , yaml
   other-modules:
+      EndToEndSpec
       Helper
       Hpack.ConfigSpec
       Hpack.DependencySpec

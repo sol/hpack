@@ -972,17 +972,6 @@ spec = do
             |]
             (`shouldBe` ["Ignoring field \"executables\" in favor of \"executable\""])
 
-      it "accepts arbitrary entry points as main" $ do
-        withPackageConfig_ [i|
-          executables:
-            foo:
-              main: Foo
-          |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [
-            ("foo", (section $ executable "Foo.hs") {sectionGhcOptions = ["-main-is Foo"]})
-          ]
-          ))
-
       it "accepts source-dirs" $ do
         withPackageConfig_ [i|
           executables:
