@@ -8,7 +8,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -51,6 +50,7 @@ import           Control.Applicative
 import           Control.Monad.Compat
 import           Data.Aeson.Types
 import           Data.Data
+import           Data.Bifunctor
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
@@ -166,7 +166,7 @@ class HasFieldNames a where
 data CaptureUnknownFields a = CaptureUnknownFields {
   captureUnknownFieldsFields :: [FieldName]
 , captureUnknownFieldsValue :: a
-} deriving (Eq, Show, Generic)
+} deriving (Eq, Show, Functor, Generic)
 
 captureUnknownFields :: forall a. (HasFieldNames a, FromJSON a) => Value -> Parser (CaptureUnknownFields a)
 captureUnknownFields v = CaptureUnknownFields unknown <$> parseJSON v
@@ -248,8 +248,13 @@ instance HasFieldNames CommonOptions
 instance FromJSON CommonOptions where
   parseJSON = genericParseJSON_
 
+type WithCommonOptions a = Product CommonOptions a
+
 data Product a b = Product a b
   deriving (Eq, Show)
+
+instance Bifunctor Product where
+  bimap fa fb (Product a b) = Product (fa a) (fb b)
  
 instance (FromJSON a, FromJSON b) => FromJSON (Product a b) where
   parseJSON value = Product <$> parseJSON value <*> parseJSON value
@@ -264,7 +269,7 @@ instance (HasFieldNames a, HasFieldNames b) => HasFieldNames (Product a b) where
  
 data ConditionalSection =
     ThenElseConditional (CaptureUnknownFields ThenElse)
-  | FlatConditional (CaptureUnknownFields (Product CommonOptions Condition))
+  | FlatConditional (CaptureUnknownFields (WithCommonOptions Condition))
   deriving (Eq, Show)
 
 instance FromJSON ConditionalSection where
@@ -321,7 +326,7 @@ instance FromJSON BuildType where
     "Custom"    -> return Custom
     _           -> fail "build-type must be one of: Simple, Configure, Make, Custom"
 
-type ExecutableConfig = CaptureUnknownFields (Product CommonOptions ExecutableSection)
+type ExecutableConfig = CaptureUnknownFields (WithCommonOptions ExecutableSection)
 
 data PackageConfig = PackageConfig {
   packageConfigName :: Maybe String
@@ -345,7 +350,7 @@ data PackageConfig = PackageConfig {
 , packageConfigGithub :: Maybe Text
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe (CaptureUnknownFields CustomSetupSection)
-, packageConfigLibrary :: Maybe (CaptureUnknownFields (Product CommonOptions LibrarySection))
+, packageConfigLibrary :: Maybe (CaptureUnknownFields (WithCommonOptions LibrarySection))
 , packageConfigExecutable :: Maybe ExecutableConfig
 , packageConfigExecutables :: Maybe (Map String ExecutableConfig)
 , packageConfigTests :: Maybe (Map String ExecutableConfig)
@@ -484,15 +489,15 @@ data SourceRepository = SourceRepository {
 , sourceRepositorySubdir :: Maybe String
 } deriving (Eq, Show)
 
-toSection :: CaptureUnknownFields (Product CommonOptions a) -> CaptureUnknownFields (Section a)
+toSection :: CaptureUnknownFields (WithCommonOptions a) -> CaptureUnknownFields (Section a)
 toSection (CaptureUnknownFields unknownSectionFields (Product common a)) = case toSection_ a common of
   (unknownFields, sect) -> CaptureUnknownFields (unknownSectionFields ++ unknownFields) sect
 
-toEmptySection :: CaptureUnknownFields (Product CommonOptions a) -> CaptureUnknownFields (Section (), a)
+toEmptySection :: CaptureUnknownFields (WithCommonOptions a) -> CaptureUnknownFields (Section (), a)
 toEmptySection (CaptureUnknownFields unknownSectionFields (Product common a)) = case toSection_ () common of
   (unknownFields, sect) -> CaptureUnknownFields (unknownSectionFields ++ unknownFields) (sect, a)
 
-toPackage :: FilePath -> (CaptureUnknownFields (Product CommonOptions PackageConfig)) -> IO ([String], Package)
+toPackage :: FilePath -> (CaptureUnknownFields (WithCommonOptions PackageConfig)) -> IO ([String], Package)
 toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptions, PackageConfig{..})) = do
   libraryResult <- mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
   let
