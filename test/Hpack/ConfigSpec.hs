@@ -31,7 +31,7 @@ package :: Package
 package = Config.package "foo" "0.0.0"
 
 executable :: String -> Executable
-executable main_ = Executable main_ ["Paths_foo"]
+executable main_ = Executable main_ []
 
 library :: Library
 library = Library Nothing [] ["Paths_foo"] []
@@ -992,7 +992,7 @@ spec = do
                 - foo
                 - bar
           |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionSourceDirs = ["foo", "bar"]})]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
 
       it "accepts build-tools" $ do
         withPackageConfig_ [i|
@@ -1014,7 +1014,7 @@ spec = do
             foo:
               main: Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionSourceDirs = ["foo", "bar"]})]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
 
       it "accepts global build-tools" $ do
         withPackageConfig_ [i|

@@ -742,7 +742,9 @@ toExecutables dir packageName_ globalOptions executables = do
           return (Executable mainSrcFile modules, ghcOptions)
           where
             inferModules :: IO [String]
-            inferModules = filterMain . (++ [pathsModule]) . concat <$> mapM (getModules dir) sectionSourceDirs
+            inferModules
+              | null sectionSourceDirs = return []
+              | otherwise = filterMain . (++ [pathsModule]) . concat <$> mapM (getModules dir) sectionSourceDirs
 
             pathsModule = pathsModuleFromPackageName packageName_
 
