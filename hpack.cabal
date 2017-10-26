@@ -32,6 +32,7 @@ library
     , aeson >=0.11
     , base >=4.7 && <5
     , base-compat >=0.8
+    , bifunctors
     , bytestring
     , containers
     , deepseq
@@ -68,6 +69,7 @@ executable hpack
     , aeson >=0.11
     , base >=4.7 && <5
     , base-compat >=0.8
+    , bifunctors
     , bytestring
     , containers
     , deepseq
@@ -98,6 +100,7 @@ test-suite spec
     , aeson >=0.11
     , base >=4.7 && <5
     , base-compat >=0.8
+    , bifunctors
     , bytestring
     , containers
     , deepseq
