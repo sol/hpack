@@ -19,6 +19,22 @@ import           Hpack.FormattingHints (FormattingHints(..), sniffFormattingHint
 spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "hpack" $ do
+    context "with library section" $ do
+      context "within conditional" $ do
+        it "accepts library-specific fields" $ do
+          [i|
+          library:
+            when:
+              condition: os(windows)
+              exposed-modules: Foo
+          |] `shouldRenderTo` Library [i|
+          other-modules:
+              Paths_foo
+          if os(windows)
+            exposed-modules:
+                Foo
+          |]
+
     context "with executable section" $ do
       it "accepts arbitrary entry points as main" $ do
         [i|
@@ -29,6 +45,43 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         main-is: Foo.hs
         ghc-options: -main-is Foo
         |]
+
+      context "within conditional" $ do
+        it "accepts executable-specific fields" $ do
+          [i|
+          executables:
+            foo:
+              when:
+                condition: os(windows)
+                main: Foo
+          |] `shouldRenderTo` Executable "foo" [i|
+          if os(windows)
+            main-is: Foo.hs
+            ghc-options: -main-is Foo
+          |]
+
+        it "infers other-modules" $ do
+          touch "src/Foo.hs"
+          touch "windows/Bar.hs"
+          [i|
+          executables:
+            foo:
+              source-dirs: src
+              when:
+                condition: os(windows)
+                source-dirs: windows
+          |] `shouldRenderTo` Executable "foo" [i|
+          other-modules:
+              Foo
+              Paths_foo
+          hs-source-dirs:
+              src
+          if os(windows)
+            other-modules:
+                Bar
+            hs-source-dirs:
+                windows
+          |]
 
 run :: FilePath -> String -> IO ([String], String)
 run c old = do

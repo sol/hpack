@@ -12,6 +12,8 @@ module Hpack.Run (
 , defaultRenderSettings
 #ifdef TEST
 , renderConditional
+, renderLibraryFields
+, renderExecutableFields
 , renderFlag
 , renderSourceRepository
 , renderDirectories
@@ -194,10 +196,12 @@ renderBenchmark (name, sect) =
     (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
 
 renderExecutableSection :: Section Executable -> [Element]
-renderExecutableSection sect@(sectionData -> Executable{..}) =
-  mainIs : renderSection sect ++ [otherModules, defaultLanguage]
+renderExecutableSection sect = renderSection renderExecutableFields sect ++ [defaultLanguage]
+
+renderExecutableFields :: Executable -> [Element]
+renderExecutableFields Executable{..} = mainIs ++ [otherModules]
   where
-    mainIs = Field "main-is" (Literal executableMain)
+    mainIs = maybe [] (return . Field "main-is" . Literal) executableMain
     otherModules = renderOtherModules executableOtherModules
 
 renderCustomSetup :: CustomSetup -> Element
@@ -205,20 +209,22 @@ renderCustomSetup CustomSetup{..} =
   Stanza "custom-setup" [renderDependencies "setup-depends" customSetupDependencies]
 
 renderLibrary :: Section Library -> Element
-renderLibrary sect@(sectionData -> Library{..}) = Stanza "library" $
-  renderSection sect ++
+renderLibrary sect = Stanza "library" $ renderSection renderLibraryFields sect ++ [defaultLanguage]
+
+renderLibraryFields :: Library -> [Element]
+renderLibraryFields Library{..} =
   maybe [] (return . renderExposed) libraryExposed ++ [
     renderExposedModules libraryExposedModules
   , renderOtherModules libraryOtherModules
   , renderReexportedModules libraryReexportedModules
-  , defaultLanguage
   ]
 
 renderExposed :: Bool -> Element
 renderExposed = Field "exposed" . Literal . show
 
-renderSection :: Section a -> [Element]
-renderSection Section{..} = [
+renderSection :: (a -> [Element]) -> Section a -> [Element]
+renderSection renderSectionData Section{..} =
+  renderSectionData sectionData ++ [
     renderDirectories "hs-source-dirs" sectionSourceDirs
   , renderDefaultExtensions sectionDefaultExtensions
   , renderOtherExtensions sectionOtherExtensions
@@ -240,14 +246,14 @@ renderSection Section{..} = [
   , renderDependencies "build-tools" sectionBuildTools
   ]
   ++ maybe [] (return . renderBuildable) sectionBuildable
-  ++ map renderConditional sectionConditionals
+  ++ map (renderConditional renderSectionData) sectionConditionals
 
-renderConditional :: Conditional -> Element
-renderConditional (Conditional condition sect mElse) = case mElse of
+renderConditional :: (a -> [Element]) -> Conditional (Section a) -> Element
+renderConditional renderSectionData (Conditional condition sect mElse) = case mElse of
   Nothing -> if_
-  Just else_ -> Group if_ (Stanza "else" $ renderSection else_)
+  Just else_ -> Group if_ (Stanza "else" $ renderSection renderSectionData else_)
   where
-    if_ = Stanza ("if " ++ condition) (renderSection sect)
+    if_ = Stanza ("if " ++ condition) (renderSection renderSectionData sect)
 
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"

@@ -31,7 +31,7 @@ package :: Package
 package = Config.package "foo" "0.0.0"
 
 executable :: String -> Executable
-executable main_ = Executable main_ []
+executable main_ = Executable (Just main_) []
 
 library :: Library
 library = Library Nothing [] ["Paths_foo"] []
@@ -175,7 +175,7 @@ spec = do
                 |]
               conditionals = [
                 Conditional "os(windows)"
-                (section ()){sectionDependencies = deps ["Win32"]}
+                (section Empty){sectionDependencies = deps ["Win32"]}
                 Nothing
                 ]
           captureUnknownFieldsValue . toSection <$> decodeEither input
@@ -208,8 +208,8 @@ spec = do
                   |]
                 conditionals = [
                   Conditional "os(windows)"
-                  (section ()){sectionDependencies = deps ["Win32"]}
-                  (Just (section ()){sectionDependencies = deps ["unix"]})
+                  (section Empty){sectionDependencies = deps ["Win32"]}
+                  (Just (section Empty){sectionDependencies = deps ["unix"]})
                   ]
                 r :: Either String (Section Empty)
                 r = captureUnknownFieldsValue . toSection <$> decodeEither input
@@ -1285,9 +1285,8 @@ spec = do
         it "returns an error" $ \dir -> do
           let file = dir </> "package.yaml"
           writeFile file [i|
-            executables:
-              foo:
-                ain: driver/Main.hs
+            - one
+            - two
             |]
           readPackageConfig file >>= (`shouldSatisfy` isLeft)
 
