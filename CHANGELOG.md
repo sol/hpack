@@ -1,3 +1,7 @@
+## Changes in 0.20.0
+  - Accept section-specific fields in conditionals (see #175, thanks to Scott
+    Fleischman)
+
 ## Changes in 0.19.3
   - Add support for `frameworks` and `extra-frameworks-dirs`
 
