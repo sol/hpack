@@ -261,10 +261,10 @@ data Product a b = Product a b
 
 instance Bifunctor Product where
   bimap fa fb (Product a b) = Product (fa a) (fb b)
- 
+
 instance (FromJSON a, FromJSON b) => FromJSON (Product a b) where
   parseJSON value = Product <$> parseJSON value <*> parseJSON value
- 
+
 instance (HasFieldNames a, HasFieldNames b) => HasFieldNames (Product a b) where
   fieldNames Proxy =
        fieldNames (Proxy :: Proxy a)
@@ -272,7 +272,7 @@ instance (HasFieldNames a, HasFieldNames b) => HasFieldNames (Product a b) where
   ignoreUnderscoredUnknownFields Proxy =
        ignoreUnderscoredUnknownFields (Proxy :: Proxy a)
     || ignoreUnderscoredUnknownFields (Proxy :: Proxy b)
- 
+
 data ConditionalSection a =
     ThenElseConditional (CaptureUnknownFields (ThenElse a))
   | FlatConditional (CaptureUnknownFields (Product (WithCommonOptions a) Condition))
@@ -767,7 +767,7 @@ toExecutables dir packageName_ globalOptions executables = do
   where
     namedSections :: [(String, Section ExecutableSection)]
     namedSections = map (fmap $ mergeSections emptyExecutableSection globalOptions) executables
- 
+
     names = map fst namedSections
     sections = map snd namedSections
 
