@@ -678,50 +678,6 @@ spec = do
         }
         )
 
-    context "when reading custom-setup section" $ do
-      it "warns on unknown fields" $ do
-        withPackageWarnings_ [i|
-          name: foo
-          custom-setup:
-            foo: 1
-            bar: 2
-          |]
-          (`shouldBe` [
-            "Ignoring unknown field \"bar\" in custom-setup section"
-          , "Ignoring unknown field \"foo\" in custom-setup section"
-          ])
-
-      it "sets build-type: Custom, if missing" $ do
-        withPackageConfig_ [i|
-          custom-setup:
-            dependencies:
-              - base
-          |]
-          (packageBuildType >>> (`shouldBe` Custom))
-
-      it "leaves build-type alone, if it exists" $ do
-        withPackageConfig_ [i|
-          name: foo
-          build-type: Make
-          custom-setup:
-            dependencies:
-              - base
-          |]
-          (packageBuildType >>> (`shouldBe` Make))
-
-      it "accepts dependencies" $ do
-        withPackageConfig_ [i|
-          custom-setup:
-            dependencies:
-              - foo > 1.0
-              - bar == 2.0
-          |]
-          (packageCustomSetup >>> fmap customSetupDependencies >>> fmap unDependencies >>> fmap Map.toList >>> (`shouldBe` Just [
-              ("bar", VersionRange "==2.0")
-            , ("foo", VersionRange ">1.0")
-            ])
-          )
-
     it "allows yaml merging and overriding fields" $ do
       withPackageConfig_ [i|
         _common: &common

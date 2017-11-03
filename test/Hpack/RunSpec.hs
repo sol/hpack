@@ -129,22 +129,6 @@ spec = do
         , "  default-language: Haskell2010"
         ]
 
-    context "when rendering custom-setup section" $ do
-      it "includes setup-depends" $ do
-        let setup = CustomSetup
-              { customSetupDependencies = deps ["foo", "bar"] }
-        renderPackage_ package {packageCustomSetup = Just setup} `shouldBe` unlines [
-            "name: foo"
-          , "version: 0.0.0"
-          , "build-type: Simple"
-          , "cabal-version: >= 1.10"
-          , ""
-          , "custom-setup"
-          , "  setup-depends:"
-          , "      bar"
-          , "    , foo"
-          ]
-
     context "when rendering library section" $ do
       it "renders library section" $ do
         renderPackage_ package {packageLibrary = Just $ section library} `shouldBe` unlines [

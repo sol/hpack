@@ -19,6 +19,41 @@ import           Hpack.FormattingHints (FormattingHints(..), sniffFormattingHint
 spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "hpack" $ do
+    context "with custom-setup" $ do
+      it "warns on unknown fields" $ do
+        [i|
+        name: foo
+        custom-setup:
+          foo: 1
+          bar: 2
+        |] `shouldWarn` [
+            "Ignoring unknown field \"bar\" in custom-setup section"
+          , "Ignoring unknown field \"foo\" in custom-setup section"
+          ]
+
+      it "accepts dependencies" $ do
+        [i|
+        custom-setup:
+          dependencies:
+            - base
+        |] `shouldRenderTo` (package [i|
+        custom-setup
+          setup-depends:
+              base
+        |]) {packageBuildType = "Custom"}
+
+      it "leaves build-type alone, if it exists" $ do
+        [i|
+        build-type: Make
+        custom-setup:
+          dependencies:
+            - base
+        |] `shouldRenderTo` (package [i|
+        custom-setup
+          setup-depends:
+              base
+        |]) {packageBuildType = "Make"}
+
     context "with library" $ do
       it "accepts reexported-modules" $ do
         [i|
@@ -114,51 +149,56 @@ instance Show PlainString where
   show (PlainString xs) = xs
 
 shouldRenderTo :: HasCallStack => String -> Package -> Expectation
-shouldRenderTo input package = do
+shouldRenderTo input p = do
   writeFile packageConfig input
   (_ , output) <- run packageConfig expected
   PlainString (dropEmptyLines output) `shouldBe` PlainString expected
   where
-    expected = dropEmptyLines (renderPackage package)
+    expected = dropEmptyLines (renderPackage p)
     dropEmptyLines = unlines . filter (not . null) . lines
 
+shouldWarn :: HasCallStack => String -> [String] -> Expectation
+shouldWarn input expected = do
+  writeFile packageConfig input
+  (warnings, _) <- run packageConfig ""
+  warnings `shouldBe` expected
+
 library :: String -> Package
-library = Package "foo" ">= 1.10" . Library
+library l = package content
+  where
+    content = [i|
+library
+#{indentBy 2 $ unindent l}
+  default-language: Haskell2010
+|]
 
 executable :: String -> String -> Package
-executable name = Package "foo" ">= 1.10" . Executable name
-
-data Package = Package {
-  packageName :: String
-, packageCabalVersion :: String
-, packageSection :: Section
-}
-
-data Section =
-    Library String
-  | Executable String String
-
-renderPackage :: Package -> String
-renderPackage Package{..} = case packageSection of
-  Library e -> unindent [i|
-name: #{packageName}
-version: 0.0.0
-build-type: Simple
-cabal-version: #{packageCabalVersion}
-
-library
+executable name e = package content
+  where
+    content = [i|
+executable #{name}
 #{indentBy 2 $ unindent e}
   default-language: Haskell2010
 |]
-  Executable executableName e -> unindent [i|
+
+package :: String -> Package
+package = Package "foo" "Simple" ">= 1.10"
+
+data Package = Package {
+  packageName :: String
+, packageBuildType :: String
+, packageCabalVersion :: String
+, packageContent :: String
+}
+
+renderPackage :: Package -> String
+renderPackage Package{..} = unindent [i|
 name: #{packageName}
 version: 0.0.0
-build-type: Simple
+build-type: #{packageBuildType}
 cabal-version: #{packageCabalVersion}
 
-executable #{executableName}
-#{indentBy 2 $ unindent e}
-  default-language: Haskell2010
+#{unindent packageContent}
 |]
 
 indentBy :: Int -> String -> String
