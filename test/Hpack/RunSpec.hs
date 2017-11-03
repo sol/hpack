@@ -183,19 +183,6 @@ spec = do
           , "  default-language: Haskell2010"
           ]
 
-      it "includes reexported-modules and bumps cabal version" $ do
-        renderPackage_ package {packageLibrary = Just (section library{libraryReexportedModules = ["Baz"]})} `shouldBe` unlines [
-            "name: foo"
-          , "version: 0.0.0"
-          , "build-type: Simple"
-          , "cabal-version: >= 1.21"
-          , ""
-          , "library"
-          , "  reexported-modules:"
-          , "      Baz"
-          , "  default-language: Haskell2010"
-          ]
-
     context "when given list of existing fields" $ do
       it "retains field order" $ do
         renderPackage defaultRenderSettings 16 ["cabal-version", "version", "name", "build-type"] [] package `shouldBe` unlines [

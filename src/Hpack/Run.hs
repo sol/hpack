@@ -130,7 +130,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
       ]
      where
       libCabalVersion :: Section Library -> Maybe String
-      libCabalVersion sect = ">= 1.21" <$ guard (hasReexportedModules sect)
+      libCabalVersion sect = ">= 1.22" <$ guard (hasReexportedModules sect)
 
       hasReexportedModules :: Section Library -> Bool
       hasReexportedModules = not . null . libraryReexportedModules . sectionData

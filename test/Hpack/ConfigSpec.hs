@@ -879,13 +879,6 @@ spec = do
           )
           (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}))
 
-      it "allows to specify reexported-modules" $ do
-        withPackageConfig_ [i|
-          library:
-            reexported-modules: Baz
-          |]
-          (packageLibrary >>> (`shouldBe` Just (section library{libraryReexportedModules = ["Baz"]})))
-
       it "allows to specify both exposed-modules and other-modules" $ do
         withPackageConfig [i|
           library:
