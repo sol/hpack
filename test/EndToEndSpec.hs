@@ -36,11 +36,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         custom-setup:
           dependencies:
             - base
-        |] `shouldRenderTo` (package [i|
-        custom-setup
-          setup-depends:
-              base
-        |]) {packageBuildType = "Custom"}
+        |] `shouldRenderTo` customSetup [i|
+        setup-depends:
+            base
+        |]
 
       it "leaves build-type alone, if it exists" $ do
         [i|
@@ -48,10 +47,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         custom-setup:
           dependencies:
             - base
-        |] `shouldRenderTo` (package [i|
-        custom-setup
-          setup-depends:
-              base
+        |] `shouldRenderTo` (customSetup [i|
+        setup-depends:
+            base
         |]) {packageBuildType = "Make"}
 
     context "with library" $ do
@@ -162,6 +160,14 @@ shouldWarn input expected = do
   writeFile packageConfig input
   (warnings, _) <- run packageConfig ""
   warnings `shouldBe` expected
+
+customSetup :: String -> Package
+customSetup a = (package content) {packageCabalVersion = ">= 1.24", packageBuildType = "Custom"}
+  where
+    content = [i|
+custom-setup
+#{indentBy 2 $ unindent a}
+|]
 
 library :: String -> Package
 library l = package content
