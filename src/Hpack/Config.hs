@@ -759,28 +759,34 @@ mapSectionAcc f = go
       , sectionConditionals = map (go acc <$>) sectionConditionals
       }
 
-toExecutables :: FilePath -> String -> Section global -> [(String, Section ExecutableSection)] -> IO ([String], Map String (Section Executable))
-toExecutables dir packageName_ globalOptions executables = do
-  result <- mapM toExecutable sections >>= mapM (expandForeignSources dir . nubOtherModules)
+traverseNamedSections :: (Ord name, Monad m) => (a -> m ([warning], b)) -> [(name, a)] -> m ([warning], Map name b)
+traverseNamedSections f namedSections = do
+  result <- traverse f sections
   let (warnings, xs) = unzip result
   return (concat warnings, Map.fromList $ zip names xs)
   where
-    namedSections :: [(String, Section ExecutableSection)]
-    namedSections = map (fmap $ mergeSections emptyExecutableSection globalOptions) executables
-
     names = map fst namedSections
     sections = map snd namedSections
 
-    toExecutable :: Section ExecutableSection -> IO (Section Executable)
-    toExecutable sect@Section{..} = do
+toExecutables :: FilePath -> String -> Section global -> [(String, Section ExecutableSection)] -> IO ([String], Map String (Section Executable))
+toExecutables dir packageName_ globalOptions = traverseNamedSections (toExecutable dir packageName_ globalOptions)
+
+toExecutable :: FilePath -> String -> Section global -> Section ExecutableSection -> IO ([String], Section Executable)
+toExecutable dir packageName_ globalOptions = toExecutable_ >=> expandForeignSources dir . nubOtherModules
+  where
+    toExecutable_ :: Section ExecutableSection -> IO (Section Executable)
+    toExecutable_ sect_ = do
       (executable, ghcOptions) <- fromExecutableSection sectionData
-      conditionals <- mapM (traverse toExecutable) sectionConditionals
+      conditionals <- mapM (traverse toExecutable_) sectionConditionals
       return sect {
           sectionData = executable
         , sectionGhcOptions = sectionGhcOptions ++ ghcOptions
         , sectionConditionals = conditionals
         }
       where
+        sect :: Section ExecutableSection
+        sect@Section{..} = mergeSections emptyExecutableSection globalOptions sect_
+
         fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
         fromExecutableSection ExecutableSection{..} = do
           modules <- maybe inferModules (return . fromList) executableSectionOtherModules
