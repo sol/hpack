@@ -198,6 +198,89 @@ spec = do
           ]
 
 
+    context "when rendering internal-libraries section" $ do
+      it "includes cabal-version: >= 2.0" $ do
+        renderPackage_ package {packageInternalLibraries = Map.singleton "example-foo" (section $ Library Nothing ["Foo"] [] [])}
+        `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 2.0"
+          , ""
+          , "library example-foo"
+          , "  exposed-modules:"
+          , "      Foo"
+          , "  default-language: Haskell2010"
+          ]
+
+      it "renders all internal library sections" $ do
+        renderPackage_ package {packageInternalLibraries = Map.fromList [("example-foo", section $ Library Nothing ["Foo"] [] []), ("example-bar", section $ Library Nothing ["Bar"] [] [])]}
+        `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 2.0"
+          , ""
+          , "library example-bar"
+          , "  exposed-modules:"
+          , "      Bar"
+          , "  default-language: Haskell2010"
+          , ""
+          , "library example-foo"
+          , "  exposed-modules:"
+          , "      Foo"
+          , "  default-language: Haskell2010"
+          ]
+
+      it "includes dependencies" $ do
+        renderPackage_ package {packageInternalLibraries = Map.singleton "example-foo" (section $ Library Nothing ["Foo"] [] []) {sectionDependencies = Dependencies $ Map.fromList
+        [("bar", VersionRange "== 0.1.0"), ("baz", AnyVersion)]}} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 2.0"
+          , ""
+          , "library example-foo"
+          , "  exposed-modules:"
+          , "      Foo"
+          , "  build-depends:"
+          , "      bar == 0.1.0"
+          , "    , baz"
+          , "  default-language: Haskell2010"
+          ]
+
+      it "includes other-modules" $ do
+        renderPackage_ package {packageInternalLibraries = Map.singleton "example-foo" (section $ Library Nothing ["Foo"] ["Bar"] [])}
+        `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 2.0"
+          , ""
+          , "library example-foo"
+          , "  exposed-modules:"
+          , "      Foo"
+          , "  other-modules:"
+          , "      Bar"
+          , "  default-language: Haskell2010"
+          ]
+
+      it "includes reexported-modules" $ do
+        renderPackage_ package {packageInternalLibraries = Map.singleton "example-foo" (section $ Library Nothing ["Foo"] [] ["base:Data.Monoid as Bar"])}
+        `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 2.0"
+          , ""
+          , "library example-foo"
+          , "  exposed-modules:"
+          , "      Foo"
+          , "  reexported-modules:"
+          , "      base:Data.Monoid as Bar"
+          , "  default-language: Haskell2010"
+          ]
+
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
         renderPackage_ package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") []) {sectionDependencies = Dependencies $ Map.fromList
