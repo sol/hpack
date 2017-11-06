@@ -286,7 +286,7 @@ spec = do
         baz: 42
         _qux: 66
         |]
-        (`shouldBe` [
+        (`shouldMatchList` [
           "Ignoring unknown field \"bar\" in package description"
         , "Ignoring unknown field \"baz\" in package description"
         ]
@@ -301,7 +301,7 @@ spec = do
             baz: 42
             _qux: 66
         |]
-        (`shouldBe` [
+        (`shouldMatchList` [
           "Ignoring unknown field \"_qux\" in package description"
         , "Ignoring unknown field \"bar\" in package description"
         , "Ignoring unknown field \"baz\" in package description"
@@ -696,7 +696,7 @@ spec = do
             bar: 23
             baz: 42
           |]
-          (`shouldBe` [
+          (`shouldMatchList` [
             "Ignoring unknown field \"bar\" in library section"
           , "Ignoring unknown field \"baz\" in library section"
           ]
@@ -869,7 +869,7 @@ spec = do
               bar: 42
               baz: 23
           |]
-          (`shouldBe` [
+          (`shouldMatchList` [
             "Ignoring unknown field \"bar\" in executable section \"foo\""
           , "Ignoring unknown field \"baz\" in executable section \"foo\""
           ]
@@ -1116,7 +1116,7 @@ spec = do
               bar: 42
               baz: 23
           |]
-          (`shouldBe` [
+          (`shouldMatchList` [
             "Ignoring unknown field \"bar\" in benchmark section \"foo\""
           , "Ignoring unknown field \"baz\" in benchmark section \"foo\""
           ]
@@ -1132,7 +1132,7 @@ spec = do
               bar: 42
               baz: 23
           |]
-          (`shouldBe` [
+          (`shouldMatchList` [
             "Ignoring unknown field \"bar\" in test section \"foo\""
           , "Ignoring unknown field \"baz\" in test section \"foo\""
           ]

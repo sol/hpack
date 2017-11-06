@@ -9,6 +9,7 @@ import           Helper
 
 import           System.Exit.Compat
 import           Data.Maybe
+import           Data.List
 import           Data.String.Interpolate
 import           Data.String.Interpolate.Util
 
@@ -199,7 +200,7 @@ shouldWarn :: HasCallStack => String -> [String] -> Expectation
 shouldWarn input expected = do
   writeFile packageConfig input
   (warnings, _) <- run packageConfig ""
-  warnings `shouldBe` expected
+  sort warnings `shouldBe` sort expected
 
 customSetup :: String -> Package
 customSetup a = (package content) {packageCabalVersion = ">= 1.24", packageBuildType = "Custom"}

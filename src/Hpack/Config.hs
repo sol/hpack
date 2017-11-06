@@ -153,13 +153,20 @@ hyphenize name =
 #endif
   '-' . drop (length name) . dropWhile (== '_')
 
-type FieldName = String
+newtype FieldName = FieldName {unFieldName :: String}
+  deriving Eq
+
+instance IsString FieldName where
+  fromString = FieldName
+
+instance Show FieldName where
+  show (FieldName name) = show name
 
 class HasFieldNames a where
   fieldNames :: Proxy a -> [FieldName]
 
-  default fieldNames :: (HasTypeName a d m, Selectors (Rep a)) => Proxy a -> [String]
-  fieldNames proxy = map (hyphenize $ typeName proxy) (selectors proxy)
+  default fieldNames :: (HasTypeName a d m, Selectors (Rep a)) => Proxy a -> [FieldName]
+  fieldNames proxy = map (FieldName . hyphenize (typeName proxy)) (selectors proxy)
 
   ignoreUnderscoredUnknownFields :: Proxy a -> Bool
   ignoreUnderscoredUnknownFields _ = False
@@ -179,11 +186,11 @@ instance (HasFieldNames a, FromJSON a) => FromJSON (CaptureUnknownFields a) wher
 
 getUnknownFields :: forall a. HasFieldNames a => Value -> Proxy a -> [FieldName]
 getUnknownFields v _ = case v of
-  Object o -> ignoreUnderscored unknown
+  Object o -> map FieldName (ignoreUnderscored unknown)
     where
       unknown = keys \\ fields
       keys = map T.unpack (HashMap.keys o)
-      fields = fieldNames (Proxy :: Proxy a)
+      fields = map unFieldName $ fieldNames (Proxy :: Proxy a)
       ignoreUnderscored
         | ignoreUnderscoredUnknownFields (Proxy :: Proxy a) = filter (not . isPrefixOf "_")
         | otherwise = id
@@ -656,17 +663,15 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
     mLibrarySection = captureUnknownFieldsValue <$> packageConfigLibrary_
 
     formatUnknownFields :: String -> [FieldName] -> [String]
-    formatUnknownFields name = map f . sort
+    formatUnknownFields name = map f
       where
         f field = "Ignoring unknown field " ++ show field ++ " in " ++ name
 
     formatUnknownSectionFields :: Bool -> String -> [(String, CaptureUnknownFields a)] -> [String]
     formatUnknownSectionFields showSect sectionType = concatMap f . map (fmap captureUnknownFieldsFields)
       where
-        f :: (String, [String]) -> [String]
-        f (sect, fields) = formatUnknownFields
-          (sectionType ++ " section" ++ if showSect then " " ++ show sect else "")
-          fields
+        f :: (String, [FieldName]) -> [String]
+        f (sect, fields) = formatUnknownFields (sectionType ++ " section" ++ if showSect then " " ++ show sect else "") fields
 
     formatMissingSourceDirs = map f
       where
