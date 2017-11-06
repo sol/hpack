@@ -333,6 +333,7 @@ instance FromJSON BuildType where
     "Custom"    -> return Custom
     _           -> fail "build-type must be one of: Simple, Configure, Make, Custom"
 
+type LibraryConfig = CaptureUnknownFields (WithCommonOptions LibrarySection)
 type ExecutableConfig = CaptureUnknownFields (WithCommonOptions ExecutableSection)
 
 data PackageConfig = PackageConfig {
@@ -357,8 +358,8 @@ data PackageConfig = PackageConfig {
 , packageConfigGithub :: Maybe Text
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe (CaptureUnknownFields CustomSetupSection)
-, packageConfigLibrary :: Maybe (CaptureUnknownFields (WithCommonOptions LibrarySection))
-, packageConfigInternalLibraries :: Maybe (Map String (CaptureUnknownFields (WithCommonOptions LibrarySection)))
+, packageConfigLibrary :: Maybe LibraryConfig
+, packageConfigInternalLibraries :: Maybe (Map String LibraryConfig)
 , packageConfigExecutable :: Maybe ExecutableConfig
 , packageConfigExecutables :: Maybe (Map String ExecutableConfig)
 , packageConfigTests :: Maybe (Map String ExecutableConfig)
@@ -771,15 +772,11 @@ mapSectionAcc f = go
       }
 
 toInternalLibraries :: FilePath -> String -> Section global -> [(String, Section LibrarySection)] -> IO ([String], Map String (Section Library))
-toInternalLibraries dir packageName_ globalOptions internalLibraries = do
-  results <- mapM (traverse $ toLibrary dir packageName_ globalOptions) internalLibraries
-  let warnings = map (fst . snd) results
-      internalLibraries' = map (fmap snd) results
-  return (concat warnings, Map.fromList internalLibraries')
+toInternalLibraries dir packageName_ globalOptions = traverseNamedSections (toLibrary dir packageName_ globalOptions)
 
 traverseNamedSections :: (Ord name, Monad m) => (a -> m ([warning], b)) -> [(name, a)] -> m ([warning], Map name b)
 traverseNamedSections f namedSections = do
-  result <- traverse f sections
+  result <- mapM f sections
   let (warnings, xs) = unzip result
   return (concat warnings, Map.fromList $ zip names xs)
   where

@@ -79,7 +79,47 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Foo
           |]
 
-    context "with executable" $ do
+    context "with internal-libraries" $ do
+      it "accepts internal internal-libraries" $ do
+        touch "src/Foo.hs"
+        [i|
+        internal-libraries:
+          bar:
+            source-dirs: src
+          |] `shouldRenderTo` internalLibrary "bar" [i|
+          exposed-modules:
+              Foo
+          other-modules:
+              Paths_foo
+          hs-source-dirs:
+              src
+          |]
+
+      it "warns on unknown fields" $ do
+        [i|
+        name: foo
+        internal-libraries:
+          bar:
+            baz: 42
+        |] `shouldWarn` pure "Ignoring unknown field \"baz\" in internal-libraries section \"bar\""
+
+      it "warns on missing source-dirs" $ do
+        [i|
+        name: foo
+        internal-libraries:
+          bar:
+            source-dirs: src
+        |] `shouldWarn` pure "Specified source-dir \"src\" does not exist"
+
+      it "warns when a glob pattern for c-sources does not match any files" $ do
+        [i|
+        name: foo
+        internal-libraries:
+          bar:
+            c-sources: "*.c"
+        |] `shouldWarn` pure "Specified pattern \"*.c\" for c-sources does not match any files"
+
+    context "with executables" $ do
       it "accepts arbitrary entry points as main" $ do
         [i|
         executables:
@@ -175,6 +215,15 @@ library l = package content
     content = [i|
 library
 #{indentBy 2 $ unindent l}
+  default-language: Haskell2010
+|]
+
+internalLibrary :: String -> String -> Package
+internalLibrary name e = (package content) {packageCabalVersion = ">= 2.0"}
+  where
+    content = [i|
+library #{name}
+#{indentBy 2 $ unindent e}
   default-language: Haskell2010
 |]
 
