@@ -603,11 +603,11 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
       }
 
       warnings =
-           formatUnknownFields "package description" unknownFields
+           formatUnknownFields_ "package description" unknownFields
         ++ nameWarnings
         ++ flagWarnings
-        ++ maybe [] (formatUnknownFields "custom-setup section") (captureUnknownFieldsFields <$> packageConfigCustomSetup)
-        ++ maybe [] (formatUnknownFields "library section") (captureUnknownFieldsFields <$> packageConfigLibrary_)
+        ++ customSetupUnknownFieldsWarnings
+        ++ libraryUnknownFieldsWarnings
         ++ formatUnknownSectionFields True "internal-libraries" internalLibrariesSections
         ++ formatUnknownSectionFields True "test" testsSections
         ++ formatUnknownSectionFields True "benchmark" benchmarkSections
@@ -633,7 +633,11 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
     mCustomSetup :: Maybe CustomSetup
     mCustomSetup = toCustomSetup <$> mCustomSetupSection
 
-    packageConfigLibrary_ = toSection <$> packageConfigLibrary
+    (customSetupUnknownFieldsWarnings, mCustomSetupSection) =
+      formatUnknownFieldsMaybe "custom-setup section" packageConfigCustomSetup
+
+    (libraryUnknownFieldsWarnings, mLibrarySection) =
+      formatUnknownFieldsMaybe "library section" (toSection <$> packageConfigLibrary)
 
     internalLibrariesSections :: [(String, CaptureUnknownFields (Section LibrarySection))]
     internalLibrariesSections = map (fmap toSection) $ toList packageConfigInternalLibraries
@@ -656,22 +660,11 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
     toList :: Maybe (Map String a) -> [(String, a)]
     toList = Map.toList . fromMaybe mempty
 
-    mCustomSetupSection :: Maybe CustomSetupSection
-    mCustomSetupSection = captureUnknownFieldsValue <$> packageConfigCustomSetup
-
-    mLibrarySection :: Maybe (Section LibrarySection)
-    mLibrarySection = captureUnknownFieldsValue <$> packageConfigLibrary_
-
-    formatUnknownFields :: String -> [FieldName] -> [String]
-    formatUnknownFields name = map f
-      where
-        f field = "Ignoring unknown field " ++ show field ++ " in " ++ name
-
     formatUnknownSectionFields :: Bool -> String -> [(String, CaptureUnknownFields a)] -> [String]
     formatUnknownSectionFields showSect sectionType = concatMap f . map (fmap captureUnknownFieldsFields)
       where
         f :: (String, [FieldName]) -> [String]
-        f (sect, fields) = formatUnknownFields (sectionType ++ " section" ++ if showSect then " " ++ show sect else "") fields
+        f (sect, fields) = formatUnknownFields_ (sectionType ++ " section" ++ if showSect then " " ++ show sect else "") fields
 
     formatMissingSourceDirs = map f
       where
@@ -702,6 +695,17 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
       _ -> join packageConfigBugReports <|> fromGithub
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> github
+
+formatUnknownFields :: String -> CaptureUnknownFields a -> ([String], a)
+formatUnknownFields name (CaptureUnknownFields unknownFields a) = (formatUnknownFields_ name unknownFields, a)
+
+formatUnknownFieldsMaybe :: String -> Maybe (CaptureUnknownFields a) -> ([String], Maybe a)
+formatUnknownFieldsMaybe name = maybe ([], Nothing) (fmap Just) . fmap (formatUnknownFields name)
+
+formatUnknownFields_ :: String -> [FieldName] -> [String]
+formatUnknownFields_ name = map f
+  where
+    f field = "Ignoring unknown field " ++ show field ++ " in " ++ name
 
 expandCSources :: FilePath -> Section a -> IO ([String], Section a)
 expandCSources dir sect@Section{..} = do
