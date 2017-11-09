@@ -112,15 +112,6 @@ spec = do
         captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionInstallIncludes = ["foo.h", "bar.h"]}
 
-      it "accepts c-sources" $ do
-        let input = [i|
-              c-sources:
-                - foo.c
-                - bar/*.c
-              |]
-        captureUnknownFieldsValue . toSection <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionCSources = ["foo.c", "bar/*.c"]}
-
       it "accepts js-sources" $ do
         let input = [i|
               js-sources:
@@ -756,30 +747,6 @@ spec = do
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
 
-      it "accepts c-sources" $ do
-        withPackageConfig [i|
-          library:
-            c-sources:
-              - cbits/*.c
-          |]
-          (do
-          touch "cbits/foo.c"
-          touch "cbits/bar.c"
-          )
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}))
-
-      it "accepts global c-sources" $ do
-        withPackageConfig [i|
-          c-sources:
-            - cbits/*.c
-          library: {}
-          |]
-          (do
-          touch "cbits/foo.c"
-          touch "cbits/bar.c"
-          )
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}))
-
       it "accepts js-sources" $ do
         withPackageConfig [i|
           library:
@@ -1049,34 +1016,6 @@ spec = do
               main: driver/Main.hs
           |]
           (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]})]})
-
-      it "accepts c-sources" $ do
-        withPackageConfig [i|
-          executables:
-            foo:
-              main: driver/Main.hs
-              c-sources:
-                - cbits/*.c
-          |]
-          (do
-          touch "cbits/foo.c"
-          touch "cbits/bar.c"
-          )
-          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]})]})
-
-      it "accepts global c-sources" $ do
-        withPackageConfig [i|
-          c-sources:
-            - cbits/*.c
-          executables:
-            foo:
-              main: driver/Main.hs
-          |]
-          (do
-          touch "cbits/foo.c"
-          touch "cbits/bar.c"
-          )
-          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]})]})
 
       it "accepts js-sources" $ do
         withPackageConfig [i|

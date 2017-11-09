@@ -20,6 +20,64 @@ import           Hpack.FormattingHints (FormattingHints(..), sniffFormattingHint
 spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "hpack" $ do
+    describe "c-sources" $ before_ (touch "cbits/foo.c" >> touch "cbits/bar.c") $ do
+      context "with internal-libraries" $ do
+        it "warns when a glob pattern does not match any files" $ do
+          [i|
+          name: foo
+          internal-libraries:
+            bar:
+              c-sources: foo/*.c
+          |] `shouldWarn` pure "Specified pattern \"foo/*.c\" for c-sources does not match any files"
+
+      context "with library" $ do
+        it "accepts global c-sources" $ do
+          [i|
+          c-sources: cbits/*.c
+          library: {}
+          |] `shouldRenderTo` library [i|
+          other-modules:
+              Paths_foo
+          c-sources:
+              cbits/bar.c
+              cbits/foo.c
+          |]
+
+        it "accepts c-sources" $ do
+          [i|
+          library:
+            c-sources: cbits/*.c
+          |] `shouldRenderTo` library [i|
+          other-modules:
+              Paths_foo
+          c-sources:
+              cbits/bar.c
+              cbits/foo.c
+          |]
+
+      context "with executables" $ do
+        it "accepts global c-sources" $ do
+          [i|
+          c-sources: cbits/*.c
+          executables:
+            foo: {}
+          |] `shouldRenderTo` executable "foo" [i|
+          c-sources:
+              cbits/bar.c
+              cbits/foo.c
+          |]
+
+        it "accepts c-sources" $ do
+          [i|
+          executables:
+            foo:
+              c-sources: cbits/*.c
+          |] `shouldRenderTo` executable "foo" [i|
+          c-sources:
+              cbits/bar.c
+              cbits/foo.c
+          |]
+
     context "with custom-setup" $ do
       it "warns on unknown fields" $ do
         [i|
@@ -111,14 +169,6 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           bar:
             source-dirs: src
         |] `shouldWarn` pure "Specified source-dir \"src\" does not exist"
-
-      it "warns when a glob pattern for c-sources does not match any files" $ do
-        [i|
-        name: foo
-        internal-libraries:
-          bar:
-            c-sources: "*.c"
-        |] `shouldWarn` pure "Specified pattern \"*.c\" for c-sources does not match any files"
 
     context "with executables" $ do
       it "accepts arbitrary entry points as main" $ do
