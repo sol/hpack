@@ -12,6 +12,8 @@ module Hpack.Run (
 , defaultRenderSettings
 #ifdef TEST
 , renderConditional
+, renderLibraryFields
+, renderExecutableFields
 , renderFlag
 , renderSourceRepository
 , renderDirectories
@@ -28,6 +30,8 @@ import           Data.Maybe
 import           Data.List.Compat
 import           System.Exit.Compat
 import           System.FilePath
+import           Data.Map.Lazy (Map)
+import qualified Data.Map.Lazy as Map
 
 import           Hpack.Util
 import           Hpack.Config
@@ -87,6 +91,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
         customSetup
       , map renderFlag packageFlags
       , library
+      , renderInternalLibraries packageInternalLibraries
       , renderExecutables packageExecutables
       , renderTests packageTests
       , renderBenchmarks packageBenchmarks
@@ -122,14 +127,24 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
     cabalVersion :: Maybe String
     cabalVersion = maximum [
         Just ">= 1.10"
-      , packageLibrary >>= libCabalVersion
+      , packageCabalVersion
+      , packageLibrary >>= libraryCabalVersion
+      , internalLibsCabalVersion packageInternalLibraries
       ]
      where
-      libCabalVersion :: Section Library -> Maybe String
-      libCabalVersion sect = ">= 1.21" <$ guard (hasReexportedModules sect)
+      packageCabalVersion :: Maybe String
+      packageCabalVersion
+        | isJust packageCustomSetup = Just ">= 1.24"
+        | otherwise = Nothing
+
+      libraryCabalVersion :: Section Library -> Maybe String
+      libraryCabalVersion sect = ">= 1.22" <$ guard (hasReexportedModules sect)
 
       hasReexportedModules :: Section Library -> Bool
       hasReexportedModules = not . null . libraryReexportedModules . sectionData
+
+      internalLibsCabalVersion :: Map String (Section Library) -> Maybe String
+      internalLibsCabalVersion internalLibraries = ">= 2.0" <$ guard (not (Map.null internalLibraries))
 
 sortSectionFields :: [(String, [String])] -> [Element] -> [Element]
 sortSectionFields sectionsFieldOrder = go
@@ -168,55 +183,69 @@ renderFlag Flag {..} = Stanza ("flag " ++ flagName) $ description ++ [
   where
     description = maybe [] (return . Field "description" . Literal) flagDescription
 
-renderExecutables :: [Section Executable] -> [Element]
-renderExecutables = map renderExecutable
+renderInternalLibraries :: Map String (Section Library) -> [Element]
+renderInternalLibraries = map renderInternalLibrary . Map.toList
 
-renderExecutable :: Section Executable -> Element
-renderExecutable sect@(sectionData -> Executable{..}) =
-  Stanza ("executable " ++ executableName) (renderExecutableSection sect)
+renderInternalLibrary :: (String, Section Library) -> Element
+renderInternalLibrary (name, sect) =
+  Stanza ("library " ++ name) (renderLibrarySection sect)
 
-renderTests :: [Section Executable] -> [Element]
-renderTests = map renderTest
+renderExecutables :: Map String (Section Executable) -> [Element]
+renderExecutables = map renderExecutable . Map.toList
 
-renderTest :: Section Executable -> Element
-renderTest sect@(sectionData -> Executable{..}) =
-  Stanza ("test-suite " ++ executableName)
+renderExecutable :: (String, Section Executable) -> Element
+renderExecutable (name, sect@(sectionData -> Executable{..})) =
+  Stanza ("executable " ++ name) (renderExecutableSection sect)
+
+renderTests :: Map String (Section Executable) -> [Element]
+renderTests = map renderTest . Map.toList
+
+renderTest :: (String, Section Executable) -> Element
+renderTest (name, sect) =
+  Stanza ("test-suite " ++ name)
     (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
 
-renderBenchmarks :: [Section Executable] -> [Element]
-renderBenchmarks = map renderBenchmark
+renderBenchmarks :: Map String (Section Executable) -> [Element]
+renderBenchmarks = map renderBenchmark . Map.toList
 
-renderBenchmark :: Section Executable -> Element
-renderBenchmark sect@(sectionData -> Executable{..}) =
-  Stanza ("benchmark " ++ executableName)
+renderBenchmark :: (String, Section Executable) -> Element
+renderBenchmark (name, sect) =
+  Stanza ("benchmark " ++ name)
     (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
 
 renderExecutableSection :: Section Executable -> [Element]
-renderExecutableSection sect@(sectionData -> Executable{..}) =
-  mainIs : renderSection sect ++ [otherModules, defaultLanguage]
+renderExecutableSection sect = renderSection renderExecutableFields sect ++ [defaultLanguage]
+
+renderExecutableFields :: Executable -> [Element]
+renderExecutableFields Executable{..} = mainIs ++ [otherModules]
   where
-    mainIs = Field "main-is" (Literal executableMain)
+    mainIs = maybe [] (return . Field "main-is" . Literal) executableMain
     otherModules = renderOtherModules executableOtherModules
 
 renderCustomSetup :: CustomSetup -> Element
 renderCustomSetup CustomSetup{..} =
-  Stanza "custom-setup" [renderSetupDepends customSetupDependencies]
+  Stanza "custom-setup" [renderDependencies "setup-depends" customSetupDependencies]
 
 renderLibrary :: Section Library -> Element
-renderLibrary sect@(sectionData -> Library{..}) = Stanza "library" $
-  renderSection sect ++
+renderLibrary sect = Stanza "library" $ renderLibrarySection sect
+
+renderLibrarySection :: Section Library -> [Element]
+renderLibrarySection sect = renderSection renderLibraryFields sect ++ [defaultLanguage]
+
+renderLibraryFields :: Library -> [Element]
+renderLibraryFields Library{..} =
   maybe [] (return . renderExposed) libraryExposed ++ [
     renderExposedModules libraryExposedModules
   , renderOtherModules libraryOtherModules
   , renderReexportedModules libraryReexportedModules
-  , defaultLanguage
   ]
 
 renderExposed :: Bool -> Element
 renderExposed = Field "exposed" . Literal . show
 
-renderSection :: Section a -> [Element]
-renderSection Section{..} = [
+renderSection :: (a -> [Element]) -> Section a -> [Element]
+renderSection renderSectionData Section{..} =
+  renderSectionData sectionData ++ [
     renderDirectories "hs-source-dirs" sectionSourceDirs
   , renderDefaultExtensions sectionDefaultExtensions
   , renderOtherExtensions sectionOtherExtensions
@@ -231,20 +260,22 @@ renderSection Section{..} = [
   , Field "js-sources" (LineSeparatedList sectionJsSources)
   , renderDirectories "extra-lib-dirs" sectionExtraLibDirs
   , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
+  , renderDirectories "extra-frameworks-dirs" sectionExtraFrameworksDirs
+  , Field "frameworks" (LineSeparatedList sectionFrameworks)
   , renderLdOptions sectionLdOptions
-  , renderDependencies sectionDependencies
-  , renderBuildTools sectionBuildTools
+  , renderDependencies "build-depends" sectionDependencies
+  , renderDependencies "build-tools" sectionBuildTools
   , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigs)
   ]
   ++ maybe [] (return . renderBuildable) sectionBuildable
-  ++ map renderConditional sectionConditionals
+  ++ map (renderConditional renderSectionData) sectionConditionals
 
-renderConditional :: Conditional -> Element
-renderConditional (Conditional condition sect mElse) = case mElse of
+renderConditional :: (a -> [Element]) -> Conditional (Section a) -> Element
+renderConditional renderSectionData (Conditional condition sect mElse) = case mElse of
   Nothing -> if_
-  Just else_ -> Group if_ (Stanza "else" $ renderSection else_)
+  Just else_ -> Group if_ (Stanza "else" $ renderSection renderSectionData else_)
   where
-    if_ = Stanza ("if " ++ condition) (renderSection sect)
+    if_ = Stanza ("if " ++ condition) (renderSection renderSectionData sect)
 
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"
@@ -266,8 +297,16 @@ renderOtherModules = Field "other-modules" . LineSeparatedList
 renderReexportedModules :: [String] -> Element
 renderReexportedModules = Field "reexported-modules" . LineSeparatedList
 
-renderDependencies :: [Dependency] -> Element
-renderDependencies = Field "build-depends" . CommaSeparatedList . map dependencyName
+renderDependencies :: String -> Dependencies -> Element
+renderDependencies name = Field name . CommaSeparatedList . map renderDependency . Map.toList . unDependencies
+
+renderDependency :: (String, DependencyVersion) -> String
+renderDependency (name, version) = name ++ v
+  where
+    v = case version of
+      AnyVersion -> ""
+      VersionRange x -> " " ++ x
+      SourceDependency _ -> ""
 
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList
@@ -295,9 +334,3 @@ renderDefaultExtensions = Field "default-extensions" . WordList
 
 renderOtherExtensions :: [String] -> Element
 renderOtherExtensions = Field "other-extensions" . WordList
-
-renderBuildTools :: [Dependency] -> Element
-renderBuildTools = Field "build-tools" . CommaSeparatedList . map dependencyName
-
-renderSetupDepends :: [Dependency] -> Element
-renderSetupDepends = Field "setup-depends" . CommaSeparatedList . map dependencyName

@@ -53,6 +53,7 @@ existing cabal file into a `package.yaml`.
 | `custom-setup` | · | | See [Custom setup](#custom-setup) | | |
 | `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | | |
 | `library` | · | | See [Library fields](#library-fields) | | |
+| `internal-libraries` | `library <name>` | | Map from internal library name to a dict of [library fields](#library-fields) and global top-level fields. | | `0.20.0` |
 | `executables` | `executable <name>` | | Map from executable name to executable (see [Executable fields](#executable-fields)) | | |
 | `executable` | `executable <package-name>` | | Shortcut for `executables: { package-name: ... }` | | `0.18.0` |
 | `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | | |
@@ -84,6 +85,8 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `extra-libraries` | · | | |
 | `include-dirs` | · | | |
 | `install-includes` | · | | |
+| `frameworks` | · | | |
+| `extra-frameworks-dirs` | · | | |
 | `ld-options` | · | | |
 | `buildable` | · | | May be overridden by later stanza |
 | `dependencies` | `build-depends` | | |

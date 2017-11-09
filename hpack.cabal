@@ -1,9 +1,9 @@
--- This file has been generated from package.yaml by hpack version 0.18.0.
+-- This file has been generated from package.yaml by hpack version 0.19.1.
 --
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.18.0
+version:        0.19.3
 synopsis:       An alternative format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
@@ -27,24 +27,28 @@ library
       src
   ghc-options: -Wall
   build-depends:
-      base >= 4.7 && < 5
-    , base-compat >= 0.8
+      Cabal
+    , Glob
+    , aeson >=0.11
+    , base >=4.7 && <5
+    , base-compat >=0.8
+    , bifunctors
     , bytestring
+    , containers
     , deepseq
     , directory
     , filepath
-    , Glob
+    , pretty
     , text
-    , containers
     , unordered-containers
     , yaml
-    , aeson >= 0.11
   exposed-modules:
       Hpack
       Hpack.Config
       Hpack.Run
       Hpack.Yaml
   other-modules:
+      Hpack.Dependency
       Hpack.FormattingHints
       Hpack.GenericsUtil
       Hpack.Haskell
@@ -60,19 +64,24 @@ executable hpack
       driver
   ghc-options: -Wall
   build-depends:
-      base >= 4.7 && < 5
-    , base-compat >= 0.8
+      Cabal
+    , Glob
+    , aeson >=0.11
+    , base >=4.7 && <5
+    , base-compat >=0.8
+    , bifunctors
     , bytestring
+    , containers
     , deepseq
     , directory
     , filepath
-    , Glob
+    , hpack
+    , pretty
     , text
-    , containers
     , unordered-containers
     , yaml
-    , aeson >= 0.11
-    , hpack
+  other-modules:
+      Paths_hpack
   default-language: Haskell2010
 
 test-suite spec
@@ -84,27 +93,32 @@ test-suite spec
   ghc-options: -Wall
   cpp-options: -DTEST
   build-depends:
-      base >= 4.7 && < 5
-    , base-compat >= 0.8
+      Cabal
+    , Glob
+    , HUnit >=1.6.0.0
+    , QuickCheck
+    , aeson >=0.11
+    , base >=4.7 && <5
+    , base-compat >=0.8
+    , bifunctors
     , bytestring
+    , containers
     , deepseq
     , directory
     , filepath
-    , Glob
+    , hspec ==2.*
+    , interpolate
+    , mockery >=0.3
+    , pretty
+    , temporary
     , text
-    , containers
     , unordered-containers
     , yaml
-    , aeson >= 0.11
-    , hspec == 2.*
-    , QuickCheck
-    , temporary
-    , mockery >= 0.3
-    , interpolate
-    , aeson-qq
   other-modules:
+      EndToEndSpec
       Helper
       Hpack.ConfigSpec
+      Hpack.DependencySpec
       Hpack.FormattingHintsSpec
       Hpack.GenericsUtilSpec
       Hpack.HaskellSpec
@@ -115,6 +129,7 @@ test-suite spec
       HpackSpec
       Hpack
       Hpack.Config
+      Hpack.Dependency
       Hpack.FormattingHints
       Hpack.GenericsUtil
       Hpack.Haskell
@@ -123,4 +138,5 @@ test-suite spec
       Hpack.Run
       Hpack.Util
       Hpack.Yaml
+      Paths_hpack
   default-language: Haskell2010

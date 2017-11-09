@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFunctor #-}
 module Hpack.Util (
   List(..)
 , GhcOption
@@ -19,13 +20,11 @@ module Hpack.Util (
 import           Prelude ()
 import           Prelude.Compat
 
-import           Control.Applicative
 import           Control.Exception
 import           Control.Monad.Compat
 import           Data.Aeson.Types
 import qualified Data.ByteString as B
 import           Data.Char
-import           Data.Data
 import           Data.List.Compat hiding (sort)
 import           Data.Ord
 import qualified Data.Text as T
@@ -46,7 +45,7 @@ lexicographically :: String -> (String, String)
 lexicographically x = (map toLower x, x)
 
 newtype List a = List {fromList :: [a]}
-  deriving (Eq, Show, Data, Typeable)
+  deriving (Eq, Show, Functor)
 
 instance FromJSON a => FromJSON (List a) where
   parseJSON v = List <$> case v of
@@ -79,7 +78,15 @@ toModule :: [FilePath] -> Maybe String
 toModule path = case reverse path of
   [] -> Nothing
   x : xs -> do
-    m <- stripSuffix ".hs" x <|> stripSuffix ".lhs" x <|> stripSuffix ".hsc" x
+    m <- msum $ map (`stripSuffix` x) [
+        ".hs"
+      , ".lhs"
+      , ".chs"
+      , ".hsc"
+      , ".y"
+      , ".ly"
+      , ".x"
+      ]
     let name = reverse (m : xs)
     guard (isModule name) >> return (intercalate "." name)
   where
@@ -109,14 +116,29 @@ toPosixFilePath = Posix.joinPath . splitDirectories
 
 expandGlobs :: String -> FilePath -> [String] -> IO ([String], [FilePath])
 expandGlobs name dir patterns = do
-  files <- (fst <$> globDir compiledPatterns dir) >>= mapM removeDirectories
+  files <- globDir_ compiledPatterns dir >>= mapM removeDirectories
   let warnings = [warn pattern | ([], pattern) <- zip files patterns]
   return (warnings, combineResults files)
   where
+    globDir_ :: [Pattern] -> FilePath -> IO [[FilePath]]
+#if MIN_VERSION_Glob(0,9,0)
+    globDir_ = globDir
+#else
+    globDir_ xs = fmap fst . globDir xs
+#endif
+    combineResults :: [[FilePath]] -> [FilePath]
     combineResults = nub . sort . map (toPosixFilePath . makeRelative dir) . concat
+
+    warn :: String -> String
     warn pattern = "Specified pattern " ++ show pattern ++ " for " ++ name ++ " does not match any files"
+
+    compiledPatterns :: [Pattern]
     compiledPatterns = map (compileWith options) patterns
+
+    removeDirectories :: [FilePath] -> IO [FilePath]
     removeDirectories = filterM doesFileExist
+
+    options :: CompOptions
     options = CompOptions {
         characterClasses = False
       , characterRanges = False
