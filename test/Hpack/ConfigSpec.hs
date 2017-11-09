@@ -154,7 +154,7 @@ spec = do
                 - QtWebKit
                 - weston
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionPkgConfigs = [ "QtWebKit", "weston" ]}
 
       it "accepts extra-frameworks-dirs" $ do
