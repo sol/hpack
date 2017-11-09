@@ -796,10 +796,12 @@ toExecutables :: FilePath -> String -> Section global -> [(String, Section Execu
 toExecutables dir packageName_ globalOptions = traverseNamedSections (toExecutable dir packageName_ globalOptions)
 
 toExecutable :: FilePath -> String -> Section global -> Section ExecutableSection -> IO ([String], Section Executable)
-toExecutable dir packageName_ globalOptions = toExecutable_ >=> expandForeignSources dir . nubOtherModules
+toExecutable dir packageName_ globalOptions =
+      toExecutable_ . mergeSections emptyExecutableSection globalOptions
+  >=> expandForeignSources dir . nubOtherModules
   where
     toExecutable_ :: Section ExecutableSection -> IO (Section Executable)
-    toExecutable_ sect_ = do
+    toExecutable_ sect@Section{..} = do
       (executable, ghcOptions) <- fromExecutableSection sectionData
       conditionals <- mapM (traverse toExecutable_) sectionConditionals
       return sect {
@@ -808,9 +810,6 @@ toExecutable dir packageName_ globalOptions = toExecutable_ >=> expandForeignSou
         , sectionConditionals = conditionals
         }
       where
-        sect :: Section ExecutableSection
-        sect@Section{..} = mergeSections emptyExecutableSection globalOptions sect_
-
         fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
         fromExecutableSection ExecutableSection{..} = do
           modules <- maybe inferModules (return . fromList) executableSectionOtherModules

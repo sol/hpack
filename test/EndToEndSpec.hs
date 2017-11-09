@@ -132,6 +132,21 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |]
 
       context "within conditional" $ do
+        it "does not apply global options" $ do
+          -- related bug: https://github.com/sol/hpack/issues/214
+          [i|
+          ghc-options: -Wall
+          executables:
+            foo:
+              when:
+                condition: os(windows)
+                main: Foo.hs
+          |] `shouldRenderTo` executable "foo" [i|
+          ghc-options: -Wall
+          if os(windows)
+            main-is: Foo.hs
+          |]
+
         it "accepts executable-specific fields" $ do
           [i|
           executables:
