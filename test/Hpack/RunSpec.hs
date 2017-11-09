@@ -3,6 +3,7 @@ module Hpack.RunSpec (spec) where
 
 import           Helper
 import           Data.List.Compat
+import qualified Data.Map.Lazy as Map
 
 import           Hpack.ConfigSpec hiding (spec)
 import           Hpack.Config hiding (package)
@@ -11,6 +12,9 @@ import           Hpack.Run
 
 library :: Library
 library = Library Nothing [] [] []
+
+renderEmptySection :: Empty -> [Element]
+renderEmptySection Empty = []
 
 spec :: Spec
 spec = do
@@ -125,22 +129,6 @@ spec = do
         , "  default-language: Haskell2010"
         ]
 
-    context "when rendering custom-setup section" $ do
-      it "includes setup-depends" $ do
-        let setup = CustomSetup
-              { customSetupDependencies = ["foo >1.0", "bar ==2.0"] }
-        renderPackage_ package {packageCustomSetup = Just setup} `shouldBe` unlines [
-            "name: foo"
-          , "version: 0.0.0"
-          , "build-type: Simple"
-          , "cabal-version: >= 1.10"
-          , ""
-          , "custom-setup"
-          , "  setup-depends:"
-          , "      foo >1.0"
-          , "    , bar ==2.0"
-          ]
-
     context "when rendering library section" $ do
       it "renders library section" $ do
         renderPackage_ package {packageLibrary = Just $ section library} `shouldBe` unlines [
@@ -179,19 +167,6 @@ spec = do
           , "  default-language: Haskell2010"
           ]
 
-      it "includes reexported-modules and bumps cabal version" $ do
-        renderPackage_ package {packageLibrary = Just (section library{libraryReexportedModules = ["Baz"]})} `shouldBe` unlines [
-            "name: foo"
-          , "version: 0.0.0"
-          , "build-type: Simple"
-          , "cabal-version: >= 1.21"
-          , ""
-          , "library"
-          , "  reexported-modules:"
-          , "      Baz"
-          , "  default-language: Haskell2010"
-          ]
-
     context "when given list of existing fields" $ do
       it "retains field order" $ do
         renderPackage defaultRenderSettings 16 ["cabal-version", "version", "name", "build-type"] [] package `shouldBe` unlines [
@@ -210,7 +185,7 @@ spec = do
           ]
 
       it "retains section field order" $ do
-        renderPackage defaultRenderSettings 0 [] [("executable foo", ["default-language", "main-is", "ghc-options"])] package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
+        renderPackage defaultRenderSettings 0 [] [("executable foo", ["default-language", "main-is", "ghc-options"])] package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") []) {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -225,7 +200,8 @@ spec = do
 
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionDependencies = ["foo", "bar", "foo", "baz"]}]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") []) {sectionDependencies = Dependencies $ Map.fromList
+        [("foo", VersionRange "== 0.1.0"), ("bar", AnyVersion)]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -234,15 +210,13 @@ spec = do
           , "executable foo"
           , "  main-is: Main.hs"
           , "  build-depends:"
-          , "      foo"
-          , "    , bar"
-          , "    , foo"
-          , "    , baz"
+          , "      bar"
+          , "    , foo == 0.1.0"
           , "  default-language: Haskell2010"
           ]
 
       it "includes GHC options" $ do
-        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcOptions = ["-Wall", "-Werror"]}]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") []) {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -254,8 +228,38 @@ spec = do
           , "  default-language: Haskell2010"
           ]
 
+      it "includes frameworks" $ do
+        renderPackage_ package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") []) {sectionFrameworks = ["foo", "bar"]})]} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.10"
+          , ""
+          , "executable foo"
+          , "  main-is: Main.hs"
+          , "  frameworks:"
+          , "      foo"
+          , "      bar"
+          , "  default-language: Haskell2010"
+          ]
+
+      it "includes extra-framework-dirs" $ do
+        renderPackage_ package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") []) {sectionExtraFrameworksDirs = ["foo", "bar"]})]} `shouldBe` unlines [
+            "name: foo"
+          , "version: 0.0.0"
+          , "build-type: Simple"
+          , "cabal-version: >= 1.10"
+          , ""
+          , "executable foo"
+          , "  main-is: Main.hs"
+          , "  extra-frameworks-dirs:"
+          , "      foo"
+          , "      bar"
+          , "  default-language: Haskell2010"
+          ]
+
       it "includes GHC profiling options" $ do
-        renderPackage_ package {packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]}]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") []) {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -269,16 +273,16 @@ spec = do
 
   describe "renderConditional" $ do
     it "renders conditionals" $ do
-      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} Nothing
-      render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
+      let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} Nothing
+      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"
         ]
 
     it "renders conditionals with else-branch" $ do
-      let conditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} (Just $ (section ()) {sectionDependencies = ["unix"]})
-      render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
+      let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} (Just $ (section Empty) {sectionDependencies = deps ["unix"]})
+      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"
@@ -288,9 +292,9 @@ spec = do
         ]
 
     it "renders nested conditionals" $ do
-      let conditional = Conditional "arch(i386)" (section ()) {sectionGhcOptions = ["-threaded"], sectionConditionals = [innerConditional]} Nothing
-          innerConditional = Conditional "os(windows)" (section ()) {sectionDependencies = ["Win32"]} Nothing
-      render defaultRenderSettings 0 (renderConditional conditional) `shouldBe` [
+      let conditional = Conditional "arch(i386)" (section Empty) {sectionGhcOptions = ["-threaded"], sectionConditionals = [innerConditional]} Nothing
+          innerConditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} Nothing
+      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
           "if arch(i386)"
         , "  ghc-options: -threaded"
         , "  if os(windows)"

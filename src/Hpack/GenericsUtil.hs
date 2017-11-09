@@ -4,7 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds #-}
 module Hpack.GenericsUtil (
   HasTypeName
 , typeName
@@ -15,11 +15,10 @@ module Hpack.GenericsUtil (
 import           Data.Proxy
 import           GHC.Generics
 
-class HasTypeName a where
-  typeName :: Proxy a -> String
+type HasTypeName a d m = (Datatype d, Generic a, Rep a ~ M1 D d m)
 
-instance (Datatype d, Generic a, Rep a ~ M1 D d m) => HasTypeName a where
-  typeName _ = datatypeName (undefined :: M1 D d x y)
+typeName :: forall a d m. (Datatype d, Generic a, Rep a ~ M1 D d m) => Proxy a -> String
+typeName _ = datatypeName (undefined :: M1 D d x y)
 
 selectors :: (Selectors (Rep a)) => Proxy a -> [String]
 selectors = f

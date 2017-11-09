@@ -1,32 +1,37 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Hpack.ConfigSpec (
   spec
 
 , package
-, executable
+, deps
 ) where
 
 import           Helper
 
-import           Data.Aeson.QQ
 import           Data.Aeson.Types
 import           Data.String.Interpolate.IsString
 import           Control.Arrow
 import           System.Directory (createDirectory)
 import           Data.Yaml
 import           Data.Either.Compat
+import qualified Data.Map.Lazy as Map
 
 import           Hpack.Util
+import           Hpack.Dependency
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
+
+deps :: [String] -> Dependencies
+deps = Dependencies . Map.fromList . map (flip (,) AnyVersion)
 
 package :: Package
 package = Config.package "foo" "0.0.0"
 
-executable :: String -> String -> Executable
-executable name main_ = Executable name main_ []
+executable :: String -> Executable
+executable main_ = Executable (Just main_) []
 
 library :: Library
 library = Library Nothing [] ["Paths_foo"] []
@@ -59,11 +64,11 @@ spec = do
       renamePackage "bar" package `shouldBe` package {packageName = "bar"}
 
     it "renames dependencies on self" $ do
-      let packageWithExecutable dependencies = package {packageExecutables = [(section $ executable "main" "Main.hs") {sectionDependencies = dependencies}]}
+      let packageWithExecutable dependencies = package {packageExecutables = Map.fromList [("main", (section $ executable "Main.hs") {sectionDependencies = deps dependencies})]}
       renamePackage "bar" (packageWithExecutable ["foo"]) `shouldBe` (packageWithExecutable ["bar"]) {packageName = "bar"}
 
   describe "renameDependencies" $ do
-    let sectionWithDeps dependencies = (section ()) {sectionDependencies = dependencies}
+    let sectionWithDeps dependencies = (section ()) {sectionDependencies = deps dependencies}
 
     it "renames dependencies" $ do
       renameDependencies "bar" "baz" (sectionWithDeps ["foo", "bar"]) `shouldBe` sectionWithDeps ["foo", "baz"]
@@ -86,8 +91,8 @@ spec = do
         let input = [i|
               dependencies: hpack
               |]
-        captureUnknownFieldsValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionDependencies = ["hpack"]}
+        captureUnknownFieldsValue . toSection <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionDependencies = deps ["hpack"]}
 
       it "accepts includes-dirs" $ do
         let input = [i|
@@ -95,7 +100,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionIncludeDirs = ["foo", "bar"]}
 
       it "accepts install-includes" $ do
@@ -104,7 +109,7 @@ spec = do
                 - foo.h
                 - bar.h
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionInstallIncludes = ["foo.h", "bar.h"]}
 
       it "accepts c-sources" $ do
@@ -113,7 +118,7 @@ spec = do
                 - foo.c
                 - bar/*.c
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionCSources = ["foo.c", "bar/*.c"]}
 
       it "accepts js-sources" $ do
@@ -122,7 +127,7 @@ spec = do
                 - foo.js
                 - bar/*.js
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionJsSources = ["foo.js", "bar/*.js"]}
 
       it "accepts extra-lib-dirs" $ do
@@ -131,7 +136,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionExtraLibDirs = ["foo", "bar"]}
 
       it "accepts extra-libraries" $ do
@@ -140,7 +145,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionExtraLibraries = ["foo", "bar"]}
 
       it "accepts pkg-configs" $ do
@@ -149,8 +154,27 @@ spec = do
                 - QtWebKit
                 - weston
               |]
-        captureUnknownFieldsValue <$> decodeEither input
+        captureUnknownFieldsValue . toSection <$> decodeEither input
           `shouldBe` Right (section Empty){sectionPkgConfigs = [ "QtWebKit", "weston" ]}
+
+      it "accepts extra-frameworks-dirs" $ do
+        let input = [i|
+              extra-frameworks-dirs:
+                - foo
+                - bar
+              |]
+        captureUnknownFieldsValue . toSection <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionExtraFrameworksDirs = ["foo", "bar"]}
+
+
+      it "accepts frameworks" $ do
+        let input = [i|
+              frameworks:
+                - foo
+                - bar
+              |]
+        captureUnknownFieldsValue . toSection <$> decodeEither input
+          `shouldBe` Right (section Empty){sectionFrameworks = ["foo", "bar"]}
 
       context "when parsing conditionals" $ do
         it "accepts conditionals" $ do
@@ -161,10 +185,10 @@ spec = do
                 |]
               conditionals = [
                 Conditional "os(windows)"
-                (section ()){sectionDependencies = ["Win32"]}
+                (section Empty){sectionDependencies = deps ["Win32"]}
                 Nothing
                 ]
-          captureUnknownFieldsValue <$> decodeEither input
+          captureUnknownFieldsValue . toSection <$> decodeEither input
             `shouldBe` Right (section Empty){sectionConditionals = conditionals}
 
         it "warns on unknown fields" $ do
@@ -179,7 +203,7 @@ spec = do
                   - condition: os(windows)
                     baz: 23
                 |]
-          captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
+          captureUnknownFieldsFields <$> (toSection <$> decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
             `shouldBe` Right ["foo", "bar", "bar2", "baz"]
 
         context "when parsing conditionals with else-branch" $ do
@@ -194,11 +218,11 @@ spec = do
                   |]
                 conditionals = [
                   Conditional "os(windows)"
-                  (section ()){sectionDependencies = ["Win32"]}
-                  (Just (section ()){sectionDependencies = ["unix"]})
+                  (section Empty){sectionDependencies = deps ["Win32"]}
+                  (Just (section Empty){sectionDependencies = deps ["unix"]})
                   ]
                 r :: Either String (Section Empty)
-                r = captureUnknownFieldsValue <$> decodeEither input
+                r = captureUnknownFieldsValue . toSection <$> decodeEither input
             sectionConditionals <$> r `shouldBe` Right conditionals
 
           it "rejects invalid conditionals" $ do
@@ -211,7 +235,7 @@ spec = do
                   |]
 
                 r :: Either String (Section Empty)
-                r = captureUnknownFieldsValue <$> decodeEither input
+                r = captureUnknownFieldsValue . toSection <$> decodeEither input
             sectionConditionals <$> r `shouldSatisfy` isLeft
 
           it "warns on unknown fields" $ do
@@ -222,73 +246,14 @@ spec = do
                     then:
                       bar: null
                     else:
-                      baz: null
+                      when:
+                        condition: os(windows)
+                        then: {}
+                        else:
+                          baz: null
                   |]
-            captureUnknownFieldsFields <$> (decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
+            captureUnknownFieldsFields <$> (toSection <$> decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
               `shouldBe` Right ["foo", "bar", "baz"]
-
-    context "when parsing a Dependency" $ do
-      it "accepts simple dependencies" $ do
-        parseEither parseJSON "hpack" `shouldBe` Right (Dependency "hpack" Nothing)
-
-      it "accepts git dependencies" $ do
-        let value = [aesonQQ|{
-              name: "hpack",
-              git: "https://github.com/sol/hpack",
-              ref: "master"
-            }|]
-            source = GitRef "https://github.com/sol/hpack" "master" Nothing
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
-
-      it "accepts github dependencies" $ do
-        let value = [aesonQQ|{
-              name: "hpack",
-              github: "sol/hpack",
-              ref: "master"
-            }|]
-            source = GitRef "https://github.com/sol/hpack" "master" Nothing
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
-
-      it "accepts an optional subdirectory for git dependencies" $ do
-        let value = [aesonQQ|{
-              name: "warp",
-              github: "yesodweb/wai",
-              ref: "master",
-              subdir: "warp"
-            }|]
-            source = GitRef "https://github.com/yesodweb/wai" "master" (Just "warp")
-        parseEither parseJSON value `shouldBe` Right (Dependency "warp" (Just source))
-
-      it "accepts local dependencies" $ do
-        let value = [aesonQQ|{
-              name: "hpack",
-              path: "../hpack"
-            }|]
-            source = Local "../hpack"
-        parseEither parseJSON value `shouldBe` Right (Dependency "hpack" (Just source))
-
-      context "when parsing fails" $ do
-        it "returns an error message" $ do
-          let value = Number 23
-          parseEither parseJSON value `shouldBe` (Left "Error in $: expected String or an Object, encountered Number" :: Either String Dependency)
-
-        context "when ref is missing" $ do
-          it "produces accurate error messages" $ do
-            let value = [aesonQQ|{
-                  name: "hpack",
-                  git: "sol/hpack",
-                  ef: "master"
-                }|]
-            parseEither parseJSON value `shouldBe` (Left "Error in $: key \"ref\" not present" :: Either String Dependency)
-
-        context "when both git and github are missing" $ do
-          it "produces accurate error messages" $ do
-            let value = [aesonQQ|{
-                  name: "hpack",
-                  gi: "sol/hpack",
-                  ref: "master"
-                }|]
-            parseEither parseJSON value `shouldBe` (Left "Error in $: neither key \"git\" nor key \"github\" present" :: Either String Dependency)
 
   describe "getModules" $ around withTempDirectory $ do
     it "returns Haskell modules in specified source directory" $ \dir -> do
@@ -331,7 +296,7 @@ spec = do
         baz: 42
         _qux: 66
         |]
-        (`shouldBe` [
+        (`shouldMatchList` [
           "Ignoring unknown field \"bar\" in package description"
         , "Ignoring unknown field \"baz\" in package description"
         ]
@@ -346,7 +311,7 @@ spec = do
             baz: 42
             _qux: 66
         |]
-        (`shouldBe` [
+        (`shouldMatchList` [
           "Ignoring unknown field \"_qux\" in package description"
         , "Ignoring unknown field \"bar\" in package description"
         , "Ignoring unknown field \"baz\" in package description"
@@ -365,6 +330,34 @@ spec = do
         (`shouldBe` [
           "Ignoring unknown field \"baz\" in package description"
         , "Ignoring unknown field \"github\" in package description"
+        ]
+        )
+
+    it "warns on unknown fields in when block in library section" $ do
+      withPackageWarnings_ [i|
+        name: foo
+        library:
+          when:
+            condition: impl(ghc)
+            baz: 42
+        |]
+        (`shouldBe` [
+          "Ignoring unknown field \"baz\" in library section"
+        ]
+        )
+
+    it "warns on unknown fields in when block in executable section" $ do
+      withPackageWarnings_ [i|
+        name: foo
+        executables:
+          foo:
+            main: Main.hs
+            when:
+              condition: impl(ghc)
+              baz: 42
+        |]
+        (`shouldBe` [
+          "Ignoring unknown field \"baz\" in executable section \"foo\""
         ]
         )
 
@@ -616,8 +609,8 @@ spec = do
         |]
         (`shouldBe` package {
           packageLibrary = Just (section library) {sectionCppOptions = ["-DFOO", "-DLIB"]}
-        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionCppOptions = ["-DFOO", "-DFOO"]}]
-        , packageTests = [(section $ executable "spec" "Spec.hs") {sectionCppOptions = ["-DFOO", "-DTEST"]}]
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionCppOptions = ["-DFOO", "-DFOO"]})]
+        , packageTests = Map.fromList [("spec", (section $ executable "Spec.hs") {sectionCppOptions = ["-DFOO", "-DTEST"]})]
         }
         )
 
@@ -640,8 +633,8 @@ spec = do
         |]
         (`shouldBe` package {
           packageLibrary = Just (section library) {sectionCcOptions = ["-Wall", "-fLIB"]}
-        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionCcOptions = ["-Wall", "-O2"]}]
-        , packageTests = [(section $ executable "spec" "Spec.hs") {sectionCcOptions = ["-Wall", "-O0"]}]
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionCcOptions = ["-Wall", "-O2"]})]
+        , packageTests = Map.fromList [("spec", (section $ executable "Spec.hs") {sectionCcOptions = ["-Wall", "-O0"]})]
         }
         )
 
@@ -664,8 +657,8 @@ spec = do
         |]
         (`shouldBe` package {
           packageLibrary = Just (section library) {sectionGhcjsOptions = ["-dedupe", "-ghcjs1"]}
-        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs2"]}]
-        , packageTests = [(section $ executable "spec" "Spec.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs3"]}]
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs2"]})]
+        , packageTests = Map.fromList [("spec", (section $ executable "Spec.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs3"]})]
         }
         )
 
@@ -691,49 +684,9 @@ spec = do
         |]
         (`shouldBe` package {
           packageLibrary = Just (section library) {sectionBuildable = Just True}
-        , packageExecutables = [(section $ executable "foo" "Main.hs") {sectionBuildable = Just False}]
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildable = Just False})]
         }
         )
-
-    context "when reading custom-setup section" $ do
-      it "warns on unknown fields" $ do
-        withPackageWarnings_ [i|
-          name: foo
-          custom-setup:
-            foo: 1
-            bar: 2
-          |]
-          (`shouldBe` [
-            "Ignoring unknown field \"bar\" in custom-setup section"
-          , "Ignoring unknown field \"foo\" in custom-setup section"
-          ])
-
-      it "sets build-type: Custom, if missing" $ do
-        withPackageConfig_ [i|
-          custom-setup:
-            dependencies:
-              - base
-          |]
-          (packageBuildType >>> (`shouldBe` Custom))
-
-      it "leaves build-type alone, if it exists" $ do
-        withPackageConfig_ [i|
-          name: foo
-          build-type: Make
-          custom-setup:
-            dependencies:
-              - base
-          |]
-          (packageBuildType >>> (`shouldBe` Make))
-
-      it "accepts dependencies" $ do
-        withPackageConfig_ [i|
-          custom-setup:
-            dependencies:
-              - foo >1.0
-              - bar ==2.0
-          |]
-          (packageCustomSetup >>> fmap customSetupDependencies >>> (`shouldBe` Just ["foo >1.0", "bar ==2.0"]))
 
     it "allows yaml merging and overriding fields" $ do
       withPackageConfig_ [i|
@@ -753,7 +706,7 @@ spec = do
             bar: 23
             baz: 42
           |]
-          (`shouldBe` [
+          (`shouldMatchList` [
             "Ignoring unknown field \"bar\" in library section"
           , "Ignoring unknown field \"baz\" in library section"
           ]
@@ -775,7 +728,7 @@ spec = do
               - alex
               - happy
           |]
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = ["alex", "happy"]}))
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
 
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
@@ -811,7 +764,7 @@ spec = do
             - happy
           library: {}
           |]
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = ["alex", "happy"]}))
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
 
       it "accepts c-sources" $ do
         withPackageConfig [i|
@@ -892,13 +845,6 @@ spec = do
           )
           (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}))
 
-      it "allows to specify reexported-modules" $ do
-        withPackageConfig_ [i|
-          library:
-            reexported-modules: Baz
-          |]
-          (packageLibrary >>> (`shouldBe` Just (section library{libraryReexportedModules = ["Baz"]})))
-
       it "allows to specify both exposed-modules and other-modules" $ do
         withPackageConfig [i|
           library:
@@ -933,7 +879,7 @@ spec = do
               bar: 42
               baz: 23
           |]
-          (`shouldBe` [
+          (`shouldMatchList` [
             "Ignoring unknown field \"bar\" in executable section \"foo\""
           , "Ignoring unknown field \"baz\" in executable section \"foo\""
           ]
@@ -945,14 +891,14 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main.hs"]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", section $ executable "driver/Main.hs")]))
 
       it "reads executable section" $ do
         withPackageConfig_ [i|
           executable:
             main: driver/Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main.hs"]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", section $ executable "driver/Main.hs")]))
 
       it "warns on unknown executable fields" $ do
         withPackageWarnings_ [i|
@@ -972,7 +918,7 @@ spec = do
               foo2:
                 main: driver/Main2.hs
             |]
-            (packageExecutables >>> (`shouldBe` [section $ executable "foo" "driver/Main1.hs"]))
+            (packageExecutables >>> (`shouldBe` Map.fromList [("foo", section $ executable "driver/Main1.hs")]))
 
         it "warns" $ do
           withPackageWarnings_ [i|
@@ -985,17 +931,6 @@ spec = do
             |]
             (`shouldBe` ["Ignoring field \"executables\" in favor of \"executable\""])
 
-      it "accepts arbitrary entry points as main" $ do
-        withPackageConfig_ [i|
-          executables:
-            foo:
-              main: Foo
-          |]
-          (packageExecutables >>> (`shouldBe` [
-            (section $ executable "foo" "Foo.hs") {sectionGhcOptions = ["-main-is Foo"]}
-          ]
-          ))
-
       it "accepts source-dirs" $ do
         withPackageConfig_ [i|
           executables:
@@ -1005,7 +940,7 @@ spec = do
                 - foo
                 - bar
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
 
       it "accepts build-tools" $ do
         withPackageConfig_ [i|
@@ -1016,7 +951,7 @@ spec = do
                 - alex
                 - happy
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = ["alex", "happy"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildTools = deps ["alex", "happy"]})]))
 
       it "accepts global source-dirs" $ do
         withPackageConfig_ [i|
@@ -1027,7 +962,7 @@ spec = do
             foo:
               main: Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionSourceDirs = ["foo", "bar"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
 
       it "accepts global build-tools" $ do
         withPackageConfig_ [i|
@@ -1038,7 +973,7 @@ spec = do
             foo:
               main: Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "Main.hs") {sectionBuildTools = ["alex", "happy"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildTools = deps ["alex", "happy"]})]))
 
       it "infers other-modules" $ do
         withPackageConfig [i|
@@ -1051,7 +986,7 @@ spec = do
           touch "src/Main.hs"
           touch "src/Foo.hs"
           )
-          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Foo"]]))
+          (map (executableOtherModules . sectionData . snd) . Map.toList . packageExecutables >>> (`shouldBe` [["Foo", "Paths_foo"]]))
 
       it "allows to specify other-modules" $ do
         withPackageConfig [i|
@@ -1065,7 +1000,7 @@ spec = do
           touch "src/Foo.hs"
           touch "src/Bar.hs"
           )
-          (map (executableOtherModules . sectionData) . packageExecutables >>> (`shouldBe` [["Baz"]]))
+          (map (executableOtherModules . sectionData . snd) . Map.toList . packageExecutables >>> (`shouldBe` [["Baz"]]))
 
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
@@ -1076,7 +1011,7 @@ spec = do
                 - Foo
                 - Bar
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]})]))
 
       it "accepts global default-extensions" $ do
         withPackageConfig_ [i|
@@ -1087,7 +1022,7 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` [(section $ executable "foo" "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]}]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]})]))
 
       it "accepts GHC options" $ do
         withPackageConfig_ [i|
@@ -1096,7 +1031,7 @@ spec = do
               main: driver/Main.hs
               ghc-options: -Wall
           |]
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcOptions = ["-Wall"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall"]})]})
 
       it "accepts global GHC options" $ do
         withPackageConfig_ [i|
@@ -1105,7 +1040,7 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcOptions = ["-Wall"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall"]})]})
 
       it "accepts GHC profiling options" $ do
         withPackageConfig_ [i|
@@ -1114,7 +1049,7 @@ spec = do
               main: driver/Main.hs
               ghc-prof-options: -fprof-auto
           |]
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]})]})
 
       it "accepts global GHC profiling options" $ do
         withPackageConfig_ [i|
@@ -1123,7 +1058,7 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]})]})
 
       it "accepts c-sources" $ do
         withPackageConfig [i|
@@ -1137,7 +1072,7 @@ spec = do
           touch "cbits/foo.c"
           touch "cbits/bar.c"
           )
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]})]})
 
       it "accepts global c-sources" $ do
         withPackageConfig [i|
@@ -1151,7 +1086,7 @@ spec = do
           touch "cbits/foo.c"
           touch "cbits/bar.c"
           )
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionCSources = ["cbits/bar.c", "cbits/foo.c"]})]})
 
       it "accepts js-sources" $ do
         withPackageConfig [i|
@@ -1165,7 +1100,7 @@ spec = do
           touch "jsbits/foo.js"
           touch "jsbits/bar.js"
           )
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]})]})
 
       it "accepts global js-sources" $ do
         withPackageConfig [i|
@@ -1179,7 +1114,7 @@ spec = do
           touch "jsbits/foo.js"
           touch "jsbits/bar.js"
           )
-          (`shouldBe` package {packageExecutables = [(section $ executable "foo" "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]}]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]})]})
 
     context "when reading benchmark section" $ do
       it "warns on unknown fields" $ do
@@ -1191,7 +1126,7 @@ spec = do
               bar: 42
               baz: 23
           |]
-          (`shouldBe` [
+          (`shouldMatchList` [
             "Ignoring unknown field \"bar\" in benchmark section \"foo\""
           , "Ignoring unknown field \"baz\" in benchmark section \"foo\""
           ]
@@ -1207,7 +1142,7 @@ spec = do
               bar: 42
               baz: 23
           |]
-          (`shouldBe` [
+          (`shouldMatchList` [
             "Ignoring unknown field \"bar\" in test section \"foo\""
           , "Ignoring unknown field \"baz\" in test section \"foo\""
           ]
@@ -1219,7 +1154,7 @@ spec = do
             spec:
               main: test/Spec.hs
           |]
-          (`shouldBe` package {packageTests = [section $ executable "spec" "test/Spec.hs"]})
+          (`shouldBe` package {packageTests = Map.fromList [("spec", section $ executable "test/Spec.hs")]})
 
       it "accepts single dependency" $ do
         withPackageConfig_ [i|
@@ -1228,7 +1163,7 @@ spec = do
               main: test/Spec.hs
               dependencies: hspec
           |]
-          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec"]}]})
+          (`shouldBe` package {packageTests = Map.fromList [("spec", (section $ executable "test/Spec.hs") {sectionDependencies = deps ["hspec"]})]})
 
       it "accepts list of dependencies" $ do
         withPackageConfig_ [i|
@@ -1239,7 +1174,7 @@ spec = do
                 - hspec
                 - QuickCheck
           |]
-          (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["hspec", "QuickCheck"]}]})
+          (`shouldBe` package {packageTests = Map.fromList [("spec", (section $ executable "test/Spec.hs") {sectionDependencies = deps ["hspec", "QuickCheck"]})]})
 
       context "when both global and section specific dependencies are specified" $ do
         it "combines dependencies" $ do
@@ -1252,7 +1187,19 @@ spec = do
                 main: test/Spec.hs
                 dependencies: hspec
             |]
-            (`shouldBe` package {packageTests = [(section $ executable "spec" "test/Spec.hs") {sectionDependencies = ["base", "hspec"]}]})
+            (`shouldBe` package {packageTests = Map.fromList [("spec", (section $ executable "test/Spec.hs") {sectionDependencies = deps ["base", "hspec"]})]})
+
+        it "gives section specific dependencies precedence" $ do
+          withPackageConfig_ [i|
+            dependencies:
+              - base
+
+            tests:
+              spec:
+                main: test/Spec.hs
+                dependencies: base >= 2
+            |]
+            (packageTests >>> Map.toList >>> map (Map.toList . unDependencies . sectionDependencies . snd) >>> (`shouldBe` [[("base", VersionRange ">=2")]]))
 
     context "when a specified source directory does not exist" $ do
       it "warns" $ do
@@ -1297,9 +1244,8 @@ spec = do
         it "returns an error" $ \dir -> do
           let file = dir </> "package.yaml"
           writeFile file [i|
-            executables:
-              foo:
-                ain: driver/Main.hs
+            - one
+            - two
             |]
           readPackageConfig file >>= (`shouldSatisfy` isLeft)
 
