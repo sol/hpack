@@ -3,44 +3,26 @@ module HpackSpec (spec) where
 import           Helper
 
 import           Prelude ()
-import           Prelude.Compat
+import           Prelude.Compat hiding (readFile)
+import qualified Prelude.Compat as Prelude
 
-import           Control.Monad.Compat
 import           Control.DeepSeq
-import           Data.Version (Version(..), showVersion)
 
-import           Test.QuickCheck
+import           Hpack.CabalFile (makeVersion)
+import           Hpack hiding (hpack)
 
-import           Hpack
-
-makeVersion :: [Int] -> Version
-makeVersion v = Version v []
+readFile :: FilePath -> IO String
+readFile name = Prelude.readFile name >>= (return $!!)
 
 spec :: Spec
 spec = do
-  describe "extractVersion" $ do
-    it "extracts Hpack version from a cabal file" $ do
-      let cabalFile = ["-- This file has been generated from package.yaml by hpack version 0.10.0."]
-      extractVersion cabalFile `shouldBe` Just (Version [0, 10, 0] [])
-
-    it "is total" $ do
-      let cabalFile = ["-- This file has been generated from package.yaml by hpack version "]
-      extractVersion cabalFile `shouldBe` Nothing
-
-  describe "parseVersion" $ do
-    it "is inverse to showVersion" $ do
-      let positive = getPositive <$> arbitrary
-      forAll (replicateM 3 positive) $ \xs -> do
-        let v = Version xs []
-        parseVersion (showVersion v) `shouldBe` Just v
-
   describe "hpackWithVersion" $ do
     context "when only the hpack version in the cabal file header changed" $ do
       it "does not write a new cabal file" $ do
         inTempDirectory $ do
           writeFile "package.yaml" "name: foo"
           hpackWithVersion (makeVersion [0,8,0]) Nothing False
-          old <- readFile "foo.cabal" >>= (return $!!)
+          old <- readFile "foo.cabal"
           hpackWithVersion (makeVersion [0,10,0]) Nothing False
           readFile "foo.cabal" `shouldReturn` old
 
@@ -52,7 +34,7 @@ spec = do
             , "version: 0.1.0"
             ]
           hpackWithVersion (makeVersion [0,10,0]) Nothing False
-          old <- readFile "foo.cabal" >>= (return $!!)
+          old <- readFile "foo.cabal"
 
           writeFile "package.yaml" $ unlines [
               "name: foo"

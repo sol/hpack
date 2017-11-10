@@ -1,4 +1,4 @@
--- This file has been generated from package.yaml by hpack version 0.19.1.
+-- This file has been generated from package.yaml by hpack version 0.19.3.
 --
 -- see: https://github.com/sol/hpack
 
@@ -47,6 +47,7 @@ library
       Hpack.Run
       Hpack.Yaml
   other-modules:
+      Hpack.CabalFile
       Hpack.Dependency
       Hpack.FormattingHints
       Hpack.GenericsUtil
@@ -113,6 +114,7 @@ test-suite spec
     , yaml
   other-modules:
       Helper
+      Hpack.CabalFileSpec
       Hpack.ConfigSpec
       Hpack.DependencySpec
       Hpack.FormattingHintsSpec
@@ -124,6 +126,7 @@ test-suite spec
       Hpack.UtilSpec
       HpackSpec
       Hpack
+      Hpack.CabalFile
       Hpack.Config
       Hpack.Dependency
       Hpack.FormattingHints

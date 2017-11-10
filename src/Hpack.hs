@@ -8,8 +8,6 @@ module Hpack (
 , main
 #ifdef TEST
 , hpackWithVersion
-, extractVersion
-, parseVersion
 , splitDirectory
 #endif
 ) where
@@ -19,10 +17,8 @@ import           Prelude.Compat
 
 import           Control.Monad.Compat
 import qualified Data.ByteString as B
-import           Data.List.Compat
-import           Data.Maybe
 import qualified Data.Text as T
-import           Data.Text.Encoding (encodeUtf8)
+import qualified Data.Text.Encoding as Encoding
 import           Data.Version (Version)
 import qualified Data.Version as Version
 import           System.Environment
@@ -30,13 +26,12 @@ import           System.Exit
 import           System.IO
 import           System.FilePath
 import           System.Directory
-import           Text.ParserCombinators.ReadP
 
 import           Paths_hpack (version)
 import           Hpack.Options
 import           Hpack.Config
 import           Hpack.Run
-import           Hpack.Util
+import           Hpack.CabalFile
 
 programVersion :: Version -> String
 programVersion v = "hpack version " ++ Version.showVersion v
@@ -68,20 +63,6 @@ printHelp = do
       "Usage: hpack [ --silent ] [ dir ] [ - ]"
     , "       hpack --version"
     ]
-
-safeInit :: [a] -> [a]
-safeInit [] = []
-safeInit xs = init xs
-
-extractVersion :: [String] -> Maybe Version
-extractVersion = listToMaybe . mapMaybe (stripPrefix prefix >=> parseVersion . safeInit)
-  where
-    prefix = "-- This file has been generated from package.yaml by hpack version "
-
-parseVersion :: String -> Maybe Version
-parseVersion xs = case [v | (v, "") <- readP_to_S Version.parseVersion xs] of
-  [v] -> Just v
-  _ -> Nothing
 
 hpack :: Maybe FilePath -> Bool -> IO ()
 hpack = hpackWithVersion version
@@ -126,14 +107,13 @@ hpackWithVersionResult :: Version -> Maybe FilePath -> IO Result
 hpackWithVersionResult v p = do
   (dir, file) <- splitDirectory p
   (warnings, cabalFile, new) <- run dir file
-  old <- fmap splitHeader <$> tryReadFile cabalFile
-  let oldVersion = fmap fst old >>= extractVersion
+  CabalFile oldVersion old <- readCabalFile cabalFile
   status <-
     if (oldVersion <= Just v) then
-      if (fmap snd old == Just (lines new)) then
+      if (old == lines new) then
         return OutputUnchanged
       else do
-        B.writeFile cabalFile $ encodeUtf8 $ T.pack $ header file v ++ new
+        B.writeFile cabalFile . encodeUtf8 $ header file v ++ new
         return Generated
     else
       return AlreadyGeneratedByNewerHpack
@@ -142,13 +122,13 @@ hpackWithVersionResult v p = do
     , resultCabalFile = cabalFile
     , resultStatus = status
     }
-  where
-    splitHeader :: String -> ([String], [String])
-    splitHeader = fmap (dropWhile null) . span ("--" `isPrefixOf`) . lines
 
 hpackStdOut :: Maybe FilePath -> IO ()
 hpackStdOut p = do
   (dir, file) <- splitDirectory p
   (warnings, _cabalFile, new) <- run dir file
-  B.putStr $ encodeUtf8 $ T.pack new
+  B.putStr (encodeUtf8 new)
   printWarnings warnings
+
+encodeUtf8 :: String -> B.ByteString
+encodeUtf8 = Encoding.encodeUtf8 . T.pack
