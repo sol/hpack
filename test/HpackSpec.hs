@@ -26,6 +26,19 @@ spec = do
           hpackWithVersion (makeVersion [0,10,0]) Nothing False
           readFile "foo.cabal" `shouldReturn` old
 
+    context "when cabal file was modified manually" $ do
+      let hpack = hpackWithVersion (makeVersion [0,8,0]) Nothing False
+
+      it "does not write a new cabal file" $ do
+        inTempDirectory $ do
+          writeFile "package.yaml" "name: foo"
+          hpack
+          old <- readFile "foo.cabal"
+          let modified = old ++ "foo\n"
+          writeFile "foo.cabal" modified
+          hpack
+          readFile "foo.cabal" `shouldReturn` modified
+
     context "when exsting cabal file was generated with a newer version of hpack" $ do
       it "does not re-generate" $ do
         inTempDirectory $ do

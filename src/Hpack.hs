@@ -7,6 +7,7 @@ module Hpack (
 , version
 , main
 #ifdef TEST
+, header
 , hpackWithVersion
 , splitDirectory
 #endif
@@ -17,8 +18,6 @@ import           Prelude.Compat
 
 import           Control.Monad.Compat
 import qualified Data.ByteString as B
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as Encoding
 import           Data.Version (Version)
 import qualified Data.Version as Version
 import           System.Environment
@@ -31,16 +30,19 @@ import           Paths_hpack (version)
 import           Hpack.Options
 import           Hpack.Config
 import           Hpack.Run
+import           Hpack.Util
 import           Hpack.CabalFile
 
 programVersion :: Version -> String
 programVersion v = "hpack version " ++ Version.showVersion v
 
-header :: FilePath -> Version -> String
-header p v = unlines [
+header :: FilePath -> Version -> Hash -> String
+header p v hash = unlines [
     "-- This file has been generated from " ++ p ++ " by " ++ programVersion v ++ "."
   , "--"
   , "-- see: https://github.com/sol/hpack"
+  , "--"
+  , "-- hash: " ++ hash
   , ""
   ]
 
@@ -76,7 +78,12 @@ data Result = Result {
 , resultStatus :: Status
 }
 
-data Status = Generated | AlreadyGeneratedByNewerHpack | OutputUnchanged
+data Status =
+    Generated
+  | ExistingCabalFileWasModifiedManually
+  | AlreadyGeneratedByNewerHpack
+  | OutputUnchanged
+  deriving (Eq, Show)
 
 hpackWithVersion :: Version -> Maybe FilePath -> Bool -> IO ()
 hpackWithVersion v p verbose = do
@@ -87,6 +94,7 @@ hpackWithVersion v p verbose = do
         Generated -> "generated " ++ resultCabalFile r
         OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
         AlreadyGeneratedByNewerHpack -> resultCabalFile r ++ " was generated with a newer version of hpack, please upgrade and try again."
+        ExistingCabalFileWasModifiedManually -> resultCabalFile r ++ " was modified manually, please delete it and try again."
 
 printWarnings :: [String] -> IO ()
 printWarnings warnings = do
@@ -103,20 +111,25 @@ splitDirectory (Just p) = do
       dir = takeDirectory p
       in (guard (p /= file) >> Just dir, if null file then packageConfig else file)
 
+mkStatus :: CabalFile -> [String] -> Version -> Status
+mkStatus oldCabalFile@(CabalFile oldVersion _ old) new v
+  | Just v < oldVersion = AlreadyGeneratedByNewerHpack
+  | modifiedManually oldCabalFile = ExistingCabalFileWasModifiedManually
+  | old == new = OutputUnchanged
+  | otherwise = Generated
+
+
 hpackWithVersionResult :: Version -> Maybe FilePath -> IO Result
 hpackWithVersionResult v p = do
   (dir, file) <- splitDirectory p
   (warnings, cabalFile, new) <- run dir file
-  CabalFile oldVersion old <- readCabalFile cabalFile
-  status <-
-    if (oldVersion <= Just v) then
-      if (old == lines new) then
-        return OutputUnchanged
-      else do
-        B.writeFile cabalFile . encodeUtf8 $ header file v ++ new
-        return Generated
-    else
-      return AlreadyGeneratedByNewerHpack
+  oldCabalFile <- readCabalFile cabalFile
+  let status = mkStatus oldCabalFile (lines new) v
+  case status of
+    Generated -> do
+      let hash = sha256 new
+      B.writeFile cabalFile . encodeUtf8 $ header file v hash ++ new
+    _ -> return ()
   return Result
     { resultWarnings = warnings
     , resultCabalFile = cabalFile
@@ -129,6 +142,3 @@ hpackStdOut p = do
   (warnings, _cabalFile, new) <- run dir file
   B.putStr (encodeUtf8 new)
   printWarnings warnings
-
-encodeUtf8 :: String -> B.ByteString
-encodeUtf8 = Encoding.encodeUtf8 . T.pack

@@ -3,7 +3,7 @@
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.19.3
+version:        0.20.0
 synopsis:       An alternative format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
@@ -34,6 +34,7 @@ library
     , base-compat >=0.8
     , bytestring
     , containers
+    , cryptonite
     , deepseq
     , directory
     , filepath
@@ -71,6 +72,7 @@ executable hpack
     , base-compat >=0.8
     , bytestring
     , containers
+    , cryptonite
     , deepseq
     , directory
     , filepath
@@ -101,6 +103,7 @@ test-suite spec
     , base-compat >=0.8
     , bytestring
     , containers
+    , cryptonite
     , deepseq
     , directory
     , filepath
