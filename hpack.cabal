@@ -1,9 +1,9 @@
--- This file has been generated from package.yaml by hpack version 0.19.1.
+-- This file has been generated from package.yaml by hpack version 0.19.3.
 --
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.19.3
+version:        0.20.0
 synopsis:       An alternative format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
@@ -34,6 +34,7 @@ library
     , base-compat >=0.8
     , bytestring
     , containers
+    , cryptonite
     , deepseq
     , directory
     , filepath
@@ -47,6 +48,7 @@ library
       Hpack.Run
       Hpack.Yaml
   other-modules:
+      Hpack.CabalFile
       Hpack.Dependency
       Hpack.FormattingHints
       Hpack.GenericsUtil
@@ -70,6 +72,7 @@ executable hpack
     , base-compat >=0.8
     , bytestring
     , containers
+    , cryptonite
     , deepseq
     , directory
     , filepath
@@ -100,6 +103,7 @@ test-suite spec
     , base-compat >=0.8
     , bytestring
     , containers
+    , cryptonite
     , deepseq
     , directory
     , filepath
@@ -113,6 +117,7 @@ test-suite spec
     , yaml
   other-modules:
       Helper
+      Hpack.CabalFileSpec
       Hpack.ConfigSpec
       Hpack.DependencySpec
       Hpack.FormattingHintsSpec
@@ -124,6 +129,7 @@ test-suite spec
       Hpack.UtilSpec
       HpackSpec
       Hpack
+      Hpack.CabalFile
       Hpack.Config
       Hpack.Dependency
       Hpack.FormattingHints

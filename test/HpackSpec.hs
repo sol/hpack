@@ -3,64 +3,98 @@ module HpackSpec (spec) where
 import           Helper
 
 import           Prelude ()
-import           Prelude.Compat
+import           Prelude.Compat hiding (readFile)
+import qualified Prelude.Compat as Prelude
 
-import           Control.Monad.Compat
 import           Control.DeepSeq
-import           Data.Version (Version(..), showVersion)
 
-import           Test.QuickCheck
+import           Hpack.Config (packageConfig)
+import           Hpack.CabalFile
+import           Hpack hiding (hpack)
 
-import           Hpack
-
-makeVersion :: [Int] -> Version
-makeVersion v = Version v []
+readFile :: FilePath -> IO String
+readFile name = Prelude.readFile name >>= (return $!!)
 
 spec :: Spec
 spec = do
-  describe "extractVersion" $ do
-    it "extracts Hpack version from a cabal file" $ do
-      let cabalFile = ["-- This file has been generated from package.yaml by hpack version 0.10.0."]
-      extractVersion cabalFile `shouldBe` Just (Version [0, 10, 0] [])
+  describe "hpackWithVersionResult" $ do
+    context "with existing cabal file" $ around_ inTempDirectory $ before_ (writeFile packageConfig "name: foo") $ do
+      let
+        file = "foo.cabal"
 
-    it "is total" $ do
-      let cabalFile = ["-- This file has been generated from package.yaml by hpack version "]
-      extractVersion cabalFile `shouldBe` Nothing
+        hpackWithVersion v = hpackWithVersionResult v Nothing NoForce
+        hpack = hpackWithVersionResult version Nothing NoForce
+        hpackForce = hpackWithVersionResult version Nothing Force
 
-  describe "parseVersion" $ do
-    it "is inverse to showVersion" $ do
-      let positive = getPositive <$> arbitrary
-      forAll (replicateM 3 positive) $ \xs -> do
-        let v = Version xs []
-        parseVersion (showVersion v) `shouldBe` Just v
+        generated = Result [] file Generated
+        modifiedManually = Result [] file ExistingCabalFileWasModifiedManually
+        outputUnchanged = Result [] file OutputUnchanged
+        alreadyGeneratedByNewerHpack = Result [] file AlreadyGeneratedByNewerHpack
 
-  describe "hpackWithVersion" $ do
-    context "when only the hpack version in the cabal file header changed" $ do
-      it "does not write a new cabal file" $ do
-        inTempDirectory $ do
-          writeFile "package.yaml" "name: foo"
-          hpackWithVersion (makeVersion [0,8,0]) Nothing False
-          old <- readFile "foo.cabal" >>= (return $!!)
-          hpackWithVersion (makeVersion [0,10,0]) Nothing False
-          readFile "foo.cabal" `shouldReturn` old
+      context "when cabal file was created manually" $ do
+        it "does not overwrite existing cabal file" $ do
+          let existing = "some existing cabal file"
+          writeFile file existing
+          hpack `shouldReturn` modifiedManually
+          readFile file `shouldReturn` existing
 
-    context "when exsting cabal file was generated with a newer version of hpack" $ do
-      it "does not re-generate" $ do
-        inTempDirectory $ do
-          writeFile "package.yaml" $ unlines [
-              "name: foo"
-            , "version: 0.1.0"
-            ]
-          hpackWithVersion (makeVersion [0,10,0]) Nothing False
-          old <- readFile "foo.cabal" >>= (return $!!)
+        context "with --force" $ do
+          it "overwrites existing cabal file" $ do
+            _ <- hpack
+            expected <- readFile file
+            writeFile file "some existing cabal file"
+            hpackForce `shouldReturn` generated
+            readFile file `shouldReturn` expected
 
-          writeFile "package.yaml" $ unlines [
-              "name: foo"
-            , "version: 0.2.0"
-            ]
+      context "when cabal file was created with hpack < 0.20.0" $ do
+        it "overwrites existing cabal file" $ do
+          _ <- hpack
+          expected <- readFile file
+          writeFile file "-- This file has been generated from package.yaml by hpack version 0.19.3."
+          hpack `shouldReturn` generated
+          readFile file `shouldReturn` expected
 
-          hpackWithVersion (makeVersion [0,8,0]) Nothing False
-          readFile "foo.cabal" `shouldReturn` old
+      context "when cabal file was created with hpack >= 0.20.0" $ do
+        context "when hash is missing" $ do
+          it "does not overwrite existing cabal file" $ do
+            let existing = "-- This file has been generated from package.yaml by hpack version 0.20.0."
+            writeFile file existing
+            hpack `shouldReturn` modifiedManually
+            readFile file `shouldReturn` existing
+
+        context "when hash is present" $ do
+          context "when exsting cabal file was generated with a newer version of hpack" $ do
+            it "does not overwrite existing cabal file" $ do
+              writeFile packageConfig $ unlines [
+                  "name: foo"
+                , "version: 0.1.0"
+                ]
+              _ <- hpackWithVersion (makeVersion [0,22,0])
+              old <- readFile file
+
+              writeFile packageConfig $ unlines [
+                  "name: foo"
+                , "version: 0.2.0"
+                ]
+
+              hpackWithVersion (makeVersion [0,20,0]) `shouldReturn` alreadyGeneratedByNewerHpack
+              readFile file `shouldReturn` old
+
+          context "when cabal file was modified manually" $ do
+            it "does not overwrite existing cabal file" $ do
+              _ <- hpack
+              old <- readFile file
+              let modified = old ++ "foo\n"
+              writeFile file modified
+              _ <- hpack
+              readFile file `shouldReturn` modified
+
+          context "when only the hpack version in the cabal file header changed" $ do
+            it "does not overwrite existing cabal file" $ do
+              _ <- hpackWithVersion (makeVersion [0,20,0])
+              old <- readFile file
+              hpack `shouldReturn` outputUnchanged
+              readFile file `shouldReturn` old
 
   describe "splitDirectory" $ do
     context "when given Nothing" $ do

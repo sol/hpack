@@ -1,3 +1,6 @@
+## Changes in 0.20.0
+  - Do not overwrite any existing cabal file if it has been modified manually
+
 ## Changes in 0.19.3
   - Add support for `frameworks` and `extra-frameworks-dirs`
 

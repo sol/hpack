@@ -20,22 +20,30 @@ spec = do
 
     context "by default" $ do
       it "returns Run" $ do
-        parseOptions [] `shouldBe` Run (Options True False Nothing)
+        parseOptions [] `shouldBe` Run (Options Verbose NoForce False Nothing)
 
       it "includes target" $ do
-        parseOptions ["foo"] `shouldBe` Run (Options True False (Just "foo"))
+        parseOptions ["foo"] `shouldBe` Run (Options Verbose NoForce False (Just "foo"))
 
       context "with superfluous arguments" $ do
         it "returns ParseError" $ do
           parseOptions ["foo", "bar"] `shouldBe` ParseError
 
       context "with --silent" $ do
-        it "sets optionsVerbose to False" $ do
-          parseOptions ["--silent"] `shouldBe` Run (Options False False Nothing)
+        it "sets optionsVerbose to NoVerbose" $ do
+          parseOptions ["--silent"] `shouldBe` Run (Options NoVerbose NoForce False Nothing)
+
+      context "with --force" $ do
+        it "sets optionsForce to Force" $ do
+          parseOptions ["--force"] `shouldBe` Run (Options Verbose Force False Nothing)
+
+      context "with -f" $ do
+        it "sets optionsForce to Force" $ do
+          parseOptions ["-f"] `shouldBe` Run (Options Verbose Force False Nothing)
 
       context "with -" $ do
         it "sets optionsToStdout to True" $ do
-          parseOptions ["-"] `shouldBe` Run (Options True True Nothing)
+          parseOptions ["-"] `shouldBe` Run (Options Verbose NoForce True Nothing)
 
         it "rejects - for target" $ do
           parseOptions ["-", "-"] `shouldBe` ParseError
