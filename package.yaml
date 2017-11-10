@@ -1,5 +1,5 @@
 name: hpack
-version: 0.19.3
+version: 0.20.0
 synopsis: An alternative format for Haskell packages
 description: See README at <https://github.com/sol/hpack#readme>
 maintainer: Simon Hengel <sol@typeful.net>
@@ -27,6 +27,7 @@ dependencies:
   - Cabal
   - pretty
   - bifunctors
+  - cryptonite
 
 library:
   source-dirs: src

@@ -15,6 +15,9 @@ module Hpack.Util (
 , expandGlobs
 , sort
 , lexicographically
+, encodeUtf8
+, Hash
+, sha256
 ) where
 
 import           Prelude ()
@@ -28,13 +31,14 @@ import           Data.Char
 import           Data.List.Compat hiding (sort)
 import           Data.Ord
 import qualified Data.Text as T
-import           Data.Text.Encoding (decodeUtf8With)
+import qualified Data.Text.Encoding as Encoding
 import           Data.Text.Encoding.Error (lenientDecode)
 import           System.IO.Error
 import           System.Directory
 import           System.FilePath
 import qualified System.FilePath.Posix as Posix
 import           System.FilePath.Glob
+import           Crypto.Hash
 
 import           Hpack.Haskell
 
@@ -109,7 +113,7 @@ getModuleFilesRecursive baseDir = go []
 tryReadFile :: FilePath -> IO (Maybe String)
 tryReadFile file = do
   r <- tryJust (guard . isDoesNotExistError) (B.readFile file)
-  return $ either (const Nothing) (Just . T.unpack . decodeUtf8With lenientDecode) r
+  return $ either (const Nothing) (Just . T.unpack . Encoding.decodeUtf8With lenientDecode) r
 
 toPosixFilePath :: FilePath -> FilePath
 toPosixFilePath = Posix.joinPath . splitDirectories
@@ -148,3 +152,11 @@ expandGlobs name dir patterns = do
       , pathSepInRanges = False
       , errorRecovery = True
       }
+
+encodeUtf8 :: String -> B.ByteString
+encodeUtf8 = Encoding.encodeUtf8 . T.pack
+
+type Hash = String
+
+sha256 :: String -> Hash
+sha256 c = show (hash (encodeUtf8 c) :: Digest SHA256)
