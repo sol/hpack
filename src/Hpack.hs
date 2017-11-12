@@ -8,7 +8,7 @@ module Hpack (
 , main
 #ifdef TEST
 , header
-, hpackWithVersion
+, hpackWithVersionResult
 , splitDirectory
 #endif
 ) where
@@ -76,7 +76,7 @@ data Result = Result {
   resultWarnings :: [String]
 , resultCabalFile :: String
 , resultStatus :: Status
-}
+} deriving (Eq, Show)
 
 data Status =
     Generated
@@ -111,20 +111,23 @@ splitDirectory (Just p) = do
       dir = takeDirectory p
       in (guard (p /= file) >> Just dir, if null file then packageConfig else file)
 
-mkStatus :: CabalFile -> [String] -> Version -> Status
-mkStatus oldCabalFile@(CabalFile oldVersion _ old) new v
-  | Just v < oldVersion = AlreadyGeneratedByNewerHpack
-  | modifiedManually oldCabalFile = ExistingCabalFileWasModifiedManually
-  | old == new = OutputUnchanged
-  | otherwise = Generated
-
+mkStatus :: [String] -> Version -> CabalFile -> Status
+mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
+  (Nothing, _) -> ExistingCabalFileWasModifiedManually
+  (Just oldVersion, _) | oldVersion < makeVersion [0, 20, 0] -> Generated
+  (_, Nothing) -> ExistingCabalFileWasModifiedManually
+  (Just oldVersion, Just hash)
+    | v < oldVersion -> AlreadyGeneratedByNewerHpack
+    | sha256 (unlines old) /= hash -> ExistingCabalFileWasModifiedManually
+    | old == new -> OutputUnchanged
+    | otherwise -> Generated
 
 hpackWithVersionResult :: Version -> Maybe FilePath -> IO Result
 hpackWithVersionResult v p = do
   (dir, file) <- splitDirectory p
   (warnings, cabalFile, new) <- run dir file
   oldCabalFile <- readCabalFile cabalFile
-  let status = mkStatus oldCabalFile (lines new) v
+  let status = maybe Generated (mkStatus (lines new) v) oldCabalFile
   case status of
     Generated -> do
       let hash = sha256 new

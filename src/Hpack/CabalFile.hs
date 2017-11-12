@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ViewPatterns #-}
 module Hpack.CabalFile where
 
 import           Prelude ()
@@ -23,16 +24,12 @@ data CabalFile = CabalFile {
 , cabalFileContents :: [String]
 } deriving (Eq, Show)
 
-modifiedManually :: CabalFile -> Bool
-modifiedManually CabalFile{..} = case cabalFileHash of
-  Nothing -> False
-  Just hash -> sha256 (unlines cabalFileContents) /= hash
-
-readCabalFile :: FilePath -> IO CabalFile
-readCabalFile cabalFile = fmap splitHeader <$> tryReadFile cabalFile >>= \ case
-  Nothing -> return (CabalFile Nothing Nothing [])
-  Just (h, c) -> return (CabalFile (extractVersion h) (extractHash h) c)
+readCabalFile :: FilePath -> IO (Maybe CabalFile)
+readCabalFile cabalFile = fmap parse <$> tryReadFile cabalFile
   where
+    parse :: String -> CabalFile
+    parse (splitHeader -> (h, c)) = CabalFile (extractVersion h) (extractHash h) c
+
     splitHeader :: String -> ([String], [String])
     splitHeader = fmap (dropWhile null) . span ("--" `isPrefixOf`) . lines
 

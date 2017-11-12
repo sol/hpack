@@ -19,7 +19,7 @@ spec = do
     it "includes hash" $ do
       inTempDirectory $ do
         writeFile file $ header file version hash
-        readCabalFile file `shouldReturn` CabalFile (Just version) (Just hash) []
+        readCabalFile file `shouldReturn` Just (CabalFile (Just version) (Just hash) [])
 
   describe "extractVersion" $ do
     it "extracts Hpack version from a cabal file" $ do
