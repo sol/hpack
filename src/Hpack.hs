@@ -53,8 +53,8 @@ main = do
     PrintVersion -> putStrLn (programVersion version)
     Help -> printHelp
     Run options -> case options of
-      Options _verbose True dir -> hpackStdOut dir
-      Options verbose False dir -> hpack dir verbose
+      Options _verbose _force True dir -> hpackStdOut dir
+      Options verbose force False dir -> hpack dir verbose force
     ParseError -> do
       printHelp
       exitFailure
@@ -62,14 +62,15 @@ main = do
 printHelp :: IO ()
 printHelp = do
   hPutStrLn stderr $ unlines [
-      "Usage: hpack [ --silent ] [ dir ] [ - ]"
+      "Usage: hpack [ --silent ] [ --force | -f ] [ PATH ] [ - ]"
     , "       hpack --version"
+    , "       hpack --help"
     ]
 
-hpack :: Maybe FilePath -> Bool -> IO ()
+hpack :: Maybe FilePath -> Bool -> Bool -> IO ()
 hpack = hpackWithVersion version
 
-hpackResult :: Maybe FilePath -> IO Result
+hpackResult :: Maybe FilePath -> Bool -> IO Result
 hpackResult = hpackWithVersionResult version
 
 data Result = Result {
@@ -85,16 +86,16 @@ data Status =
   | OutputUnchanged
   deriving (Eq, Show)
 
-hpackWithVersion :: Version -> Maybe FilePath -> Bool -> IO ()
-hpackWithVersion v p verbose = do
-    r <- hpackWithVersionResult v p
+hpackWithVersion :: Version -> Maybe FilePath -> Bool -> Bool -> IO ()
+hpackWithVersion v p verbose force = do
+    r <- hpackWithVersionResult v p force
     printWarnings (resultWarnings r)
     when verbose $ putStrLn $
       case resultStatus r of
         Generated -> "generated " ++ resultCabalFile r
         OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
         AlreadyGeneratedByNewerHpack -> resultCabalFile r ++ " was generated with a newer version of hpack, please upgrade and try again."
-        ExistingCabalFileWasModifiedManually -> resultCabalFile r ++ " was modified manually, please delete it and try again."
+        ExistingCabalFileWasModifiedManually -> resultCabalFile r ++ " was modified manually, please use --force to overwrite."
 
 printWarnings :: [String] -> IO ()
 printWarnings warnings = do
@@ -122,12 +123,15 @@ mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
     | old == new -> OutputUnchanged
     | otherwise -> Generated
 
-hpackWithVersionResult :: Version -> Maybe FilePath -> IO Result
-hpackWithVersionResult v p = do
+hpackWithVersionResult :: Version -> Maybe FilePath -> Bool -> IO Result
+hpackWithVersionResult v p force = do
   (dir, file) <- splitDirectory p
   (warnings, cabalFile, new) <- run dir file
   oldCabalFile <- readCabalFile cabalFile
-  let status = maybe Generated (mkStatus (lines new) v) oldCabalFile
+  let
+    status
+      | force = Generated
+      | otherwise = maybe Generated (mkStatus (lines new) v) oldCabalFile
   case status of
     Generated -> do
       let hash = sha256 new

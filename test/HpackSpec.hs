@@ -22,8 +22,9 @@ spec = do
       let
         file = "foo.cabal"
 
-        hpackWithVersion v = hpackWithVersionResult v Nothing
-        hpack = hpackWithVersionResult version Nothing
+        hpackWithVersion v = hpackWithVersionResult v Nothing False
+        hpack = hpackWithVersionResult version Nothing False
+        hpackForce = hpackWithVersionResult version Nothing True
 
         generated = Result [] file Generated
         modifiedManually = Result [] file ExistingCabalFileWasModifiedManually
@@ -36,6 +37,14 @@ spec = do
           writeFile file existing
           hpack `shouldReturn` modifiedManually
           readFile file `shouldReturn` existing
+
+        context "with --force" $ do
+          it "overwrites existing cabal file" $ do
+            _ <- hpack
+            expected <- readFile file
+            writeFile file "some existing cabal file"
+            hpackForce `shouldReturn` generated
+            readFile file `shouldReturn` expected
 
       context "when cabal file was created with hpack < 0.20.0" $ do
         it "overwrites existing cabal file" $ do
