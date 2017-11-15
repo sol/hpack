@@ -4,6 +4,8 @@ module Hpack (
 , hpackResult
 , Result(..)
 , Status(..)
+, Verbose(..)
+, Force(..)
 , version
 , main
 #ifdef TEST
@@ -67,10 +69,10 @@ printHelp = do
     , "       hpack --help"
     ]
 
-hpack :: Maybe FilePath -> Bool -> Bool -> IO ()
+hpack :: Maybe FilePath -> Verbose -> Force -> IO ()
 hpack = hpackWithVersion version
 
-hpackResult :: Maybe FilePath -> Bool -> IO Result
+hpackResult :: Maybe FilePath -> Force -> IO Result
 hpackResult = hpackWithVersionResult version
 
 data Result = Result {
@@ -86,11 +88,11 @@ data Status =
   | OutputUnchanged
   deriving (Eq, Show)
 
-hpackWithVersion :: Version -> Maybe FilePath -> Bool -> Bool -> IO ()
+hpackWithVersion :: Version -> Maybe FilePath -> Verbose -> Force -> IO ()
 hpackWithVersion v p verbose force = do
     r <- hpackWithVersionResult v p force
     printWarnings (resultWarnings r)
-    when verbose $ putStrLn $
+    when (verbose == Verbose) $ putStrLn $
       case resultStatus r of
         Generated -> "generated " ++ resultCabalFile r
         OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
@@ -123,15 +125,15 @@ mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
     | old == new -> OutputUnchanged
     | otherwise -> Generated
 
-hpackWithVersionResult :: Version -> Maybe FilePath -> Bool -> IO Result
+hpackWithVersionResult :: Version -> Maybe FilePath -> Force -> IO Result
 hpackWithVersionResult v p force = do
   (dir, file) <- splitDirectory p
   (warnings, cabalFile, new) <- run dir file
   oldCabalFile <- readCabalFile cabalFile
   let
-    status
-      | force = Generated
-      | otherwise = maybe Generated (mkStatus (lines new) v) oldCabalFile
+    status = case force of
+      Force -> Generated
+      NoForce -> maybe Generated (mkStatus (lines new) v) oldCabalFile
   case status of
     Generated -> do
       let hash = sha256 new

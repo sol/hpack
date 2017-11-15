@@ -6,9 +6,15 @@ import           Prelude.Compat
 data ParseResult = Help | PrintVersion | Run Options | ParseError
   deriving (Eq, Show)
 
+data Verbose = Verbose | NoVerbose
+  deriving (Eq, Show)
+
+data Force = Force | NoForce
+  deriving (Eq, Show)
+
 data Options = Options {
-  optionsVerbose :: Bool
-, optionsForce :: Bool
+  optionsVerbose :: Verbose
+, optionsForce :: Force
 , optionsToStdout :: Bool
 , optionsTarget :: Maybe FilePath
 } deriving (Eq, Show)
@@ -25,8 +31,8 @@ parseOptions xs = case xs of
       forceFlags = ["--force", "-f"]
 
       flags = [silentFlag] ++ forceFlags
-      verbose = not (silentFlag `elem` xs)
-      force = any (`elem` xs) forceFlags
+      verbose = if silentFlag `elem` xs then NoVerbose else Verbose
+      force = if any (`elem` xs) forceFlags then Force else NoForce
       ys = filter (`notElem` flags) xs
 
       targets = case ys of

@@ -22,9 +22,9 @@ spec = do
       let
         file = "foo.cabal"
 
-        hpackWithVersion v = hpackWithVersionResult v Nothing False
-        hpack = hpackWithVersionResult version Nothing False
-        hpackForce = hpackWithVersionResult version Nothing True
+        hpackWithVersion v = hpackWithVersionResult v Nothing NoForce
+        hpack = hpackWithVersionResult version Nothing NoForce
+        hpackForce = hpackWithVersionResult version Nothing Force
 
         generated = Result [] file Generated
         modifiedManually = Result [] file ExistingCabalFileWasModifiedManually
