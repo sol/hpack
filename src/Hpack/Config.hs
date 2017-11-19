@@ -85,6 +85,7 @@ package name version = Package {
   , packageAuthor = []
   , packageMaintainer = []
   , packageCopyright = []
+  , packageCustomCabalVersion = Nothing
   , packageBuildType = Simple
   , packageLicense = Nothing
   , packageLicenseFile = []
@@ -355,6 +356,7 @@ data PackageConfig = PackageConfig {
 , packageConfigAuthor :: Maybe (List String)
 , packageConfigMaintainer :: Maybe (List String)
 , packageConfigCopyright :: Maybe (List String)
+, packageConfigCabalVersion :: Maybe String
 , packageConfigBuildType :: Maybe BuildType
 , packageConfigLicense :: Maybe String
 , packageConfigLicenseFile :: Maybe (List String)
@@ -425,6 +427,7 @@ data Package = Package {
 , packageExtraSourceFiles :: [FilePath]
 , packageDataFiles :: [FilePath]
 , packageSourceRepository :: Maybe SourceRepository
+, packageCustomCabalVersion :: Maybe String
 , packageCustomSetup :: Maybe CustomSetup
 , packageLibrary :: Maybe (Section Library)
 , packageInternalLibraries :: Map String (Section Library)
@@ -586,6 +589,7 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
       , packageAuthor = fromMaybeList packageConfigAuthor
       , packageMaintainer = fromMaybeList packageConfigMaintainer
       , packageCopyright = fromMaybeList packageConfigCopyright
+      , packageCustomCabalVersion = packageConfigCabalVersion
       , packageBuildType = fromMaybe defaultBuildType packageConfigBuildType
       , packageLicense = packageConfigLicense
       , packageLicenseFile = fromMaybeList configLicenseFiles

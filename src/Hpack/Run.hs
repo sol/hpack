@@ -125,12 +125,14 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
         separator = let Alignment n = alignment in ",\n" ++ replicate n ' '
 
     cabalVersion :: Maybe String
-    cabalVersion = maximum [
-        Just ">= 1.10"
-      , packageCabalVersion
-      , packageLibrary >>= libraryCabalVersion
-      , internalLibsCabalVersion packageInternalLibraries
-      ]
+    cabalVersion
+      | isJust packageCustomCabalVersion = packageCustomCabalVersion
+      | otherwise = maximum [
+          Just ">= 1.10"
+        , packageCabalVersion
+        , packageLibrary >>= libraryCabalVersion
+        , internalLibsCabalVersion packageInternalLibraries
+        ]
      where
       packageCabalVersion :: Maybe String
       packageCabalVersion
