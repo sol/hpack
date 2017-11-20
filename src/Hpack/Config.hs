@@ -518,26 +518,23 @@ toPackage :: FilePath -> (CaptureUnknownFields (Product (CommonOptions Empty) Pa
 toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptions, PackageConfig{..})) = do
   libraryResult <- mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
   let
-    packageConfigExecutables_ :: Maybe (Map String (CaptureUnknownFields (Section ExecutableSection)))
-    packageConfigExecutables_ = fmap toSection <$> packageConfigExecutables
-
-    packageConfigExecutable_ :: Maybe (CaptureUnknownFields (Section ExecutableSection))
-    packageConfigExecutable_ = toSection <$> packageConfigExecutable
-
     executableWarnings :: [String]
     executableSections :: [(String, Section ExecutableSection)]
-    (executableWarnings, executableSections) = (warnings, map (fmap captureUnknownFieldsValue) sections)
+    (executableWarnings, executableSections) = (warnings, sections)
       where
-        sections = case (packageConfigExecutable_, packageConfigExecutables_) of
-          (Nothing, Nothing) -> []
-          (Just executable, _) -> [(packageName_, executable)]
-          (Nothing, Just executables) -> Map.toList executables
+        sections :: [(String, Section ExecutableSection)]
+        sections = case mExecutable of
+          Just executable -> [(packageName_, executable)]
+          Nothing -> executables
 
-        warnings = ignoringExecutablesWarning ++ unknownFieldWarnings
-        ignoringExecutablesWarning = case (packageConfigExecutable_, packageConfigExecutables_) of
+        warnings = ignoringExecutablesWarning ++ unknownFieldWarningsExecutable ++ unknownFieldWarningsExecutables
+
+        ignoringExecutablesWarning = case (packageConfigExecutable, packageConfigExecutables) of
           (Just _, Just _) -> ["Ignoring field \"executables\" in favor of \"executable\""]
           _ -> []
-        unknownFieldWarnings = formatUnknownSectionFields (isJust packageConfigExecutables_) "executable" sections
+
+        (unknownFieldWarningsExecutables, executables) = toSections "executable" packageConfigExecutables
+        (unknownFieldWarningsExecutable, mExecutable) = formatUnknownFieldsMaybe "executable section" (toSection <$> packageConfigExecutable)
 
     mLibrary :: Maybe (Section Library)
     mLibrary = fmap snd libraryResult
@@ -545,10 +542,10 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
     libraryWarnings :: [String]
     libraryWarnings = maybe [] fst libraryResult
 
-  (internalLibrariesWarnings, internalLibraries) <- toInternalLibraries dir packageName_ globalOptions (map (fmap captureUnknownFieldsValue) internalLibrariesSections)
+  (internalLibrariesWarnings, internalLibraries) <- toInternalLibraries dir packageName_ globalOptions internalLibrariesSections
   (executablesWarnings, executables) <- toExecutables dir packageName_ globalOptions executableSections
-  (testsWarnings, tests) <- toExecutables dir packageName_ globalOptions (map (fmap captureUnknownFieldsValue) testsSections)
-  (benchmarksWarnings, benchmarks) <- toExecutables dir packageName_ globalOptions  (map (fmap captureUnknownFieldsValue) benchmarkSections)
+  (testsWarnings, tests) <- toExecutables dir packageName_ globalOptions testsSections
+  (benchmarksWarnings, benchmarks) <- toExecutables dir packageName_ globalOptions benchmarkSections
 
   licenseFileExists <- doesFileExist (dir </> "LICENSE")
 
@@ -608,9 +605,9 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
         ++ flagWarnings
         ++ customSetupUnknownFieldsWarnings
         ++ libraryUnknownFieldsWarnings
-        ++ formatUnknownSectionFields True "internal-libraries" internalLibrariesSections
-        ++ formatUnknownSectionFields True "test" testsSections
-        ++ formatUnknownSectionFields True "benchmark" benchmarkSections
+        ++ internalLibrariesSectionsUnknownFieldsWarnings
+        ++ testsSectionsUnknownFieldsWarnings
+        ++ benchmarkSectionsUnknownFieldsWarnings
         ++ formatMissingSourceDirs missingSourceDirs
         ++ libraryWarnings
         ++ internalLibrariesWarnings
@@ -639,14 +636,21 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
     (libraryUnknownFieldsWarnings, mLibrarySection) =
       formatUnknownFieldsMaybe "library section" (toSection <$> packageConfigLibrary)
 
-    internalLibrariesSections :: [(String, CaptureUnknownFields (Section LibrarySection))]
-    internalLibrariesSections = map (fmap toSection) $ toList packageConfigInternalLibraries
+    toSections :: String -> Maybe (Map String (CaptureUnknownFields (WithCommonOptions a))) -> ([String], [(String, Section a)])
+    toSections sectionType sections = formatUnknownSectionFields sectionType (map (fmap toSection) $ toList sections)
 
-    testsSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
-    testsSections = map (fmap toSection) $ toList packageConfigTests
+    internalLibrariesSectionsUnknownFieldsWarnings :: [String]
+    internalLibrariesSections :: [(String, Section LibrarySection)]
+    (internalLibrariesSectionsUnknownFieldsWarnings, internalLibrariesSections) =
+      toSections "internal-libraries" packageConfigInternalLibraries
 
-    benchmarkSections :: [(String, CaptureUnknownFields (Section ExecutableSection))]
-    benchmarkSections = map (fmap toSection) $ toList packageConfigBenchmarks
+    testsSectionsUnknownFieldsWarnings :: [String]
+    testsSections :: [(String, Section ExecutableSection)]
+    (testsSectionsUnknownFieldsWarnings, testsSections) = toSections "test" packageConfigTests
+
+    benchmarkSectionsUnknownFieldsWarnings :: [String]
+    benchmarkSections :: [(String, Section ExecutableSection)]
+    (benchmarkSectionsUnknownFieldsWarnings, benchmarkSections) = toSections "benchmark" packageConfigBenchmarks
 
     (flagWarnings, flags) = (concatMap formatUnknownFlagFields xs, map (toFlag . fmap captureUnknownFieldsValue) xs)
       where
@@ -660,11 +664,12 @@ toPackage dir (toEmptySection -> CaptureUnknownFields unknownFields (globalOptio
     toList :: Maybe (Map String a) -> [(String, a)]
     toList = Map.toList . fromMaybe mempty
 
-    formatUnknownSectionFields :: Bool -> String -> [(String, CaptureUnknownFields a)] -> [String]
-    formatUnknownSectionFields showSect sectionType = concatMap f . map (fmap captureUnknownFieldsFields)
+    formatUnknownSectionFields :: String -> [(String, CaptureUnknownFields a)] -> ([String], [(String, a)])
+    formatUnknownSectionFields sectionType xs =
+      (concatMap f $ map (fmap captureUnknownFieldsFields) xs, map (fmap captureUnknownFieldsValue) xs)
       where
         f :: (String, [FieldName]) -> [String]
-        f (sect, fields) = formatUnknownFields_ (sectionType ++ " section" ++ if showSect then " " ++ show sect else "") fields
+        f (sect, fields) = formatUnknownFields_ (sectionType ++ " section " ++ show sect) fields
 
     formatMissingSourceDirs = map f
       where
