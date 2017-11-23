@@ -27,6 +27,7 @@ dependencies:
   - pretty
   - bifunctors
   - cryptonite
+  - transformers
 
 library:
   source-dirs: src

@@ -18,12 +18,20 @@ import           System.Directory (createDirectory)
 import           Data.Yaml
 import           Data.Either
 import qualified Data.Map.Lazy as Map
+import           Data.Bitraversable
+import           Data.Functor.Identity
 
 import           Hpack.Util
 import           Hpack.Dependency
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
 import           Hpack.UnknownFields
+
+toSectionM :: Monad m => m (WithCommonOptions m a) -> m (Section a)
+toSectionM = (>>= toSect)
+  where
+    toSect :: Monad m => WithCommonOptions m a -> m (Section a)
+    toSect = fmap toSection . bitraverse (traverseCommonOptions $ fmap Identity) return
 
 deps :: [String] -> Dependencies
 deps = Dependencies . Map.fromList . map (flip (,) AnyVersion)

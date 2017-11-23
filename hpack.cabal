@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7dd7d7f5665e914c06e89fdea81f70bc60b46a1c58e5dc0f5e927ed8b5d43ca8
+-- hash: a04887bf0462c7de3eae4fa2e197c549b59645eb44595e98f89e91b960366d05
 
 name:           hpack
 version:        0.20.0
@@ -42,6 +42,7 @@ library
     , filepath
     , pretty
     , text
+    , transformers
     , unordered-containers
     , yaml
   exposed-modules:
@@ -82,6 +83,7 @@ executable hpack
     , hpack
     , pretty
     , text
+    , transformers
     , unordered-containers
     , yaml
   other-modules:
@@ -116,6 +118,7 @@ test-suite spec
     , pretty
     , temporary
     , text
+    , transformers
     , unordered-containers
     , yaml
   other-modules:
