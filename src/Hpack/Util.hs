@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Hpack.Util (
   List(..)
 , GhcOption
@@ -49,7 +51,7 @@ lexicographically :: String -> (String, String)
 lexicographically x = (map toLower x, x)
 
 newtype List a = List {fromList :: [a]}
-  deriving (Eq, Show, Functor)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance FromJSON a => FromJSON (List a) where
   parseJSON v = List <$> case v of

@@ -23,6 +23,7 @@ import           Hpack.Util
 import           Hpack.Dependency
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
+import           Hpack.UnknownFields
 
 deps :: [String] -> Dependencies
 deps = Dependencies . Map.fromList . map (flip (,) AnyVersion)
@@ -87,11 +88,12 @@ spec = do
 
   describe "parseJSON" $ do
     context "when parsing (CaptureUnknownFields Section a)" $ do
+      let sectionValue = snd . formatUnknownFields In "section" . toSectionM
       it "accepts dependencies" $ do
         let input = [i|
               dependencies: hpack
               |]
-        captureUnknownFieldsValue . toSection <$> decodeEither input
+        sectionValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionDependencies = deps ["hpack"]}
 
       it "accepts includes-dirs" $ do
@@ -100,7 +102,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue . toSection <$> decodeEither input
+        sectionValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionIncludeDirs = ["foo", "bar"]}
 
       it "accepts install-includes" $ do
@@ -109,7 +111,7 @@ spec = do
                 - foo.h
                 - bar.h
               |]
-        captureUnknownFieldsValue . toSection <$> decodeEither input
+        sectionValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionInstallIncludes = ["foo.h", "bar.h"]}
 
       it "accepts js-sources" $ do
@@ -118,7 +120,7 @@ spec = do
                 - foo.js
                 - bar/*.js
               |]
-        captureUnknownFieldsValue . toSection <$> decodeEither input
+        sectionValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionJsSources = ["foo.js", "bar/*.js"]}
 
       it "accepts extra-lib-dirs" $ do
@@ -127,7 +129,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue . toSection <$> decodeEither input
+        sectionValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionExtraLibDirs = ["foo", "bar"]}
 
       it "accepts extra-libraries" $ do
@@ -136,7 +138,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue . toSection <$> decodeEither input
+        sectionValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionExtraLibraries = ["foo", "bar"]}
 
       it "accepts extra-frameworks-dirs" $ do
@@ -145,7 +147,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue . toSection <$> decodeEither input
+        sectionValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionExtraFrameworksDirs = ["foo", "bar"]}
 
       it "accepts frameworks" $ do
@@ -154,7 +156,7 @@ spec = do
                 - foo
                 - bar
               |]
-        captureUnknownFieldsValue . toSection <$> decodeEither input
+        sectionValue <$> decodeEither input
           `shouldBe` Right (section Empty){sectionFrameworks = ["foo", "bar"]}
 
       context "when parsing conditionals" $ do
@@ -169,7 +171,7 @@ spec = do
                 (section Empty){sectionDependencies = deps ["Win32"]}
                 Nothing
                 ]
-          captureUnknownFieldsValue . toSection <$> decodeEither input
+          sectionValue <$> decodeEither input
             `shouldBe` Right (section Empty){sectionConditionals = conditionals}
 
         it "warns on unknown fields" $ do
@@ -184,8 +186,13 @@ spec = do
                   - condition: os(windows)
                     baz: 23
                 |]
-          captureUnknownFieldsFields <$> (toSection <$> decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
-            `shouldBe` Right ["foo", "bar", "bar2", "baz"]
+          fst . formatUnknownFields In ".." <$> (toSectionM <$> decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
+            `shouldBe` Right [
+                "Ignoring unknown field \"foo\" in .."
+              , "Ignoring unknown field \"bar\" in .."
+              , "Ignoring unknown field \"bar2\" in .."
+              , "Ignoring unknown field \"baz\" in .."
+              ]
 
         context "when parsing conditionals with else-branch" $ do
           it "accepts conditionals with else-branch" $ do
@@ -203,7 +210,7 @@ spec = do
                   (Just (section Empty){sectionDependencies = deps ["unix"]})
                   ]
                 r :: Either String (Section Empty)
-                r = captureUnknownFieldsValue . toSection <$> decodeEither input
+                r = sectionValue <$> decodeEither input
             sectionConditionals <$> r `shouldBe` Right conditionals
 
           it "rejects invalid conditionals" $ do
@@ -216,7 +223,7 @@ spec = do
                   |]
 
                 r :: Either String (Section Empty)
-                r = captureUnknownFieldsValue . toSection <$> decodeEither input
+                r = sectionValue <$> decodeEither input
             sectionConditionals <$> r `shouldSatisfy` isLeft
 
           it "warns on unknown fields" $ do
@@ -233,8 +240,12 @@ spec = do
                         else:
                           baz: null
                   |]
-            captureUnknownFieldsFields <$> (toSection <$> decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
-              `shouldBe` Right ["foo", "bar", "baz"]
+            fst . formatUnknownFields In ".." <$> (toSectionM <$> decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
+              `shouldBe` Right [
+                "Ignoring unknown field \"foo\" in .."
+              , "Ignoring unknown field \"bar\" in .."
+              , "Ignoring unknown field \"baz\" in .."
+              ]
 
   describe "getModules" $ around withTempDirectory $ do
     it "returns Haskell modules in specified source directory" $ \dir -> do

@@ -1,6 +1,8 @@
--- This file has been generated from package.yaml by hpack version 0.19.3.
+-- This file has been generated from package.yaml by hpack version 0.20.0.
 --
 -- see: https://github.com/sol/hpack
+--
+-- hash: 65f118dd703c94265a56782703c923d4b7385119050226d0f901a3f197219608
 
 name:           hpack
 version:        0.20.0
@@ -56,6 +58,7 @@ library
       Hpack.Haskell
       Hpack.Options
       Hpack.Render
+      Hpack.UnknownFields
       Hpack.Util
       Paths_hpack
   default-language: Haskell2010
@@ -142,6 +145,7 @@ test-suite spec
       Hpack.Options
       Hpack.Render
       Hpack.Run
+      Hpack.UnknownFields
       Hpack.Util
       Hpack.Yaml
       Paths_hpack
