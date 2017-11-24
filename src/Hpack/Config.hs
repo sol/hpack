@@ -36,9 +36,6 @@ module Hpack.Config (
 , Flag(..)
 , SourceRepository(..)
 #ifdef TEST
-, toSection
-, WithCommonOptions
-, traverseCommonOptions
 , renameDependencies
 , Empty(..)
 , getModules

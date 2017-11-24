@@ -20,6 +20,154 @@ import           Hpack.FormattingHints (FormattingHints(..), sniffFormattingHint
 spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "hpack" $ do
+    describe "dependencies" $ do
+      it "accepts single dependency" $ do
+        [i|
+        executable:
+          dependencies: base
+        |] `shouldRenderTo` executable "foo" [i|
+        build-depends:
+            base
+        |]
+
+      it "accepts list of dependencies" $ do
+        [i|
+        executable:
+          dependencies:
+            - base
+            - transformers
+        |] `shouldRenderTo` executable "foo" [i|
+        build-depends:
+            base
+          , transformers
+        |]
+
+      context "with both global and section specific dependencies" $ do
+        it "combines dependencies" $ do
+          [i|
+          dependencies:
+            - base
+          executable:
+            dependencies: hspec
+          |] `shouldRenderTo` executable "foo" [i|
+          build-depends:
+              base
+            , hspec
+          |]
+
+        it "gives section specific dependencies precedence" $ do
+          [i|
+          dependencies:
+            - base
+          executable:
+            dependencies: base >= 2
+          |] `shouldRenderTo` executable "foo" [i|
+          build-depends:
+              base >=2
+          |]
+
+    describe "include-dirs" $ do
+      it "accepts include-dirs" $ do
+        [i|
+        include-dirs:
+          - foo
+          - bar
+        executable: {}
+        |] `shouldRenderTo` executable "foo" [i|
+        include-dirs:
+            foo
+            bar
+        |]
+
+    describe "install-includes" $ do
+      it "accepts install-includes" $ do
+        [i|
+        install-includes:
+          - foo.h
+          - bar.h
+        executable: {}
+        |] `shouldRenderTo` executable "foo" [i|
+        install-includes:
+            foo.h
+            bar.h
+        |]
+
+    describe "js-sources" $ before_ (touch "foo.js" >> touch "jsbits/bar.js") $ do
+      it "accepts js-sources" $ do
+        [i|
+        executable:
+          js-sources:
+            - foo.js
+            - jsbits/*.js
+        |] `shouldRenderTo` executable "foo" [i|
+        js-sources:
+            foo.js
+            jsbits/bar.js
+        |]
+
+      it "accepts global js-sources" $ do
+        [i|
+        js-sources:
+          - foo.js
+          - jsbits/*.js
+        executable: {}
+        |] `shouldRenderTo` executable "foo" [i|
+        js-sources:
+            foo.js
+            jsbits/bar.js
+        |]
+    describe "extra-lib-dirs" $ do
+      it "accepts extra-lib-dirs" $ do
+        [i|
+        extra-lib-dirs:
+          - foo
+          - bar
+        executable: {}
+        |] `shouldRenderTo` executable "foo" [i|
+        extra-lib-dirs:
+            foo
+            bar
+        |]
+
+    describe "extra-libraries" $ do
+      it "accepts extra-libraries" $ do
+        [i|
+        extra-libraries:
+          - foo
+          - bar
+        executable: {}
+        |] `shouldRenderTo` executable "foo" [i|
+        extra-libraries:
+            foo
+            bar
+        |]
+
+    describe "extra-frameworks-dirs" $ do
+      it "accepts extra-frameworks-dirs" $ do
+        [i|
+        extra-frameworks-dirs:
+          - foo
+          - bar
+        executable: {}
+        |] `shouldRenderTo` executable "foo" [i|
+        extra-frameworks-dirs:
+            foo
+            bar
+        |]
+
+    describe "frameworks" $ do
+      it "accepts frameworks" $ do
+        [i|
+        frameworks:
+          - foo
+          - bar
+        executable: {}
+        |] `shouldRenderTo` executable "foo" [i|
+        frameworks:
+            foo
+            bar
+        |]
+
     describe "c-sources" $ before_ (touch "cbits/foo.c" >> touch "cbits/bar.c") $ do
       context "with internal-libraries" $ do
         it "warns when a glob pattern does not match any files" $ do
@@ -232,19 +380,100 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             hs-source-dirs:
                 windows
           |]
+    describe "when" $ do
+      it "accepts conditionals" $ do
+        [i|
+        when:
+          condition: os(windows)
+          dependencies: Win32
+        executable: {}
+        |] `shouldRenderTo` executable "foo" [i|
+        if os(windows)
+          build-depends:
+              Win32
+        |]
+      it "warns on unknown fields" $ do
+        [i|
+        name: foo
+        foo: 23
+        when:
+          - condition: os(windows)
+            bar: 23
+            when:
+              condition: os(windows)
+              bar2: 23
+          - condition: os(windows)
+            baz: 23
+        |] `shouldWarn` [
+            "Ignoring unknown field \"foo\" in package description"
+          , "Ignoring unknown field \"bar\" in package description"
+          , "Ignoring unknown field \"bar2\" in package description"
+          , "Ignoring unknown field \"baz\" in package description"
+          ]
+      context "when parsing conditionals with else-branch" $ do
+        it "accepts conditionals with else-branch" $ do
+          [i|
+          when:
+            condition: os(windows)
+            then:
+              dependencies: Win32
+            else:
+              dependencies: unix
+          executable: {}
+          |] `shouldRenderTo` executable "foo" [i|
+          if os(windows)
+            build-depends:
+                Win32
+          else
+            build-depends:
+                unix
+          |]
+
+        it "rejects invalid conditionals" $ do
+          [i|
+          when:
+            condition: os(windows)
+            then:
+              dependencies: Win32
+            else: null
+          |] `shouldFailWith` "package.yaml: Error in $.when.else: expected record (:*:), encountered Null"
+
+        it "warns on unknown fields" $ do
+          [i|
+          name: foo
+          when:
+            condition: os(windows)
+            foo: null
+            then:
+              bar: null
+            else:
+              when:
+                condition: os(windows)
+                then: {}
+                else:
+                  baz: null
+          |] `shouldWarn` [
+              "Ignoring unknown field \"foo\" in package description"
+            , "Ignoring unknown field \"bar\" in package description"
+            , "Ignoring unknown field \"baz\" in package description"
+            ]
 
 run :: FilePath -> String -> IO ([String], String)
-run c old = do
+run c old = run_ c old >>= either die return
+
+run_ :: FilePath -> String -> IO (Either String ([String], String))
+run_ c old = do
   mPackage <- readPackageConfig c
-  case mPackage of
-    Right (warnings, pkg) -> do
+  return $ case mPackage of
+    Right (warnings, pkg) ->
       let
         FormattingHints{..} = sniffFormattingHints old
         alignment = fromMaybe 0 formattingHintsAlignment
         settings = formattingHintsRenderSettings
         output = Hpack.renderPackage settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder pkg
-      return (warnings, output)
-    Left err -> die err
+      in
+        Right (warnings, output)
+    Left err -> Left err
 
 newtype PlainString = PlainString String
   deriving Eq
@@ -266,6 +495,11 @@ shouldWarn input expected = do
   writeFile packageConfig input
   (warnings, _) <- run packageConfig ""
   sort warnings `shouldBe` sort expected
+
+shouldFailWith :: HasCallStack => String -> String -> Expectation
+shouldFailWith input expected = do
+  writeFile packageConfig input
+  run_ packageConfig "" `shouldReturn` Left expected
 
 customSetup :: String -> Package
 customSetup a = (package content) {packageCabalVersion = ">= 1.24", packageBuildType = "Custom"}

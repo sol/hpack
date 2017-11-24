@@ -15,23 +15,13 @@ import           Data.Aeson.Types
 import           Data.String.Interpolate.IsString
 import           Control.Arrow
 import           System.Directory (createDirectory)
-import           Data.Yaml
 import           Data.Either
 import qualified Data.Map.Lazy as Map
-import           Data.Bitraversable
-import           Data.Functor.Identity
 
 import           Hpack.Util
 import           Hpack.Dependency
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
-import           Hpack.UnknownFields
-
-toSectionM :: Monad m => m (WithCommonOptions m a) -> m (Section a)
-toSectionM = (>>= toSect)
-  where
-    toSect :: Monad m => WithCommonOptions m a -> m (Section a)
-    toSect = fmap toSection . bitraverse (traverseCommonOptions $ fmap Identity) return
 
 deps :: [String] -> Dependencies
 deps = Dependencies . Map.fromList . map (flip (,) AnyVersion)
@@ -93,167 +83,6 @@ spec = do
                 ]
             }
       renameDependencies "bar" "baz" (sectionWithConditional ["foo", "bar"]) `shouldBe` sectionWithConditional ["foo", "baz"]
-
-  describe "parseJSON" $ do
-    context "when parsing (CaptureUnknownFields Section a)" $ do
-      let sectionValue = snd . formatUnknownFields In "section" . toSectionM
-      it "accepts dependencies" $ do
-        let input = [i|
-              dependencies: hpack
-              |]
-        sectionValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionDependencies = deps ["hpack"]}
-
-      it "accepts includes-dirs" $ do
-        let input = [i|
-              include-dirs:
-                - foo
-                - bar
-              |]
-        sectionValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionIncludeDirs = ["foo", "bar"]}
-
-      it "accepts install-includes" $ do
-        let input = [i|
-              install-includes:
-                - foo.h
-                - bar.h
-              |]
-        sectionValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionInstallIncludes = ["foo.h", "bar.h"]}
-
-      it "accepts js-sources" $ do
-        let input = [i|
-              js-sources:
-                - foo.js
-                - bar/*.js
-              |]
-        sectionValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionJsSources = ["foo.js", "bar/*.js"]}
-
-      it "accepts extra-lib-dirs" $ do
-        let input = [i|
-              extra-lib-dirs:
-                - foo
-                - bar
-              |]
-        sectionValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionExtraLibDirs = ["foo", "bar"]}
-
-      it "accepts extra-libraries" $ do
-        let input = [i|
-              extra-libraries:
-                - foo
-                - bar
-              |]
-        sectionValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionExtraLibraries = ["foo", "bar"]}
-
-      it "accepts extra-frameworks-dirs" $ do
-        let input = [i|
-              extra-frameworks-dirs:
-                - foo
-                - bar
-              |]
-        sectionValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionExtraFrameworksDirs = ["foo", "bar"]}
-
-      it "accepts frameworks" $ do
-        let input = [i|
-              frameworks:
-                - foo
-                - bar
-              |]
-        sectionValue <$> decodeEither input
-          `shouldBe` Right (section Empty){sectionFrameworks = ["foo", "bar"]}
-
-      context "when parsing conditionals" $ do
-        it "accepts conditionals" $ do
-          let input = [i|
-                when:
-                  condition: os(windows)
-                  dependencies: Win32
-                |]
-              conditionals = [
-                Conditional "os(windows)"
-                (section Empty){sectionDependencies = deps ["Win32"]}
-                Nothing
-                ]
-          sectionValue <$> decodeEither input
-            `shouldBe` Right (section Empty){sectionConditionals = conditionals}
-
-        it "warns on unknown fields" $ do
-          let input = [i|
-                foo: 23
-                when:
-                  - condition: os(windows)
-                    bar: 23
-                    when:
-                      condition: os(windows)
-                      bar2: 23
-                  - condition: os(windows)
-                    baz: 23
-                |]
-          fst . formatUnknownFields In ".." <$> (toSectionM <$> decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
-            `shouldBe` Right [
-                "Ignoring unknown field \"foo\" in .."
-              , "Ignoring unknown field \"bar\" in .."
-              , "Ignoring unknown field \"bar2\" in .."
-              , "Ignoring unknown field \"baz\" in .."
-              ]
-
-        context "when parsing conditionals with else-branch" $ do
-          it "accepts conditionals with else-branch" $ do
-            let input = [i|
-                  when:
-                    condition: os(windows)
-                    then:
-                      dependencies: Win32
-                    else:
-                      dependencies: unix
-                  |]
-                conditionals = [
-                  Conditional "os(windows)"
-                  (section Empty){sectionDependencies = deps ["Win32"]}
-                  (Just (section Empty){sectionDependencies = deps ["unix"]})
-                  ]
-                r :: Either String (Section Empty)
-                r = sectionValue <$> decodeEither input
-            sectionConditionals <$> r `shouldBe` Right conditionals
-
-          it "rejects invalid conditionals" $ do
-            let input = [i|
-                  when:
-                    condition: os(windows)
-                    then:
-                      dependencies: Win32
-                    else: null
-                  |]
-
-                r :: Either String (Section Empty)
-                r = sectionValue <$> decodeEither input
-            sectionConditionals <$> r `shouldSatisfy` isLeft
-
-          it "warns on unknown fields" $ do
-            let input = [i|
-                  when:
-                    condition: os(windows)
-                    foo: null
-                    then:
-                      bar: null
-                    else:
-                      when:
-                        condition: os(windows)
-                        then: {}
-                        else:
-                          baz: null
-                  |]
-            fst . formatUnknownFields In ".." <$> (toSectionM <$> decodeEither input :: Either String (CaptureUnknownFields (Section Empty)))
-              `shouldBe` Right [
-                "Ignoring unknown field \"foo\" in .."
-              , "Ignoring unknown field \"bar\" in .."
-              , "Ignoring unknown field \"baz\" in .."
-              ]
 
   describe "getModules" $ around withTempDirectory $ do
     it "returns Haskell modules in specified source directory" $ \dir -> do
@@ -766,30 +595,6 @@ spec = do
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
 
-      it "accepts js-sources" $ do
-        withPackageConfig [i|
-          library:
-            js-sources:
-              - jsbits/*.js
-          |]
-          (do
-          touch "jsbits/foo.js"
-          touch "jsbits/bar.js"
-          )
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]}))
-
-      it "accepts global js-sources" $ do
-        withPackageConfig [i|
-          js-sources:
-            - jsbits/*.js
-          library: {}
-          |]
-          (do
-          touch "jsbits/foo.js"
-          touch "jsbits/bar.js"
-          )
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]}))
-
       it "allows to specify exposed" $ do
         withPackageConfig_ [i|
           library:
@@ -1036,34 +841,6 @@ spec = do
           |]
           (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]})]})
 
-      it "accepts js-sources" $ do
-        withPackageConfig [i|
-          executables:
-            foo:
-              main: driver/Main.hs
-              js-sources:
-                - jsbits/*.js
-          |]
-          (do
-          touch "jsbits/foo.js"
-          touch "jsbits/bar.js"
-          )
-          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]})]})
-
-      it "accepts global js-sources" $ do
-        withPackageConfig [i|
-          js-sources:
-            - jsbits/*.js
-          executables:
-            foo:
-              main: driver/Main.hs
-          |]
-          (do
-          touch "jsbits/foo.js"
-          touch "jsbits/bar.js"
-          )
-          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionJsSources = ["jsbits/bar.js", "jsbits/foo.js"]})]})
-
     context "when reading benchmark section" $ do
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|
@@ -1103,51 +880,6 @@ spec = do
               main: test/Spec.hs
           |]
           (`shouldBe` package {packageTests = Map.fromList [("spec", section $ executable "test/Spec.hs")]})
-
-      it "accepts single dependency" $ do
-        withPackageConfig_ [i|
-          tests:
-            spec:
-              main: test/Spec.hs
-              dependencies: hspec
-          |]
-          (`shouldBe` package {packageTests = Map.fromList [("spec", (section $ executable "test/Spec.hs") {sectionDependencies = deps ["hspec"]})]})
-
-      it "accepts list of dependencies" $ do
-        withPackageConfig_ [i|
-          tests:
-            spec:
-              main: test/Spec.hs
-              dependencies:
-                - hspec
-                - QuickCheck
-          |]
-          (`shouldBe` package {packageTests = Map.fromList [("spec", (section $ executable "test/Spec.hs") {sectionDependencies = deps ["hspec", "QuickCheck"]})]})
-
-      context "when both global and section specific dependencies are specified" $ do
-        it "combines dependencies" $ do
-          withPackageConfig_ [i|
-            dependencies:
-              - base
-
-            tests:
-              spec:
-                main: test/Spec.hs
-                dependencies: hspec
-            |]
-            (`shouldBe` package {packageTests = Map.fromList [("spec", (section $ executable "test/Spec.hs") {sectionDependencies = deps ["base", "hspec"]})]})
-
-        it "gives section specific dependencies precedence" $ do
-          withPackageConfig_ [i|
-            dependencies:
-              - base
-
-            tests:
-              spec:
-                main: test/Spec.hs
-                dependencies: base >= 2
-            |]
-            (packageTests >>> Map.toList >>> map (Map.toList . unDependencies . sectionDependencies . snd) >>> (`shouldBe` [[("base", VersionRange ">=2")]]))
 
     context "when a specified source directory does not exist" $ do
       it "warns" $ do
