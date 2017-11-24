@@ -203,6 +203,21 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               cbits/foo.c
           |]
 
+        it "accepts c-sources in conditional" $ do
+          [i|
+          library:
+            when:
+              condition: os(windows)
+              c-sources: cbits/*.c
+          |] `shouldRenderTo` library [i|
+          other-modules:
+              Paths_foo
+          if os(windows)
+            c-sources:
+                cbits/bar.c
+                cbits/foo.c
+          |]
+
       context "with executables" $ do
         it "accepts global c-sources" $ do
           [i|
