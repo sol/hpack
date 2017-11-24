@@ -4,9 +4,6 @@ language: generic
 
 matrix:
   include:
-    - env: BUILD=tinc CABALVER=1.22 GHCVER=7.8.4
-      compiler: ": #tinc 7.8.4"
-      addons: {apt: {packages: [cabal-install-1.22,ghc-7.8.4,happy-1.19.5], sources: [hvr-ghc]}}
     - env: BUILD=tinc CABALVER=1.22 GHCVER=7.10.3
       compiler: ": #tinc 7.10.3"
       addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,happy-1.19.5], sources: [hvr-ghc]}}
