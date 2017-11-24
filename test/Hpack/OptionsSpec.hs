@@ -2,9 +2,6 @@ module Hpack.OptionsSpec (spec) where
 
 import           Helper
 
-import           Prelude ()
-import           Prelude.Compat
-
 import           Hpack.Options
 
 spec :: Spec

@@ -2,7 +2,7 @@
 module Hpack.RunSpec (spec) where
 
 import           Helper
-import           Data.List.Compat
+import           Data.List
 import qualified Data.Map.Lazy as Map
 
 import           Hpack.ConfigSpec hiding (spec)

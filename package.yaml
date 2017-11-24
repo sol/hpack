@@ -13,7 +13,6 @@ ghc-options: -Wall
 
 dependencies:
   - base >= 4.8 && < 5
-  - base-compat >= 0.8
   - bytestring
   - deepseq
   - directory

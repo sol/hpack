@@ -22,15 +22,12 @@ module Hpack.Util (
 , sha256
 ) where
 
-import           Prelude ()
-import           Prelude.Compat
-
 import           Control.Exception
-import           Control.Monad.Compat
+import           Control.Monad
 import           Data.Aeson.Types
 import qualified Data.ByteString as B
 import           Data.Char
-import           Data.List.Compat hiding (sort)
+import           Data.List hiding (sort)
 import           Data.Ord
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Encoding

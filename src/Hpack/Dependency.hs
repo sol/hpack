@@ -11,9 +11,6 @@ module Hpack.Dependency (
 , githubBaseUrl
 ) where
 
-import           Prelude ()
-import           Prelude.Compat
-
 import qualified Data.Text as T
 import           Text.PrettyPrint (renderStyle, Style(..), Mode(..))
 import           Control.Monad

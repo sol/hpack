@@ -14,14 +14,11 @@ module Hpack.UnknownFields (
 , formatUnknownFields
 ) where
 
-import           Prelude ()
-import           Prelude.Compat
-
-import           Control.Monad.Compat
+import           Control.Monad
 import           Data.Aeson.Types
 import           Data.Data
 import qualified Data.HashMap.Lazy as HashMap
-import           Data.List.Compat
+import           Data.List
 import qualified Data.Text as T
 import           GHC.Generics
 

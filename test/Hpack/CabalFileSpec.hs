@@ -3,7 +3,7 @@ module Hpack.CabalFileSpec (spec) where
 import           Helper
 import           Test.QuickCheck
 import           Data.Version (showVersion)
-import           Control.Monad.Compat
+import           Control.Monad
 
 import           Paths_hpack (version)
 

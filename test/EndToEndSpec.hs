@@ -7,7 +7,7 @@ module EndToEndSpec (spec) where
 
 import           Helper
 
-import           System.Exit.Compat
+import           System.Exit
 import           Data.Maybe
 import           Data.List
 import           Data.String.Interpolate

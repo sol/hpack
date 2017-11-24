@@ -15,16 +15,12 @@ module Hpack.FormattingHints (
 #endif
 ) where
 
-import           Prelude ()
-import           Prelude.Compat
-
 import           Data.Char
 import           Data.Maybe
-import           Data.List.Compat
+import           Data.List
 import           Control.Applicative
 
 import           Hpack.Render
--- import           Hpack.Util
 
 data FormattingHints = FormattingHints {
   formattingHintsFieldOrder :: [String]

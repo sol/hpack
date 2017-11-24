@@ -2,9 +2,8 @@ module HpackSpec (spec) where
 
 import           Helper
 
-import           Prelude ()
-import           Prelude.Compat hiding (readFile)
-import qualified Prelude.Compat as Prelude
+import           Prelude hiding (readFile)
+import qualified Prelude as Prelude
 
 import           Control.DeepSeq
 

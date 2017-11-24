@@ -16,7 +16,7 @@ import           Data.String.Interpolate.IsString
 import           Control.Arrow
 import           System.Directory (createDirectory)
 import           Data.Yaml
-import           Data.Either.Compat
+import           Data.Either
 import qualified Data.Map.Lazy as Map
 
 import           Hpack.Util

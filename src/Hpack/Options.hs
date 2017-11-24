@@ -1,8 +1,5 @@
 module Hpack.Options where
 
-import           Prelude ()
-import           Prelude.Compat
-
 data ParseResult = Help | PrintVersion | Run Options | ParseError
   deriving (Eq, Show)
 

@@ -24,11 +24,8 @@ module Hpack.Render (
 #endif
 ) where
 
-import           Prelude ()
-import           Prelude.Compat
-
 import           Data.String
-import           Data.List.Compat
+import           Data.List
 
 data Value =
     Literal String

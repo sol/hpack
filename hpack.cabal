@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0eed640bac45af41eb688db4796f3ed2d4c51e5951cad5fd3e3a38e849f003dc
+-- hash: 7dd7d7f5665e914c06e89fdea81f70bc60b46a1c58e5dc0f5e927ed8b5d43ca8
 
 name:           hpack
 version:        0.20.0
@@ -33,7 +33,6 @@ library
     , Glob
     , aeson >=0.11
     , base >=4.8 && <5
-    , base-compat >=0.8
     , bifunctors
     , bytestring
     , containers
@@ -73,7 +72,6 @@ executable hpack
     , Glob
     , aeson >=0.11
     , base >=4.8 && <5
-    , base-compat >=0.8
     , bifunctors
     , bytestring
     , containers
@@ -105,7 +103,6 @@ test-suite spec
     , QuickCheck
     , aeson >=0.11
     , base >=4.8 && <5
-    , base-compat >=0.8
     , bifunctors
     , bytestring
     , containers

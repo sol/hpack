@@ -46,7 +46,7 @@ module Hpack.Config (
 ) where
 
 import           Control.Applicative
-import           Control.Monad.Compat
+import           Control.Monad
 import           Data.Aeson.Types
 import           Data.Data
 import           Data.Bifunctor
@@ -55,8 +55,7 @@ import           Data.Bitraversable
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
-import           Data.List.Compat (nub, (\\), sortBy)
-import           Data.Tuple
+import           Data.List (nub, (\\), sortBy)
 import           Data.Maybe
 import           Data.Monoid hiding (Product)
 import           Data.Ord
@@ -64,8 +63,6 @@ import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           GHC.Generics (Generic, Rep)
-import           Prelude ()
-import           Prelude.Compat
 import           System.Directory
 import           System.FilePath
 import           Data.Functor.Identity

@@ -3,11 +3,8 @@
 {-# LANGUAGE ViewPatterns #-}
 module Hpack.CabalFile where
 
-import           Prelude ()
-import           Prelude.Compat
-
-import           Control.Monad.Compat
-import           Data.List.Compat
+import           Control.Monad
+import           Data.List
 import           Data.Maybe
 import           Data.Version (Version(..))
 import qualified Data.Version as Version
