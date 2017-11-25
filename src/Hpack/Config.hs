@@ -69,12 +69,14 @@ import           System.Directory
 import           System.FilePath
 import           Data.Functor.Identity
 import           Control.Monad.Trans.Writer
+import qualified Data.Foldable as Foldable
 
 import           Hpack.GenericsUtil
 import           Hpack.UnknownFields
 import           Hpack.Util
 import           Hpack.Yaml
 import           Hpack.Dependency
+import           Hpack.Field.Options
 
 package :: String -> String -> Package
 package name version = Package {
@@ -190,11 +192,11 @@ data CommonOptions c a = CommonOptions {
 , commonOptionsDependencies :: Maybe Dependencies
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsOtherExtensions :: Maybe (List String)
-, commonOptionsGhcOptions :: Maybe (List GhcOption)
-, commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
-, commonOptionsGhcjsOptions :: Maybe (List GhcjsOption)
-, commonOptionsCppOptions :: Maybe (List CppOption)
-, commonOptionsCcOptions :: Maybe (List CcOption)
+, commonOptionsGhcOptions :: Maybe GhcOptions
+, commonOptionsGhcProfOptions :: Maybe GhcProfOptions
+, commonOptionsGhcjsOptions :: Maybe GhcjsOptions
+, commonOptionsCppOptions :: Maybe CppOptions
+, commonOptionsCcOptions :: Maybe CcOptions
 , commonOptionsCSources :: Maybe (List FilePath)
 , commonOptionsJsSources :: Maybe (List FilePath)
 , commonOptionsExtraLibDirs :: Maybe (List FilePath)
@@ -913,5 +915,5 @@ getModules dir src_ = sort <$> do
       | src == dir = filter (/= "Setup")
       | otherwise = id
 
-fromMaybeList :: Maybe (List a) -> [a]
-fromMaybeList = maybe [] fromList
+fromMaybeList :: Foldable f => Maybe (f a) -> [a]
+fromMaybeList = maybe [] Foldable.toList

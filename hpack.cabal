@@ -53,6 +53,7 @@ library
   other-modules:
       Hpack.CabalFile
       Hpack.Dependency
+      Hpack.Field.Options
       Hpack.FormattingHints
       Hpack.GenericsUtil
       Hpack.Haskell
@@ -127,6 +128,7 @@ test-suite spec
       Hpack.CabalFileSpec
       Hpack.ConfigSpec
       Hpack.DependencySpec
+      Hpack.Field.Options
       Hpack.FormattingHintsSpec
       Hpack.GenericsUtilSpec
       Hpack.HaskellSpec

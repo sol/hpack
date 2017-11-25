@@ -1009,6 +1009,29 @@ spec = do
           |]
           (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall"]})]})
 
+      it "accepts GHC options by array format" $ do
+        withPackageConfig_ [i|
+          executables:
+            foo:
+              main: driver/Main.hs
+              ghc-options:
+              - -Wall
+          |]
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall"]})]})
+
+      it "accepts GHC options by mapping format" $ do
+        withPackageConfig_ [i|
+          executables:
+            foo:
+              main: driver/Main.hs
+              ghc-options:
+                -Wall:
+                -threaded: false
+                -rtsopts: true
+                -with-rtsopts: -N -p
+          |]
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall", "-rtsopts", "\"-with-rtsopts=-N -p\""]})]})
+
       it "accepts global GHC options" $ do
         withPackageConfig_ [i|
           ghc-options: -Wall
