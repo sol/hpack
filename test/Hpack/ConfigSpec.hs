@@ -156,7 +156,7 @@ spec = do
           dependencies: ghc-prim
           baz: 42
         |]
-        (`shouldBe` [
+        (`shouldMatchList` [
           "Ignoring unknown field \"baz\" in package description"
         , "Ignoring unknown field \"github\" in package description"
         ]
