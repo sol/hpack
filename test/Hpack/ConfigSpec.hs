@@ -1030,7 +1030,11 @@ spec = do
                 -rtsopts: true
                 -with-rtsopts: -N -p
           |]
-          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall", "-rtsopts", "\"-with-rtsopts=-N -p\""]})]})
+          (\pkg -> do
+            let pkgSectionGhcOptions = sectionGhcOptions $ packageExecutables pkg Map.! "foo"
+            pkgSectionGhcOptions `shouldMatchList` ["-Wall", "-rtsopts", "\"-with-rtsopts=-N -p\""]
+            pkg `shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcOptions = pkgSectionGhcOptions})]}
+          )
 
       it "accepts global GHC options" $ do
         withPackageConfig_ [i|
