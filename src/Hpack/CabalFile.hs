@@ -28,7 +28,7 @@ readCabalFile cabalFile = fmap parse <$> tryReadFile cabalFile
     parse (splitHeader -> (h, c)) = CabalFile (extractVersion h) (extractHash h) c
 
     splitHeader :: String -> ([String], [String])
-    splitHeader = fmap (dropWhile null) . span ("--" `isPrefixOf`) . lines
+    splitHeader = fmap (dropWhile null) . span ("--" `isPrefixOf`) . linesForAll
 
 extractHash :: [String] -> Maybe Hash
 extractHash = extract "-- hash: " Just
