@@ -20,6 +20,7 @@ module Hpack.Util (
 , encodeUtf8
 , Hash
 , sha256
+, linesForAll
 ) where
 
 import           Control.Exception
@@ -159,3 +160,6 @@ type Hash = String
 
 sha256 :: String -> Hash
 sha256 c = show (hash (encodeUtf8 c) :: Digest SHA256)
+
+linesForAll :: String -> [String]
+linesForAll = lines . filter (/= '\r')
