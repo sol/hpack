@@ -183,7 +183,7 @@ instance HasFieldNames ExecutableSection
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON_
 
-data CommonOptions c cSources a = CommonOptions {
+data CommonOptions a capture cSources jsSources = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
 , commonOptionsDependencies :: Maybe Dependencies
 , commonOptionsDefaultExtensions :: Maybe (List String)
@@ -194,7 +194,7 @@ data CommonOptions c cSources a = CommonOptions {
 , commonOptionsCppOptions :: Maybe (List CppOption)
 , commonOptionsCcOptions :: Maybe (List CcOption)
 , commonOptionsCSources :: cSources
-, commonOptionsJsSources :: Maybe (List FilePath)
+, commonOptionsJsSources :: jsSources
 , commonOptionsExtraLibDirs :: Maybe (List FilePath)
 , commonOptionsExtraLibraries :: Maybe (List FilePath)
 , commonOptionsExtraFrameworksDirs :: Maybe (List FilePath)
@@ -203,37 +203,60 @@ data CommonOptions c cSources a = CommonOptions {
 , commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
-, commonOptionsWhen :: Maybe (List (ConditionalSection c cSources a))
+, commonOptionsWhen :: Maybe (List (ConditionalSection a capture cSources jsSources))
 , commonOptionsBuildTools :: Maybe Dependencies
 } deriving Generic
 
-traverseCommonOptionsCSources :: (Monad m, Traversable c) => (x -> m y) -> CommonOptions c x a -> m (CommonOptions c y a)
-traverseCommonOptionsCSources action c@CommonOptions{..} = do
-  r <- action commonOptionsCSources
-  xs <- traverse (traverse (traverseConditionalSectionCSources action)) commonOptionsWhen
-  return c{commonOptionsCSources = r, commonOptionsWhen = xs}
+type ParseCommonOptions a = CommonOptions a CaptureUnknownFields ParseCSources ParseJsSources
 
 instance HasFieldNames (ParseCommonOptions a)
-
-traverseCommonOptions :: (Monad m, Traversable d) => (forall b. c b -> m (d b)) -> CommonOptions c cSources a -> m (CommonOptions d cSources a)
-traverseCommonOptions action c@CommonOptions{..} = do
-  xs <- traverse (traverse (traverseConditionalSection action)) commonOptionsWhen
-  return c {commonOptionsWhen = xs}
-
-type ParseCSources = Maybe (List FilePath)
-
-type ParseCommonOptions = CommonOptions CaptureUnknownFields ParseCSources
 
 instance (FromJSON a, HasFieldNames a) => FromJSON (ParseCommonOptions a) where
   parseJSON = genericParseJSON_
 
-type WithCommonOptions c cSources a = Product (CommonOptions c cSources a) a
+type ParseCSources = Maybe (List FilePath)
+type ParseJsSources = Maybe (List FilePath)
 
-traverseWithCommonOptions :: (Monad m, Traversable d) => (forall b. c b -> m (d b)) -> WithCommonOptions c cSources a -> m (WithCommonOptions d cSources a)
-traverseWithCommonOptions action = bitraverse (traverseCommonOptions action) return
+type CSources = [FilePath]
+type JsSources = [FilePath]
 
-traverseWithCommonOptionsCSources :: (Monad m, Traversable c) => (x -> m y) -> WithCommonOptions c x a -> m (WithCommonOptions c y a)
-traverseWithCommonOptionsCSources action = bitraverse (traverseCommonOptionsCSources action) return
+type WithCommonOptions a capture cSources jsSources = Product (CommonOptions a capture cSources jsSources) a
+
+data Traverse m capture capture_ cSources cSources_ jsSources jsSources_ = Traverse {
+  traverseCapture :: forall a. capture a -> m (capture_ a)
+, traverseCSources :: cSources -> m cSources_
+, traverseJsSources :: jsSources -> m jsSources_
+}
+
+type Traversal t = forall m capture capture_ cSources cSources_ jsSources jsSources_. (Monad m, Traversable capture_)
+  => Traverse m capture capture_ cSources cSources_ jsSources jsSources_
+  -> t capture cSources jsSources
+  -> m (t capture_ cSources_ jsSources_)
+
+traverseCommonOptions :: Traversal (CommonOptions a)
+traverseCommonOptions t@Traverse{..} c@CommonOptions{..} = do
+  cSources <- traverseCSources commonOptionsCSources
+  jsSources <- traverseJsSources commonOptionsJsSources
+  xs <- traverse (traverse (traverseConditionalSection t)) commonOptionsWhen
+  return c {
+      commonOptionsCSources = cSources
+    , commonOptionsJsSources = jsSources
+    , commonOptionsWhen = xs
+    }
+
+traverseConditionalSection :: Traversal (ConditionalSection a)
+traverseConditionalSection t@Traverse{..} = \ case
+  ThenElseConditional c -> ThenElseConditional <$> (traverseCapture c >>= traverse (traverseThenElse t))
+  FlatConditional c -> FlatConditional <$> (traverseCapture c >>= traverse (bitraverse (traverseWithCommonOptions t) return))
+
+traverseThenElse :: Traversal (ThenElse a)
+traverseThenElse t@Traverse{..} c@ThenElse{..} = do
+  then_ <- traverseCapture thenElseThen >>= traverse (traverseWithCommonOptions t)
+  else_ <- traverseCapture thenElseElse >>= traverse (traverseWithCommonOptions t)
+  return c{thenElseThen = then_, thenElseElse = else_}
+
+traverseWithCommonOptions :: Traversal (WithCommonOptions a)
+traverseWithCommonOptions t = bitraverse (traverseCommonOptions t) return
 
 data Product a b = Product a b
   deriving (Eq, Show)
@@ -258,28 +281,11 @@ instance (HasFieldNames a, HasFieldNames b) => HasFieldNames (Product a b) where
        ignoreUnderscoredUnknownFields (Proxy :: Proxy a)
     || ignoreUnderscoredUnknownFields (Proxy :: Proxy b)
 
-data ConditionalSection c cSources a =
-    ThenElseConditional (c (ThenElse c cSources a))
-  | FlatConditional (c (Product (WithCommonOptions c cSources a) Condition))
+data ConditionalSection a capture cSources jsSources =
+    ThenElseConditional (capture (ThenElse a capture cSources jsSources))
+  | FlatConditional (capture (Product (WithCommonOptions a capture cSources jsSources) Condition))
 
-traverseConditionalSectionCSources :: (Monad m, Traversable c) => (x -> m y) -> ConditionalSection c x a -> m (ConditionalSection c y a)
-traverseConditionalSectionCSources action = \ case
-  ThenElseConditional c -> ThenElseConditional <$> traverse (traverseThenElseCSources action) c
-  FlatConditional c -> FlatConditional <$> traverse (bitraverse (traverseWithCommonOptionsCSources action) return) c
-
-traverseThenElseCSources :: (Monad m, Traversable c) => (x -> m y) -> ThenElse c x a -> m (ThenElse c y a)
-traverseThenElseCSources action c@ThenElse{..} = do
-  then_ <- traverse (traverseWithCommonOptionsCSources action) thenElseThen
-  else_ <- traverse (traverseWithCommonOptionsCSources action) thenElseElse
-  return c{thenElseThen = then_, thenElseElse = else_}
-
-traverseConditionalSection :: (Monad m, Traversable d) =>
-  (forall b. c b -> m (d b)) -> ConditionalSection c cSources a -> m (ConditionalSection d cSources a)
-traverseConditionalSection action = \ case
-  ThenElseConditional c -> ThenElseConditional <$> (action c >>= traverse (traverseThenElse action))
-  FlatConditional c -> FlatConditional <$> (action c >>= traverse (bitraverse (traverseWithCommonOptions action) return))
-
-type ParseConditionalSection = ConditionalSection CaptureUnknownFields ParseCSources
+type ParseConditionalSection a = ConditionalSection a CaptureUnknownFields ParseCSources ParseJsSources
 
 instance (FromJSON a, HasFieldNames a) => FromJSON (ParseConditionalSection a) where
   parseJSON v
@@ -299,19 +305,13 @@ instance FromJSON Condition where
 
 instance HasFieldNames Condition
 
-data ThenElse c cSources a = ThenElse {
+data ThenElse a capture cSources jsSources = ThenElse {
   _thenElseCondition :: String
-, thenElseThen :: c (WithCommonOptions c cSources a)
-, thenElseElse :: c (WithCommonOptions c cSources a)
+, thenElseThen :: capture (WithCommonOptions a capture cSources jsSources)
+, thenElseElse :: capture (WithCommonOptions a capture cSources jsSources)
 } deriving Generic
 
-traverseThenElse :: (Monad m, Traversable d) => (forall b. c b -> m (d b)) -> ThenElse c cSources a -> m (ThenElse d cSources a)
-traverseThenElse action c@ThenElse{..} = do
-  then_ <- action thenElseThen >>= traverse (traverseWithCommonOptions action)
-  else_ <- action thenElseElse >>= traverse (traverseWithCommonOptions action)
-  return c{thenElseThen = then_, thenElseElse = else_}
-
-type ParseThenElse = ThenElse CaptureUnknownFields ParseCSources
+type ParseThenElse a = ThenElse a CaptureUnknownFields ParseCSources ParseJsSources
 
 instance HasFieldNames (ParseThenElse a)
 
@@ -343,10 +343,9 @@ instance FromJSON BuildType where
     "Custom"    -> return Custom
     _           -> fail "build-type must be one of: Simple, Configure, Make, Custom"
 
-type LibraryConfig m cSources = m (WithCommonOptions m cSources LibrarySection)
-type ExecutableConfig m cSources = m (WithCommonOptions m cSources ExecutableSection)
+type SectionConfig a capture cSources jsSources = capture (WithCommonOptions a capture cSources jsSources)
 
-data PackageConfig m cSources = PackageConfig {
+data PackageConfig capture cSources jsSources = PackageConfig {
   packageConfigName :: Maybe String
 , packageConfigVersion :: Maybe String
 , packageConfigSynopsis :: Maybe String
@@ -362,21 +361,47 @@ data PackageConfig m cSources = PackageConfig {
 , packageConfigLicense :: Maybe String
 , packageConfigLicenseFile :: Maybe (List String)
 , packageConfigTestedWith :: Maybe String
-, packageConfigFlags :: Maybe (Map String (m FlagSection))
+, packageConfigFlags :: Maybe (Map String (capture FlagSection))
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigGithub :: Maybe Text
 , packageConfigGit :: Maybe String
-, packageConfigCustomSetup :: Maybe (m CustomSetupSection)
-, packageConfigLibrary :: Maybe (LibraryConfig m cSources)
-, packageConfigInternalLibraries :: Maybe (Map String (LibraryConfig m cSources))
-, packageConfigExecutable :: Maybe (ExecutableConfig m cSources)
-, packageConfigExecutables :: Maybe (Map String (ExecutableConfig m cSources))
-, packageConfigTests :: Maybe (Map String (ExecutableConfig m cSources))
-, packageConfigBenchmarks :: Maybe (Map String (ExecutableConfig m cSources))
+, packageConfigCustomSetup :: Maybe (capture CustomSetupSection)
+, packageConfigLibrary :: Maybe (SectionConfig LibrarySection capture cSources jsSources)
+, packageConfigInternalLibraries :: Maybe (Map String (SectionConfig LibrarySection capture cSources jsSources))
+, packageConfigExecutable :: Maybe (SectionConfig ExecutableSection capture cSources jsSources)
+, packageConfigExecutables :: Maybe (Map String (SectionConfig ExecutableSection capture cSources jsSources))
+, packageConfigTests :: Maybe (Map String (SectionConfig ExecutableSection capture cSources jsSources))
+, packageConfigBenchmarks :: Maybe (Map String (SectionConfig ExecutableSection capture cSources jsSources))
 } deriving Generic
 
-type ParsePackageConfig = PackageConfig CaptureUnknownFields ParseCSources
+traversePackageConfig :: Traversal PackageConfig
+traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
+  flags <- traverse (traverse traverseCapture) packageConfigFlags
+  customSetup <- traverse traverseCapture packageConfigCustomSetup
+  library <- traverse (traverseSectionConfig t) packageConfigLibrary
+  internalLibraries <- traverseNamedConfigs t packageConfigInternalLibraries
+  executable <- traverse (traverseSectionConfig t) packageConfigExecutable
+  executables <- traverseNamedConfigs t packageConfigExecutables
+  tests <- traverseNamedConfigs t packageConfigTests
+  benchmarks <- traverseNamedConfigs t packageConfigBenchmarks
+  return p {
+      packageConfigFlags = flags
+    , packageConfigCustomSetup = customSetup
+    , packageConfigLibrary = library
+    , packageConfigInternalLibraries = internalLibraries
+    , packageConfigExecutable = executable
+    , packageConfigExecutables = executables
+    , packageConfigTests = tests
+    , packageConfigBenchmarks = benchmarks
+    }
+  where
+    traverseNamedConfigs = traverse . traverse . traverseSectionConfig
+
+traverseSectionConfig :: Traversal (SectionConfig p)
+traverseSectionConfig t = traverseCapture t >=> traverse (traverseWithCommonOptions t)
+
+type ParsePackageConfig = PackageConfig CaptureUnknownFields ParseCSources ParseJsSources
 
 instance HasFieldNames ParsePackageConfig where
   ignoreUnderscoredUnknownFields _ = True
@@ -511,27 +536,28 @@ data SourceRepository = SourceRepository {
 , sourceRepositorySubdir :: Maybe String
 } deriving (Eq, Show)
 
-type ParseConfig = CaptureUnknownFields (Product (CommonOptions CaptureUnknownFields ParseCSources Empty) ParsePackageConfig)
+type Config capture cSources jsSources =
+  Product (CommonOptions Empty capture cSources jsSources) (PackageConfig capture cSources jsSources)
+
+traverseConfig :: Traversal Config
+traverseConfig t = bitraverse (traverseCommonOptions t) (traversePackageConfig t)
+
+type ParseConfig = CaptureUnknownFields (Config CaptureUnknownFields ParseCSources ParseJsSources)
 
 toPackage :: FilePath -> ParseConfig -> IO ([String], Package)
-toPackage dir c = do
-  let (c_, xs) = (extractUnknownFieldWarnings c)
-  c__ <- expandCSources dir c_
-  toPackage_ dir (fmap (++ xs) c__)
+toPackage dir = runWriterT . (extractUnknownFieldWarnings >=> expandForeignSources dir) >=> toPackage_ dir
 
-toPackage_ :: FilePath
-  -> ((WithCommonOptions Identity CSources Empty, PackageConfig Identity CSources), [String])
-  -> IO ([String], Package)
-toPackage_ dir ((toSection -> globalOptions, PackageConfig{..}), packageWarnings) = do
-  libraryResult <- mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
+toPackage_ :: FilePath -> (Config Identity CSources JsSources, [String]) -> IO ([String], Package)
+toPackage_ dir (Product (toSection . (`Product` Empty) -> globalOptions) PackageConfig{..}, packageWarnings) = do
+  mLibrary <- mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
 
   let
-    executableSections :: [(String, Section ExecutableSection)]
+    executableSections :: Map String (Section ExecutableSection)
     (executableWarning, executableSections) = (warning, sections)
       where
-        sections :: [(String, Section ExecutableSection)]
+        sections :: Map String (Section ExecutableSection)
         sections = case mExecutable of
-          Just executable -> [(packageName_, executable)]
+          Just executable -> Map.fromList [(packageName_, executable)]
           Nothing -> executables
 
         warning = case mExecutable of
@@ -543,16 +569,10 @@ toPackage_ dir ((toSection -> globalOptions, PackageConfig{..}), packageWarnings
         mExecutable :: Maybe (Section ExecutableSection)
         mExecutable = toSectionI <$> packageConfigExecutable
 
-    mLibrary :: Maybe (Section Library)
-    mLibrary = fmap snd libraryResult
-
-    libraryWarnings :: [String]
-    libraryWarnings = maybe [] fst libraryResult
-
-  (internalLibrariesWarnings, internalLibraries) <- toInternalLibraries dir packageName_ globalOptions internalLibrariesSections
-  (executablesWarnings, executables) <- toExecutables dir packageName_ globalOptions executableSections
-  (testsWarnings, tests) <- toExecutables dir packageName_ globalOptions testsSections
-  (benchmarksWarnings, benchmarks) <- toExecutables dir packageName_ globalOptions benchmarkSections
+  internalLibraries <- toInternalLibraries dir packageName_ globalOptions internalLibrariesSections
+  executables <- toExecutables dir packageName_ globalOptions executableSections
+  tests <- toExecutables dir packageName_ globalOptions testSections
+  benchmarks <- toExecutables dir packageName_ globalOptions benchmarkSections
 
   licenseFileExists <- doesFileExist (dir </> "LICENSE")
 
@@ -610,12 +630,7 @@ toPackage_ dir ((toSection -> globalOptions, PackageConfig{..}), packageWarnings
            packageWarnings
         ++ nameWarnings
         ++ formatMissingSourceDirs missingSourceDirs
-        ++ libraryWarnings
-        ++ internalLibrariesWarnings
         ++ executableWarning
-        ++ executablesWarnings
-        ++ testsWarnings
-        ++ benchmarksWarnings
         ++ extraSourceFilesWarnings
         ++ dataFilesWarnings
 
@@ -634,16 +649,16 @@ toPackage_ dir ((toSection -> globalOptions, PackageConfig{..}), packageWarnings
     mLibrarySection :: Maybe (Section LibrarySection)
     mLibrarySection = toSectionI <$> packageConfigLibrary
 
-    toSections :: Maybe (Map String (Identity (WithCommonOptions Identity CSources a))) -> [(String, Section a)]
-    toSections = map (fmap toSectionI) . toList
+    toSections :: Maybe (Map String (Identity (WithCommonOptions a Identity CSources JsSources))) -> Map String (Section a)
+    toSections = fmap toSectionI . fromMaybe mempty
 
-    internalLibrariesSections :: [(String, Section LibrarySection)]
+    internalLibrariesSections :: Map String (Section LibrarySection)
     internalLibrariesSections = toSections packageConfigInternalLibraries
 
-    testsSections :: [(String, Section ExecutableSection)]
-    testsSections = toSections packageConfigTests
+    testSections :: Map String (Section ExecutableSection)
+    testSections = toSections packageConfigTests
 
-    benchmarkSections :: [(String, Section ExecutableSection)]
+    benchmarkSections :: Map String (Section ExecutableSection)
     benchmarkSections = toSections packageConfigBenchmarks
 
     flags = map (toFlag . fmap runIdentity) $ toList packageConfigFlags
@@ -681,25 +696,30 @@ toPackage_ dir ((toSection -> globalOptions, PackageConfig{..}), packageWarnings
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> github
 
-type WarningsIO = WriterT [FilePath] IO
+type Warnings m = WriterT [String] m
 
-type CSources = [FilePath]
-
-expandCSources :: FilePath
-  -> (WithCommonOptions Identity ParseCSources Empty, PackageConfig Identity ParseCSources)
-  -> IO ((WithCommonOptions Identity CSources Empty, PackageConfig Identity CSources), [String])
-expandCSources dir = runWriterT . bitraverse expand expandPackageConfig
+extractUnknownFieldWarnings :: forall m. Monad m => ParseConfig -> Warnings m (Config Identity ParseCSources ParseJsSources)
+extractUnknownFieldWarnings = warnGlobal >=> bitraverse return warnSections
   where
-    expandPackageConfig :: Traversable c => PackageConfig c ParseCSources -> WarningsIO (PackageConfig c CSources)
-    expandPackageConfig p@PackageConfig{..} = do
-      library <- traverse (traverse expand) packageConfigLibrary
-      internalLibraries <- traverse (traverse (traverse expand)) packageConfigInternalLibraries
-      executable <- traverse (traverse expand) packageConfigExecutable
-      executables <- traverse (traverse (traverse expand)) packageConfigExecutables
-      tests <- traverse (traverse (traverse expand)) packageConfigTests
-      benchmarks <- traverse (traverse (traverse expand)) packageConfigBenchmarks
+    t :: Monad capture => Traverse capture capture Identity cSources cSources jsSources jsSources
+    t = Traverse (fmap Identity) return return
+
+    warnGlobal c = warnUnknownFields In "package description" (c >>= bitraverse (traverseCommonOptions t) return)
+
+    warnSections :: ParsePackageConfig -> Warnings m (PackageConfig Identity ParseCSources ParseJsSources)
+    warnSections p@PackageConfig{..} = do
+      flags <- traverse (warnNamed For "flag" . fmap (traverseCapture t)) packageConfigFlags
+      customSetup <- warnUnknownFields In "custom-setup section" (traverse (traverseCapture t) packageConfigCustomSetup)
+      library <- warnUnknownFields In "library section" (traverse (traverseSectionConfig t) packageConfigLibrary)
+      internalLibraries <- warnNamedSection "internal-libraries" packageConfigInternalLibraries
+      executable <- warnUnknownFields In "executable section" (traverse (traverseSectionConfig t) packageConfigExecutable)
+      executables <- warnNamedSection "executable" packageConfigExecutables
+      tests <- warnNamedSection "test" packageConfigTests
+      benchmarks <- warnNamedSection "benchmark" packageConfigBenchmarks
       return p {
-          packageConfigLibrary = library
+          packageConfigFlags = flags
+        , packageConfigCustomSetup = customSetup
+        , packageConfigLibrary = library
         , packageConfigInternalLibraries = internalLibraries
         , packageConfigExecutable = executable
         , packageConfigExecutables = executables
@@ -707,72 +727,36 @@ expandCSources dir = runWriterT . bitraverse expand expandPackageConfig
         , packageConfigBenchmarks = benchmarks
         }
 
-    expand :: Traversable c => WithCommonOptions c ParseCSources a -> WarningsIO (WithCommonOptions c CSources a)
-    expand = bitraverse expandCSources_ return
+    warnNamedSection
+      :: String
+      -> Maybe (Map String (SectionConfig a CaptureUnknownFields cSources jsSources))
+      -> Warnings m (Maybe (Map String (SectionConfig a Identity cSources jsSources)))
+    warnNamedSection sectionType = traverse (warnNamed In (sectionType ++ " section") . fmap (traverseSectionConfig t))
 
-    expandCSources_ :: Traversable c => CommonOptions c ParseCSources a -> WarningsIO (CommonOptions c [FilePath] a)
-    expandCSources_ = traverseCommonOptionsCSources (f. fromMaybeList)
-      where
-        f :: [FilePath] -> WarningsIO [FilePath]
-        f xs = do
-          (warnings, files) <- liftIO $ expandGlobs "c-sources" dir xs
-          tell warnings
-          return files
-
-type Warnings = Writer [String]
-
-extractUnknownFieldWarnings :: ParseConfig -> ((WithCommonOptions Identity ParseCSources Empty, PackageConfig Identity ParseCSources), [String])
-extractUnknownFieldWarnings c = runWriter $ do
-  Identity (Product globalOptions p) <- warnUnknownFields In "package description" (c >>= sequenceCommonOptions)
-  (,) (Product globalOptions Empty) <$> warnPackage p
-  where
-    sequenceCommonOptions :: Monad m => Product (CommonOptions m c a) b -> m (Product (CommonOptions Identity c a) b)
-    sequenceCommonOptions = bitraverse (traverseCommonOptions $ fmap Identity) return
-
-    warnPackage :: ParsePackageConfig -> Warnings (PackageConfig Identity ParseCSources)
-    warnPackage p@PackageConfig{..} = do
-      flags <- (warnUnknownFieldsList For "flag" . toList) packageConfigFlags
-      customSetup <- warnUnknownFields In "custom-setup section" (sequence packageConfigCustomSetup)
-      library <- warnUnknownFields In "library section" (traverse (>>= sequenceCommonOptions) packageConfigLibrary)
-      internalLibraries <- warnUnknownSectionFields "internal-libraries" packageConfigInternalLibraries
-      executable <- warnUnknownFields In "executable section" (traverse (>>= sequenceCommonOptions) packageConfigExecutable)
-      executables <- warnUnknownSectionFields "executable" packageConfigExecutables
-      tests <- warnUnknownSectionFields "test" packageConfigTests
-      benchmarks <- warnUnknownSectionFields "benchmark" packageConfigBenchmarks
-      return p {
-          packageConfigFlags = fromList flags
-        , packageConfigCustomSetup = sequence customSetup
-        , packageConfigLibrary = sequence library
-        , packageConfigInternalLibraries = internalLibraries
-        , packageConfigExecutable = sequence executable
-        , packageConfigExecutables = executables
-        , packageConfigTests = tests
-        , packageConfigBenchmarks = benchmarks
-        }
-
-    warnUnknownFields :: Preposition -> String -> CaptureUnknownFields a -> Warnings (Identity a)
-    warnUnknownFields preposition name x = do
-      let (warnings, y) = formatUnknownFields preposition name x
-      tell warnings
-      return (Identity y)
-
-    warnUnknownSectionFields sectionType = fmap fromList . warnUnknownFieldsList In (sectionType ++ " section") . map (fmap (>>= sequenceCommonOptions)) . toList
-
-    warnUnknownFieldsList :: Preposition -> String -> [(String, CaptureUnknownFields a)] -> Warnings [(String, Identity a)]
-    warnUnknownFieldsList preposition sect = mapM f
+    warnNamed :: Preposition -> String -> Map String (CaptureUnknownFields a) -> Warnings m (Map String a)
+    warnNamed preposition sect = fmap Map.fromList . mapM f . Map.toList
       where
         f (name, fields) = (,) name <$> (warnUnknownFields preposition (sect ++ " " ++ show name) fields)
 
-    toList :: Maybe (Map String a) -> [(String, a)]
-    toList = Map.toList . fromMaybe mempty
+    warnUnknownFields :: Preposition -> String -> CaptureUnknownFields a -> Warnings m a
+    warnUnknownFields preposition name = fmap snd . bitraverse tell return . formatUnknownFields preposition name
 
-    fromList :: [(String, a)] -> Maybe (Map String a)
-    fromList = Just . Map.fromList
+expandForeignSources
+  :: FilePath
+  -> Config Identity ParseCSources ParseJsSources
+  -> Warnings IO (Config Identity CSources JsSources)
+expandForeignSources dir = traverseConfig t
+  where
+    t = Traverse {
+      traverseCapture = return
+    , traverseCSources = expand "c-sources"
+    , traverseJsSources = expand "js-sources"
+    }
 
-expandJsSources :: FilePath -> Section a -> IO ([String], Section a)
-expandJsSources dir sect@Section{..} = do
-  (warnings, files) <- expandGlobs "js-sources" dir sectionJsSources
-  return (warnings, sect {sectionJsSources = files})
+    expand fieldName xs = do
+      (warnings, files) <- liftIO $ expandGlobs fieldName dir (fromMaybeList xs)
+      tell warnings
+      return files
 
 toCustomSetup :: CustomSetupSection -> CustomSetup
 toCustomSetup CustomSetupSection{..} = CustomSetup
@@ -787,9 +771,9 @@ biTraverseSection fData fConditionals sect =
   where
     update x xs = sect{sectionData = x, sectionConditionals = xs}
 
-toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO ([String], Section Library)
+toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO (Section Library)
 toLibrary dir name globalOptions library =
-  biTraverseSection fromLibrarySection fromLibrarySectionInConditional sect >>= expandJsSources dir
+  biTraverseSection fromLibrarySection fromLibrarySectionInConditional sect
   where
     sect :: Section LibrarySection
     sect = mergeSections emptyLibrarySection globalOptions library
@@ -831,25 +815,15 @@ mapSectionAcc f = go
       , sectionConditionals = map (go acc <$>) sectionConditionals
       }
 
-toInternalLibraries :: FilePath -> String -> Section global -> [(String, Section LibrarySection)] -> IO ([String], Map String (Section Library))
-toInternalLibraries dir packageName_ globalOptions = traverseNamedSections (toLibrary dir packageName_ globalOptions)
+toInternalLibraries :: FilePath -> String -> Section global -> Map String (Section LibrarySection) -> IO (Map String (Section Library))
+toInternalLibraries dir packageName_ globalOptions = traverse (toLibrary dir packageName_ globalOptions)
 
-traverseNamedSections :: (Ord name, Monad m) => (a -> m ([warning], b)) -> [(name, a)] -> m ([warning], Map name b)
-traverseNamedSections f namedSections = do
-  result <- mapM f sections
-  let (warnings, xs) = unzip result
-  return (concat warnings, Map.fromList $ zip names xs)
-  where
-    names = map fst namedSections
-    sections = map snd namedSections
+toExecutables :: FilePath -> String -> Section global -> Map String (Section ExecutableSection) -> IO (Map String (Section Executable))
+toExecutables dir packageName_ globalOptions = traverse (toExecutable dir packageName_ globalOptions)
 
-toExecutables :: FilePath -> String -> Section global -> [(String, Section ExecutableSection)] -> IO ([String], Map String (Section Executable))
-toExecutables dir packageName_ globalOptions = traverseNamedSections (toExecutable dir packageName_ globalOptions)
-
-toExecutable :: FilePath -> String -> Section global -> Section ExecutableSection -> IO ([String], Section Executable)
+toExecutable :: FilePath -> String -> Section global -> Section ExecutableSection -> IO (Section Executable)
 toExecutable dir packageName_ globalOptions =
-      toExecutable_ . mergeSections emptyExecutableSection globalOptions
-  >=> expandJsSources dir . nubOtherModules
+      toExecutable_ . mergeSections emptyExecutableSection globalOptions >=> return . nubOtherModules
   where
     toExecutable_ :: Section ExecutableSection -> IO (Section Executable)
     toExecutable_ sect@Section{..} = do
@@ -905,10 +879,10 @@ mergeSections a globalOptions options
   , sectionBuildTools = sectionBuildTools options <> sectionBuildTools globalOptions
   }
 
-toSectionI :: Identity (WithCommonOptions Identity CSources a) -> Section a
+toSectionI :: Identity (WithCommonOptions a Identity CSources JsSources) -> Section a
 toSectionI = toSection . runIdentity
 
-toSection :: WithCommonOptions Identity CSources a -> Section a
+toSection :: WithCommonOptions a Identity CSources JsSources -> Section a
 toSection (Product CommonOptions{..} a) = Section {
         sectionData = a
       , sectionSourceDirs = fromMaybeList commonOptionsSourceDirs
@@ -920,7 +894,7 @@ toSection (Product CommonOptions{..} a) = Section {
       , sectionCppOptions = fromMaybeList commonOptionsCppOptions
       , sectionCcOptions = fromMaybeList commonOptionsCcOptions
       , sectionCSources = commonOptionsCSources
-      , sectionJsSources = fromMaybeList commonOptionsJsSources
+      , sectionJsSources = commonOptionsJsSources
       , sectionExtraLibDirs = fromMaybeList commonOptionsExtraLibDirs
       , sectionExtraLibraries = fromMaybeList commonOptionsExtraLibraries
       , sectionExtraFrameworksDirs = fromMaybeList commonOptionsExtraFrameworksDirs
@@ -936,7 +910,7 @@ toSection (Product CommonOptions{..} a) = Section {
   where
     conditionals = map toConditional (fromMaybeList commonOptionsWhen)
 
-    toConditional :: ConditionalSection Identity CSources a -> Conditional (Section a)
+    toConditional :: ConditionalSection a Identity CSources JsSources -> Conditional (Section a)
     toConditional x = case x of
       FlatConditional (Identity (Product sect c)) -> Conditional (conditionCondition c) (toSection sect) Nothing
       ThenElseConditional (Identity (ThenElse condition then_ else_)) -> Conditional condition (toSectionI then_) (Just $ toSectionI else_)
