@@ -15,9 +15,6 @@ module Hpack (
 #endif
 ) where
 
-import           Prelude ()
-import           Prelude
-
 import           Control.Monad
 import qualified Data.ByteString as B
 import           Data.Version (Version)
