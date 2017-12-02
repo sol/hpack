@@ -16,12 +16,11 @@ module Hpack (
 ) where
 
 import           Control.Monad
-import qualified Data.ByteString as B
 import           Data.Version (Version)
 import qualified Data.Version as Version
 import           System.Environment
 import           System.Exit
-import           System.IO
+import           System.IO (stderr)
 import           System.FilePath
 import           System.Directory
 
@@ -30,6 +29,7 @@ import           Hpack.Options
 import           Hpack.Config
 import           Hpack.Run
 import           Hpack.Util
+import           Hpack.Utf8 as Utf8
 import           Hpack.CabalFile
 
 programVersion :: Version -> String
@@ -60,7 +60,7 @@ main = do
 
 printHelp :: IO ()
 printHelp = do
-  hPutStrLn stderr $ unlines [
+  Utf8.hPutStrLn stderr $ unlines [
       "Usage: hpack [ --silent ] [ --force | -f ] [ PATH ] [ - ]"
     , "       hpack --version"
     , "       hpack --help"
@@ -98,7 +98,7 @@ hpackWithVersion v p verbose force = do
 
 printWarnings :: [String] -> IO ()
 printWarnings warnings = do
-  forM_ warnings $ \warning -> hPutStrLn stderr ("WARNING: " ++ warning)
+  forM_ warnings $ \warning -> Utf8.hPutStrLn stderr ("WARNING: " ++ warning)
 
 splitDirectory :: Maybe FilePath -> IO (Maybe FilePath, FilePath)
 splitDirectory Nothing = return (Nothing, packageConfig)
@@ -134,7 +134,7 @@ hpackWithVersionResult v p force = do
   case status of
     Generated -> do
       let hash = sha256 new
-      B.writeFile cabalFile . encodeUtf8 $ header file v hash ++ new
+      Utf8.writeFile cabalFile (header file v hash ++ new)
     _ -> return ()
   return Result
     { resultWarnings = warnings
@@ -146,5 +146,5 @@ hpackStdOut :: Maybe FilePath -> IO ()
 hpackStdOut p = do
   (dir, file) <- splitDirectory p
   (warnings, _cabalFile, new) <- run dir file
-  B.putStr (encodeUtf8 new)
+  Utf8.putStr new
   printWarnings warnings
