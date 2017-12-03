@@ -286,6 +286,77 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             Paths_foo
         |]) {packageCabalVersion = ">= 1.22"}
 
+      context "when inferring modules" $ do
+        context "with exposed-modules" $ do
+          it "infers other-modules" $ do
+            touch "src/Foo.hs"
+            touch "src/Bar.hs"
+            [i|
+            library:
+              source-dirs: src
+              exposed-modules: Foo
+            |] `shouldRenderTo` library [i|
+            hs-source-dirs:
+                src
+            exposed-modules:
+                Foo
+            other-modules:
+                Bar
+                Paths_foo
+            |]
+
+        context "with other-modules" $ do
+          it "infers exposed-modules" $ do
+            touch "src/Foo.hs"
+            touch "src/Bar.hs"
+            [i|
+            library:
+              source-dirs: src
+              other-modules: Bar
+            |] `shouldRenderTo` library [i|
+            hs-source-dirs:
+                src
+            exposed-modules:
+                Foo
+            other-modules:
+                Bar
+            |]
+
+        context "with both exposed-modules and other-modules" $ do
+          it "doesn't infer any modules" $ do
+            touch "src/Foo.hs"
+            touch "src/Bar.hs"
+            [i|
+            library:
+              source-dirs: src
+              exposed-modules: Foo
+              other-modules: Bar
+            |] `shouldRenderTo` library [i|
+            hs-source-dirs:
+                src
+            exposed-modules:
+                Foo
+            other-modules:
+                Bar
+            |]
+
+        context "with neither exposed-modules nor other-modules" $ do
+          it "infers exposed-modules" $ do
+            touch "src/Foo.hs"
+            touch "src/Bar.hs"
+            [i|
+            library:
+              source-dirs: src
+            |] `shouldRenderTo` library [i|
+            hs-source-dirs:
+                src
+            exposed-modules:
+                Bar
+                Foo
+            other-modules:
+                Paths_foo
+            |]
+
       context "within conditional" $ do
         it "accepts library-specific fields" $ do
           [i|

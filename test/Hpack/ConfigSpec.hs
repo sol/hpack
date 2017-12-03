@@ -602,54 +602,6 @@ spec = do
           |]
           (packageLibrary >>> (`shouldBe` Just (section library{libraryExposed = Just False})))
 
-      it "allows to specify exposed-modules" $ do
-        withPackageConfig [i|
-          library:
-            source-dirs: src
-            exposed-modules: Foo
-          |]
-          (do
-          touch "src/Foo.hs"
-          touch "src/Bar.hs"
-          )
-          (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar", "Paths_foo"]}) {sectionSourceDirs = ["src"]}))
-
-      it "allows to specify other-modules" $ do
-        withPackageConfig [i|
-          library:
-            source-dirs: src
-            other-modules: Bar
-          |]
-          (do
-          touch "src/Foo.hs"
-          touch "src/Bar.hs"
-          )
-          (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}))
-
-      it "allows to specify both exposed-modules and other-modules" $ do
-        withPackageConfig [i|
-          library:
-            source-dirs: src
-            exposed-modules: Foo
-            other-modules: Bar
-          |]
-          (do
-          touch "src/Baz.hs"
-          )
-          (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Foo"], libraryOtherModules = ["Bar"]}) {sectionSourceDirs = ["src"]}))
-
-      context "when neither exposed-modules nor other-modules are specified" $ do
-        it "exposes all modules" $ do
-          withPackageConfig [i|
-            library:
-              source-dirs: src
-            |]
-            (do
-            touch "src/Foo.hs"
-            touch "src/Bar.hs"
-            )
-            (packageLibrary >>> (`shouldBe` Just (section library{libraryExposedModules = ["Bar", "Foo"]}) {sectionSourceDirs = ["src"]}))
-
     context "when reading executable section" $ do
       it "warns on unknown fields" $ do
         withPackageWarnings_ [i|
