@@ -357,20 +357,27 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
             |]
 
-      context "with conditional" $ do
-        it "accepts library-specific fields" $ do
-          [i|
-          library:
-            when:
-              condition: os(windows)
-              exposed-modules: Foo
-          |] `shouldRenderTo` library [i|
-          other-modules:
-              Paths_foo
-          if os(windows)
+        context "with conditional" $ do
+          it "doesn't infer any modules mentioned in that conditional" $ do
+            touch "src/Foo.hs"
+            touch "src/Bar.hs"
+            [i|
+            library:
+              source-dirs: src
+              when:
+                condition: os(windows)
+                exposed-modules: Foo
+            |] `shouldRenderTo` library [i|
+            hs-source-dirs:
+                src
+            if os(windows)
+              exposed-modules:
+                  Foo
             exposed-modules:
-                Foo
-          |]
+                Bar
+            other-modules:
+                Paths_foo
+            |]
 
     context "with internal-libraries" $ do
       it "accepts internal-libraries" $ do

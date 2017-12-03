@@ -778,11 +778,17 @@ toLibrary dir name globalOptions library =
     sect :: Section LibrarySection
     sect = mergeSections emptyLibrarySection globalOptions library
 
+    mentionedModules = flip concatMap sect $ \ LibrarySection{..} ->
+      fromMaybeList librarySectionExposedModules ++ fromMaybeList librarySectionOtherModules
+
     fromLibrarySection :: Section LibrarySection -> IO Library
     fromLibrarySection Section{sectionData = LibrarySection{..}, sectionSourceDirs = sourceDirs} = do
       modules <- concat <$> mapM (getModules dir) sourceDirs
-      let (exposedModules, otherModules) = determineModules name modules librarySectionExposedModules librarySectionOtherModules
-          reexportedModules = fromMaybeList librarySectionReexportedModules
+      let
+        inferableModules = modules \\ mentionedModules
+        (exposedModules, otherModules) =
+          determineModules name inferableModules librarySectionExposedModules librarySectionOtherModules
+        reexportedModules = fromMaybeList librarySectionReexportedModules
       return (Library librarySectionExposed exposedModules otherModules reexportedModules)
 
     fromLibrarySectionInConditional :: Section LibrarySection -> IO Library
