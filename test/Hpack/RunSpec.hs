@@ -141,32 +141,6 @@ spec = do
           , "  default-language: Haskell2010"
           ]
 
-      it "includes exposed-modules" $ do
-        renderPackage_ package {packageLibrary = Just (section library{libraryExposedModules = ["Foo"]})} `shouldBe` unlines [
-            "name: foo"
-          , "version: 0.0.0"
-          , "build-type: Simple"
-          , "cabal-version: >= 1.10"
-          , ""
-          , "library"
-          , "  exposed-modules:"
-          , "      Foo"
-          , "  default-language: Haskell2010"
-          ]
-
-      it "includes other-modules" $ do
-        renderPackage_ package {packageLibrary = Just (section library{libraryOtherModules = ["Bar"]})} `shouldBe` unlines [
-            "name: foo"
-          , "version: 0.0.0"
-          , "build-type: Simple"
-          , "cabal-version: >= 1.10"
-          , ""
-          , "library"
-          , "  other-modules:"
-          , "      Bar"
-          , "  default-language: Haskell2010"
-          ]
-
     context "when given list of existing fields" $ do
       it "retains field order" $ do
         renderPackage defaultRenderSettings 16 ["cabal-version", "version", "name", "build-type"] [] package `shouldBe` unlines [

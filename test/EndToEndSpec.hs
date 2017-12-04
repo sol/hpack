@@ -373,7 +373,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           |]
 
     context "with internal-libraries" $ do
-      it "accepts internal internal-libraries" $ do
+      it "accepts internal-libraries" $ do
         touch "src/Foo.hs"
         [i|
         internal-libraries:
@@ -415,6 +415,65 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         ghc-options: -main-is Foo
         |]
 
+      context "when inferring modules" $ do
+        it "infers other-modules" $ do
+          touch "src/Main.hs"
+          touch "src/Foo.hs"
+          [i|
+          executables:
+            foo:
+              main: Main.hs
+              source-dirs: src
+          |] `shouldRenderTo` executable "foo" [i|
+            main-is: Main.hs
+            hs-source-dirs:
+                src
+            other-modules:
+                Foo
+                Paths_foo
+          |]
+
+        it "allows to specify other-modules" $ do
+          touch "src/Foo.hs"
+          touch "src/Bar.hs"
+          [i|
+          executables:
+            foo:
+              main: Main.hs
+              source-dirs: src
+              other-modules: Baz
+          |] `shouldRenderTo` executable "foo" [i|
+            main-is: Main.hs
+            hs-source-dirs:
+                src
+            other-modules:
+                Baz
+          |]
+        context "within conditional" $ do
+          it "infers other-modules" $ do
+            touch "src/Foo.hs"
+            touch "windows/Bar.hs"
+            [i|
+            executables:
+              foo:
+                source-dirs: src
+                when:
+                  condition: os(windows)
+                  source-dirs: windows
+            |] `shouldRenderTo` executable "foo" [i|
+            other-modules:
+                Foo
+                Paths_foo
+            hs-source-dirs:
+                src
+            if os(windows)
+              other-modules:
+                  Bar
+              hs-source-dirs:
+                  windows
+            |]
+
+
       context "within conditional" $ do
         it "does not apply global options" $ do
           -- related bug: https://github.com/sol/hpack/issues/214
@@ -444,28 +503,6 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             ghc-options: -main-is Foo
           |]
 
-        it "infers other-modules" $ do
-          touch "src/Foo.hs"
-          touch "windows/Bar.hs"
-          [i|
-          executables:
-            foo:
-              source-dirs: src
-              when:
-                condition: os(windows)
-                source-dirs: windows
-          |] `shouldRenderTo` executable "foo" [i|
-          other-modules:
-              Foo
-              Paths_foo
-          hs-source-dirs:
-              src
-          if os(windows)
-            other-modules:
-                Bar
-            hs-source-dirs:
-                windows
-          |]
     describe "when" $ do
       it "accepts conditionals" $ do
         [i|
@@ -496,6 +533,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           , "Ignoring unknown field \"bar2\" in package description"
           , "Ignoring unknown field \"baz\" in package description"
           ]
+
       context "when parsing conditionals with else-branch" $ do
         it "accepts conditionals with else-branch" $ do
           [i|

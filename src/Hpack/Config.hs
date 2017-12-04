@@ -796,25 +796,6 @@ toLibrary dir name globalOptions library =
       , libraryReexportedModules = fromMaybeList librarySectionReexportedModules
       }
 
-nubOtherModules :: Section Executable -> Section Executable
-nubOtherModules = mapSectionAcc f []
-  where
-    f :: [String] -> Executable -> ([String], Executable)
-    f outerOtherModules executable = (
-        outerOtherModules ++ otherModules
-      , executable {executableOtherModules = otherModules}
-      )
-      where
-        otherModules = executableOtherModules executable \\ outerOtherModules
-
-mapSectionAcc :: (acc -> a -> (acc, b)) -> acc -> Section a -> Section b
-mapSectionAcc f = go
-  where
-    go acc0 sect@Section{..} = let (acc, b) = f acc0 sectionData in sect {
-        sectionData = b
-      , sectionConditionals = map (go acc <$>) sectionConditionals
-      }
-
 toInternalLibraries :: FilePath -> String -> Section global -> Map String (Section LibrarySection) -> IO (Map String (Section Library))
 toInternalLibraries dir packageName_ globalOptions = traverse (toLibrary dir packageName_ globalOptions)
 
@@ -823,12 +804,12 @@ toExecutables dir packageName_ globalOptions = traverse (toExecutable dir packag
 
 toExecutable :: FilePath -> String -> Section global -> Section ExecutableSection -> IO (Section Executable)
 toExecutable dir packageName_ globalOptions =
-      toExecutable_ . mergeSections emptyExecutableSection globalOptions >=> return . nubOtherModules
+      toExecutable_ True . mergeSections emptyExecutableSection globalOptions
   where
-    toExecutable_ :: Section ExecutableSection -> IO (Section Executable)
-    toExecutable_ sect@Section{..} = do
+    toExecutable_ :: Bool -> Section ExecutableSection -> IO (Section Executable)
+    toExecutable_ inferPathsModule sect@Section{..} = do
       (executable, ghcOptions) <- fromExecutableSection sectionData
-      conditionals <- mapM (traverse toExecutable_) sectionConditionals
+      conditionals <- mapM (traverse $ toExecutable_ False) sectionConditionals
       return sect {
           sectionData = executable
         , sectionGhcOptions = sectionGhcOptions ++ ghcOptions
@@ -843,9 +824,11 @@ toExecutable dir packageName_ globalOptions =
             inferModules :: IO [String]
             inferModules
               | null sectionSourceDirs = return []
-              | otherwise = filterMain . (++ [pathsModule]) . concat <$> mapM (getModules dir) sectionSourceDirs
+              | otherwise = filterMain . (++ pathsModule) . concat <$> mapM (getModules dir) sectionSourceDirs
 
-            pathsModule = pathsModuleFromPackageName packageName_
+            pathsModule = case inferPathsModule of
+              True -> [pathsModuleFromPackageName packageName_]
+              False -> []
 
             filterMain :: [String] -> [String]
             filterMain = maybe id (maybe id (filter . (/=)) . toModule . splitDirectories) executableSectionMain

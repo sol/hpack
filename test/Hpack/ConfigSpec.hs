@@ -708,33 +708,6 @@ spec = do
           |]
           (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildTools = deps ["alex", "happy"]})]))
 
-      it "infers other-modules" $ do
-        withPackageConfig [i|
-          executables:
-            foo:
-              main: Main.hs
-              source-dirs: src
-          |]
-          (do
-          touch "src/Main.hs"
-          touch "src/Foo.hs"
-          )
-          (map (executableOtherModules . sectionData . snd) . Map.toList . packageExecutables >>> (`shouldBe` [["Foo", "Paths_foo"]]))
-
-      it "allows to specify other-modules" $ do
-        withPackageConfig [i|
-          executables:
-            foo:
-              main: Main.hs
-              source-dirs: src
-              other-modules: Baz
-          |]
-          (do
-          touch "src/Foo.hs"
-          touch "src/Bar.hs"
-          )
-          (map (executableOtherModules . sectionData . snd) . Map.toList . packageExecutables >>> (`shouldBe` [["Baz"]]))
-
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
           executables:
