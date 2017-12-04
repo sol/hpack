@@ -413,13 +413,21 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
 
     context "with executables" $ do
       it "accepts arbitrary entry points as main" $ do
+        touch "src/Foo.hs"
+        touch "src/Bar.hs"
         [i|
         executables:
           foo:
+            source-dirs: src
             main: Foo
         |] `shouldRenderTo` executable "foo" [i|
         main-is: Foo.hs
         ghc-options: -main-is Foo
+        hs-source-dirs:
+            src
+        other-modules:
+            Bar
+            Paths_foo
         |]
 
       context "when inferring modules" $ do
@@ -457,6 +465,27 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Baz
           |]
         context "with conditional" $ do
+          it "doesn't infer any modules mentioned in that conditional" $ do
+            touch "src/Foo.hs"
+            touch "src/Bar.hs"
+            [i|
+            executables:
+              foo:
+                source-dirs: src
+                when:
+                  condition: os(windows)
+                  other-modules: Foo
+            |] `shouldRenderTo` executable "foo" [i|
+            other-modules:
+                Bar
+                Paths_foo
+            hs-source-dirs:
+                src
+            if os(windows)
+              other-modules:
+                  Foo
+            |]
+
           it "infers other-modules" $ do
             touch "src/Foo.hs"
             touch "windows/Bar.hs"
@@ -479,7 +508,6 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               hs-source-dirs:
                   windows
             |]
-
 
       context "with conditional" $ do
         it "does not apply global options" $ do

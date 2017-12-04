@@ -809,15 +809,19 @@ toExecutables :: FilePath -> String -> Section global -> Map String (Section Exe
 toExecutables dir packageName_ globalOptions = traverse (toExecutable dir packageName_ globalOptions)
 
 toExecutable :: FilePath -> String -> Section global -> Section ExecutableSection -> IO (Section Executable)
-toExecutable dir packageName_ globalOptions =
-      toExecutable_ True . expandMain . mergeSections emptyExecutableSection globalOptions
+toExecutable dir packageName_ globalOptions executable = toExecutable_ True sect
   where
+    sect = expandMain (mergeSections emptyExecutableSection globalOptions executable)
+
+    mentionedModules = flip concatMap sect $ \ ExecutableSection{..} ->
+      fromMaybeList executableSectionOtherModules ++ maybe [] return (executableSectionMain >>= toModule . splitDirectories)
+
     toExecutable_ :: Bool -> Section ExecutableSection -> IO (Section Executable)
-    toExecutable_ inferPathsModule sect@Section{..} = do
-      executable <- fromExecutableSection sectionData
+    toExecutable_ inferPathsModule s@Section{..} = do
+      exec <- fromExecutableSection sectionData
       conditionals <- mapM (traverse $ toExecutable_ False) sectionConditionals
-      return sect {
-          sectionData = executable
+      return s{
+          sectionData = exec
         , sectionConditionals = conditionals
         }
       where
@@ -829,14 +833,11 @@ toExecutable dir packageName_ globalOptions =
             inferModules :: IO [String]
             inferModules
               | null sectionSourceDirs = return []
-              | otherwise = filterMain . (++ pathsModule) . concat <$> mapM (getModules dir) sectionSourceDirs
+              | otherwise = (\\ mentionedModules) . (++ pathsModule) . concat <$> mapM (getModules dir) sectionSourceDirs
 
             pathsModule = case inferPathsModule of
               True -> [pathsModuleFromPackageName packageName_]
               False -> []
-
-            filterMain :: [String] -> [String]
-            filterMain = maybe id (maybe id (filter . (/=)) . toModule . splitDirectories) main_
 
 expandMain :: Section ExecutableSection -> Section ExecutableSection
 expandMain = flatten . expand
