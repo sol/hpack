@@ -804,22 +804,21 @@ toExecutables dir packageName_ globalOptions = traverse (toExecutable dir packag
 
 toExecutable :: FilePath -> String -> Section global -> Section ExecutableSection -> IO (Section Executable)
 toExecutable dir packageName_ globalOptions =
-      toExecutable_ True . mergeSections emptyExecutableSection globalOptions
+      toExecutable_ True . expandMain . mergeSections emptyExecutableSection globalOptions
   where
     toExecutable_ :: Bool -> Section ExecutableSection -> IO (Section Executable)
     toExecutable_ inferPathsModule sect@Section{..} = do
-      (executable, ghcOptions) <- fromExecutableSection sectionData
+      executable <- fromExecutableSection sectionData
       conditionals <- mapM (traverse $ toExecutable_ False) sectionConditionals
       return sect {
           sectionData = executable
-        , sectionGhcOptions = sectionGhcOptions ++ ghcOptions
         , sectionConditionals = conditionals
         }
       where
-        fromExecutableSection :: ExecutableSection -> IO (Executable, [GhcOption])
-        fromExecutableSection ExecutableSection{..} = do
-          modules <- maybe inferModules (return . fromList) executableSectionOtherModules
-          return (Executable mainSrcFile modules, ghcOptions)
+        fromExecutableSection :: ExecutableSection -> IO Executable
+        fromExecutableSection (ExecutableSection main_ otherModules)= do
+          modules <- maybe inferModules (return . fromList) otherModules
+          return (Executable main_ modules)
           where
             inferModules :: IO [String]
             inferModules
@@ -831,9 +830,26 @@ toExecutable dir packageName_ globalOptions =
               False -> []
 
             filterMain :: [String] -> [String]
-            filterMain = maybe id (maybe id (filter . (/=)) . toModule . splitDirectories) executableSectionMain
+            filterMain = maybe id (maybe id (filter . (/=)) . toModule . splitDirectories) main_
 
+expandMain :: Section ExecutableSection -> Section ExecutableSection
+expandMain = flatten . expand
+  where
+    expand :: Section ExecutableSection -> Section ([GhcOption], ExecutableSection)
+    expand = fmap go
+      where
+        go exec@ExecutableSection{..} =
+          let
             (mainSrcFile, ghcOptions) = maybe (Nothing, []) (first Just . parseMain) executableSectionMain
+          in
+            (ghcOptions, exec{executableSectionMain = mainSrcFile})
+
+    flatten :: Section ([GhcOption], ExecutableSection) -> Section ExecutableSection
+    flatten sect@Section{sectionData = (ghcOptions, exec), ..} = sect{
+        sectionData = exec
+      , sectionGhcOptions = sectionGhcOptions ++ ghcOptions
+      , sectionConditionals = map (fmap flatten) sectionConditionals
+      }
 
 mergeSections :: a -> Section global -> Section a -> Section a
 mergeSections a globalOptions options

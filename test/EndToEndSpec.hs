@@ -357,7 +357,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
             |]
 
-      context "within conditional" $ do
+      context "with conditional" $ do
         it "accepts library-specific fields" $ do
           [i|
           library:
@@ -449,7 +449,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             other-modules:
                 Baz
           |]
-        context "within conditional" $ do
+        context "with conditional" $ do
           it "infers other-modules" $ do
             touch "src/Foo.hs"
             touch "windows/Bar.hs"
@@ -474,7 +474,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             |]
 
 
-      context "within conditional" $ do
+      context "with conditional" $ do
         it "does not apply global options" $ do
           -- related bug: https://github.com/sol/hpack/issues/214
           [i|
