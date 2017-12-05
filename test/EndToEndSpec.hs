@@ -405,6 +405,22 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             Paths_foo
         |]) {packageCabalVersion = ">= 1.22"}
 
+      it "includes all generated modules" $ do
+        [i|
+        library:
+          generated-exposed-modules: ABC
+          generated-other-modules: XYZ
+        |] `shouldRenderTo` (library [i|
+        exposed-modules:
+            ABC
+        other-modules:
+            Paths_foo
+            XYZ
+        autogen-modules:
+            XYZ
+            ABC
+        |]) {packageCabalVersion = ">= 2.0"}
+
       context "when inferring modules" $ do
         context "with exposed-modules" $ do
           it "infers other-modules" $ do
@@ -543,6 +559,37 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                     unix/
               |]
 
+        it "includes all generated modules" $ do
+          [i|
+          library:
+            source-dirs: src
+            generated-exposed-modules: Exposed
+            generated-other-modules: Other
+            when:
+              condition: os(windows)
+              generated-exposed-modules: WinExposed
+              generated-other-modules: WinOther
+          |] `shouldRenderTo` (library [i|
+          hs-source-dirs:
+              src
+          if os(windows)
+            exposed-modules:
+                WinExposed
+            other-modules:
+                WinOther
+            autogen-modules:
+                WinOther
+                WinExposed
+          exposed-modules:
+              Exposed
+          other-modules:
+              Paths_foo
+              Other
+          autogen-modules:
+              Other
+              Exposed
+          |]) {packageCabalVersion = ">= 2.0"}
+
     context "with internal-libraries" $ do
       it "accepts internal-libraries" $ do
         touch "src/Foo.hs"
@@ -628,6 +675,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             other-modules:
                 Baz
           |]
+
         context "with conditional" $ do
           it "doesn't infer any modules mentioned in that conditional" $ do
             touch "src/Foo.hs"
