@@ -1,3 +1,7 @@
+## next
+  - `generated-exposed-modules` and `generated-other-modules`, for populating
+    the `autogen-modules` field (#207).
+
 ## Changes in 0.22.0
   - Add support for `defaults`
   - Add `--numeric-version`

@@ -149,11 +149,13 @@ values are merged with per section values.
 
 #### <a name="library-fields"></a>Library fields
 
-| Hpack | Cabal | Default | Default inside conditional |
+| Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | `exposed` | · | | |
 | `exposed-modules` | · | All modules in `source-dirs` less `other-modules` less any modules mentioned in `when` | |
-| `other-modules` | · | All modules in `source-dirs` less `exposed-modules` less any modules mentioned in `when` | Only if `exposed-modules` is not specified inside the conditional: All modules in `source-dirs` of the conditional less any modules mentioned in `when` of the conditional |
+| `generated-exposed-modules` | | | Added to `exposed-modules` and `autogen-modules`. Since `0.23.0`.
+| `other-modules` | · | Outside conditionals: All modules in `source-dirs` less `exposed-modules` less any modules mentioned in `when`. Inside conditionals, and only if `exposed-modules` is not specified inside the conditional: All modules in `source-dirs` of the conditional less any modules mentioned in `when` of the conditional | |
+| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 | `reexported-modules` | · | | |
 | `signatures` | · | | |
 | | `default-language` | `Haskell2010` | |
@@ -164,6 +166,7 @@ values are merged with per section values.
 | --- | --- | --- | --- |
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
+| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 | | `default-language` | `Haskell2010` | |
 
 #### <a name="test-fields"></a>Test fields
@@ -173,6 +176,7 @@ values are merged with per section values.
 | | `type` | `exitcode-stdio-1.0` | |
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
+| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 | | `default-language` | `Haskell2010` | |
 
 #### <a name="benchmark-fields"></a>Benchmark fields
@@ -182,6 +186,7 @@ values are merged with per section values.
 | | `type` | `exitcode-stdio-1.0` | |
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
+| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 | | `default-language` | `Haskell2010` | |
 
 #### <a name="flags"></a>Flags

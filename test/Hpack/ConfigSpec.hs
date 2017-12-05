@@ -38,10 +38,10 @@ package :: Package
 package = Config.package "foo" "0.0.0"
 
 executable :: String -> Executable
-executable main_ = Executable (Just main_) ["Paths_foo"]
+executable main_ = Executable (Just main_) ["Paths_foo"] []
 
 library :: Library
-library = Library Nothing [] ["Paths_foo"] [] []
+library = Library Nothing [] ["Paths_foo"] [] [] []
 
 withPackage :: String -> IO () -> ((Package, [String]) -> Expectation) -> Expectation
 withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
@@ -72,21 +72,49 @@ spec = do
 
   describe "determineModules" $ do
     it "adds the Paths_* module to the other-modules" $ do
-      determineModules ["Paths_foo"] [] ["Foo"] Nothing `shouldBe` (["Foo"], ["Paths_foo"])
+      let exposed = ModuleSpecification ["Foo"] Nothing
+          other = ModuleSpecification Nothing Nothing
+      determineModules ["Paths_foo"] [] exposed other `shouldBe` (["Foo"], ["Paths_foo"], [])
 
     it "adds the Paths_* module to the other-modules when no modules are specified" $ do
-      determineModules ["Paths_foo"] [] Nothing Nothing `shouldBe` ([], ["Paths_foo"])
+      let exposed = ModuleSpecification Nothing Nothing
+          other = ModuleSpecification Nothing Nothing
+      determineModules ["Paths_foo"] [] exposed other `shouldBe` ([], ["Paths_foo"], [])
 
     context "when the Paths_* module is part of the exposed-modules" $ do
       it "does not add the Paths_* module to the other-modules" $ do
-        determineModules ["Paths_foo"] [] ["Foo", "Paths_foo"] Nothing `shouldBe` (["Foo", "Paths_foo"], [])
+        let exposed = ModuleSpecification ["Foo", "Paths_foo"] Nothing
+            other = ModuleSpecification Nothing Nothing
+        determineModules ["Paths_foo"] [] exposed other `shouldBe` (["Foo", "Paths_foo"], [], [])
+
+    it "includes all generated modules when exposed-modules and other-modules are Nothing" $ do
+      let exposed = ModuleSpecification Nothing ["ABC"]
+          other = ModuleSpecification Nothing ["XYZ"]
+      determineModules ["Paths_foo"] [] exposed other `shouldBe` (["ABC"], ["Paths_foo", "XYZ"], ["XYZ", "ABC"])
+
+    it "includes all generated modules when given explicit exposed-modules" $ do
+      let exposed = ModuleSpecification ["Foo"] ["ABC"]
+          other = ModuleSpecification Nothing ["XYZ"]
+      determineModules ["Paths_foo"] [] exposed other `shouldBe` (["Foo", "ABC"], ["Paths_foo", "XYZ"], ["XYZ", "ABC"])
+
+    it "includes all generated modules when given explicit exposed-modules and other-modules" $ do
+      let exposed = ModuleSpecification ["Foo"] ["ABC"]
+          other = ModuleSpecification ["Internal"] ["XYZ"]
+      determineModules ["Paths_foo"] [] exposed other `shouldBe` (["Foo", "ABC"], ["Internal", "XYZ"], ["XYZ", "ABC"])
+
+    it "includes all generated modules when given explicit other-modules" $ do
+      let exposed = ModuleSpecification Nothing ["ABC"]
+          other = ModuleSpecification ["Internal"] ["XYZ"]
+      determineModules ["Paths_foo"] [] exposed other `shouldBe` (["ABC"], ["Internal", "XYZ"], ["XYZ", "ABC"])
 
   describe "fromLibrarySectionInConditional" $ do
     let
       sect = LibrarySection {
         librarySectionExposed = Nothing
       , librarySectionExposedModules = Nothing
+      , librarySectionGeneratedExposedModules = Nothing
       , librarySectionOtherModules = Nothing
+      , librarySectionGeneratedOtherModules = Nothing
       , librarySectionReexportedModules = Nothing
       , librarySectionSignatures = Nothing
       }
@@ -94,6 +122,7 @@ spec = do
         libraryExposed = Nothing
       , libraryExposedModules = []
       , libraryOtherModules = []
+      , libraryGeneratedModules = []
       , libraryReexportedModules = []
       , librarySignatures = []
       }
