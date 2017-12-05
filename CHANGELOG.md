@@ -2,6 +2,7 @@
   - Accept section-specific fields in conditionals (see #175, thanks to Scott
     Fleischman)
   - New section: `internal-libraries`, for Cabal 2's internal libraries (see #200).
+  - New top-level field: `extra-doc-files`.
 
 ## Changes in 0.20.0
   - Do not overwrite any existing cabal file if it has been modified manually

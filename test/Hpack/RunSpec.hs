@@ -117,6 +117,18 @@ spec = do
         , "    bar"
         ]
 
+    it "includes extra-doc-files" $ do
+      renderPackage_ package {packageExtraDocFiles = ["foo", "bar"]} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.10"
+        , ""
+        , "extra-doc-files:"
+        , "    foo"
+        , "    bar"
+        ]
+
     it "includes buildable" $ do
       renderPackage_ package {packageLibrary = Just (section library){sectionBuildable = Just False}} `shouldBe` unlines [
           "name: foo"
