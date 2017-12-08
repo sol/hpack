@@ -139,10 +139,12 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
         | otherwise = Nothing
 
       libraryCabalVersion :: Section Library -> Maybe String
-      libraryCabalVersion sect = ">= 1.22" <$ guard (hasReexportedModules sect)
+      libraryCabalVersion sect = maximum [ ">= 1.22" <$ guard (hasLibraryField (not . null) libraryReexportedModules sect)
+                                         , ">= 1.25" <$ guard (hasLibraryField (not . null) librarySignatures sect)
+                                         ]
 
-      hasReexportedModules :: Section Library -> Bool
-      hasReexportedModules = not . null . libraryReexportedModules . sectionData
+      hasLibraryField :: (a -> Bool) -> (Library -> a) -> Section Library -> Bool
+      hasLibraryField p getField = p . getField . sectionData
 
       internalLibsCabalVersion :: Map String (Section Library) -> Maybe String
       internalLibsCabalVersion internalLibraries = ">= 2.0" <$ guard (not (Map.null internalLibraries))
@@ -239,6 +241,7 @@ renderLibraryFields Library{..} =
     renderExposedModules libraryExposedModules
   , renderOtherModules libraryOtherModules
   , renderReexportedModules libraryReexportedModules
+  , renderSignatures librarySignatures
   ]
 
 renderExposed :: Bool -> Element
@@ -297,6 +300,9 @@ renderOtherModules = Field "other-modules" . LineSeparatedList
 
 renderReexportedModules :: [String] -> Element
 renderReexportedModules = Field "reexported-modules" . LineSeparatedList
+
+renderSignatures :: [String] -> Element
+renderSignatures = Field "signatures" . CommaSeparatedList
 
 renderDependencies :: String -> Dependencies -> Element
 renderDependencies name = Field name . CommaSeparatedList . map renderDependency . Map.toList . unDependencies

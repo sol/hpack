@@ -41,7 +41,7 @@ executable :: String -> Executable
 executable main_ = Executable (Just main_) []
 
 library :: Library
-library = Library Nothing [] ["Paths_foo"] []
+library = Library Nothing [] ["Paths_foo"] [] []
 
 withPackage :: String -> IO () -> (([String], Package) -> Expectation) -> Expectation
 withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
@@ -73,12 +73,14 @@ spec = do
       , librarySectionExposedModules = Nothing
       , librarySectionOtherModules = Nothing
       , librarySectionReexportedModules = Nothing
+      , librarySectionSignatures = Nothing
       }
       lib = Library {
         libraryExposed = Nothing
       , libraryExposedModules = []
       , libraryOtherModules = []
       , libraryReexportedModules = []
+      , librarySignatures = []
       }
       inferableModules = ["Foo", "Bar"]
       from = fromLibrarySectionInConditional inferableModules
@@ -551,6 +553,16 @@ spec = do
         (`shouldBe` package {
           packageLibrary = Just (section library) {sectionBuildable = Just True}
         , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildable = Just False})]
+        }
+        )
+
+    it "accepts signatures" $ do
+      withPackageConfig_ [i|
+        library:
+          signatures: Foo
+        |]
+        (`shouldBe` package {
+          packageLibrary =  Just (section (library {librarySignatures = ["Foo"]}))
         }
         )
 

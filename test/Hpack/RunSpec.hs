@@ -11,7 +11,7 @@ import           Hpack.Render
 import           Hpack.Run
 
 library :: Library
-library = Library Nothing [] [] []
+library = Library Nothing [] [] [] []
 
 renderEmptySection :: Empty -> [Element]
 renderEmptySection Empty = []
@@ -126,6 +126,33 @@ spec = do
         , ""
         , "library"
         , "  buildable: False"
+        , "  default-language: Haskell2010"
+        ]
+
+    it "includes signature" $ do
+      renderPackage_ package {packageLibrary = Just (section (library {librarySignatures = ["Foo"]}))} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.25"
+        , ""
+        , "library"
+        , "  signatures:"
+        , "      Foo"
+        , "  default-language: Haskell2010"
+        ]
+
+    it "includes multiple signatures" $ do
+      renderPackage_ package {packageLibrary = Just (section (library {librarySignatures = ["Foo", "Bar"]}))} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "build-type: Simple"
+        , "cabal-version: >= 1.25"
+        , ""
+        , "library"
+        , "  signatures:"
+        , "      Foo"
+        , "    , Bar"
         , "  default-language: Haskell2010"
         ]
 
