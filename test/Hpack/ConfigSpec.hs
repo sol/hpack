@@ -80,24 +80,20 @@ spec = do
       , libraryOtherModules = []
       , libraryReexportedModules = []
       }
-      setup = touch "foo/Foo.hs" >> touch "bar/Bar.hs"
+      inferableModules = ["Foo", "Bar"]
+      from = fromLibrarySectionInConditional inferableModules
 
-    context "when inferring modules" $ around_ (inTempDirectory . (setup >>)) $ do
-      let action = fromLibrarySectionInConditional "." ["foo", "bar"]
-
+    context "when inferring modules" $ do
       it "infers other-modules" $ do
-        action [] sect `shouldReturn` lib {libraryOtherModules = ["Foo", "Bar"]}
-
-      it "excludes mentioned modules" $ do
-        action ["Foo"] sect `shouldReturn` lib {libraryOtherModules = ["Bar"]}
+        from sect `shouldBe` lib {libraryOtherModules = ["Foo", "Bar"]}
 
       context "with exposed-modules" $ do
         it "infers nothing" $ do
-          action [] sect {librarySectionExposedModules = []} `shouldReturn` lib
+          from sect {librarySectionExposedModules = []} `shouldBe` lib
 
       context "with other-modules" $ do
         it "infers nothing" $ do
-          action [] sect {librarySectionOtherModules = []} `shouldReturn` lib
+          from sect {librarySectionOtherModules = []} `shouldBe` lib
 
   describe "renamePackage" $ do
     it "renames a package" $ do

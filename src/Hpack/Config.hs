@@ -778,32 +778,32 @@ getMentionedLibraryModules = concatMap $ \ LibrarySection{..} ->
 
 toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO (Section Library)
 toLibrary dir name globalOptions =
-  traverseSectionAndConditionals fromLibrarySection fromInConditional . mergeSections emptyLibrarySection globalOptions
+    traverseSectionAndConditionals (fromLibrarySection True) (fromLibrarySection False)
+  . mergeSections emptyLibrarySection globalOptions
   where
-    fromLibrarySection :: Section LibrarySection -> IO Library
-    fromLibrarySection sect@Section{sectionData = LibrarySection{..}, sectionSourceDirs = sourceDirs} = do
-      modules <- concat <$> mapM (getModules dir) sourceDirs
+    fromLibrarySection topLevel sect@Section{..} = do
+      modules <- concat <$> mapM (getModules dir) sectionSourceDirs
       let
+        mentionedModules = getMentionedLibraryModules sect
         inferableModules = modules \\ mentionedModules
+      return $ action inferableModules sectionData
+      where
+        action
+          | topLevel = fromLibrarySectionTopLevel
+          | otherwise = fromLibrarySectionInConditional
+
+    fromLibrarySectionTopLevel inferableModules LibrarySection{..} =
+      Library librarySectionExposed exposedModules otherModules reexportedModules
+      where
         (exposedModules, otherModules) =
           determineModules name inferableModules librarySectionExposedModules librarySectionOtherModules
         reexportedModules = fromMaybeList librarySectionReexportedModules
-      return (Library librarySectionExposed exposedModules otherModules reexportedModules)
-      where
-        mentionedModules = getMentionedLibraryModules sect
 
-    fromInConditional :: Section LibrarySection -> IO Library
-    fromInConditional sect@Section{..} = fromLibrarySectionInConditional dir sectionSourceDirs mentionedModules sectionData
-      where
-        mentionedModules = getMentionedLibraryModules sect
-
-fromLibrarySectionInConditional :: FilePath -> [FilePath] -> [FilePath] -> LibrarySection -> IO Library
-fromLibrarySectionInConditional dir sourceDirs mentionedModules lib@(LibrarySection _ exposedModules otherModules _) = do
+fromLibrarySectionInConditional :: [String] -> LibrarySection -> Library
+fromLibrarySectionInConditional inferableModules lib@(LibrarySection _ exposedModules otherModules _) = do
   case (exposedModules, otherModules) of
-    (Nothing, Nothing) -> do
-      modules <- concat <$> mapM (getModules dir) sourceDirs
-      return (fromLibrarySectionPlain lib) {libraryOtherModules = modules \\ mentionedModules}
-    _ -> return (fromLibrarySectionPlain lib)
+    (Nothing, Nothing) -> (fromLibrarySectionPlain lib) {libraryOtherModules = inferableModules}
+    _ -> fromLibrarySectionPlain lib
 
 fromLibrarySectionPlain :: LibrarySection -> Library
 fromLibrarySectionPlain LibrarySection{..} = Library {

@@ -382,15 +382,11 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           context "with a source-dir inside the conditional" $ do
             it "infers other-modules" $ do
               touch "windows/Foo.hs"
-              touch "windows/Bar.hs"
               [i|
               library:
                 when:
                   condition: os(windows)
                   source-dirs: windows
-                  when:
-                    condition: foo
-                    exposed-modules: Bar
               |] `shouldRenderTo` library [i|
               other-modules:
                   Paths_foo
@@ -399,9 +395,6 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                     Foo
                 hs-source-dirs:
                     windows
-                if foo
-                  exposed-modules:
-                      Bar
               |]
 
     context "with internal-libraries" $ do
