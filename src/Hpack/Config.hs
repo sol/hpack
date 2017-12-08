@@ -765,14 +765,12 @@ toCustomSetup :: CustomSetupSection -> CustomSetup
 toCustomSetup CustomSetupSection{..} = CustomSetup
   { customSetupDependencies = fromMaybe mempty customSetupSectionDependencies }
 
-traverseSection :: Applicative m => (Section a -> m b) -> Section a -> m (Section b)
-traverseSection f = biTraverseSection f f
-
-biTraverseSection :: Applicative m => (Section a -> m b) -> (Section a -> m b) -> Section a -> m (Section b)
-biTraverseSection fData fConditionals sect =
-  update <$> fData sect <*> traverse (traverse $ traverseSection fConditionals) (sectionConditionals sect)
+traverseSectionAndConditionals :: Applicative m => (Section a -> m b) -> (Section a -> m b) -> Section a -> m (Section b)
+traverseSectionAndConditionals fData fConditionals sect@Section{..} =
+  update <$> fData sect <*> traverseConditionals sectionConditionals
   where
     update x xs = sect{sectionData = x, sectionConditionals = xs}
+    traverseConditionals = traverse $ traverse $ traverseSectionAndConditionals fConditionals fConditionals
 
 getMentionedLibraryModules :: Section LibrarySection -> [String]
 getMentionedLibraryModules = concatMap $ \ LibrarySection{..} ->
@@ -780,7 +778,7 @@ getMentionedLibraryModules = concatMap $ \ LibrarySection{..} ->
 
 toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO (Section Library)
 toLibrary dir name globalOptions =
-  biTraverseSection fromLibrarySection fromInConditional . mergeSections emptyLibrarySection globalOptions
+  traverseSectionAndConditionals fromLibrarySection fromInConditional . mergeSections emptyLibrarySection globalOptions
   where
     fromLibrarySection :: Section LibrarySection -> IO Library
     fromLibrarySection sect@Section{sectionData = LibrarySection{..}, sectionSourceDirs = sourceDirs} = do
@@ -800,8 +798,8 @@ toLibrary dir name globalOptions =
         mentionedModules = getMentionedLibraryModules sect
 
 fromLibrarySectionInConditional :: FilePath -> [FilePath] -> [FilePath] -> LibrarySection -> IO Library
-fromLibrarySectionInConditional dir sourceDirs mentionedModules lib@LibrarySection{..} = do
-  case (librarySectionExposedModules, librarySectionOtherModules) of
+fromLibrarySectionInConditional dir sourceDirs mentionedModules lib@(LibrarySection _ exposedModules otherModules _) = do
+  case (exposedModules, otherModules) of
     (Nothing, Nothing) -> do
       modules <- concat <$> mapM (getModules dir) sourceDirs
       return (fromLibrarySectionPlain lib) {libraryOtherModules = modules \\ mentionedModules}
@@ -826,32 +824,26 @@ getMentionedExecutableModules = concatMap $ \ ExecutableSection{..} ->
   fromMaybeList executableSectionOtherModules ++ maybe [] return (executableSectionMain >>= toModule . splitDirectories)
 
 toExecutable :: FilePath -> String -> Section global -> Section ExecutableSection -> IO (Section Executable)
-toExecutable dir packageName_ globalOptions = toExecutable_ True . expandMain . mergeSections emptyExecutableSection globalOptions
+toExecutable dir packageName_ globalOptions =
+    traverseSectionAndConditionals (fromExecutableSection True) (fromExecutableSection False)
+  . expandMain
+  . mergeSections emptyExecutableSection globalOptions
   where
-    toExecutable_ :: Bool -> Section ExecutableSection -> IO (Section Executable)
-    toExecutable_ inferPathsModule sect@Section{..} = do
-      exec <- fromExecutableSection sectionData
-      conditionals <- mapM (traverse $ toExecutable_ False) sectionConditionals
-      return sect {
-          sectionData = exec
-        , sectionConditionals = conditionals
-        }
+    fromExecutableSection :: Bool -> Section ExecutableSection -> IO Executable
+    fromExecutableSection inferPathsModule sect@Section{sectionData = ExecutableSection main_ otherModules, ..} = do
+      modules <- maybe inferModules (return . fromList) otherModules
+      return (Executable main_ modules)
       where
         mentionedModules = getMentionedExecutableModules sect
 
-        fromExecutableSection :: ExecutableSection -> IO Executable
-        fromExecutableSection (ExecutableSection main_ otherModules)= do
-          modules <- maybe inferModules (return . fromList) otherModules
-          return (Executable main_ modules)
-          where
-            inferModules :: IO [String]
-            inferModules
-              | null sectionSourceDirs = return []
-              | otherwise = (\\ mentionedModules) . (++ pathsModule) . concat <$> mapM (getModules dir) sectionSourceDirs
+        inferModules :: IO [String]
+        inferModules
+          | null sectionSourceDirs = return []
+          | otherwise = (\\ mentionedModules) . (++ pathsModule) . concat <$> mapM (getModules dir) sectionSourceDirs
 
-            pathsModule = case inferPathsModule of
-              True -> [pathsModuleFromPackageName packageName_]
-              False -> []
+        pathsModule = case inferPathsModule of
+          True -> [pathsModuleFromPackageName packageName_]
+          False -> []
 
 expandMain :: Section ExecutableSection -> Section ExecutableSection
 expandMain = flatten . expand
