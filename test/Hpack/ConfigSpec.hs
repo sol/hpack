@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Hpack.ConfigSpec (
   spec
@@ -14,6 +16,7 @@ import           Helper
 import           Data.Aeson.Types
 import           Data.String.Interpolate.IsString
 import           Control.Arrow
+import           GHC.Exts
 import           System.Directory (createDirectory)
 import           Data.Either
 import qualified Data.Map.Lazy as Map
@@ -22,6 +25,11 @@ import           Hpack.Util
 import           Hpack.Dependency
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
+
+instance IsList (Maybe (List a)) where
+  type Item (Maybe (List a)) = a
+  fromList = Just . List
+  toList = undefined
 
 deps :: [String] -> Dependencies
 deps = Dependencies . Map.fromList . map (flip (,) AnyVersion)
@@ -58,6 +66,39 @@ withPackageWarnings_ content = withPackageWarnings content (return ())
 
 spec :: Spec
 spec = do
+  describe "fromLibrarySectionInConditional" $ do
+    let
+      sect = LibrarySection {
+        librarySectionExposed = Nothing
+      , librarySectionExposedModules = Nothing
+      , librarySectionOtherModules = Nothing
+      , librarySectionReexportedModules = Nothing
+      }
+      lib = Library {
+        libraryExposed = Nothing
+      , libraryExposedModules = []
+      , libraryOtherModules = []
+      , libraryReexportedModules = []
+      }
+      setup = touch "foo/Foo.hs" >> touch "bar/Bar.hs"
+
+    context "when inferring modules" $ around_ (inTempDirectory . (setup >>)) $ do
+      let action = fromLibrarySectionInConditional "." ["foo", "bar"]
+
+      it "infers other-modules" $ do
+        action [] sect `shouldReturn` lib {libraryOtherModules = ["Foo", "Bar"]}
+
+      it "excludes mentioned modules" $ do
+        action ["Foo"] sect `shouldReturn` lib {libraryOtherModules = ["Bar"]}
+
+      context "with exposed-modules" $ do
+        it "infers nothing" $ do
+          action [] sect {librarySectionExposedModules = []} `shouldReturn` lib
+
+      context "with other-modules" $ do
+        it "infers nothing" $ do
+          action [] sect {librarySectionOtherModules = []} `shouldReturn` lib
+
   describe "renamePackage" $ do
     it "renames a package" $ do
       renamePackage "bar" package `shouldBe` package {packageName = "bar"}
@@ -105,17 +146,17 @@ spec = do
 
   describe "determineModules" $ do
     it "adds the Paths_* module to the other-modules" $ do
-      determineModules "foo" [] (Just $ List ["Foo"]) Nothing `shouldBe` (["Foo"], ["Paths_foo"])
+      determineModules "foo" [] ["Foo"] Nothing `shouldBe` (["Foo"], ["Paths_foo"])
 
     it "adds the Paths_* module to the other-modules when no modules are specified" $ do
       determineModules "foo" [] Nothing Nothing `shouldBe` ([], ["Paths_foo"])
 
     it "replaces dashes with underscores in Paths_*" $ do
-      determineModules "foo-bar" [] (Just $ List ["Foo"]) Nothing `shouldBe` (["Foo"], ["Paths_foo_bar"])
+      determineModules "foo-bar" [] ["Foo"] Nothing `shouldBe` (["Foo"], ["Paths_foo_bar"])
 
     context "when the Paths_* module is part of the exposed-modules" $ do
       it "does not add the Paths_* module to the other-modules" $ do
-        determineModules "foo" [] (Just $ List ["Foo", "Paths_foo"]) Nothing `shouldBe` (["Foo", "Paths_foo"], [])
+        determineModules "foo" [] ["Foo", "Paths_foo"] Nothing `shouldBe` (["Foo", "Paths_foo"], [])
 
   describe "readPackageConfig" $ do
     it "warns on unknown fields" $ do
