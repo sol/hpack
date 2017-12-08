@@ -826,21 +826,19 @@ getMentionedExecutableModules = concatMap $ \ ExecutableSection{..} ->
   fromMaybeList executableSectionOtherModules ++ maybe [] return (executableSectionMain >>= toModule . splitDirectories)
 
 toExecutable :: FilePath -> String -> Section global -> Section ExecutableSection -> IO (Section Executable)
-toExecutable dir packageName_ globalOptions executable = toExecutable_ True sect
+toExecutable dir packageName_ globalOptions = toExecutable_ True . expandMain . mergeSections emptyExecutableSection globalOptions
   where
-    sect = expandMain (mergeSections emptyExecutableSection globalOptions executable)
-
-    mentionedModules = getMentionedExecutableModules sect
-
     toExecutable_ :: Bool -> Section ExecutableSection -> IO (Section Executable)
-    toExecutable_ inferPathsModule s@Section{..} = do
+    toExecutable_ inferPathsModule sect@Section{..} = do
       exec <- fromExecutableSection sectionData
       conditionals <- mapM (traverse $ toExecutable_ False) sectionConditionals
-      return s{
+      return sect {
           sectionData = exec
         , sectionConditionals = conditionals
         }
       where
+        mentionedModules = getMentionedExecutableModules sect
+
         fromExecutableSection :: ExecutableSection -> IO Executable
         fromExecutableSection (ExecutableSection main_ otherModules)= do
           modules <- maybe inferModules (return . fromList) otherModules
