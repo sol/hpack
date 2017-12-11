@@ -1,4 +1,4 @@
-## Next
+## Changes in 0.21.0
   - Accept section-specific fields in conditionals (see #175, thanks to Scott
     Fleischman)
   - New section: `internal-libraries`, for Cabal 2's internal libraries (see #200).
