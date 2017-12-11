@@ -95,11 +95,11 @@ These fields are merged with all library, executable, test, and benchmark compon
 
 #### <a name="library-fields"></a>Library fields
 
-| Hpack | Cabal | Default | Notes |
+| Hpack | Cabal | Default | Default inside conditional |
 | --- | --- | --- | --- |
 | `exposed` | · | | |
-| `exposed-modules` | · | All modules in `source-dirs` less `other-modules` | |
-| `other-modules` | · | All modules in `source-dirs` less `exposed-modules` | |
+| `exposed-modules` | · | All modules in `source-dirs` less `other-modules` less any modules mentioned in `when` | |
+| `other-modules` | · | All modules in `source-dirs` less `exposed-modules` less any modules mentioned in `when` | Only if `exposed-modules` is not specified inside the conditional: All modules in `source-dirs` of the conditional less any modules mentioned in `when` of the conditional |
 | `reexported-modules` | · | | |
 | | `default-language` | `Haskell2010` | |
 
@@ -108,7 +108,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | `main` | `main-is` | | |
-| `other-modules` | · | | |
+| `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | | `default-language` | `Haskell2010` | |
 
 #### <a name="test-fields"></a>Test fields
@@ -117,7 +117,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | --- | --- | --- | --- |
 | | `type` | `exitcode-stdio-1.0` | |
 | `main` | `main-is` | | |
-| `other-modules` | · | | |
+| `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | | `default-language` | `Haskell2010` | |
 
 #### <a name="benchmark-fields"></a>Benchmark fields
@@ -126,7 +126,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | --- | --- | --- | --- |
 | | `type` | `exitcode-stdio-1.0` | |
 | `main` | `main-is` | | |
-| `other-modules` | · | | |
+| `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | | `default-language` | `Haskell2010` | |
 
 #### <a name="flags"></a>Flags
