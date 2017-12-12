@@ -109,8 +109,34 @@ spec = do
 
         it "rejects invalid values" $ do
           [i|
-            hpack: 23
-          |] `parsesAs` Left "Error in $.hpack: expected Null, Object, or String, encountered Number"
+            hpack: []
+          |] `parsesAs` Left "Error in $.hpack: expected Null, Object, Number, or String, encountered Array"
+
+        context "when the constraint is a Number" $ do
+          it "accepts 1" $ do
+            [i|
+              hpack: 1
+            |] `parsesAs` Right [("hpack", VersionRange "==1")]
+
+          it "accepts 1.0" $ do
+            [i|
+              hpack: 1.0
+            |] `parsesAs` Right [("hpack", VersionRange "==1.0")]
+
+          it "accepts 0.11" $ do
+            [i|
+              hpack: 0.11
+            |] `parsesAs` Right [("hpack", VersionRange "==0.11")]
+
+          it "accepts 0.110" $ do
+            [i|
+              hpack: 0.110
+            |] `parsesAs` Right [("hpack", VersionRange "==0.110")]
+
+          it "accepts 1e2" $ do
+            [i|
+              hpack: 1e2
+            |] `parsesAs` Right [("hpack", VersionRange "==100")]
 
         context "when the constraint is a String" $ do
           it "accepts version ranges" $ do

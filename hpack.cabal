@@ -1,8 +1,8 @@
--- This file has been generated from package.yaml by hpack version 0.20.0.
+-- This file has been generated from package.yaml by hpack version 0.21.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: db045f3697ddf50f10677f67652465713155419437cab6c893deede5a3330f31
+-- hash: faa637605c7852d531dee4f454a7166450f9ab3ae0bd0759c5d4da0a01685efb
 
 name:           hpack
 version:        0.21.0
@@ -41,6 +41,7 @@ library
     , directory
     , filepath
     , pretty
+    , scientific
     , text
     , transformers
     , unordered-containers
@@ -83,6 +84,7 @@ executable hpack
     , filepath
     , hpack
     , pretty
+    , scientific
     , text
     , transformers
     , unordered-containers
@@ -117,6 +119,7 @@ test-suite spec
     , interpolate
     , mockery >=0.3
     , pretty
+    , scientific
     , temporary
     , text
     , transformers

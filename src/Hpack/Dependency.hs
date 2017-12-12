@@ -20,6 +20,7 @@ import qualified Distribution.Text as D
 import qualified Distribution.Version as D
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
+import           Data.Scientific
 import           Data.Aeson.Types
 import           Control.Applicative
 import           GHC.Exts
@@ -65,11 +66,21 @@ instance FromJSON DependencyVersion where
   parseJSON v = case v of
     Null -> return AnyVersion
     Object _ -> SourceDependency <$> parseJSON v
+    Number n -> return (scientificToDependencyVersion n)
     String s -> parseVersionRange ("== " ++ input) <|> parseVersionRange input
       where
         input = T.unpack s
 
-    _ -> typeMismatch "Null, Object, or String" v
+    _ -> typeMismatch "Null, Object, Number, or String" v
+
+scientificToDependencyVersion :: Scientific -> DependencyVersion
+scientificToDependencyVersion n = VersionRange ("==" ++ version)
+  where
+    version = formatScientific Fixed (Just decimalPlaces) n
+    decimalPlaces
+      | e < 0 = abs e
+      | otherwise = 0
+    e = base10Exponent n
 
 instance FromJSON SourceDependency where
   parseJSON = withObject "SourceDependency" (\o -> let
