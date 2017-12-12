@@ -20,6 +20,39 @@ import           Hpack.FormattingHints (FormattingHints(..), sniffFormattingHint
 spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "hpack" $ do
+    describe "extra-doc-files" $ do
+      it "accepts a list of files" $ do
+        touch "CHANGES.markdown"
+        touch "README.markdown"
+        [i|
+        extra-doc-files:
+          - CHANGES.markdown
+          - README.markdown
+        |] `shouldRenderTo` package [i|
+        extra-doc-files:
+            CHANGES.markdown
+            README.markdown
+        |]
+
+      it "accepts glob patterns" $ do
+        touch "CHANGES.markdown"
+        touch "README.markdown"
+        [i|
+        extra-doc-files:
+          - "*.markdown"
+        |] `shouldRenderTo` package [i|
+        extra-doc-files:
+            CHANGES.markdown
+            README.markdown
+        |]
+
+      it "warns if a glob pattern does not match anything" $ do
+        [i|
+        name: foo
+        extra-doc-files:
+          - "*.markdown"
+        |] `shouldWarn` ["Specified pattern \"*.markdown\" for extra-doc-files does not match any files"]
+
     describe "dependencies" $ do
       it "accepts single dependency" $ do
         [i|

@@ -47,7 +47,7 @@ existing cabal file into a `package.yaml`.
 | `build-type` | · | `Simple`, or `Custom` if `custom-setup` section exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | | |
 | | `cabal-version` | `>= 1.10` or `>= 1.21` | `>= 1.21` if library component has `reexported-modules` field | | |
 | `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | | |
-| `extra-doc-files` | · | | Accepts [glob patterns](#file-globbing) | | `0.21.0` |
+| `extra-doc-files` | · | | Accepts [glob patterns](#file-globbing) | | `0.21.2` |
 | `data-files` | · | | Accepts [glob patterns](#file-globbing) | | |
 | `github` | `source-repository head` | | Accepts `user/repo` or `user/repo/subdir` | `github: foo/bar` |
 | `git`    | `source-repository head` | | No effect if `github` given | `git: https://my.repo.com/foo` | |
