@@ -26,10 +26,10 @@ spec = do
       parseMain "Main.lhs" `shouldBe` ("Main.lhs", [])
 
     it "accepts module" $ do
-      parseMain "Foo" `shouldBe` ("Foo.hs", ["-main-is Foo"])
+      parseMain "Foo" `shouldBe` ("Foo.hs", ["-main-is", "Foo"])
 
     it "accepts hierarchical module" $ do
-      parseMain "Foo.Bar.Baz" `shouldBe` ("Foo/Bar/Baz.hs", ["-main-is Foo.Bar.Baz"])
+      parseMain "Foo.Bar.Baz" `shouldBe` ("Foo/Bar/Baz.hs", ["-main-is", "Foo.Bar.Baz"])
 
     it "accepts qualified identifier" $ do
       parseMain "Foo.bar" `shouldBe` ("Foo.hs", ["-main-is Foo.bar"])
