@@ -24,6 +24,7 @@ module Hpack.Render (
 #endif
 ) where
 
+import           Data.Char (isSpace)
 import           Data.String
 import           Data.List
 
@@ -79,9 +80,13 @@ renderField settings@RenderSettings{..} nesting name value = case renderValue se
 renderValue :: RenderSettings -> Value -> Lines
 renderValue RenderSettings{..} v = case v of
   Literal s -> SingleLine s
-  WordList ws -> SingleLine $ unwords ws
+  WordList ws -> SingleLine $ unwords $ map quote ws
   LineSeparatedList xs -> renderLineSeparatedList renderSettingsCommaStyle xs
   CommaSeparatedList xs -> renderCommaSeparatedList renderSettingsCommaStyle xs
+  where
+    quote s
+      | any isSpace s = concat ["\"", s, "\""]
+      | otherwise = s
 
 renderLineSeparatedList :: CommaStyle -> [String] -> Lines
 renderLineSeparatedList style = MultipleLines . map (padding ++)

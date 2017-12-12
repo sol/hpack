@@ -1,5 +1,6 @@
 ## next (0.21.2)
   - New top-level field: `extra-doc-files`.
+  - Add quotes around values with spaces in them (see #237)
 
 ## Changes in 0.21.1
   - Allow dependency constraints to be numbers (see #234)
