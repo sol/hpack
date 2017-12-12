@@ -61,7 +61,7 @@ type LdOption = String
 parseMain :: String -> (FilePath, [GhcOption])
 parseMain main = case reverse name of
   x : _ | isQualifiedIdentifier name && x `notElem` ["hs", "lhs"] -> (intercalate "/" (init name) ++ ".hs", ["-main-is " ++ main])
-  _ | isModule name -> (intercalate "/" name ++ ".hs", ["-main-is " ++ main])
+  _ | isModule name -> (intercalate "/" name ++ ".hs", ["-main-is", main])
   _ -> (main, [])
   where
     name = splitOn '.' main
