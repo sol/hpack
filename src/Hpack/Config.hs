@@ -96,6 +96,7 @@ package name version = Package {
   , packageTestedWith = Nothing
   , packageFlags = []
   , packageExtraSourceFiles = []
+  , packageExtraDocFiles = []
   , packageDataFiles = []
   , packageSourceRepository = Nothing
   , packageCustomSetup = Nothing
@@ -366,6 +367,7 @@ data PackageConfig capture cSources jsSources = PackageConfig {
 , packageConfigTestedWith :: Maybe String
 , packageConfigFlags :: Maybe (Map String (capture FlagSection))
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
+, packageConfigExtraDocFiles :: Maybe (List FilePath)
 , packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigGithub :: Maybe Text
 , packageConfigGit :: Maybe String
@@ -456,6 +458,7 @@ data Package = Package {
 , packageTestedWith :: Maybe String
 , packageFlags :: [Flag]
 , packageExtraSourceFiles :: [FilePath]
+, packageExtraDocFiles :: [FilePath]
 , packageDataFiles :: [FilePath]
 , packageSourceRepository :: Maybe SourceRepository
 , packageCustomSetup :: Maybe CustomSetup
@@ -590,6 +593,9 @@ toPackage_ dir (Product (toSection . (`Product` Empty) -> globalOptions) Package
   (extraSourceFilesWarnings, extraSourceFiles) <-
     expandGlobs "extra-source-files" dir (fromMaybeList packageConfigExtraSourceFiles)
 
+  (extraDocFilesWarnings, extraDocFiles) <-
+    expandGlobs "extra-doc-files" dir (fromMaybeList packageConfigExtraDocFiles)
+
   (dataFilesWarnings, dataFiles) <-
     expandGlobs "data-files" dir (fromMaybeList packageConfigDataFiles)
 
@@ -619,6 +625,7 @@ toPackage_ dir (Product (toSection . (`Product` Empty) -> globalOptions) Package
       , packageTestedWith = packageConfigTestedWith
       , packageFlags = flags
       , packageExtraSourceFiles = extraSourceFiles
+      , packageExtraDocFiles = extraDocFiles
       , packageDataFiles = dataFiles
       , packageSourceRepository = sourceRepository
       , packageCustomSetup = mCustomSetup
@@ -635,6 +642,7 @@ toPackage_ dir (Product (toSection . (`Product` Empty) -> globalOptions) Package
         ++ formatMissingSourceDirs missingSourceDirs
         ++ executableWarning
         ++ extraSourceFilesWarnings
+        ++ extraDocFilesWarnings
         ++ dataFilesWarnings
 
   return (warnings, pkg)

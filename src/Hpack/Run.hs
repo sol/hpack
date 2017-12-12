@@ -67,6 +67,9 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
     extraSourceFiles :: Element
     extraSourceFiles = Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
 
+    extraDocFiles :: Element
+    extraDocFiles = Field "extra-doc-files" (LineSeparatedList packageExtraDocFiles)
+
     dataFiles :: Element
     dataFiles = Field "data-files" (LineSeparatedList packageDataFiles)
 
@@ -82,6 +85,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
     stanzas :: [Element]
     stanzas =
       extraSourceFiles
+      : extraDocFiles
       : dataFiles
       : sourceRepository
       ++ concat [

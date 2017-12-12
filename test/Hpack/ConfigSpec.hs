@@ -427,6 +427,18 @@ spec = do
         )
         (packageExtraSourceFiles >>> (`shouldBe` ["CHANGES.markdown", "README.markdown"]))
 
+    it "accepts extra-doc-files" $ do
+      withPackageConfig [i|
+        extra-doc-files:
+          - CHANGES.markdown
+          - README.markdown
+        |]
+        (do
+        touch "CHANGES.markdown"
+        touch "README.markdown"
+        )
+        (packageExtraDocFiles >>> (`shouldBe` ["CHANGES.markdown", "README.markdown"]))
+
     it "accepts data-files" $ do
       withPackageConfig [i|
         data-files:
