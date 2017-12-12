@@ -135,7 +135,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, version) | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty
+section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -209,6 +209,7 @@ data CommonOptions a capture cSources jsSources = CommonOptions {
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List (ConditionalSection a capture cSources jsSources))
 , commonOptionsBuildTools :: Maybe Dependencies
+, commonOptionsPkgConfigs :: Maybe (List String)
 } deriving Generic
 
 type ParseCommonOptions a = CommonOptions a CaptureUnknownFields ParseCSources ParseJsSources
@@ -508,6 +509,7 @@ data Section a = Section {
 , sectionBuildable :: Maybe Bool
 , sectionConditionals :: [Conditional (Section a)]
 , sectionBuildTools :: Dependencies
+, sectionPkgConfigs :: [String]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Conditional a = Conditional {
@@ -897,6 +899,7 @@ mergeSections a globalOptions options
   , sectionDependencies = sectionDependencies options <> sectionDependencies globalOptions
   , sectionConditionals = map (fmap (a <$)) (sectionConditionals globalOptions) ++ sectionConditionals options
   , sectionBuildTools = sectionBuildTools options <> sectionBuildTools globalOptions
+  , sectionPkgConfigs = sectionPkgConfigs globalOptions ++ sectionPkgConfigs options
   }
 
 toSectionI :: Identity (WithCommonOptions a Identity CSources JsSources) -> Section a
@@ -926,6 +929,7 @@ toSection (Product CommonOptions{..} a) = Section {
       , sectionDependencies = fromMaybe mempty commonOptionsDependencies
       , sectionConditionals = conditionals
       , sectionBuildTools = fromMaybe mempty commonOptionsBuildTools
+      , sectionPkgConfigs = fromMaybeList commonOptionsPkgConfigs
       }
   where
     conditionals = map toConditional (fromMaybeList commonOptionsWhen)
