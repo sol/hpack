@@ -363,6 +363,12 @@ spec = do
         |]
         (packageLicenseFile >>> (`shouldBe` ["FOO", "BAR"]))
 
+    it "accepts cabal-version" $ do
+      withPackageConfig_ [i|
+        cabal-version: '>= 2.0'
+        |]
+        (packageCustomCabalVersion >>> (`shouldBe` Just ">= 2.0"))
+
     it "accepts build-type: Simple" $ do
       withPackageConfig_ [i|
         build-type: Simple
