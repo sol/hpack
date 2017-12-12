@@ -1,3 +1,6 @@
+## Changes in 0.21.1
+  - Allow dependency constraints to be numbers (see #234)
+
 ## Changes in 0.21.0
   - Accept section-specific fields in conditionals (see #175, thanks to Scott
     Fleischman)
