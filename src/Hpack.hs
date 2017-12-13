@@ -50,6 +50,7 @@ main = do
   args <- getArgs
   case parseOptions args of
     PrintVersion -> putStrLn (programVersion version)
+    PrintNumericVersion -> putStrLn (Version.showVersion version)
     Help -> printHelp
     Run options -> case options of
       Options _verbose _force True dir -> hpackStdOut dir

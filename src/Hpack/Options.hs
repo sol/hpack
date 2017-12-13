@@ -1,6 +1,6 @@
 module Hpack.Options where
 
-data ParseResult = Help | PrintVersion | Run Options | ParseError
+data ParseResult = Help | PrintVersion | PrintNumericVersion | Run Options | ParseError
   deriving (Eq, Show)
 
 data Verbose = Verbose | NoVerbose
@@ -19,6 +19,7 @@ data Options = Options {
 parseOptions :: [String] -> ParseResult
 parseOptions xs = case xs of
   ["--version"] -> PrintVersion
+  ["--numeric-version"] -> PrintNumericVersion
   ["--help"] -> Help
   _ -> case targets of
     Just (target, toStdout) -> Run (Options verbose force toStdout target)
