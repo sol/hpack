@@ -91,6 +91,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `ld-options` | · | | |
 | `buildable` | · | | May be overridden by later stanza |
 | `dependencies` | `build-depends` | | |
+| `pkg-config-dependencies` | `pkgconfig-depends` | | |
 | `build-tools` | · | | |
 | `when` | | | Accepts a list of conditionals (see [Conditionals](#conditionals)) |
 

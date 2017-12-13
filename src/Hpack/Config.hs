@@ -135,7 +135,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, version) | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty []
+section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -190,6 +190,7 @@ instance FromJSON ExecutableSection where
 data CommonOptions a capture cSources jsSources = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
 , commonOptionsDependencies :: Maybe Dependencies
+, commonOptionsPkgConfigDependencies :: Maybe (List String)
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsOtherExtensions :: Maybe (List String)
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
@@ -209,7 +210,6 @@ data CommonOptions a capture cSources jsSources = CommonOptions {
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List (ConditionalSection a capture cSources jsSources))
 , commonOptionsBuildTools :: Maybe Dependencies
-, commonOptionsPkgConfigs :: Maybe (List String)
 } deriving Generic
 
 type ParseCommonOptions a = CommonOptions a CaptureUnknownFields ParseCSources ParseJsSources
@@ -490,6 +490,7 @@ data Section a = Section {
   sectionData :: a
 , sectionSourceDirs :: [FilePath]
 , sectionDependencies :: Dependencies
+, sectionPkgConfigDependencies :: [String]
 , sectionDefaultExtensions :: [String]
 , sectionOtherExtensions :: [String]
 , sectionGhcOptions :: [GhcOption]
@@ -509,7 +510,6 @@ data Section a = Section {
 , sectionBuildable :: Maybe Bool
 , sectionConditionals :: [Conditional (Section a)]
 , sectionBuildTools :: Dependencies
-, sectionPkgConfigs :: [String]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Conditional a = Conditional {
@@ -897,9 +897,9 @@ mergeSections a globalOptions options
   , sectionLdOptions = sectionLdOptions globalOptions ++ sectionLdOptions options
   , sectionBuildable = sectionBuildable options <|> sectionBuildable globalOptions
   , sectionDependencies = sectionDependencies options <> sectionDependencies globalOptions
+  , sectionPkgConfigDependencies = sectionPkgConfigDependencies globalOptions ++ sectionPkgConfigDependencies options
   , sectionConditionals = map (fmap (a <$)) (sectionConditionals globalOptions) ++ sectionConditionals options
   , sectionBuildTools = sectionBuildTools options <> sectionBuildTools globalOptions
-  , sectionPkgConfigs = sectionPkgConfigs globalOptions ++ sectionPkgConfigs options
   }
 
 toSectionI :: Identity (WithCommonOptions a Identity CSources JsSources) -> Section a
@@ -927,9 +927,9 @@ toSection (Product CommonOptions{..} a) = Section {
       , sectionLdOptions = fromMaybeList commonOptionsLdOptions
       , sectionBuildable = commonOptionsBuildable
       , sectionDependencies = fromMaybe mempty commonOptionsDependencies
+      , sectionPkgConfigDependencies = fromMaybeList commonOptionsPkgConfigDependencies
       , sectionConditionals = conditionals
       , sectionBuildTools = fromMaybe mempty commonOptionsBuildTools
-      , sectionPkgConfigs = fromMaybeList commonOptionsPkgConfigs
       }
   where
     conditionals = map toConditional (fromMaybeList commonOptionsWhen)

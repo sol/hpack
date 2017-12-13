@@ -99,6 +99,19 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               base >=2
           |]
 
+    describe "pkg-config-dependencies" $ do
+      it "accepts pkg-config-dependencies" $ do
+        [i|
+        pkg-config-dependencies:
+          - QtWebKit
+          - weston
+        executable: {}
+        |] `shouldRenderTo` executable "foo" [i|
+        pkgconfig-depends:
+            QtWebKit
+          , weston
+        |]
+
     describe "include-dirs" $ do
       it "accepts include-dirs" $ do
         [i|
@@ -173,19 +186,6 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         extra-libraries:
             foo
             bar
-        |]
-
-    describe "pkg-configs" $ do
-      it "accepts pkg-configs" $ do
-        [i|
-        pkg-configs:
-          - QtWebKit
-          - weston
-        executable: {}
-        |] `shouldRenderTo` executable "foo" [i|
-        pkgconfig-depends:
-            QtWebKit
-          , weston
         |]
 
     describe "extra-frameworks-dirs" $ do

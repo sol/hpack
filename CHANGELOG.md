@@ -1,5 +1,6 @@
 ## next (0.21.2)
-  - New top-level field: `extra-doc-files`.
+  - Add support for `extra-doc-files`.
+  - Add support for `pkg-config-dependencies`
 
 ## Changes in 0.21.1
   - Allow dependency constraints to be numbers (see #234)
