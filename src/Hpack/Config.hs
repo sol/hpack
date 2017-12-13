@@ -948,9 +948,9 @@ determineModules name modules mExposedModules mOtherModules = case (mExposedModu
   (Nothing, Nothing) -> (modules, [pathsModuleFromPackageName name])
   _ -> (exposedModules, otherModules)
     where
-      otherModules   = maybe ((modules \\ exposedModules) ++ pathsModule) fromList mOtherModules
-      exposedModules = maybe (modules \\ otherModules)   fromList mExposedModules
-      pathsModule = [pathsModuleFromPackageName name] \\ exposedModules
+      otherModules   = maybe ((modules ++ pathsModule) \\ exposedModules) fromList mOtherModules
+      exposedModules = maybe (modules \\ otherModules) fromList mExposedModules
+      pathsModule = [pathsModuleFromPackageName name]
 
 getModules :: FilePath -> FilePath -> IO [String]
 getModules dir src_ = sort <$> do
