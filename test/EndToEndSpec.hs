@@ -412,17 +412,18 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               source-dirs: src
               when:
                 condition: os(windows)
-                exposed-modules: Foo
+                exposed-modules:
+                  - Foo
+                  - Paths_foo
             |] `shouldRenderTo` library [i|
             hs-source-dirs:
                 src
             if os(windows)
               exposed-modules:
                   Foo
+                  Paths_foo
             exposed-modules:
                 Bar
-            other-modules:
-                Paths_foo
             |]
 
           context "with a source-dir inside the conditional" $ do
@@ -441,6 +442,32 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                     Foo
                 hs-source-dirs:
                     windows
+              |]
+
+            it "does not infer outer modules" $ do
+              touch "windows/Foo.hs"
+              touch "unix/Foo.hs"
+              [i|
+              library:
+                exposed-modules: Foo
+                when:
+                  condition: os(windows)
+                  then:
+                    source-dirs: windows/
+                  else:
+                    source-dirs: unix/
+
+              |] `shouldRenderTo` library [i|
+              exposed-modules:
+                  Foo
+              other-modules:
+                  Paths_foo
+              if os(windows)
+                hs-source-dirs:
+                    windows/
+              else
+                hs-source-dirs:
+                    unix/
               |]
 
     context "with internal-libraries" $ do

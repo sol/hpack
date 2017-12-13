@@ -66,6 +66,21 @@ withPackageWarnings_ content = withPackageWarnings content (return ())
 
 spec :: Spec
 spec = do
+  describe "pathsModuleFromPackageName" $ do
+    it "replaces dashes with underscores in package name" $ do
+      pathsModuleFromPackageName "foo-bar" `shouldBe` "Paths_foo_bar"
+
+  describe "determineModules" $ do
+    it "adds the Paths_* module to the other-modules" $ do
+      determineModules ["Paths_foo"] [] ["Foo"] Nothing `shouldBe` (["Foo"], ["Paths_foo"])
+
+    it "adds the Paths_* module to the other-modules when no modules are specified" $ do
+      determineModules ["Paths_foo"] [] Nothing Nothing `shouldBe` ([], ["Paths_foo"])
+
+    context "when the Paths_* module is part of the exposed-modules" $ do
+      it "does not add the Paths_* module to the other-modules" $ do
+        determineModules ["Paths_foo"] [] ["Foo", "Paths_foo"] Nothing `shouldBe` (["Foo", "Paths_foo"], [])
+
   describe "fromLibrarySectionInConditional" $ do
     let
       sect = LibrarySection {
@@ -139,20 +154,6 @@ spec = do
         touch (dir </> "Foo.hs")
         touch (dir </> "Setup.hs")
         getModules dir  "./." `shouldReturn` ["Foo"]
-
-  describe "determineModules" $ do
-    it "adds the Paths_* module to the other-modules" $ do
-      determineModules "foo" [] ["Foo"] Nothing `shouldBe` (["Foo"], ["Paths_foo"])
-
-    it "adds the Paths_* module to the other-modules when no modules are specified" $ do
-      determineModules "foo" [] Nothing Nothing `shouldBe` ([], ["Paths_foo"])
-
-    it "replaces dashes with underscores in Paths_*" $ do
-      determineModules "foo-bar" [] ["Foo"] Nothing `shouldBe` (["Foo"], ["Paths_foo_bar"])
-
-    context "when the Paths_* module is part of the exposed-modules" $ do
-      it "does not add the Paths_* module to the other-modules" $ do
-        determineModules "foo" [] ["Foo", "Paths_foo"] Nothing `shouldBe` (["Foo", "Paths_foo"], [])
 
   describe "readPackageConfig" $ do
     it "warns on unknown fields" $ do
