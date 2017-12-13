@@ -38,7 +38,7 @@ package :: Package
 package = Config.package "foo" "0.0.0"
 
 executable :: String -> Executable
-executable main_ = Executable (Just main_) []
+executable main_ = Executable (Just main_) ["Paths_foo"]
 
 library :: Library
 library = Library Nothing [] ["Paths_foo"] []

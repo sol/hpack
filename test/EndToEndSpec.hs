@@ -58,7 +58,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         [i|
         executable:
           dependencies: base
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         build-depends:
             base
         |]
@@ -69,7 +69,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           dependencies:
             - base
             - transformers
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         build-depends:
             base
           , transformers
@@ -82,7 +82,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             - base
           executable:
             dependencies: hspec
-          |] `shouldRenderTo` executable "foo" [i|
+          |] `shouldRenderTo` executable_ "foo" [i|
           build-depends:
               base
             , hspec
@@ -94,7 +94,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             - base
           executable:
             dependencies: base >= 2
-          |] `shouldRenderTo` executable "foo" [i|
+          |] `shouldRenderTo` executable_ "foo" [i|
           build-depends:
               base >=2
           |]
@@ -106,7 +106,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - QtWebKit
           - weston
         executable: {}
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         pkgconfig-depends:
             QtWebKit
           , weston
@@ -119,7 +119,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo
           - bar
         executable: {}
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         include-dirs:
             foo
             bar
@@ -132,7 +132,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo.h
           - bar.h
         executable: {}
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         install-includes:
             foo.h
             bar.h
@@ -145,7 +145,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           js-sources:
             - foo.js
             - jsbits/*.js
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         js-sources:
             foo.js
             jsbits/bar.js
@@ -157,7 +157,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo.js
           - jsbits/*.js
         executable: {}
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         js-sources:
             foo.js
             jsbits/bar.js
@@ -169,7 +169,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo
           - bar
         executable: {}
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         extra-lib-dirs:
             foo
             bar
@@ -182,7 +182,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo
           - bar
         executable: {}
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         extra-libraries:
             foo
             bar
@@ -195,7 +195,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo
           - bar
         executable: {}
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         extra-frameworks-dirs:
             foo
             bar
@@ -208,7 +208,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo
           - bar
         executable: {}
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         frameworks:
             foo
             bar
@@ -270,7 +270,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           c-sources: cbits/*.c
           executables:
             foo: {}
-          |] `shouldRenderTo` executable "foo" [i|
+          |] `shouldRenderTo` executable_ "foo" [i|
           c-sources:
               cbits/bar.c
               cbits/foo.c
@@ -281,7 +281,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           executables:
             foo:
               c-sources: cbits/*.c
-          |] `shouldRenderTo` executable "foo" [i|
+          |] `shouldRenderTo` executable_ "foo" [i|
           c-sources:
               cbits/bar.c
               cbits/foo.c
@@ -583,7 +583,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               when:
                 condition: os(windows)
                 main: Foo.hs
-          |] `shouldRenderTo` executable "foo" [i|
+          |] `shouldRenderTo` executable_ "foo" [i|
           ghc-options: -Wall
           if os(windows)
             main-is: Foo.hs
@@ -596,7 +596,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               when:
                 condition: os(windows)
                 main: Foo
-          |] `shouldRenderTo` executable "foo" [i|
+          |] `shouldRenderTo` executable_ "foo" [i|
           if os(windows)
             main-is: Foo.hs
             ghc-options: -main-is Foo
@@ -609,7 +609,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           condition: os(windows)
           dependencies: Win32
         executable: {}
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` executable_ "foo" [i|
         if os(windows)
           build-depends:
               Win32
@@ -643,7 +643,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             else:
               dependencies: unix
           executable: {}
-          |] `shouldRenderTo` executable "foo" [i|
+          |] `shouldRenderTo` executable_ "foo" [i|
           if os(windows)
             build-depends:
                 Win32
@@ -746,6 +746,17 @@ internalLibrary name e = (package content) {packageCabalVersion = ">= 2.0"}
   where
     content = [i|
 library #{name}
+#{indentBy 2 $ unindent e}
+  default-language: Haskell2010
+|]
+
+executable_ :: String -> String -> Package
+executable_ name e = package content
+  where
+    content = [i|
+executable #{name}
+  other-modules:
+      Paths_#{name}
 #{indentBy 2 $ unindent e}
   default-language: Haskell2010
 |]

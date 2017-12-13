@@ -847,9 +847,7 @@ toExecutable dir packageName_ globalOptions =
         mentionedModules = getMentionedExecutableModules sect
 
         inferModules :: IO [String]
-        inferModules
-          | null sectionSourceDirs = return []
-          | otherwise = (\\ mentionedModules) . (++ pathsModule) . concat <$> mapM (getModules dir) sectionSourceDirs
+        inferModules = (\\ mentionedModules) . (++ pathsModule) . concat <$> mapM (getModules dir) sectionSourceDirs
 
         pathsModule = case inferPathsModule of
           True -> [pathsModuleFromPackageName packageName_]
