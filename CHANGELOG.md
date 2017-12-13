@@ -1,4 +1,5 @@
-## next (0.21.2)
+## Changes in 0.21.2
+  - Fix a bug in module inference for conditionals (see #236)
   - Add support for `extra-doc-files`.
   - Add support for `pkg-config-dependencies`
 

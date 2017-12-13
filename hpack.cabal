@@ -2,10 +2,10 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e632b2c7492b7b1a42a6c95bdf1b94a5a800b10cc81d785ee085456a5ef719c1
+-- hash: 717efcb68d31a77fdd5eec9b427eaba95d5ca99c5d2aedf570e483461daa01ca
 
 name:           hpack
-version:        0.21.1
+version:        0.21.2
 synopsis:       An alternative format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
