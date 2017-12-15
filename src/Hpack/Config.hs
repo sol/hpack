@@ -40,6 +40,7 @@ module Hpack.Config (
 , Empty(..)
 , getModules
 , pathsModuleFromPackageName
+, getSignatures
 , determineModules
 , BuildType(..)
 
@@ -803,39 +804,40 @@ inferModules ::
   -> String
   -> (a -> [String])
   -> (b -> [String])
-  -> ([String] -> [String] -> a -> b)
+  -> (Maybe (List String) -> [String] -> [String] -> a -> b)
   -> ([String] -> a -> b)
   -> Section a
   -> IO (Section b)
 inferModules dir packageName_ getMentionedModules getInferredModules fromData fromConditionals = traverseSectionAndConditionals
   (fromConfigSection fromData [pathsModuleFromPackageName packageName_])
-  (fromConfigSection (\ [] -> fromConditionals) [])
+  (fromConfigSection (\ _ [] -> fromConditionals) [])
   []
   where
     fromConfigSection fromConfig pathsModule_ outerModules sect@Section{sectionData = conf} = do
       modules <- listModules dir sect
+      inferSignatures <- getSignatures dir
       let
         mentionedModules = concatMap getMentionedModules sect
         inferableModules = (modules \\ outerModules) \\ mentionedModules
         pathsModule = (pathsModule_ \\ outerModules) \\ mentionedModules
-        r = fromConfig pathsModule inferableModules conf
+        r = fromConfig inferSignatures pathsModule inferableModules conf
       return (outerModules ++ getInferredModules r, r)
 
 toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO (Section Library)
 toLibrary dir name globalOptions =
-    inferModules dir name getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel fromLibrarySectionInConditional
+    inferModules dir name getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel (fromLibrarySectionInConditional Nothing)
   . mergeSections emptyLibrarySection globalOptions
   where
     getLibraryModules :: Library -> [String]
     getLibraryModules Library{..} = libraryExposedModules ++ libraryOtherModules
 
-    fromLibrarySectionTopLevel pathsModule inferableModules LibrarySection{..} =
-      Library librarySectionExposed exposedModules otherModules reexportedModules signatures
+    fromLibrarySectionTopLevel inferSignatures pathsModule inferableModules LibrarySection{..} =
+      Library librarySectionExposed exposedModules otherModules reexportedModules sigs
       where
         (exposedModules, otherModules) =
           determineModules pathsModule inferableModules librarySectionExposedModules librarySectionOtherModules
         reexportedModules = fromMaybeList librarySectionReexportedModules
-        signatures = fromMaybeList librarySectionSignatures
+        sigs = fromMaybeList $ maybe inferSignatures Just librarySectionSignatures
 
 determineModules :: [String] -> [String] -> Maybe (List String) -> Maybe (List String) -> ([String], [String])
 determineModules pathsModule inferableModules mExposedModules mOtherModules = case (mExposedModules, mOtherModules) of
@@ -845,8 +847,8 @@ determineModules pathsModule inferableModules mExposedModules mOtherModules = ca
       exposedModules = maybe (inferableModules \\ otherModules) fromList mExposedModules
       otherModules   = maybe ((inferableModules ++ pathsModule) \\ exposedModules) fromList mOtherModules
 
-fromLibrarySectionInConditional :: [String] -> LibrarySection -> Library
-fromLibrarySectionInConditional inferableModules lib@(LibrarySection _ exposedModules otherModules _ _) = do
+fromLibrarySectionInConditional :: Maybe (List String) -> [String] -> LibrarySection -> Library
+fromLibrarySectionInConditional _inferSignatures inferableModules lib@(LibrarySection _ exposedModules otherModules _ _) = do
   case (exposedModules, otherModules) of
     (Nothing, Nothing) -> (fromLibrarySectionPlain lib) {libraryOtherModules = inferableModules}
     _ -> fromLibrarySectionPlain lib
@@ -872,12 +874,12 @@ getMentionedExecutableModules ExecutableSection{..} =
 
 toExecutable :: FilePath -> String -> Section global -> Section ExecutableSection -> IO (Section Executable)
 toExecutable dir packageName_ globalOptions =
-    inferModules dir packageName_ getMentionedExecutableModules executableOtherModules fromExecutableSection (fromExecutableSection [])
+    inferModules dir packageName_ getMentionedExecutableModules executableOtherModules fromExecutableSection (fromExecutableSection Nothing [])
   . expandMain
   . mergeSections emptyExecutableSection globalOptions
   where
-    fromExecutableSection :: [String] -> [String] -> ExecutableSection -> Executable
-    fromExecutableSection pathsModule inferableModules ExecutableSection{..} =
+    fromExecutableSection :: Maybe (List String) -> [String] -> [String] -> ExecutableSection -> Executable
+    fromExecutableSection _signatures pathsModule inferableModules ExecutableSection{..} =
       (Executable executableSectionMain otherModules)
       where
         otherModules = maybe (inferableModules ++ pathsModule) fromList executableSectionOtherModules
@@ -988,6 +990,17 @@ getModules dir src_ = sort <$> do
     removeSetup src
       | src == dir = filter (/= "Setup")
       | otherwise = id
+
+getSignatures :: FilePath -> IO (Maybe (List String))
+getSignatures dir = do
+  exists <- doesDirectoryExist dir
+  if exists
+    then do
+      src <- canonicalizePath dir
+      hsigFiles <- getHsigFiles src
+      let signatures = map (fst . span (/='.')) <$> hsigFiles
+      return $ (List . sort) <$> signatures
+    else return Nothing
 
 fromMaybeList :: Maybe (List a) -> [a]
 fromMaybeList = maybe [] fromList

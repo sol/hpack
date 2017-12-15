@@ -6,6 +6,7 @@ import           Data.Aeson
 import           Data.Aeson.Types
 import           Helper
 import           System.Directory
+import           Data.Maybe
 
 import           Hpack.Util
 
@@ -68,6 +69,15 @@ spec = do
         inTempDirectory $ do
           touch "foo/bar/baz"
           getModuleFilesRecursive "foo" `shouldReturn` empty
+
+  describe "getHsigFiles" $ do
+    it "lookup for *.hsig files" $ do
+      inTempDirectory $ do
+        touch "foo/bar.hsig"
+        touch "foo/baz.hsig"
+        touch "foo/foo"
+        actual <- fromJust <$> getHsigFiles "foo"
+        actual `shouldMatchList` ["bar.hsig", "baz.hsig"]
 
   describe "List" $ do
     let

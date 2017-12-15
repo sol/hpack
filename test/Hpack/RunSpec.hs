@@ -129,6 +129,33 @@ spec = do
         , "  default-language: Haskell2010"
         ]
 
+    it "includes signature" $ do
+      renderPackage_ package {packageLibrary = Just (section (library {librarySignatures = ["Foo"]}))} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "build-type: Simple"
+        , "cabal-version: >= 2.0"
+        , ""
+        , "library"
+        , "  signatures:"
+        , "      Foo"
+        , "  default-language: Haskell2010"
+        ]
+
+    it "includes multiple signatures" $ do
+      renderPackage_ package {packageLibrary = Just (section (library {librarySignatures = ["Foo", "Bar"]}))} `shouldBe` unlines [
+          "name: foo"
+        , "version: 0.0.0"
+        , "build-type: Simple"
+        , "cabal-version: >= 2.0"
+        , ""
+        , "library"
+        , "  signatures:"
+        , "      Foo"
+        , "    , Bar"
+        , "  default-language: Haskell2010"
+        ]
+
     context "when rendering library section" $ do
       it "renders library section" $ do
         renderPackage_ package {packageLibrary = Just $ section library} `shouldBe` unlines [

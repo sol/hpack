@@ -236,6 +236,32 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               Foo
           |]) {packageCabalVersion = ">= 2.0"}
 
+        it "specify overwrite signatures" $ do
+          touch "Foo.hsig"
+          touch "Bar.hsig"
+          [i|
+          library:
+            signatures: Baz
+          |] `shouldRenderTo` (library [i|
+          other-modules:
+              Paths_foo
+          signatures:
+              Baz
+          |]) {packageCabalVersion = ">= 2.0"}
+
+        it "lookup for .hsig files" $ do
+          touch "Foo.hsig"
+          touch "Bar.hsig"
+          [i|
+          library: {}
+          |] `shouldRenderTo` (library [i|
+          other-modules:
+              Paths_foo
+          signatures:
+              Bar
+            , Foo
+          |]) {packageCabalVersion = ">= 2.0"}
+
         it "accepts global c-sources" $ do
           [i|
           c-sources: cbits/*.c

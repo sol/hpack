@@ -13,6 +13,7 @@ module Hpack.Util (
 , parseMain
 , toModule
 , getModuleFilesRecursive
+, getHsigFiles
 , tryReadFile
 , expandGlobs
 , sort
@@ -104,6 +105,15 @@ getModuleFilesRecursive baseDir = go []
       where
         pathTo :: [FilePath] -> FilePath
         pathTo p = baseDir </> joinPath p
+
+getHsigFiles :: FilePath -> IO (Maybe [String])
+getHsigFiles baseDir = do
+  hsigFiles <- filter (\filename -> ".hsig" `isSuffixOf` filename && filename `notElem` [".", ".."]) <$> getDirectoryContents baseDir
+  return $
+    if null hsigFiles then
+      Nothing
+    else
+      Just hsigFiles
 
 tryReadFile :: FilePath -> IO (Maybe String)
 tryReadFile file = do

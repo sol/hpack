@@ -98,7 +98,8 @@ spec = do
       , librarySignatures = []
       }
       inferableModules = ["Foo", "Bar"]
-      from = fromLibrarySectionInConditional inferableModules
+      signatures = Nothing
+      from = fromLibrarySectionInConditional signatures inferableModules
 
     context "when inferring modules" $ do
       it "infers other-modules" $ do
@@ -156,6 +157,14 @@ spec = do
         touch (dir </> "Foo.hs")
         touch (dir </> "Setup.hs")
         getModules dir  "./." `shouldReturn` ["Foo"]
+
+  describe "getSignatures" $ around withTempDirectory $ do
+    it "returns signatures string in directory" $ \dir -> do
+      touch (dir </> "./Foo.hs")
+      touch (dir </> "./Bar/Baz.hs")
+      touch (dir </> "./Test.hsig")
+      touch (dir </> "./Test2.hsig")
+      getSignatures dir >>= (`shouldBe` Just (List ["Test", "Test2"]))
 
   describe "readPackageConfig" $ do
     it "warns on unknown fields" $ do
@@ -554,6 +563,16 @@ spec = do
         (`shouldBe` package {
           packageLibrary = Just (section library) {sectionBuildable = Just True}
         , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildable = Just False})]
+        }
+        )
+
+    it "accepts signatures" $ do
+      withPackageConfig_ [i|
+        library:
+          signatures: Foo
+        |]
+        (`shouldBe` package {
+          packageLibrary =  Just (section (library {librarySignatures = ["Foo"]}))
         }
         )
 
