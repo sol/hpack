@@ -200,6 +200,56 @@ data CommonOptions a capture cSources jsSources = CommonOptions {
 , commonOptionsBuildTools :: Maybe Dependencies
 } deriving Generic
 
+instance (Monoid cSources, Monoid jsSources) => Monoid (CommonOptions a capture cSources jsSources) where
+  mempty = CommonOptions {
+    commonOptionsSourceDirs = Nothing
+  , commonOptionsDependencies = Nothing
+  , commonOptionsPkgConfigDependencies = Nothing
+  , commonOptionsDefaultExtensions = Nothing
+  , commonOptionsOtherExtensions = Nothing
+  , commonOptionsGhcOptions = Nothing
+  , commonOptionsGhcProfOptions = Nothing
+  , commonOptionsGhcjsOptions = Nothing
+  , commonOptionsCppOptions = Nothing
+  , commonOptionsCcOptions = Nothing
+  , commonOptionsCSources = mempty
+  , commonOptionsJsSources = mempty
+  , commonOptionsExtraLibDirs = Nothing
+  , commonOptionsExtraLibraries = Nothing
+  , commonOptionsExtraFrameworksDirs = Nothing
+  , commonOptionsFrameworks = Nothing
+  , commonOptionsIncludeDirs = Nothing
+  , commonOptionsInstallIncludes = Nothing
+  , commonOptionsLdOptions = Nothing
+  , commonOptionsBuildable = Nothing
+  , commonOptionsWhen = Nothing
+  , commonOptionsBuildTools = Nothing
+  }
+  mappend a b = CommonOptions {
+    commonOptionsSourceDirs = commonOptionsSourceDirs a <> commonOptionsSourceDirs b
+  , commonOptionsDependencies = commonOptionsDependencies b <> commonOptionsDependencies a
+  , commonOptionsPkgConfigDependencies = commonOptionsPkgConfigDependencies a <> commonOptionsPkgConfigDependencies b
+  , commonOptionsDefaultExtensions = commonOptionsDefaultExtensions a <> commonOptionsDefaultExtensions b
+  , commonOptionsOtherExtensions = commonOptionsOtherExtensions a <> commonOptionsOtherExtensions b
+  , commonOptionsGhcOptions = commonOptionsGhcOptions a <> commonOptionsGhcOptions b
+  , commonOptionsGhcProfOptions = commonOptionsGhcProfOptions a <> commonOptionsGhcProfOptions b
+  , commonOptionsGhcjsOptions = commonOptionsGhcjsOptions a <> commonOptionsGhcjsOptions b
+  , commonOptionsCppOptions = commonOptionsCppOptions a <> commonOptionsCppOptions b
+  , commonOptionsCcOptions = commonOptionsCcOptions a <> commonOptionsCcOptions b
+  , commonOptionsCSources = commonOptionsCSources a <> commonOptionsCSources b
+  , commonOptionsJsSources = commonOptionsJsSources a <> commonOptionsJsSources b
+  , commonOptionsExtraLibDirs = commonOptionsExtraLibDirs a <> commonOptionsExtraLibDirs b
+  , commonOptionsExtraLibraries = commonOptionsExtraLibraries a <> commonOptionsExtraLibraries b
+  , commonOptionsExtraFrameworksDirs = commonOptionsExtraFrameworksDirs a <> commonOptionsExtraFrameworksDirs b
+  , commonOptionsFrameworks = commonOptionsFrameworks a <> commonOptionsFrameworks b
+  , commonOptionsIncludeDirs = commonOptionsIncludeDirs a <> commonOptionsIncludeDirs b
+  , commonOptionsInstallIncludes = commonOptionsInstallIncludes a <> commonOptionsInstallIncludes b
+  , commonOptionsLdOptions = commonOptionsLdOptions a <> commonOptionsLdOptions b
+  , commonOptionsBuildable = commonOptionsBuildable b <|> commonOptionsBuildable a
+  , commonOptionsWhen = commonOptionsWhen a <> commonOptionsWhen b
+  , commonOptionsBuildTools = commonOptionsBuildTools b <> commonOptionsBuildTools a
+  }
+
 type ParseCommonOptions a = CommonOptions a CaptureUnknownFields ParseCSources ParseJsSources
 
 instance HasFieldNames (ParseCommonOptions a)
@@ -219,6 +269,13 @@ data Traverse m capture capture_ cSources cSources_ jsSources jsSources_ = Trave
   traverseCapture :: forall a. capture a -> m (capture_ a)
 , traverseCSources :: cSources -> m cSources_
 , traverseJsSources :: jsSources -> m jsSources_
+}
+
+defaultTraverse :: Applicative m => Traverse m capture capture cSources cSources jsSources jsSources
+defaultTraverse = Traverse {
+  traverseCapture = pure
+, traverseCSources = pure
+, traverseJsSources = pure
 }
 
 type Traversal t = forall m capture capture_ cSources cSources_ jsSources jsSources_. (Monad m, Traversable capture_)
@@ -691,7 +748,7 @@ extractUnknownFieldWarnings :: forall m. Monad m => ParseConfig -> Warnings m (C
 extractUnknownFieldWarnings = warnGlobal >=> bitraverse return warnSections
   where
     t :: Monad capture => Traverse capture capture Identity cSources cSources jsSources jsSources
-    t = Traverse (fmap Identity) return return
+    t = defaultTraverse{traverseCapture = fmap Identity}
 
     warnGlobal c = warnUnknownFields In "package description" (c >>= bitraverse (traverseCommonOptions t) return)
 
@@ -737,9 +794,8 @@ expandForeignSources
   -> Warnings m (Config Identity CSources JsSources)
 expandForeignSources dir = traverseConfig t
   where
-    t = Traverse {
-      traverseCapture = return
-    , traverseCSources = expand "c-sources"
+    t = defaultTraverse{
+      traverseCSources = expand "c-sources"
     , traverseJsSources = expand "js-sources"
     }
 
