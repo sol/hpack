@@ -165,10 +165,11 @@ data LibrarySection = LibrarySection {
 , librarySectionExposedModules :: Maybe (List String)
 , librarySectionOtherModules :: Maybe (List String)
 , librarySectionReexportedModules :: Maybe (List String)
+, librarySectionSignatures :: Maybe (List String)
 } deriving (Eq, Show, Generic)
 
 emptyLibrarySection :: LibrarySection
-emptyLibrarySection = LibrarySection Nothing Nothing Nothing Nothing
+emptyLibrarySection = LibrarySection Nothing Nothing Nothing Nothing Nothing
 
 instance HasFieldNames LibrarySection
 
@@ -480,6 +481,7 @@ data Library = Library {
 , libraryExposedModules :: [String]
 , libraryOtherModules :: [String]
 , libraryReexportedModules :: [String]
+, librarySignatures :: [String]
 } deriving (Eq, Show)
 
 data Executable = Executable {
@@ -828,11 +830,12 @@ toLibrary dir name globalOptions =
     getLibraryModules Library{..} = libraryExposedModules ++ libraryOtherModules
 
     fromLibrarySectionTopLevel pathsModule inferableModules LibrarySection{..} =
-      Library librarySectionExposed exposedModules otherModules reexportedModules
+      Library librarySectionExposed exposedModules otherModules reexportedModules signatures
       where
         (exposedModules, otherModules) =
           determineModules pathsModule inferableModules librarySectionExposedModules librarySectionOtherModules
         reexportedModules = fromMaybeList librarySectionReexportedModules
+        signatures = fromMaybeList librarySectionSignatures
 
 determineModules :: [String] -> [String] -> Maybe (List String) -> Maybe (List String) -> ([String], [String])
 determineModules pathsModule inferableModules mExposedModules mOtherModules = case (mExposedModules, mOtherModules) of
@@ -843,7 +846,7 @@ determineModules pathsModule inferableModules mExposedModules mOtherModules = ca
       otherModules   = maybe ((inferableModules ++ pathsModule) \\ exposedModules) fromList mOtherModules
 
 fromLibrarySectionInConditional :: [String] -> LibrarySection -> Library
-fromLibrarySectionInConditional inferableModules lib@(LibrarySection _ exposedModules otherModules _) = do
+fromLibrarySectionInConditional inferableModules lib@(LibrarySection _ exposedModules otherModules _ _) = do
   case (exposedModules, otherModules) of
     (Nothing, Nothing) -> (fromLibrarySectionPlain lib) {libraryOtherModules = inferableModules}
     _ -> fromLibrarySectionPlain lib
@@ -854,6 +857,7 @@ fromLibrarySectionPlain LibrarySection{..} = Library {
   , libraryExposedModules = fromMaybeList librarySectionExposedModules
   , libraryOtherModules = fromMaybeList librarySectionOtherModules
   , libraryReexportedModules = fromMaybeList librarySectionReexportedModules
+  , librarySignatures = fromMaybeList librarySectionSignatures
   }
 
 toInternalLibraries :: FilePath -> String -> Section global -> Map String (Section LibrarySection) -> IO (Map String (Section Library))

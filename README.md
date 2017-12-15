@@ -103,6 +103,7 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `exposed-modules` | · | All modules in `source-dirs` less `other-modules` less any modules mentioned in `when` | |
 | `other-modules` | · | All modules in `source-dirs` less `exposed-modules` less any modules mentioned in `when` | Only if `exposed-modules` is not specified inside the conditional: All modules in `source-dirs` of the conditional less any modules mentioned in `when` of the conditional |
 | `reexported-modules` | · | | |
+| `signatures` | · | | |
 | | `default-language` | `Haskell2010` | |
 
 #### <a name="executable-fields"></a>Executable fields

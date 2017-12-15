@@ -225,6 +225,17 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           |] `shouldWarn` pure "Specified pattern \"foo/*.c\" for c-sources does not match any files"
 
       context "with library" $ do
+        it "accepts signatures" $ do
+          [i|
+          library:
+            signatures: Foo
+          |] `shouldRenderTo` (library [i|
+          other-modules:
+              Paths_foo
+          signatures:
+              Foo
+          |]) {packageCabalVersion = ">= 1.25"}
+
         it "accepts global c-sources" $ do
           [i|
           c-sources: cbits/*.c
