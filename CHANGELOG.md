@@ -1,5 +1,6 @@
 ## next
   - Add `--numeric-version`
+  - Add support for `signatures`
 
 ## Changes in 0.21.2
   - Fix a bug in module inference for conditionals (see #236)

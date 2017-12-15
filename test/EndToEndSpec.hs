@@ -234,7 +234,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               Paths_foo
           signatures:
               Foo
-          |]) {packageCabalVersion = ">= 1.25"}
+          |]) {packageCabalVersion = ">= 2.0"}
 
         it "accepts global c-sources" $ do
           [i|

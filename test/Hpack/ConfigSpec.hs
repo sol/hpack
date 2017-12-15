@@ -557,16 +557,6 @@ spec = do
         }
         )
 
-    it "accepts signatures" $ do
-      withPackageConfig_ [i|
-        library:
-          signatures: Foo
-        |]
-        (`shouldBe` package {
-          packageLibrary =  Just (section (library {librarySignatures = ["Foo"]}))
-        }
-        )
-
     it "allows yaml merging and overriding fields" $ do
       withPackageConfig_ [i|
         _common: &common

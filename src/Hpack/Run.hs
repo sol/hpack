@@ -27,6 +27,7 @@ import           Data.Maybe
 import           Data.List
 import           System.Exit
 import           System.FilePath
+import           Data.Version
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 
@@ -126,28 +127,29 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
         separator = let Alignment n = alignment in ",\n" ++ replicate n ' '
 
     cabalVersion :: Maybe String
-    cabalVersion = maximum [
-        Just ">= 1.10"
+    cabalVersion = (">= " ++) . showVersion <$> maximum [
+        Just (makeVersion [1,10])
       , packageCabalVersion
-      , packageLibrary >>= libraryCabalVersion
+      , packageLibrary >>= libraryCabalVersion . sectionData
       , internalLibsCabalVersion packageInternalLibraries
       ]
      where
-      packageCabalVersion :: Maybe String
+      packageCabalVersion :: Maybe Version
       packageCabalVersion
-        | isJust packageCustomSetup = Just ">= 1.24"
+        | isJust packageCustomSetup = Just (makeVersion [1,24])
         | otherwise = Nothing
 
-      libraryCabalVersion :: Section Library -> Maybe String
-      libraryCabalVersion sect = maximum [ ">= 1.22" <$ guard (hasLibraryField (not . null) libraryReexportedModules sect)
-                                         , ">= 1.25" <$ guard (hasLibraryField (not . null) librarySignatures sect)
-                                         ]
+      libraryCabalVersion :: Library -> Maybe Version
+      libraryCabalVersion Library{..} = maximum [
+          makeVersion [1,22] <$ guard hasReexportedModules
+        , makeVersion [2,0]  <$ guard hasSignatures
+        ]
+        where
+          hasReexportedModules = (not . null) libraryReexportedModules
+          hasSignatures = (not . null) librarySignatures
 
-      hasLibraryField :: (a -> Bool) -> (Library -> a) -> Section Library -> Bool
-      hasLibraryField p getField = p . getField . sectionData
-
-      internalLibsCabalVersion :: Map String (Section Library) -> Maybe String
-      internalLibsCabalVersion internalLibraries = ">= 2.0" <$ guard (not (Map.null internalLibraries))
+      internalLibsCabalVersion :: Map String (Section Library) -> Maybe Version
+      internalLibsCabalVersion internalLibraries = makeVersion [2,0] <$ guard (not (Map.null internalLibraries))
 
 sortSectionFields :: [(String, [String])] -> [Element] -> [Element]
 sortSectionFields sectionsFieldOrder = go
