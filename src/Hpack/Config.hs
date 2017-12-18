@@ -176,7 +176,7 @@ instance HasFieldNames ExecutableSection
 instance FromJSON ExecutableSection where
   parseJSON = genericParseJSON
 
-data CommonOptions a capture cSources jsSources = CommonOptions {
+data CommonOptions capture cSources jsSources a = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
 , commonOptionsDependencies :: Maybe Dependencies
 , commonOptionsPkgConfigDependencies :: Maybe (List String)
@@ -197,11 +197,11 @@ data CommonOptions a capture cSources jsSources = CommonOptions {
 , commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
-, commonOptionsWhen :: Maybe (List (ConditionalSection a capture cSources jsSources))
+, commonOptionsWhen :: Maybe (List (ConditionalSection capture cSources jsSources a))
 , commonOptionsBuildTools :: Maybe Dependencies
-} deriving Generic
+} deriving (Functor, Generic)
 
-instance (Monoid cSources, Monoid jsSources) => Monoid (CommonOptions a capture cSources jsSources) where
+instance (Monoid cSources, Monoid jsSources) => Monoid (CommonOptions capture cSources jsSources a) where
   mempty = CommonOptions {
     commonOptionsSourceDirs = Nothing
   , commonOptionsDependencies = Nothing
@@ -251,7 +251,7 @@ instance (Monoid cSources, Monoid jsSources) => Monoid (CommonOptions a capture 
   , commonOptionsBuildTools = commonOptionsBuildTools b <> commonOptionsBuildTools a
   }
 
-type ParseCommonOptions a = CommonOptions a CaptureUnknownFields ParseCSources ParseJsSources
+type ParseCommonOptions = CommonOptions CaptureUnknownFields ParseCSources ParseJsSources
 
 instance HasFieldNames (ParseCommonOptions a)
 
@@ -264,7 +264,7 @@ type ParseJsSources = Maybe (List FilePath)
 type CSources = [FilePath]
 type JsSources = [FilePath]
 
-type WithCommonOptions a capture cSources jsSources = Product (CommonOptions a capture cSources jsSources) a
+type WithCommonOptions capture cSources jsSources a = Product (CommonOptions capture cSources jsSources a) a
 
 data Traverse m capture capture_ cSources cSources_ jsSources jsSources_ = Traverse {
   traverseCapture :: forall a. capture a -> m (capture_ a)
@@ -284,7 +284,12 @@ type Traversal t = forall m capture capture_ cSources cSources_ jsSources jsSour
   -> t capture cSources jsSources
   -> m (t capture_ cSources_ jsSources_)
 
-traverseCommonOptions :: Traversal (CommonOptions a)
+type Traversal_ t = forall m capture capture_ cSources cSources_ jsSources jsSources_ a. (Monad m, Traversable capture_)
+  => Traverse m capture capture_ cSources cSources_ jsSources jsSources_
+  -> t capture cSources jsSources a
+  -> m (t capture_ cSources_ jsSources_ a)
+
+traverseCommonOptions :: Traversal_ CommonOptions
 traverseCommonOptions t@Traverse{..} c@CommonOptions{..} = do
   cSources <- traverseCSources commonOptionsCSources
   jsSources <- traverseJsSources commonOptionsJsSources
@@ -295,18 +300,18 @@ traverseCommonOptions t@Traverse{..} c@CommonOptions{..} = do
     , commonOptionsWhen = xs
     }
 
-traverseConditionalSection :: Traversal (ConditionalSection a)
+traverseConditionalSection :: Traversal_ ConditionalSection
 traverseConditionalSection t@Traverse{..} = \ case
   ThenElseConditional c -> ThenElseConditional <$> (traverseCapture c >>= traverse (traverseThenElse t))
   FlatConditional c -> FlatConditional <$> (traverseCapture c >>= traverse (bitraverse (traverseWithCommonOptions t) return))
 
-traverseThenElse :: Traversal (ThenElse a)
+traverseThenElse :: Traversal_ ThenElse
 traverseThenElse t@Traverse{..} c@ThenElse{..} = do
   then_ <- traverseCapture thenElseThen >>= traverse (traverseWithCommonOptions t)
   else_ <- traverseCapture thenElseElse >>= traverse (traverseWithCommonOptions t)
   return c{thenElseThen = then_, thenElseElse = else_}
 
-traverseWithCommonOptions :: Traversal (WithCommonOptions a)
+traverseWithCommonOptions :: Traversal_ WithCommonOptions
 traverseWithCommonOptions t = bitraverse (traverseCommonOptions t) return
 
 data Product a b = Product a b
@@ -332,11 +337,16 @@ instance (HasFieldNames a, HasFieldNames b) => HasFieldNames (Product a b) where
        ignoreUnderscoredUnknownFields (Proxy :: Proxy a)
     || ignoreUnderscoredUnknownFields (Proxy :: Proxy b)
 
-data ConditionalSection a capture cSources jsSources =
-    ThenElseConditional (capture (ThenElse a capture cSources jsSources))
-  | FlatConditional (capture (Product (WithCommonOptions a capture cSources jsSources) Condition))
+data ConditionalSection capture cSources jsSources a =
+    ThenElseConditional (capture (ThenElse capture cSources jsSources a))
+  | FlatConditional (capture (Product (WithCommonOptions capture cSources jsSources a) Condition))
 
-type ParseConditionalSection a = ConditionalSection a CaptureUnknownFields ParseCSources ParseJsSources
+instance Functor capture => Functor (ConditionalSection capture cSources jsSources) where
+  fmap f = \ case
+    ThenElseConditional c -> ThenElseConditional (fmap f <$> c)
+    FlatConditional c -> FlatConditional (bimap (bimap (fmap f) f) id <$> c)
+
+type ParseConditionalSection = ConditionalSection CaptureUnknownFields ParseCSources ParseJsSources
 
 instance (FromJSON a, HasFieldNames a) => FromJSON (ParseConditionalSection a) where
   parseJSON v
@@ -356,13 +366,18 @@ instance FromJSON Condition where
 
 instance HasFieldNames Condition
 
-data ThenElse a capture cSources jsSources = ThenElse {
+data ThenElse capture cSources jsSources a = ThenElse {
   _thenElseCondition :: String
-, thenElseThen :: capture (WithCommonOptions a capture cSources jsSources)
-, thenElseElse :: capture (WithCommonOptions a capture cSources jsSources)
+, thenElseThen :: capture (WithCommonOptions capture cSources jsSources a)
+, thenElseElse :: capture (WithCommonOptions capture cSources jsSources a)
 } deriving Generic
 
-type ParseThenElse a = ThenElse a CaptureUnknownFields ParseCSources ParseJsSources
+instance Functor capture => Functor (ThenElse capture cSources jsSources) where
+  fmap f c@ThenElse{..} = c{thenElseThen = map_ thenElseThen, thenElseElse = map_ thenElseElse}
+    where
+      map_ = fmap (bimap (fmap f) f)
+
+type ParseThenElse = ThenElse CaptureUnknownFields ParseCSources ParseJsSources
 
 instance HasFieldNames (ParseThenElse a)
 
@@ -394,7 +409,7 @@ instance FromJSON BuildType where
     "Custom"    -> return Custom
     _           -> fail "build-type must be one of: Simple, Configure, Make, Custom"
 
-type SectionConfig a capture cSources jsSources = capture (WithCommonOptions a capture cSources jsSources)
+type SectionConfig capture cSources jsSources a = capture (WithCommonOptions capture cSources jsSources a)
 
 data PackageConfig capture cSources jsSources = PackageConfig {
   packageConfigName :: Maybe String
@@ -419,12 +434,12 @@ data PackageConfig capture cSources jsSources = PackageConfig {
 , packageConfigGithub :: Maybe Text
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe (capture CustomSetupSection)
-, packageConfigLibrary :: Maybe (SectionConfig LibrarySection capture cSources jsSources)
-, packageConfigInternalLibraries :: Maybe (Map String (SectionConfig LibrarySection capture cSources jsSources))
-, packageConfigExecutable :: Maybe (SectionConfig ExecutableSection capture cSources jsSources)
-, packageConfigExecutables :: Maybe (Map String (SectionConfig ExecutableSection capture cSources jsSources))
-, packageConfigTests :: Maybe (Map String (SectionConfig ExecutableSection capture cSources jsSources))
-, packageConfigBenchmarks :: Maybe (Map String (SectionConfig ExecutableSection capture cSources jsSources))
+, packageConfigLibrary :: Maybe (SectionConfig capture cSources jsSources LibrarySection)
+, packageConfigInternalLibraries :: Maybe (Map String (SectionConfig capture cSources jsSources LibrarySection))
+, packageConfigExecutable :: Maybe (SectionConfig capture cSources jsSources ExecutableSection)
+, packageConfigExecutables :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
+, packageConfigTests :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
+, packageConfigBenchmarks :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
 } deriving Generic
 
 traversePackageConfig :: Traversal PackageConfig
@@ -450,7 +465,7 @@ traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
   where
     traverseNamedConfigs = traverse . traverse . traverseSectionConfig
 
-traverseSectionConfig :: Traversal (SectionConfig p)
+traverseSectionConfig :: Traversal_ SectionConfig
 traverseSectionConfig t = traverseCapture t >=> traverse (traverseWithCommonOptions t)
 
 type ParsePackageConfig = PackageConfig CaptureUnknownFields ParseCSources ParseJsSources
@@ -592,7 +607,7 @@ data SourceRepository = SourceRepository {
 } deriving (Eq, Show)
 
 type Config capture cSources jsSources =
-  Product (CommonOptions Empty capture cSources jsSources) (PackageConfig capture cSources jsSources)
+  Product (CommonOptions capture cSources jsSources Empty) (PackageConfig capture cSources jsSources)
 
 traverseConfig :: Traversal Config
 traverseConfig t = bitraverse (traverseCommonOptions t) (traversePackageConfig t)
@@ -701,7 +716,7 @@ toPackage_ dir globalOptions PackageConfig{..} = do
     mLibrarySection :: Maybe (Section LibrarySection)
     mLibrarySection = toSectionI <$> packageConfigLibrary
 
-    toSections :: Maybe (Map String (Identity (WithCommonOptions a Identity CSources JsSources))) -> Map String (Section a)
+    toSections :: Maybe (Map String (Identity (WithCommonOptions Identity CSources JsSources a))) -> Map String (Section a)
     toSections = fmap toSectionI . fromMaybe mempty
 
     internalLibrariesSections :: Map String (Section LibrarySection)
@@ -781,8 +796,8 @@ extractUnknownFieldWarnings = warnGlobal >=> bitraverse return warnSections
 
     warnNamedSection
       :: String
-      -> Maybe (Map String (SectionConfig a CaptureUnknownFields cSources jsSources))
-      -> Warnings m (Maybe (Map String (SectionConfig a Identity cSources jsSources)))
+      -> Maybe (Map String (SectionConfig CaptureUnknownFields cSources jsSources a))
+      -> Warnings m (Maybe (Map String (SectionConfig Identity cSources jsSources a)))
     warnNamedSection sectionType = traverse (warnNamed In (sectionType ++ " section") . fmap (traverseSectionConfig t))
 
     warnNamed :: Preposition -> String -> Map String (CaptureUnknownFields a) -> Warnings m (Map String a)
@@ -969,10 +984,10 @@ mergeSections a globalOptions options
   , sectionBuildTools = sectionBuildTools options <> sectionBuildTools globalOptions
   }
 
-toSectionI :: Identity (WithCommonOptions a Identity CSources JsSources) -> Section a
+toSectionI :: Identity (WithCommonOptions Identity CSources JsSources a) -> Section a
 toSectionI = toSection . runIdentity
 
-toSection :: WithCommonOptions a Identity CSources JsSources -> Section a
+toSection :: WithCommonOptions Identity CSources JsSources a -> Section a
 toSection (Product CommonOptions{..} a) = Section {
         sectionData = a
       , sectionSourceDirs = fromMaybeList commonOptionsSourceDirs
@@ -1001,7 +1016,7 @@ toSection (Product CommonOptions{..} a) = Section {
   where
     conditionals = map toConditional (fromMaybeList commonOptionsWhen)
 
-    toConditional :: ConditionalSection a Identity CSources JsSources -> Conditional (Section a)
+    toConditional :: ConditionalSection Identity CSources JsSources a -> Conditional (Section a)
     toConditional x = case x of
       FlatConditional (Identity (Product sect c)) -> Conditional (conditionCondition c) (toSection sect) Nothing
       ThenElseConditional (Identity (ThenElse condition then_ else_)) -> Conditional condition (toSectionI then_) (Just $ toSectionI else_)
