@@ -41,7 +41,7 @@ run mDir c = do
   let dir = fromMaybe "" mDir
   mPackage <- readPackageConfig (dir </> c)
   case mPackage of
-    Right (warnings, pkg) -> do
+    Right (pkg, warnings) -> do
       let cabalFile = dir </> (packageName pkg ++ ".cabal")
 
       old <- tryReadFile cabalFile

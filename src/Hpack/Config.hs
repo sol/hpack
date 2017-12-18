@@ -70,11 +70,13 @@ import           System.Directory
 import           System.FilePath
 import           Data.Functor.Identity
 import           Control.Monad.Trans.Writer
+import           Control.Monad.Trans.Except
 import           Control.Monad.IO.Class
 
 import           Hpack.GenericsUtil
 import           Hpack.UnknownFields
-import           Hpack.Util
+import           Hpack.Util hiding (expandGlobs)
+import qualified Hpack.Util as Util
 import           Hpack.Yaml
 import           Hpack.Dependency
 
@@ -434,14 +436,12 @@ isNull name value = case parseMaybe p value of
   where
     p = parseJSON >=> (.: fromString name)
 
-readPackageConfig :: FilePath -> IO (Either String ([String], Package))
-readPackageConfig file = do
-  r <- decodeYaml file
-  case r of
-    Left err -> return (Left err)
-    Right config -> do
-      dir <- takeDirectory <$> canonicalizePath file
-      Right <$> toPackage dir config
+readPackageConfig :: FilePath -> IO (Either String (Package, [String]))
+readPackageConfig file = runExceptT $ do
+  config <- ExceptT $ decodeYaml file
+  liftIO $ do
+    dir <- takeDirectory <$> canonicalizePath file
+    runWriterT $ toPackage dir config
 
 data Package = Package {
   packageName :: String
@@ -555,12 +555,12 @@ traverseConfig t = bitraverse (traverseCommonOptions t) (traversePackageConfig t
 
 type ParseConfig = CaptureUnknownFields (Config CaptureUnknownFields ParseCSources ParseJsSources)
 
-toPackage :: FilePath -> ParseConfig -> IO ([String], Package)
-toPackage dir = runWriterT . (extractUnknownFieldWarnings >=> expandForeignSources dir) >=> toPackage_ dir
+toPackage :: FilePath -> ParseConfig -> Warnings IO Package
+toPackage dir = extractUnknownFieldWarnings >=> expandForeignSources dir >=> toPackage_ dir
 
-toPackage_ :: FilePath -> (Config Identity CSources JsSources, [String]) -> IO ([String], Package)
-toPackage_ dir (Product (toSection . (`Product` Empty) -> globalOptions) PackageConfig{..}, packageWarnings) = do
-  mLibrary <- mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
+toPackage_ :: MonadIO m => FilePath -> Config Identity CSources JsSources -> Warnings m Package
+toPackage_ dir (Product (toSection . (`Product` Empty) -> globalOptions) PackageConfig{..}) = do
+  mLibrary <- liftIO $ mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
 
   let
     executableSections :: Map String (Section ExecutableSection)
@@ -580,14 +580,14 @@ toPackage_ dir (Product (toSection . (`Product` Empty) -> globalOptions) Package
         mExecutable :: Maybe (Section ExecutableSection)
         mExecutable = toSectionI <$> packageConfigExecutable
 
-  internalLibraries <- toInternalLibraries dir packageName_ globalOptions internalLibrariesSections
-  executables <- toExecutables dir packageName_ globalOptions executableSections
-  tests <- toExecutables dir packageName_ globalOptions testSections
-  benchmarks <- toExecutables dir packageName_ globalOptions benchmarkSections
+  internalLibraries <- liftIO $ toInternalLibraries dir packageName_ globalOptions internalLibrariesSections
+  executables <- liftIO $ toExecutables dir packageName_ globalOptions executableSections
+  tests <- liftIO $ toExecutables dir packageName_ globalOptions testSections
+  benchmarks <- liftIO $ toExecutables dir packageName_ globalOptions benchmarkSections
 
-  licenseFileExists <- doesFileExist (dir </> "LICENSE")
+  licenseFileExists <- liftIO $ doesFileExist (dir </> "LICENSE")
 
-  missingSourceDirs <- nub . sort <$> filterM (fmap not <$> doesDirectoryExist . (dir </>)) (
+  missingSourceDirs <- liftIO $ nub . sort <$> filterM (fmap not <$> doesDirectoryExist . (dir </>)) (
        maybe [] sectionSourceDirs mLibrary
     ++ concatMap sectionSourceDirs internalLibraries
     ++ concatMap sectionSourceDirs executables
@@ -595,14 +595,9 @@ toPackage_ dir (Product (toSection . (`Product` Empty) -> globalOptions) Package
     ++ concatMap sectionSourceDirs benchmarks
     )
 
-  (extraSourceFilesWarnings, extraSourceFiles) <-
-    expandGlobs "extra-source-files" dir (fromMaybeList packageConfigExtraSourceFiles)
-
-  (extraDocFilesWarnings, extraDocFiles) <-
-    expandGlobs "extra-doc-files" dir (fromMaybeList packageConfigExtraDocFiles)
-
-  (dataFilesWarnings, dataFiles) <-
-    expandGlobs "data-files" dir (fromMaybeList packageConfigDataFiles)
+  extraSourceFiles <- expandGlobs "extra-source-files" dir (fromMaybeList packageConfigExtraSourceFiles)
+  extraDocFiles <- expandGlobs "extra-doc-files" dir (fromMaybeList packageConfigExtraDocFiles)
+  dataFiles <- expandGlobs "data-files" dir (fromMaybeList packageConfigDataFiles)
 
   let defaultBuildType :: BuildType
       defaultBuildType = maybe Simple (const Custom) mCustomSetup
@@ -641,16 +636,10 @@ toPackage_ dir (Product (toSection . (`Product` Empty) -> globalOptions) Package
       , packageBenchmarks = benchmarks
       }
 
-      warnings =
-           packageWarnings
-        ++ nameWarnings
-        ++ formatMissingSourceDirs missingSourceDirs
-        ++ executableWarning
-        ++ extraSourceFilesWarnings
-        ++ extraDocFilesWarnings
-        ++ dataFilesWarnings
-
-  return (warnings, pkg)
+  tell nameWarnings
+  tell (formatMissingSourceDirs missingSourceDirs)
+  tell executableWarning
+  return pkg
   where
     nameWarnings :: [String]
     packageName_ :: String
@@ -758,9 +747,10 @@ extractUnknownFieldWarnings = warnGlobal >=> bitraverse return warnSections
     warnUnknownFields preposition name = fmap snd . bitraverse tell return . formatUnknownFields preposition name
 
 expandForeignSources
-  :: FilePath
+  :: MonadIO m
+  => FilePath
   -> Config Identity ParseCSources ParseJsSources
-  -> Warnings IO (Config Identity CSources JsSources)
+  -> Warnings m (Config Identity CSources JsSources)
 expandForeignSources dir = traverseConfig t
   where
     t = Traverse {
@@ -770,9 +760,13 @@ expandForeignSources dir = traverseConfig t
     }
 
     expand fieldName xs = do
-      (warnings, files) <- liftIO $ expandGlobs fieldName dir (fromMaybeList xs)
-      tell warnings
-      return files
+      expandGlobs fieldName dir (fromMaybeList xs)
+
+expandGlobs :: MonadIO m => String -> FilePath -> [String] -> Warnings m [FilePath]
+expandGlobs name dir patterns = do
+  (warnings, files) <- liftIO $ Util.expandGlobs name dir patterns
+  tell warnings
+  return files
 
 toCustomSetup :: CustomSetupSection -> CustomSetup
 toCustomSetup CustomSetupSection{..} = CustomSetup

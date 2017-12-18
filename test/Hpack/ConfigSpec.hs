@@ -43,7 +43,7 @@ executable main_ = Executable (Just main_) ["Paths_foo"]
 library :: Library
 library = Library Nothing [] ["Paths_foo"] [] []
 
-withPackage :: String -> IO () -> (([String], Package) -> Expectation) -> Expectation
+withPackage :: String -> IO () -> ((Package, [String]) -> Expectation) -> Expectation
 withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
   let dir = dir_ </> "foo"
   createDirectory dir
@@ -53,13 +53,13 @@ withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
   either expectationFailure expectation r
 
 withPackageConfig :: String -> IO () -> (Package -> Expectation) -> Expectation
-withPackageConfig content beforeAction expectation = withPackage content beforeAction (expectation . snd)
+withPackageConfig content beforeAction expectation = withPackage content beforeAction (expectation . fst)
 
 withPackageConfig_ :: String -> (Package -> Expectation) -> Expectation
 withPackageConfig_ content = withPackageConfig content (return ())
 
 withPackageWarnings :: String -> IO () -> ([String] -> Expectation) -> Expectation
-withPackageWarnings content beforeAction expectation = withPackage content beforeAction (expectation . fst)
+withPackageWarnings content beforeAction expectation = withPackage content beforeAction (expectation . snd)
 
 withPackageWarnings_ :: String -> ([String] -> Expectation) -> Expectation
 withPackageWarnings_ content = withPackageWarnings content (return ())

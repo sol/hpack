@@ -726,7 +726,7 @@ run_ :: FilePath -> String -> IO (Either String ([String], String))
 run_ c old = do
   mPackage <- readPackageConfig c
   return $ case mPackage of
-    Right (warnings, pkg) ->
+    Right (pkg, warnings) ->
       let
         FormattingHints{..} = sniffFormattingHints old
         alignment = fromMaybe 0 formattingHintsAlignment
