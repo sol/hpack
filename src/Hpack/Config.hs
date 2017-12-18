@@ -63,6 +63,7 @@ import qualified Data.Text as T
 import           System.Directory
 import           System.FilePath
 import           Data.Functor.Identity
+import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Writer
 import           Control.Monad.Trans.Except
 import           Control.Monad.IO.Class
@@ -71,7 +72,7 @@ import           Hpack.Syntax.Util
 import           Hpack.Syntax.UnknownFields
 import           Hpack.Util hiding (expandGlobs)
 import qualified Hpack.Util as Util
-import           Hpack.Yaml
+import qualified Hpack.Yaml as Yaml
 import           Hpack.Dependency
 
 package :: String -> String -> Package
@@ -477,12 +478,14 @@ isNull name value = case parseMaybe p value of
   where
     p = parseJSON >=> (.: fromString name)
 
+decodeYaml :: FromJSON a => FilePath -> Warnings (ExceptT String IO) a
+decodeYaml = lift . ExceptT . Yaml.decodeYaml
+
 readPackageConfig :: FilePath -> IO (Either String (Package, [String]))
-readPackageConfig file = runExceptT $ do
-  config <- ExceptT $ decodeYaml file
-  liftIO $ do
-    dir <- takeDirectory <$> canonicalizePath file
-    runWriterT $ toPackage dir config
+readPackageConfig file = runExceptT $ runWriterT $ do
+  config <- decodeYaml file
+  dir <- liftIO $ takeDirectory <$> canonicalizePath file
+  toPackage dir config
 
 data Package = Package {
   packageName :: String
@@ -596,11 +599,14 @@ traverseConfig t = bitraverse (traverseCommonOptions t) (traversePackageConfig t
 
 type ParseConfig = CaptureUnknownFields (Config CaptureUnknownFields ParseCSources ParseJsSources)
 
-toPackage :: FilePath -> ParseConfig -> Warnings IO Package
-toPackage dir = extractUnknownFieldWarnings >=> expandForeignSources dir >=> toPackage_ dir
+toPackage :: MonadIO m => FilePath -> ParseConfig -> Warnings m Package
+toPackage dir = extractUnknownFieldWarnings >=> expandForeignSources dir >=> uncurry (toPackage_ dir) . globalOptionsToSection
 
-toPackage_ :: MonadIO m => FilePath -> Config Identity CSources JsSources -> Warnings m Package
-toPackage_ dir (Product (toSection . (`Product` Empty) -> globalOptions) PackageConfig{..}) = do
+globalOptionsToSection :: Config Identity CSources JsSources -> (Section Empty, PackageConfig Identity CSources JsSources)
+globalOptionsToSection (Product (toSection . (`Product` Empty) -> global) c) = (global, c)
+
+toPackage_ :: MonadIO m => FilePath -> Section Empty -> PackageConfig Identity CSources JsSources -> Warnings m Package
+toPackage_ dir globalOptions PackageConfig{..} = do
   mLibrary <- liftIO $ mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
 
   let
