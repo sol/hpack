@@ -344,7 +344,7 @@ data ConditionalSection capture cSources jsSources a =
 instance Functor capture => Functor (ConditionalSection capture cSources jsSources) where
   fmap f = \ case
     ThenElseConditional c -> ThenElseConditional (fmap f <$> c)
-    FlatConditional c -> FlatConditional (bimap (bimap (fmap f) f) id <$> c)
+    FlatConditional c -> FlatConditional (first (bimap (fmap f) f) <$> c)
 
 type ParseConditionalSection = ConditionalSection CaptureUnknownFields ParseCSources ParseJsSources
 
@@ -615,37 +615,31 @@ traverseConfig t = bitraverse (traverseCommonOptions t) (traversePackageConfig t
 type ParseConfig = CaptureUnknownFields (Config CaptureUnknownFields ParseCSources ParseJsSources)
 
 toPackage :: MonadIO m => FilePath -> ParseConfig -> Warnings m Package
-toPackage dir = extractUnknownFieldWarnings >=> expandForeignSources dir >=> uncurry (toPackage_ dir) . globalOptionsToSection
+toPackage dir = extractUnknownFieldWarnings >=> expandForeignSources dir >=>
+  \ (Product global c) -> toPackage_ dir global c
 
-globalOptionsToSection :: Config Identity CSources JsSources -> (Section Empty, PackageConfig Identity CSources JsSources)
-globalOptionsToSection (Product (toSection . (`Product` Empty) -> global) c) = (global, c)
+toExecutableMap :: Monad m => String -> Maybe (Map String a) -> Maybe a -> Warnings m (Maybe (Map String a))
+toExecutableMap name executables mExecutable = do
+  case mExecutable of
+    Just executable -> do
+      when (isJust executables) $ do
+        tell ["Ignoring field \"executables\" in favor of \"executable\""]
+      return $ Just (Map.fromList [(name, executable)])
+    Nothing -> return executables
 
-toPackage_ :: MonadIO m => FilePath -> Section Empty -> PackageConfig Identity CSources JsSources -> Warnings m Package
+type GlobalOptions = CommonOptions Identity CSources JsSources Empty
+
+toPackage_ :: MonadIO m => FilePath -> GlobalOptions -> PackageConfig Identity CSources JsSources -> Warnings m Package
 toPackage_ dir globalOptions PackageConfig{..} = do
-  mLibrary <- liftIO $ mapM (toLibrary dir packageName_ globalOptions) mLibrarySection
+  mLibrary <- liftIO $ traverse (toLibrary dir packageName_ globalOptions) packageConfigLibrary
 
-  let
-    executableSections :: Map String (Section ExecutableSection)
-    (executableWarning, executableSections) = (warning, sections)
-      where
-        sections :: Map String (Section ExecutableSection)
-        sections = case mExecutable of
-          Just executable -> Map.fromList [(packageName_, executable)]
-          Nothing -> executables
+  internalLibraries <- liftIO $ toInternalLibraries dir packageName_ globalOptions packageConfigInternalLibraries
 
-        warning = case mExecutable of
-          Just _ | not (null executables) -> ["Ignoring field \"executables\" in favor of \"executable\""]
-          _ -> []
+  executables <- toExecutableMap packageName_ packageConfigExecutables packageConfigExecutable
+    >>= liftIO . toExecutables dir packageName_ globalOptions
 
-        executables = toSections packageConfigExecutables
-
-        mExecutable :: Maybe (Section ExecutableSection)
-        mExecutable = toSectionI <$> packageConfigExecutable
-
-  internalLibraries <- liftIO $ toInternalLibraries dir packageName_ globalOptions internalLibrariesSections
-  executables <- liftIO $ toExecutables dir packageName_ globalOptions executableSections
-  tests <- liftIO $ toExecutables dir packageName_ globalOptions testSections
-  benchmarks <- liftIO $ toExecutables dir packageName_ globalOptions benchmarkSections
+  tests <- liftIO $ toExecutables dir packageName_ globalOptions packageConfigTests
+  benchmarks <- liftIO $ toExecutables dir packageName_ globalOptions packageConfigBenchmarks
 
   licenseFileExists <- liftIO $ doesFileExist (dir </> "LICENSE")
 
@@ -700,7 +694,6 @@ toPackage_ dir globalOptions PackageConfig{..} = do
 
   tell nameWarnings
   tell (formatMissingSourceDirs missingSourceDirs)
-  tell executableWarning
   return pkg
   where
     nameWarnings :: [String]
@@ -712,21 +705,6 @@ toPackage_ dir globalOptions PackageConfig{..} = do
 
     mCustomSetup :: Maybe CustomSetup
     mCustomSetup = toCustomSetup . runIdentity <$> packageConfigCustomSetup
-
-    mLibrarySection :: Maybe (Section LibrarySection)
-    mLibrarySection = toSectionI <$> packageConfigLibrary
-
-    toSections :: Maybe (Map String (Identity (WithCommonOptions Identity CSources JsSources a))) -> Map String (Section a)
-    toSections = fmap toSectionI . fromMaybe mempty
-
-    internalLibrariesSections :: Map String (Section LibrarySection)
-    internalLibrariesSections = toSections packageConfigInternalLibraries
-
-    testSections :: Map String (Section ExecutableSection)
-    testSections = toSections packageConfigTests
-
-    benchmarkSections :: Map String (Section ExecutableSection)
-    benchmarkSections = toSections packageConfigBenchmarks
 
     flags = map (toFlag . fmap runIdentity) $ toList packageConfigFlags
 
@@ -876,10 +854,10 @@ inferModules dir packageName_ getMentionedModules getInferredModules fromData fr
         r = fromConfig pathsModule inferableModules conf
       return (outerModules ++ getInferredModules r, r)
 
-toLibrary :: FilePath -> String -> Section global -> Section LibrarySection -> IO (Section Library)
+toLibrary :: FilePath -> String -> GlobalOptions -> SectionConfig Identity CSources JsSources LibrarySection -> IO (Section Library)
 toLibrary dir name globalOptions =
     inferModules dir name getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel fromLibrarySectionInConditional
-  . mergeSections emptyLibrarySection globalOptions
+  . toSectionI (emptyLibrarySection <$ globalOptions)
   where
     getLibraryModules :: Library -> [String]
     getLibraryModules Library{..} = libraryExposedModules ++ libraryOtherModules
@@ -915,21 +893,21 @@ fromLibrarySectionPlain LibrarySection{..} = Library {
   , librarySignatures = fromMaybeList librarySectionSignatures
   }
 
-toInternalLibraries :: FilePath -> String -> Section global -> Map String (Section LibrarySection) -> IO (Map String (Section Library))
-toInternalLibraries dir packageName_ globalOptions = traverse (toLibrary dir packageName_ globalOptions)
+toInternalLibraries :: FilePath -> String -> GlobalOptions -> Maybe (Map String (SectionConfig Identity CSources JsSources LibrarySection)) -> IO (Map String (Section Library))
+toInternalLibraries dir packageName_ globalOptions = traverse (toLibrary dir packageName_ globalOptions) . fromMaybe mempty
 
-toExecutables :: FilePath -> String -> Section global -> Map String (Section ExecutableSection) -> IO (Map String (Section Executable))
-toExecutables dir packageName_ globalOptions = traverse (toExecutable dir packageName_ globalOptions)
+toExecutables :: FilePath -> String -> GlobalOptions -> Maybe (Map String (SectionConfig Identity CSources JsSources ExecutableSection)) -> IO (Map String (Section Executable))
+toExecutables dir packageName_ globalOptions = traverse (toExecutable dir packageName_ globalOptions) . fromMaybe mempty
 
 getMentionedExecutableModules :: ExecutableSection -> [String]
 getMentionedExecutableModules ExecutableSection{..} =
   fromMaybeList executableSectionOtherModules ++ maybe [] return (executableSectionMain >>= toModule . splitDirectories)
 
-toExecutable :: FilePath -> String -> Section global -> Section ExecutableSection -> IO (Section Executable)
+toExecutable :: FilePath -> String -> GlobalOptions -> SectionConfig Identity CSources JsSources ExecutableSection -> IO (Section Executable)
 toExecutable dir packageName_ globalOptions =
     inferModules dir packageName_ getMentionedExecutableModules executableOtherModules fromExecutableSection (fromExecutableSection [])
   . expandMain
-  . mergeSections emptyExecutableSection globalOptions
+  . toSectionI (emptyExecutableSection <$ globalOptions)
   where
     fromExecutableSection :: [String] -> [String] -> ExecutableSection -> Executable
     fromExecutableSection pathsModule inferableModules ExecutableSection{..} =
@@ -956,39 +934,14 @@ expandMain = flatten . expand
       , sectionConditionals = map (fmap flatten) sectionConditionals
       }
 
-mergeSections :: a -> Section global -> Section a -> Section a
-mergeSections a globalOptions options
-  = Section {
-    sectionData = sectionData options
-  , sectionSourceDirs = sectionSourceDirs globalOptions ++ sectionSourceDirs options
-  , sectionDefaultExtensions = sectionDefaultExtensions globalOptions ++ sectionDefaultExtensions options
-  , sectionOtherExtensions = sectionOtherExtensions globalOptions ++ sectionOtherExtensions options
-  , sectionGhcOptions = sectionGhcOptions globalOptions ++ sectionGhcOptions options
-  , sectionGhcProfOptions = sectionGhcProfOptions globalOptions ++ sectionGhcProfOptions options
-  , sectionGhcjsOptions = sectionGhcjsOptions globalOptions ++ sectionGhcjsOptions options
-  , sectionCppOptions = sectionCppOptions globalOptions ++ sectionCppOptions options
-  , sectionCcOptions = sectionCcOptions globalOptions ++ sectionCcOptions options
-  , sectionCSources = sectionCSources globalOptions ++ sectionCSources options
-  , sectionJsSources = sectionJsSources globalOptions ++ sectionJsSources options
-  , sectionExtraLibDirs = sectionExtraLibDirs globalOptions ++ sectionExtraLibDirs options
-  , sectionExtraLibraries = sectionExtraLibraries globalOptions ++ sectionExtraLibraries options
-  , sectionExtraFrameworksDirs = sectionExtraFrameworksDirs globalOptions ++ sectionExtraFrameworksDirs options
-  , sectionFrameworks = sectionFrameworks globalOptions ++ sectionFrameworks options
-  , sectionIncludeDirs = sectionIncludeDirs globalOptions ++ sectionIncludeDirs options
-  , sectionInstallIncludes = sectionInstallIncludes globalOptions ++ sectionInstallIncludes options
-  , sectionLdOptions = sectionLdOptions globalOptions ++ sectionLdOptions options
-  , sectionBuildable = sectionBuildable options <|> sectionBuildable globalOptions
-  , sectionDependencies = sectionDependencies options <> sectionDependencies globalOptions
-  , sectionPkgConfigDependencies = sectionPkgConfigDependencies globalOptions ++ sectionPkgConfigDependencies options
-  , sectionConditionals = map (fmap (a <$)) (sectionConditionals globalOptions) ++ sectionConditionals options
-  , sectionBuildTools = sectionBuildTools options <> sectionBuildTools globalOptions
-  }
+toSectionI :: CommonOptions Identity CSources JsSources a -> Identity (WithCommonOptions Identity CSources JsSources a) -> Section a
+toSectionI globalOptions = toSection globalOptions . runIdentity
 
-toSectionI :: Identity (WithCommonOptions Identity CSources JsSources a) -> Section a
-toSectionI = toSection . runIdentity
+toSection :: CommonOptions Identity CSources JsSources a -> WithCommonOptions Identity CSources JsSources a -> Section a
+toSection globalOptions (Product options a) = toSection_ (Product (globalOptions <> options) a)
 
-toSection :: WithCommonOptions Identity CSources JsSources a -> Section a
-toSection (Product CommonOptions{..} a) = Section {
+toSection_ :: WithCommonOptions Identity CSources JsSources a -> Section a
+toSection_ (Product CommonOptions{..} a) = Section {
         sectionData = a
       , sectionSourceDirs = fromMaybeList commonOptionsSourceDirs
       , sectionDefaultExtensions = fromMaybeList commonOptionsDefaultExtensions
@@ -1014,12 +967,15 @@ toSection (Product CommonOptions{..} a) = Section {
       , sectionBuildTools = fromMaybe mempty commonOptionsBuildTools
       }
   where
+    toSectionI_ :: Identity (WithCommonOptions Identity CSources JsSources a) -> Section a
+    toSectionI_ = toSection_ . runIdentity
+
     conditionals = map toConditional (fromMaybeList commonOptionsWhen)
 
     toConditional :: ConditionalSection Identity CSources JsSources a -> Conditional (Section a)
     toConditional x = case x of
-      FlatConditional (Identity (Product sect c)) -> Conditional (conditionCondition c) (toSection sect) Nothing
-      ThenElseConditional (Identity (ThenElse condition then_ else_)) -> Conditional condition (toSectionI then_) (Just $ toSectionI else_)
+      FlatConditional (Identity (Product sect c)) -> Conditional (conditionCondition c) (toSection_ sect) Nothing
+      ThenElseConditional (Identity (ThenElse condition then_ else_)) -> Conditional condition (toSectionI_ then_) (Just $ toSectionI_ else_)
 
 pathsModuleFromPackageName :: String -> String
 pathsModuleFromPackageName name = "Paths_" ++ map f name
