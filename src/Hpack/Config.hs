@@ -493,7 +493,10 @@ isNull name value = case parseMaybe p value of
   where
     p = parseJSON >=> (.: fromString name)
 
-decodeYaml :: FromJSON a => FilePath -> Warnings (ExceptT String IO) a
+type Warnings m = WriterT [String] m
+type Errors = ExceptT String
+
+decodeYaml :: FromJSON a => FilePath -> Warnings (Errors IO) a
 decodeYaml = lift . ExceptT . Yaml.decodeYaml
 
 readPackageConfig :: FilePath -> IO (Either String (Package, [String]))
@@ -740,8 +743,6 @@ toPackage_ dir globalOptions PackageConfig{..} = do
       _ -> join packageConfigBugReports <|> fromGithub
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> github
-
-type Warnings m = WriterT [String] m
 
 extractUnknownFieldWarnings :: forall m. Monad m => ParseConfig -> Warnings m (Config Identity ParseCSources ParseJsSources)
 extractUnknownFieldWarnings = warnGlobal >=> bitraverse return warnSections
