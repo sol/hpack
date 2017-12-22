@@ -49,7 +49,7 @@ withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
   createDirectory dir
   writeFile (dir </> "package.yaml") content
   withCurrentDirectory dir beforeAction
-  r <- readPackageConfig (dir </> "package.yaml")
+  r <- readPackageConfig undefined (dir </> "package.yaml")
   either expectationFailure expectation r
 
 withPackageConfig :: String -> IO () -> (Package -> Expectation) -> Expectation
@@ -883,7 +883,7 @@ spec = do
             foo: bar
             foo baz
             |]
-          readPackageConfig file `shouldReturn` Left (file ++ ":3:12: could not find expected ':' while scanning a simple key")
+          readPackageConfig undefined file `shouldReturn` Left (file ++ ":3:12: could not find expected ':' while scanning a simple key")
 
       context "when package.yaml is invalid" $ do
         it "returns an error" $ \dir -> do
@@ -892,9 +892,9 @@ spec = do
             - one
             - two
             |]
-          readPackageConfig file >>= (`shouldSatisfy` isLeft)
+          readPackageConfig undefined file >>= (`shouldSatisfy` isLeft)
 
       context "when package.yaml does not exist" $ do
         it "returns an error" $ \dir -> do
           let file = dir </> "package.yaml"
-          readPackageConfig file `shouldReturn` Left [i|#{file}: Yaml file not found: #{file}|]
+          readPackageConfig undefined file `shouldReturn` Left [i|#{file}: Yaml file not found: #{file}|]

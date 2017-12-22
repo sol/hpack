@@ -29,6 +29,9 @@ dependencies:
   - bifunctors
   - cryptonite
   - transformers
+  - http-types
+  - http-client
+  - http-client-tls
 
 library:
   source-dirs: src

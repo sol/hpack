@@ -5,6 +5,9 @@
 {-# LANGUAGE ConstraintKinds #-}
 module EndToEndSpec (spec) where
 
+import           Prelude hiding (writeFile)
+import qualified Prelude
+
 import           Helper
 
 import           System.Exit
@@ -17,9 +20,68 @@ import qualified Hpack.Run as Hpack
 import           Hpack.Config (packageConfig, readPackageConfig)
 import           Hpack.FormattingHints (FormattingHints(..), sniffFormattingHints)
 
+writeFile :: FilePath -> String -> IO ()
+writeFile file c = touch file >> Prelude.writeFile file c
+
 spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "hpack" $ do
+    context "with defaults" $ do
+      it "accepts defaults" $ do
+        writeFile "defaults/sol/hpack-template/2017/defaults.yaml" [i|
+        default-extensions:
+          - RecordWildCards
+          - DeriveFunctor
+        |]
+
+        [i|
+        defaults:
+          github: sol/hpack-template
+          path: defaults.yaml
+          ref: "2017"
+        library: {}
+        |] `shouldRenderTo` library [i|
+        other-modules:
+            Paths_foo
+        default-extensions: RecordWildCards DeriveFunctor
+        |]
+
+      it "fails if defaults don't exist" $ do
+        pending
+        [i|
+        defaults:
+          github: sol/foo
+          ref: bar
+        library: {}
+        |] `shouldFailWith` "Invalid value for \"defaults\"! File https://raw.githubusercontent.com/sol/foo/bar/.hpack/defaults.yaml does not exist!"
+
+      it "fails on parse error" $ do
+        let file = joinPath ["defaults", "sol", "hpack-template", "2017", "defaults.yaml"]
+        writeFile file "[]"
+        [i|
+        defaults:
+          github: sol/hpack-template
+          path: defaults.yaml
+          ref: "2017"
+        library: {}
+        |] `shouldFailWith` (file ++ ": Error in $: expected record (:*:), encountered Array")
+
+      it "warns on unknown fields" $ do
+        let file = joinPath ["defaults", "sol", "hpack-template", "2017", "defaults.yaml"]
+        writeFile file "foo: bar"
+        [i|
+        defaults:
+          github: sol/hpack-template
+          path: defaults.yaml
+          ref: "2017"
+          bar: baz
+        name: foo
+        library: {}
+        |] `shouldWarn` [
+            "Ignoring unknown field \"bar\" in defaults section"
+          , "Ignoring unknown field \"foo\" in " ++ file
+          ]
+
     describe "extra-doc-files" $ do
       it "accepts a list of files" $ do
         touch "CHANGES.markdown"
@@ -724,7 +786,7 @@ run c old = run_ c old >>= either die return
 
 run_ :: FilePath -> String -> IO (Either String ([String], String))
 run_ c old = do
-  mPackage <- readPackageConfig c
+  mPackage <- readPackageConfig "" c
   return $ case mPackage of
     Right (pkg, warnings) ->
       let

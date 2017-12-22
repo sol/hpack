@@ -27,6 +27,7 @@ import           Data.Maybe
 import           Data.List
 import           System.Exit
 import           System.FilePath
+import           System.Directory
 import           Data.Version
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
@@ -39,7 +40,8 @@ import           Hpack.FormattingHints
 run :: Maybe FilePath -> FilePath -> IO ([String], FilePath, String)
 run mDir c = do
   let dir = fromMaybe "" mDir
-  mPackage <- readPackageConfig (dir </> c)
+  userDataDir <- getAppUserDataDirectory "hpack"
+  mPackage <- readPackageConfig userDataDir (dir </> c)
   case mPackage of
     Right (pkg, warnings) -> do
       let cabalFile = dir </> (packageName pkg ++ ".cabal")

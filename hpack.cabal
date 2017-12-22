@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9bb78b3a87eae41728fb0d53b870c28a0fb615fc651d6f7fda8df25f8e78bf5f
+-- hash: a179faa76f931dfaa53194d4d5752f8f6724a66267c047c0ebc77bf733befb20
 
 name:           hpack
 version:        0.21.2
@@ -40,6 +40,9 @@ library
     , deepseq
     , directory
     , filepath
+    , http-client
+    , http-client-tls
+    , http-types
     , pretty
     , scientific
     , text
@@ -53,6 +56,7 @@ library
       Hpack.Yaml
   other-modules:
       Hpack.CabalFile
+      Hpack.Defaults
       Hpack.Dependency
       Hpack.FormattingHints
       Hpack.Haskell
@@ -84,6 +88,9 @@ executable hpack
     , directory
     , filepath
     , hpack
+    , http-client
+    , http-client-tls
+    , http-types
     , pretty
     , scientific
     , text
@@ -117,6 +124,9 @@ test-suite spec
     , directory
     , filepath
     , hspec ==2.*
+    , http-client
+    , http-client-tls
+    , http-types
     , interpolate
     , mockery >=0.3
     , pretty
@@ -131,6 +141,7 @@ test-suite spec
       Helper
       Hpack.CabalFileSpec
       Hpack.ConfigSpec
+      Hpack.DefaultsSpec
       Hpack.DependencySpec
       Hpack.FormattingHintsSpec
       Hpack.HaskellSpec
@@ -144,6 +155,7 @@ test-suite spec
       Hpack
       Hpack.CabalFile
       Hpack.Config
+      Hpack.Defaults
       Hpack.Dependency
       Hpack.FormattingHints
       Hpack.Haskell

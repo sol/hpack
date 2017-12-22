@@ -72,6 +72,7 @@ import           Hpack.Syntax.Util
 import           Hpack.Syntax.UnknownFields
 import           Hpack.Util hiding (expandGlobs)
 import qualified Hpack.Util as Util
+import           Hpack.Defaults
 import qualified Hpack.Yaml as Yaml
 import           Hpack.Dependency
 
@@ -440,6 +441,7 @@ data PackageConfig capture cSources jsSources = PackageConfig {
 , packageConfigExecutables :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
 , packageConfigTests :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
 , packageConfigBenchmarks :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
+, packageConfigDefaults :: Maybe (capture ParseDefaults)
 } deriving Generic
 
 traversePackageConfig :: Traversal PackageConfig
@@ -452,6 +454,7 @@ traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
   executables <- traverseNamedConfigs t packageConfigExecutables
   tests <- traverseNamedConfigs t packageConfigTests
   benchmarks <- traverseNamedConfigs t packageConfigBenchmarks
+  defaults <- traverse traverseCapture packageConfigDefaults
   return p {
       packageConfigFlags = flags
     , packageConfigCustomSetup = customSetup
@@ -461,6 +464,7 @@ traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
     , packageConfigExecutables = executables
     , packageConfigTests = tests
     , packageConfigBenchmarks = benchmarks
+    , packageConfigDefaults = defaults
     }
   where
     traverseNamedConfigs = traverse . traverse . traverseSectionConfig
@@ -499,11 +503,11 @@ type Errors = ExceptT String
 decodeYaml :: FromJSON a => FilePath -> Warnings (Errors IO) a
 decodeYaml = lift . ExceptT . Yaml.decodeYaml
 
-readPackageConfig :: FilePath -> IO (Either String (Package, [String]))
-readPackageConfig file = runExceptT $ runWriterT $ do
+readPackageConfig :: FilePath -> FilePath -> IO (Either String (Package, [String]))
+readPackageConfig userDataDir file = runExceptT $ runWriterT $ do
   config <- decodeYaml file
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
-  toPackage dir config
+  toPackage userDataDir dir config
 
 data Package = Package {
   packageName :: String
@@ -617,9 +621,45 @@ traverseConfig t = bitraverse (traverseCommonOptions t) (traversePackageConfig t
 
 type ParseConfig = CaptureUnknownFields (Config CaptureUnknownFields ParseCSources ParseJsSources)
 
-toPackage :: MonadIO m => FilePath -> ParseConfig -> Warnings m Package
-toPackage dir = extractUnknownFieldWarnings >=> expandForeignSources dir >=>
-  \ (Product global c) -> toPackage_ dir global c
+toPackage :: FilePath -> FilePath -> ParseConfig -> Warnings (Errors IO) Package
+toPackage userDataDir dir =
+      warnUnknownFieldsInConfig
+  >=> traverseConfig (expandForeignSources dir)
+  >=> expandDefaults userDataDir dir
+  >=> toPackage_ dir
+
+expandDefaults
+  :: FilePath
+  -> FilePath
+  -> Config Identity CSources JsSources
+  -> Warnings (Errors IO) (Config Identity CSources JsSources)
+expandDefaults userDataDir dir (Product global config) = do
+  d <- getDefaults userDataDir config >>= traverseCommonOptions (expandForeignSources dir)
+  return (Product (d <> global) config)
+
+data ParseDefaults = ParseDefaults {
+  parseDefaultsGithub :: String
+, parseDefaultsPath :: Maybe FilePath
+, parseDefaultsRef :: String
+} deriving Generic
+
+instance HasFieldNames ParseDefaults
+
+instance FromJSON ParseDefaults where
+  parseJSON = genericParseJSON
+
+toDefaults :: ParseDefaults -> Defaults
+toDefaults ParseDefaults{..} = Defaults parseDefaultsGithub (fromMaybe ".hpack/defaults.yaml" parseDefaultsPath) parseDefaultsRef
+
+getDefaults
+  :: FilePath
+  -> PackageConfig Identity cSources jsSources
+  -> Warnings (Errors IO) (CommonOptions Identity ParseCSources ParseJsSources Empty)
+getDefaults userDataDir PackageConfig{..} = case packageConfigDefaults of
+  Nothing -> return mempty
+  Just (toDefaults . runIdentity -> defaults) -> do
+    file <- lift $ ExceptT (ensure userDataDir defaults)
+    decodeYaml file >>= warnUnknownFieldsInDefaults file
 
 toExecutableMap :: Monad m => String -> Maybe (Map String a) -> Maybe a -> Warnings m (Maybe (Map String a))
 toExecutableMap name executables mExecutable = do
@@ -632,8 +672,8 @@ toExecutableMap name executables mExecutable = do
 
 type GlobalOptions = CommonOptions Identity CSources JsSources Empty
 
-toPackage_ :: MonadIO m => FilePath -> GlobalOptions -> PackageConfig Identity CSources JsSources -> Warnings m Package
-toPackage_ dir globalOptions PackageConfig{..} = do
+toPackage_ :: MonadIO m => FilePath -> Product GlobalOptions (PackageConfig Identity CSources JsSources) -> Warnings m Package
+toPackage_ dir (Product globalOptions PackageConfig{..}) = do
   mLibrary <- liftIO $ traverse (toLibrary dir packageName_ globalOptions) packageConfigLibrary
 
   internalLibraries <- liftIO $ toInternalLibraries dir packageName_ globalOptions packageConfigInternalLibraries
@@ -744,11 +784,20 @@ toPackage_ dir globalOptions PackageConfig{..} = do
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> github
 
-extractUnknownFieldWarnings :: forall m. Monad m => ParseConfig -> Warnings m (Config Identity ParseCSources ParseJsSources)
-extractUnknownFieldWarnings = warnGlobal >=> bitraverse return warnSections
+sequenceUnknownFields :: Monad capture => Traverse capture capture Identity cSources cSources jsSources jsSources
+sequenceUnknownFields = defaultTraverse{traverseCapture = fmap Identity}
+
+warnUnknownFieldsInDefaults
+  :: Monad m
+  => String
+  -> CaptureUnknownFields (CommonOptions CaptureUnknownFields cSources jsSources Empty)
+  -> Warnings m (CommonOptions Identity cSources jsSources Empty)
+warnUnknownFieldsInDefaults name = warnUnknownFields In name . (>>= traverseCommonOptions sequenceUnknownFields)
+
+warnUnknownFieldsInConfig :: forall m. Monad m => ParseConfig -> Warnings m (Config Identity ParseCSources ParseJsSources)
+warnUnknownFieldsInConfig = warnGlobal >=> bitraverse return warnSections
   where
-    t :: Monad capture => Traverse capture capture Identity cSources cSources jsSources jsSources
-    t = defaultTraverse{traverseCapture = fmap Identity}
+    t = sequenceUnknownFields
 
     warnGlobal c = warnUnknownFields In "package description" (c >>= bitraverse (traverseCommonOptions t) return)
 
@@ -762,6 +811,7 @@ extractUnknownFieldWarnings = warnGlobal >=> bitraverse return warnSections
       executables <- warnNamedSection "executable" packageConfigExecutables
       tests <- warnNamedSection "test" packageConfigTests
       benchmarks <- warnNamedSection "benchmark" packageConfigBenchmarks
+      defaults <- warnUnknownFields In "defaults section" (traverse (traverseCapture t) packageConfigDefaults)
       return p {
           packageConfigFlags = flags
         , packageConfigCustomSetup = customSetup
@@ -771,6 +821,7 @@ extractUnknownFieldWarnings = warnGlobal >=> bitraverse return warnSections
         , packageConfigExecutables = executables
         , packageConfigTests = tests
         , packageConfigBenchmarks = benchmarks
+        , packageConfigDefaults = defaults
         }
 
     warnNamedSection
@@ -784,21 +835,18 @@ extractUnknownFieldWarnings = warnGlobal >=> bitraverse return warnSections
       where
         f (name, fields) = (,) name <$> (warnUnknownFields preposition (sect ++ " " ++ show name) fields)
 
-    warnUnknownFields :: Preposition -> String -> CaptureUnknownFields a -> Warnings m a
-    warnUnknownFields preposition name = fmap snd . bitraverse tell return . formatUnknownFields preposition name
+warnUnknownFields :: forall m a. Monad m => Preposition -> String -> CaptureUnknownFields a -> Warnings m a
+warnUnknownFields preposition name = fmap snd . bitraverse tell return . formatUnknownFields preposition name
 
 expandForeignSources
   :: MonadIO m
   => FilePath
-  -> Config Identity ParseCSources ParseJsSources
-  -> Warnings m (Config Identity CSources JsSources)
-expandForeignSources dir = traverseConfig t
+  -> Traverse (Warnings m) capture capture ParseCSources CSources ParseJsSources JsSources
+expandForeignSources dir = defaultTraverse {
+    traverseCSources = expand "c-sources"
+  , traverseJsSources = expand "js-sources"
+  }
   where
-    t = defaultTraverse{
-      traverseCSources = expand "c-sources"
-    , traverseJsSources = expand "js-sources"
-    }
-
     expand fieldName xs = do
       expandGlobs fieldName dir (fromMaybeList xs)
 
