@@ -4,7 +4,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
-module Hpack.UnknownFields (
+module Hpack.Syntax.UnknownFields (
   FieldName
 , HasFieldNames(..)
 , hyphenize
@@ -15,14 +15,14 @@ module Hpack.UnknownFields (
 ) where
 
 import           Control.Monad
-import           Data.Aeson.Types
 import           Data.Data
 import qualified Data.HashMap.Lazy as HashMap
 import           Data.List
 import qualified Data.Text as T
 import           GHC.Generics
 
-import           Hpack.GenericsUtil
+import           Hpack.Syntax.GenericsUtil
+import           Hpack.Syntax.Util
 
 newtype FieldName = FieldName {unFieldName :: String}
 
@@ -34,15 +34,6 @@ class HasFieldNames a where
 
   ignoreUnderscoredUnknownFields :: Proxy a -> Bool
   ignoreUnderscoredUnknownFields _ = False
-
-hyphenize :: String -> String -> String
-hyphenize name =
-#if MIN_VERSION_aeson(0,10,0)
-  camelTo2
-#else
-  camelTo
-#endif
-  '-' . drop (length name) . dropWhile (== '_')
 
 data CaptureUnknownFields a = CaptureUnknownFields [FieldName] a
   deriving Functor

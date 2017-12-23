@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Hpack.GenericsUtilSpec (spec) where
+module Hpack.Syntax.GenericsUtilSpec (spec) where
 
 import           Test.Hspec
 
 import           Data.Proxy
 import           GHC.Generics
 
-import           Hpack.GenericsUtil
+import           Hpack.Syntax.GenericsUtil
 
 data Person = Person {
   _personName :: String

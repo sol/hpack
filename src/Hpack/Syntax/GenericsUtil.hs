@@ -5,7 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Hpack.GenericsUtil (
+module Hpack.Syntax.GenericsUtil (
   HasTypeName
 , typeName
 , Selectors

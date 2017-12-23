@@ -1,17 +1,13 @@
-{-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE RankNTypes #-}
 module Hpack.Config (
@@ -50,7 +46,6 @@ module Hpack.Config (
 
 import           Control.Applicative
 import           Control.Monad
-import           Data.Aeson.Types
 import           Data.Data
 import           Data.Bifunctor
 import           Data.Bifoldable
@@ -65,7 +60,6 @@ import           Data.Ord
 import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           GHC.Generics (Generic, Rep)
 import           System.Directory
 import           System.FilePath
 import           Data.Functor.Identity
@@ -73,8 +67,8 @@ import           Control.Monad.Trans.Writer
 import           Control.Monad.Trans.Except
 import           Control.Monad.IO.Class
 
-import           Hpack.GenericsUtil
-import           Hpack.UnknownFields
+import           Hpack.Syntax.Util
+import           Hpack.Syntax.UnknownFields
 import           Hpack.Util hiding (expandGlobs)
 import qualified Hpack.Util as Util
 import           Hpack.Yaml
@@ -143,16 +137,6 @@ section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
 
-#if MIN_VERSION_aeson(1,0,0)
-genericParseJSON_ :: forall a d m. (GFromJSON Zero (Rep a), HasTypeName a d m) => Value -> Parser a
-#else
-genericParseJSON_ :: forall a d m. (GFromJSON (Rep a), HasTypeName a d m) => Value -> Parser a
-#endif
-genericParseJSON_ = genericParseJSON defaultOptions {fieldLabelModifier = hyphenize name}
-  where
-    name :: String
-    name = typeName (Proxy :: Proxy a)
-
 data CustomSetupSection = CustomSetupSection {
   customSetupSectionDependencies :: Maybe Dependencies
 } deriving (Eq, Show, Generic)
@@ -160,7 +144,7 @@ data CustomSetupSection = CustomSetupSection {
 instance HasFieldNames CustomSetupSection
 
 instance FromJSON CustomSetupSection where
-  parseJSON = genericParseJSON_
+  parseJSON = genericParseJSON
 
 data LibrarySection = LibrarySection {
   librarySectionExposed :: Maybe Bool
@@ -176,7 +160,7 @@ emptyLibrarySection = LibrarySection Nothing Nothing Nothing Nothing Nothing
 instance HasFieldNames LibrarySection
 
 instance FromJSON LibrarySection where
-  parseJSON = genericParseJSON_
+  parseJSON = genericParseJSON
 
 data ExecutableSection = ExecutableSection {
   executableSectionMain :: Maybe FilePath
@@ -189,7 +173,7 @@ emptyExecutableSection = ExecutableSection Nothing Nothing
 instance HasFieldNames ExecutableSection
 
 instance FromJSON ExecutableSection where
-  parseJSON = genericParseJSON_
+  parseJSON = genericParseJSON
 
 data CommonOptions a capture cSources jsSources = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
@@ -221,7 +205,7 @@ type ParseCommonOptions a = CommonOptions a CaptureUnknownFields ParseCSources P
 instance HasFieldNames (ParseCommonOptions a)
 
 instance (FromJSON a, HasFieldNames a) => FromJSON (ParseCommonOptions a) where
-  parseJSON = genericParseJSON_
+  parseJSON = genericParseJSON
 
 type ParseCSources = Maybe (List FilePath)
 type ParseJsSources = Maybe (List FilePath)
@@ -310,7 +294,7 @@ newtype Condition = Condition {
 } deriving (Eq, Show, Generic)
 
 instance FromJSON Condition where
-  parseJSON = genericParseJSON_
+  parseJSON = genericParseJSON
 
 instance HasFieldNames Condition
 
@@ -325,7 +309,7 @@ type ParseThenElse a = ThenElse a CaptureUnknownFields ParseCSources ParseJsSour
 instance HasFieldNames (ParseThenElse a)
 
 instance (FromJSON a, HasFieldNames a) => FromJSON (ParseThenElse a) where
-  parseJSON = genericParseJSON_
+  parseJSON = genericParseJSON
 
 data Empty = Empty
   deriving (Eq, Show)
@@ -417,7 +401,7 @@ instance HasFieldNames ParsePackageConfig where
   ignoreUnderscoredUnknownFields _ = True
 
 instance FromJSON ParsePackageConfig where
-  parseJSON value = handleNullValues <$> genericParseJSON_ value
+  parseJSON value = handleNullValues <$> genericParseJSON value
     where
       handleNullValues :: ParsePackageConfig -> ParsePackageConfig
       handleNullValues =
@@ -530,7 +514,7 @@ data FlagSection = FlagSection {
 instance HasFieldNames FlagSection
 
 instance FromJSON FlagSection where
-  parseJSON = genericParseJSON_
+  parseJSON = genericParseJSON
 
 data Flag = Flag {
   flagName :: String

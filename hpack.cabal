@@ -1,8 +1,8 @@
--- This file has been generated from package.yaml by hpack version 0.21.0.
+-- This file has been generated from package.yaml by hpack version 0.21.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 717efcb68d31a77fdd5eec9b427eaba95d5ca99c5d2aedf570e483461daa01ca
+-- hash: 9bb78b3a87eae41728fb0d53b870c28a0fb615fc651d6f7fda8df25f8e78bf5f
 
 name:           hpack
 version:        0.21.2
@@ -55,11 +55,12 @@ library
       Hpack.CabalFile
       Hpack.Dependency
       Hpack.FormattingHints
-      Hpack.GenericsUtil
       Hpack.Haskell
       Hpack.Options
       Hpack.Render
-      Hpack.UnknownFields
+      Hpack.Syntax.GenericsUtil
+      Hpack.Syntax.UnknownFields
+      Hpack.Syntax.Util
       Hpack.Utf8
       Hpack.Util
       Paths_hpack
@@ -132,11 +133,11 @@ test-suite spec
       Hpack.ConfigSpec
       Hpack.DependencySpec
       Hpack.FormattingHintsSpec
-      Hpack.GenericsUtilSpec
       Hpack.HaskellSpec
       Hpack.OptionsSpec
       Hpack.RenderSpec
       Hpack.RunSpec
+      Hpack.Syntax.GenericsUtilSpec
       Hpack.Utf8Spec
       Hpack.UtilSpec
       HpackSpec
@@ -145,12 +146,13 @@ test-suite spec
       Hpack.Config
       Hpack.Dependency
       Hpack.FormattingHints
-      Hpack.GenericsUtil
       Hpack.Haskell
       Hpack.Options
       Hpack.Render
       Hpack.Run
-      Hpack.UnknownFields
+      Hpack.Syntax.GenericsUtil
+      Hpack.Syntax.UnknownFields
+      Hpack.Syntax.Util
       Hpack.Utf8
       Hpack.Util
       Hpack.Yaml
