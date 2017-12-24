@@ -639,8 +639,8 @@ expandDefaults userDataDir dir (Product global config) = do
 
 data ParseDefaults = ParseDefaults {
   parseDefaultsGithub :: String
-, parseDefaultsPath :: Maybe FilePath
 , parseDefaultsRef :: String
+, parseDefaultsPath :: Maybe FilePath
 } deriving Generic
 
 instance HasFieldNames ParseDefaults
@@ -649,7 +649,7 @@ instance FromJSON ParseDefaults where
   parseJSON = genericParseJSON
 
 toDefaults :: ParseDefaults -> Defaults
-toDefaults ParseDefaults{..} = Defaults parseDefaultsGithub (fromMaybe ".hpack/defaults.yaml" parseDefaultsPath) parseDefaultsRef
+toDefaults ParseDefaults{..} = Defaults parseDefaultsGithub parseDefaultsRef (fromMaybe ".hpack/defaults.yaml" parseDefaultsPath)
 
 getDefaults
   :: FilePath

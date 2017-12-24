@@ -23,8 +23,8 @@ import           System.Directory
 
 data Defaults = Defaults {
   defaultsGithub :: String
-, defaultsPath :: FilePath
 , defaultsRef :: String
+, defaultsPath :: FilePath
 } deriving (Eq, Show)
 
 type URL = String
