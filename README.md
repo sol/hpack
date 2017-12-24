@@ -44,7 +44,7 @@ existing cabal file into a `package.yaml`.
 | `license` | · | | | | |
 | `license-file` | `license-file` or `license-files` | `LICENSE` if file exists | May be a list | | |
 | `tested-with` | · | | | | |
-| `build-type` | · | `Simple`, or `Custom` if `custom-setup` section exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | | |
+| `build-type` | · | `Simple`, or `Custom` if `custom-setup` exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | | |
 | `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | | |
 | `extra-doc-files` | · | | Accepts [glob patterns](#file-globbing) | | `0.21.2` |
 | `data-files` | · | | Accepts [glob patterns](#file-globbing) | | |
@@ -68,12 +68,14 @@ automatically set depending on which features are used.
 | --- | --- | --- | --- | --- |
 | `dependencies` | `setup-depends` | | Implies `build-type: Custom` | |
 
-#### Global top-level fields
+#### Common fields
 
-These fields are merged with all library, executable, test, and benchmark components.
+These fields can be specified top-level or on a per section basis; top-level
+values are merged with per section values.
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
+| `buildable` | · | | Per section takes precedence over top-level |
 | `source-dirs` | `hs-source-dirs` | | |
 | `default-extensions` | · | | |
 | `other-extensions` | · | | |
@@ -91,7 +93,6 @@ These fields are merged with all library, executable, test, and benchmark compon
 | `frameworks` | · | | |
 | `extra-frameworks-dirs` | · | | |
 | `ld-options` | · | | |
-| `buildable` | · | | May be overridden by later stanza |
 | `dependencies` | `build-depends` | | |
 | `pkg-config-dependencies` | `pkgconfig-depends` | | |
 | `build-tools` | · | | |
