@@ -45,7 +45,6 @@ existing cabal file into a `package.yaml`.
 | `license-file` | `license-file` or `license-files` | `LICENSE` if file exists | May be a list | | |
 | `tested-with` | · | | | | |
 | `build-type` | · | `Simple`, or `Custom` if `custom-setup` section exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | | |
-| | `cabal-version` | `>= 1.10` or `>= 1.21` | `>= 1.21` if library component has `reexported-modules` field | | |
 | `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | | |
 | `extra-doc-files` | · | | Accepts [glob patterns](#file-globbing) | | `0.21.2` |
 | `data-files` | · | | Accepts [glob patterns](#file-globbing) | | |
@@ -65,6 +64,9 @@ existing cabal file into a `package.yaml`.
 | Hpack | Cabal | Default | Notes | Example |
 | --- | --- | --- | --- | --- |
 | `dependencies` | `setup-depends` | | Implies `build-type: Custom` | |
+
+Hpack does not require you to specify a `cabal-version` manually, it is
+automatically set depending on which features are used.
 
 #### Global top-level fields
 
