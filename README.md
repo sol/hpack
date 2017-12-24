@@ -59,14 +59,14 @@ existing cabal file into a `package.yaml`.
 | `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | | |
 | `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | | |
 
+Hpack does not require you to specify a `cabal-version` manually, it is
+automatically set depending on which features are used.
+
 #### <a name="custom-setup"></a>Custom setup
 
 | Hpack | Cabal | Default | Notes | Example |
 | --- | --- | --- | --- | --- |
 | `dependencies` | `setup-depends` | | Implies `build-type: Custom` | |
-
-Hpack does not require you to specify a `cabal-version` manually, it is
-automatically set depending on which features are used.
 
 #### Global top-level fields
 
