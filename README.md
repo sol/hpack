@@ -58,9 +58,50 @@ existing cabal file into a `package.yaml`.
 | `executable` | `executable <package-name>` | | Shortcut for `executables: { package-name: ... }` | | `0.18.0` |
 | `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | | |
 | `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | | |
+| `defaults` | | | See [Defaults](#defaults) | | |
 
-Hpack does not require you to specify a `cabal-version` manually, it is
-automatically set depending on which features are used.
+**Note:** Hpack does not require you to specify a `cabal-version` manually.  When
+generating a `.cabal` file, Hpack sets the `cabal-version` automatically based
+on the features that are used.
+
+#### <a name="defaults"></a>Defaults
+
+Hpack allows the inclusion of [common fields](#common-fields) from a file on
+GitHub.
+
+To use this feature a user must specify a GitHub repository, Git reference and
+a path to a file within that repository.
+
+Example:
+
+```yaml
+defaults:
+  github: sol/hpack-template
+  ref: 2017
+  path: defaults.yaml
+```
+
+This will include all common fields from
+https://github.com/sol/hpack-template/blob/2017/defaults.yaml into the package
+specification.
+
+| Field | Default | Notes | Example |
+| ----- | ------- | ----- | ------- |
+| `github` | | Accepts `<user>/<repo>` | `github: sol/hpack-template` |
+| `ref` | | | `ref: 2017` |
+| `path` | `.hpack/defaults.yaml` | | `path: defaults.yaml` |
+
+**Note:** Hpack caches downloaded files under
+`~/.hpack/defaults/<user>/<repo>/<path>`.  Once downloaded, a file is reused
+from the cache.  If the content on GitHub changes the file is not updated.  For
+this reason it is recommended to only use tags as Git references.
+
+ * If a defaults file has changed on GitHub and you want to use the latest
+   version, then you have to delete that file from the cache manually.
+
+ * If you want to prevent Hpack from accessing the network to download a
+   defaults file, then you can achieve this by adding that file to the cache
+   manually.
 
 #### <a name="custom-setup"></a>Custom setup
 
@@ -68,7 +109,7 @@ automatically set depending on which features are used.
 | --- | --- | --- | --- | --- |
 | `dependencies` | `setup-depends` | | Implies `build-type: Custom` | |
 
-#### Common fields
+#### <a name="common-fields">Common fields
 
 These fields can be specified top-level or on a per section basis; top-level
 values are merged with per section values.
