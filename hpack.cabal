@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5db27d52da17996398b5bbfeb20df6adfab84f41c9f9593c7ffb46ec3b5599f6
+-- hash: 0cf2a87ac2b33b3b61f6edd95c48dd72240d64b9b3be9951ca54d1b57cf4b162
 
 name:           hpack
 version:        0.21.2
@@ -113,7 +113,6 @@ test-suite spec
   build-depends:
       Cabal
     , Glob
-    , HUnit >=1.6.0.0
     , QuickCheck
     , aeson >=0.11
     , base >=4.8 && <5
@@ -150,6 +149,7 @@ test-suite spec
       Hpack.RenderSpec
       Hpack.RunSpec
       Hpack.Syntax.GenericsUtilSpec
+      Hpack.SyntaxSpec
       Hpack.Utf8Spec
       Hpack.UtilSpec
       HpackSpec

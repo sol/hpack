@@ -5,21 +5,14 @@
 module Hpack.DependencySpec (spec) where
 
 import           Helper
-import           Test.HUnit
 
-import           Data.Aeson.Types
-import qualified Data.Map.Lazy as Map
 import           Data.String.Interpolate.IsString
-import           Data.Yaml
 import           Data.ByteString (ByteString)
 
 import           Hpack.Dependency
 
-parsesAs :: HasCallStack => ByteString -> Either String [(String, DependencyVersion)] -> Expectation
-parsesAs input expected = do
-  value <- either assertFailure return (decodeEither input)
-  parseEither parseJSON value `shouldBe` (Dependencies . Map.fromList <$> expected)
-
+parsesAs :: HasCallStack => ByteString -> Either String Dependencies -> Expectation
+parsesAs = shouldParseAs
 
 spec :: Spec
 spec = do

@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ConstraintKinds #-}
 module Helper (
   module Test.Hspec
 , module Test.Mockery.Directory
@@ -5,7 +7,10 @@ module Helper (
 , withTempDirectory
 , module System.FilePath
 , withCurrentDirectory
+, shouldParseAs
 ) where
+import           Data.Yaml
+import           Data.ByteString (ByteString)
 
 import           Test.Hspec
 import           Test.Mockery.Directory
@@ -24,3 +29,7 @@ withCurrentDirectory dir action = do
 withTempDirectory :: (FilePath -> IO a) -> IO a
 withTempDirectory action = Temp.withSystemTempDirectory "hspec" $ \dir -> do
   canonicalizePath dir >>= action
+
+shouldParseAs :: (HasCallStack, Show a, Eq a, FromJSON a) => ByteString -> Either String a -> Expectation
+shouldParseAs input expected = do
+  decodeEither input `shouldBe` expected
