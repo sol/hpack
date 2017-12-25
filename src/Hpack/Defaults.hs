@@ -21,11 +21,7 @@ import           System.FilePath
 import qualified System.FilePath.Posix as Posix
 import           System.Directory
 
-data Defaults = Defaults {
-  defaultsGithub :: String
-, defaultsRef :: String
-, defaultsPath :: FilePath
-} deriving (Eq, Show)
+import           Hpack.Syntax
 
 type URL = String
 

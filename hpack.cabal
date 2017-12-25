@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a179faa76f931dfaa53194d4d5752f8f6724a66267c047c0ebc77bf733befb20
+-- hash: 5db27d52da17996398b5bbfeb20df6adfab84f41c9f9593c7ffb46ec3b5599f6
 
 name:           hpack
 version:        0.21.2
@@ -62,6 +62,7 @@ library
       Hpack.Haskell
       Hpack.Options
       Hpack.Render
+      Hpack.Syntax
       Hpack.Syntax.GenericsUtil
       Hpack.Syntax.UnknownFields
       Hpack.Syntax.Util
@@ -162,6 +163,7 @@ test-suite spec
       Hpack.Options
       Hpack.Render
       Hpack.Run
+      Hpack.Syntax
       Hpack.Syntax.GenericsUtil
       Hpack.Syntax.UnknownFields
       Hpack.Syntax.Util

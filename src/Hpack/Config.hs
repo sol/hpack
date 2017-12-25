@@ -70,6 +70,7 @@ import           Control.Monad.IO.Class
 
 import           Hpack.Syntax.Util
 import           Hpack.Syntax.UnknownFields
+import           Hpack.Syntax
 import           Hpack.Util hiding (expandGlobs)
 import qualified Hpack.Util as Util
 import           Hpack.Defaults
@@ -441,7 +442,7 @@ data PackageConfig capture cSources jsSources = PackageConfig {
 , packageConfigExecutables :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
 , packageConfigTests :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
 , packageConfigBenchmarks :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
-, packageConfigDefaults :: Maybe (capture ParseDefaults)
+, packageConfigDefaults :: Maybe (capture Defaults)
 } deriving Generic
 
 traversePackageConfig :: Traversal PackageConfig
@@ -637,27 +638,13 @@ expandDefaults userDataDir dir (Product global config) = do
   d <- getDefaults userDataDir config >>= traverseCommonOptions (expandForeignSources dir)
   return (Product (d <> global) config)
 
-data ParseDefaults = ParseDefaults {
-  parseDefaultsGithub :: String
-, parseDefaultsRef :: String
-, parseDefaultsPath :: Maybe FilePath
-} deriving Generic
-
-instance HasFieldNames ParseDefaults
-
-instance FromJSON ParseDefaults where
-  parseJSON = genericParseJSON
-
-toDefaults :: ParseDefaults -> Defaults
-toDefaults ParseDefaults{..} = Defaults parseDefaultsGithub parseDefaultsRef (fromMaybe ".hpack/defaults.yaml" parseDefaultsPath)
-
 getDefaults
   :: FilePath
   -> PackageConfig Identity cSources jsSources
   -> Warnings (Errors IO) (CommonOptions Identity ParseCSources ParseJsSources Empty)
 getDefaults userDataDir PackageConfig{..} = case packageConfigDefaults of
   Nothing -> return mempty
-  Just (toDefaults . runIdentity -> defaults) -> do
+  Just (runIdentity -> defaults) -> do
     file <- lift $ ExceptT (ensure userDataDir defaults)
     decodeYaml file >>= warnUnknownFieldsInDefaults file
 
