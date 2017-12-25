@@ -18,7 +18,6 @@ import           Network.HTTP.Client.TLS
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Char8 as B
 import           System.FilePath
-import qualified System.FilePath.Posix as Posix
 import           System.Directory
 
 import           Hpack.Syntax
@@ -26,10 +25,10 @@ import           Hpack.Syntax
 type URL = String
 
 defaultsUrl :: Defaults -> URL
-defaultsUrl Defaults{..} = "https://raw.githubusercontent.com/" ++ defaultsGithub ++ "/" ++ defaultsRef ++ "/" ++ defaultsPath
+defaultsUrl Defaults{..} = "https://raw.githubusercontent.com/" ++ defaultsGithubUser ++ "/" ++ defaultsGithubRepo ++ "/" ++ defaultsRef ++ "/" ++ defaultsPath
 
 defaultsCachePath :: FilePath -> Defaults -> FilePath
-defaultsCachePath dir Defaults{..} = dir </> "defaults" </> (joinPath $ Posix.splitDirectories defaultsGithub) </> defaultsRef </> defaultsPath
+defaultsCachePath dir Defaults{..} = dir </> "defaults" </> defaultsGithubUser </> defaultsGithubRepo </> defaultsRef </> defaultsPath
 
 data Result = Found | NotFound | Failed String
   deriving (Eq, Show)
