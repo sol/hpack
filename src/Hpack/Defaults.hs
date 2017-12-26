@@ -15,6 +15,7 @@ module Hpack.Defaults (
 import           Network.HTTP.Types
 import           Network.HTTP.Client
 import           Network.HTTP.Client.TLS
+import           Data.List
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Char8 as B
 import           System.FilePath
@@ -25,10 +26,11 @@ import           Hpack.Syntax
 type URL = String
 
 defaultsUrl :: Defaults -> URL
-defaultsUrl Defaults{..} = "https://raw.githubusercontent.com/" ++ defaultsGithubUser ++ "/" ++ defaultsGithubRepo ++ "/" ++ defaultsRef ++ "/" ++ defaultsPath
+defaultsUrl Defaults{..} = "https://raw.githubusercontent.com/" ++ defaultsGithubUser ++ "/" ++ defaultsGithubRepo ++ "/" ++ defaultsRef ++ "/" ++ intercalate "/" defaultsPath
 
 defaultsCachePath :: FilePath -> Defaults -> FilePath
-defaultsCachePath dir Defaults{..} = dir </> "defaults" </> defaultsGithubUser </> defaultsGithubRepo </> defaultsRef </> defaultsPath
+defaultsCachePath dir Defaults{..} = joinPath $
+  dir : "defaults" : defaultsGithubUser : defaultsGithubRepo : defaultsRef : defaultsPath
 
 data Result = Found | NotFound | Failed String
   deriving (Eq, Show)

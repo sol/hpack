@@ -57,7 +57,7 @@ spec = do
             defaultsGithubUser = "sol"
           , defaultsGithubRepo = "hpack"
           , defaultsRef = "0.1.0"
-          , defaultsPath = "defaults.yaml"
+          , defaultsPath = ["defaults.yaml"]
           }
 
       it "rejects invalid user names" $ do
@@ -80,3 +80,24 @@ spec = do
         ref: ../foo/bar
         path: defaults.yaml
         |] `shouldParseAs` (Left "Error in $.ref: invalid reference \"../foo/bar\"" :: Either String Defaults)
+
+      it "rejects \\ in path" $ do
+        [i|
+        github: sol/hpack
+        ref: 0.1.0
+        path: hpack\\defaults.yaml
+        |] `shouldParseAs` (Left "Error in $.path: rejecting '\\' in \"hpack\\\\defaults.yaml\", please use '/' to separate path components" :: Either String Defaults)
+
+      it "rejects absolute paths" $ do
+        [i|
+        github: sol/hpack
+        ref: 0.1.0
+        path: /defaults.yaml
+        |] `shouldParseAs` (Left "Error in $.path: rejecting absolute path \"/defaults.yaml\"" :: Either String Defaults)
+
+      it "rejects .. in path" $ do
+        [i|
+        github: sol/hpack
+        ref: 0.1.0
+        path: ../../defaults.yaml
+        |] `shouldParseAs` (Left "Error in $.path: rejecting \"..\" in \"../../defaults.yaml\"" :: Either String Defaults)

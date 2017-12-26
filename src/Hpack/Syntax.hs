@@ -10,8 +10,8 @@ module Hpack.Syntax (
 ) where
 
 import           Data.List
-import           Data.Maybe
 import           Data.Data
+import           System.FilePath.Posix (splitDirectories)
 
 import           Hpack.Syntax.Util
 import           Hpack.Syntax.UnknownFields
@@ -20,8 +20,13 @@ import           Hpack.Syntax.Git
 data ParseDefaults = ParseDefaults {
   parseDefaultsGithub :: Github
 , parseDefaultsRef :: Ref
-, parseDefaultsPath :: Maybe FilePath
+, parseDefaultsPath :: Maybe Path
 } deriving Generic
+
+instance HasFieldNames ParseDefaults
+
+instance FromJSON ParseDefaults where
+  parseJSON = genericParseJSON
 
 data Github = Github {
   githubUser :: String
@@ -71,16 +76,24 @@ instance FromJSON Ref where
         | isValidRef ref = return (Ref ref)
         | otherwise = fail ("invalid reference " ++ show ref)
 
-instance HasFieldNames ParseDefaults
+data Path = Path {unPath :: [FilePath]}
 
-instance FromJSON ParseDefaults where
-  parseJSON = genericParseJSON
+instance FromJSON Path where
+  parseJSON v = parseJSON v >>= parsePath
+    where
+      parsePath path
+        | '\\' `elem` path = fail ("rejecting '\\' in " ++ show path ++ ", please use '/' to separate path components")
+        | "/" `elem` p = fail ("rejecting absolute path " ++ show path)
+        | ".." `elem` p = fail ("rejecting \"..\" in " ++ show path)
+        | otherwise = return (Path p)
+        where
+          p = splitDirectories path
 
 data Defaults = Defaults {
   defaultsGithubUser :: String
 , defaultsGithubRepo :: String
 , defaultsRef :: String
-, defaultsPath :: FilePath
+, defaultsPath :: [FilePath]
 } deriving (Eq, Show)
 
 instance FromJSON Defaults where
@@ -91,7 +104,7 @@ instance FromJSON Defaults where
           defaultsGithubUser = githubUser parseDefaultsGithub
         , defaultsGithubRepo = githubRepo parseDefaultsGithub
         , defaultsRef = unRef parseDefaultsRef
-        , defaultsPath = fromMaybe ".hpack/defaults.yaml" parseDefaultsPath
+        , defaultsPath = maybe [".hpack", "defaults.yaml"] unPath parseDefaultsPath
         }
 
 instance HasFieldNames Defaults where
