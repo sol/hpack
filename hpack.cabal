@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0cf2a87ac2b33b3b61f6edd95c48dd72240d64b9b3be9951ca54d1b57cf4b162
+-- hash: d6d65765fc0d46d67301ba24671c46dd64f863c3ef0bd0de2d6a7aa7290bbc68
 
 name:           hpack
 version:        0.21.2
@@ -64,6 +64,7 @@ library
       Hpack.Render
       Hpack.Syntax
       Hpack.Syntax.GenericsUtil
+      Hpack.Syntax.Git
       Hpack.Syntax.UnknownFields
       Hpack.Syntax.Util
       Hpack.Utf8
@@ -149,6 +150,7 @@ test-suite spec
       Hpack.RenderSpec
       Hpack.RunSpec
       Hpack.Syntax.GenericsUtilSpec
+      Hpack.Syntax.GitSpec
       Hpack.SyntaxSpec
       Hpack.Utf8Spec
       Hpack.UtilSpec
@@ -165,6 +167,7 @@ test-suite spec
       Hpack.Run
       Hpack.Syntax
       Hpack.Syntax.GenericsUtil
+      Hpack.Syntax.Git
       Hpack.Syntax.UnknownFields
       Hpack.Syntax.Util
       Hpack.Utf8

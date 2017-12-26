@@ -15,10 +15,11 @@ import           Data.Data
 
 import           Hpack.Syntax.Util
 import           Hpack.Syntax.UnknownFields
+import           Hpack.Syntax.Git
 
 data ParseDefaults = ParseDefaults {
   parseDefaultsGithub :: Github
-, parseDefaultsRef :: String
+, parseDefaultsRef :: Ref
 , parseDefaultsPath :: Maybe FilePath
 } deriving Generic
 
@@ -61,6 +62,15 @@ isValidRepo repo =
 alphaNum :: [Char]
 alphaNum = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9']
 
+data Ref = Ref {unRef :: String}
+
+instance FromJSON Ref where
+  parseJSON v = parseJSON v >>= parseRef
+    where
+      parseRef ref
+        | isValidRef ref = return (Ref ref)
+        | otherwise = fail ("invalid reference " ++ show ref)
+
 instance HasFieldNames ParseDefaults
 
 instance FromJSON ParseDefaults where
@@ -80,7 +90,7 @@ instance FromJSON Defaults where
       toDefaults ParseDefaults{..} = Defaults {
           defaultsGithubUser = githubUser parseDefaultsGithub
         , defaultsGithubRepo = githubRepo parseDefaultsGithub
-        , defaultsRef = parseDefaultsRef
+        , defaultsRef = unRef parseDefaultsRef
         , defaultsPath = fromMaybe ".hpack/defaults.yaml" parseDefaultsPath
         }
 

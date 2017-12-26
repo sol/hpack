@@ -73,3 +73,10 @@ spec = do
         ref: 0.1.0
         path: defaults.yaml
         |] `shouldParseAs` (Left "Error in $.github: invalid repository name \"..\"" :: Either String Defaults)
+
+      it "rejects invalid Git references" $ do
+        [i|
+        github: sol/hpack
+        ref: ../foo/bar
+        path: defaults.yaml
+        |] `shouldParseAs` (Left "Error in $.ref: invalid reference \"../foo/bar\"" :: Either String Defaults)
