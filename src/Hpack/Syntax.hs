@@ -83,6 +83,7 @@ instance FromJSON Path where
     where
       parsePath path
         | '\\' `elem` path = fail ("rejecting '\\' in " ++ show path ++ ", please use '/' to separate path components")
+        | ':' `elem` path = fail ("rejecting ':' in " ++ show path)
         | "/" `elem` p = fail ("rejecting absolute path " ++ show path)
         | ".." `elem` p = fail ("rejecting \"..\" in " ++ show path)
         | otherwise = return (Path p)

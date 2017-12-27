@@ -89,7 +89,7 @@ specification.
 | ----- | ------- | ----- | ------- |
 | `github` | | Accepts `<user>/<repo>` | `github: sol/hpack-template` |
 | `ref` | | | `ref: 2017` |
-| `path` | `.hpack/defaults.yaml` | | `path: defaults.yaml` |
+| `path` | `.hpack/defaults.yaml` | A relative path to a file within the repository, path segments are separated by `/` and must not contain `:` and `\`. | `path: defaults.yaml` |
 
 **Note:** Hpack caches downloaded files under
 `~/.hpack/defaults/<user>/<repo>/<path>`.  Once downloaded, a file is reused
