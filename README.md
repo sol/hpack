@@ -91,6 +91,20 @@ specification.
 | `ref` | | | `ref: 2017` |
 | `path` | `.hpack/defaults.yaml` | A relative path to a file within the repository, path segments are separated by `/` and must not contain `:` and `\`. | `path: defaults.yaml` |
 
+Hpack supports shorthand syntax for specifying `github` and `ref` as a string:
+
+```yaml
+defaults: sol/hpack-template@2017
+```
+
+This is equivalent to:
+
+```yaml
+defaults:
+  github: sol/hpack-template
+  ref: 2017
+```
+
 **Note:** Hpack caches downloaded files under
 `~/.hpack/defaults/<user>/<repo>/<path>`.  Once downloaded, a file is reused
 from the cache.  If the content on GitHub changes the file is not updated.  For
