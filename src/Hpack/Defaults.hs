@@ -41,7 +41,10 @@ get url file = do
   request <- parseRequest url
   response <- httpLbs request manager
   case responseStatus response of
-    Status 200 _ -> LB.writeFile file (responseBody response) >> return Found
+    Status 200 _ -> do
+      createDirectoryIfMissing True (takeDirectory file)
+      LB.writeFile file (responseBody response)
+      return Found
     Status 404 _ -> return NotFound
     status -> return (Failed $ "Error while downloading " ++ url ++ " (" ++ formatStatus status ++ ")")
 
@@ -61,7 +64,6 @@ ensure dir defaults =
 
 ensureFile :: FilePath -> URL -> IO Result
 ensureFile file url = do
-  createDirectoryIfMissing True (takeDirectory file)
   doesFileExist file >>= \ case
     True -> return Found
     False -> get url file
