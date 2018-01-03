@@ -36,6 +36,7 @@ module Hpack.Config (
 , Empty(..)
 , getModules
 , pathsModuleFromPackageName
+, ModuleSpecification(..)
 , determineModules
 , BuildType(..)
 , Cond(..)
@@ -917,12 +918,17 @@ toLibrary dir name globalOptions =
       Library librarySectionExposed exposedModules otherModules generatedModules reexportedModules signatures
       where
         (exposedModules, otherModules, generatedModules) =
-          determineModules pathsModule inferableModules librarySectionExposedModules librarySectionGeneratedExposedModules librarySectionOtherModules librarySectionGeneratedOtherModules
+          determineModules pathsModule inferableModules (ModuleSpecification librarySectionExposedModules librarySectionGeneratedExposedModules) (ModuleSpecification librarySectionOtherModules librarySectionGeneratedOtherModules)
         reexportedModules = fromMaybeList librarySectionReexportedModules
         signatures = fromMaybeList librarySectionSignatures
 
-determineModules :: [String] -> [String] -> Maybe (List String) -> Maybe (List String) -> Maybe (List String) -> Maybe (List String) -> ([String], [String], [String])
-determineModules pathsModule inferableModules mExposedModules mGeneratedExposedModules mOtherModules mGeneratedOtherModules = case (mExposedModules, mOtherModules) of
+data ModuleSpecification = ModuleSpecification {
+  moduleSpecificationModules :: Maybe (List String)
+, moduleSpecificationGeneratedModules :: Maybe (List String)
+} deriving (Show, Eq)
+
+determineModules :: [String] -> [String] -> ModuleSpecification -> ModuleSpecification -> ([String], [String], [String])
+determineModules pathsModule inferableModules (ModuleSpecification mExposedModules mGeneratedExposedModules) (ModuleSpecification mOtherModules mGeneratedOtherModules) = case (mExposedModules, mOtherModules) of
   (Nothing, Nothing) -> ((inferableModules \\ generatedModules) ++ maybe [] fromList mGeneratedExposedModules, pathsModule ++ maybe [] fromList mGeneratedOtherModules, generatedModules)
   _ -> (exposedModules, otherModules, generatedModules)
   where
