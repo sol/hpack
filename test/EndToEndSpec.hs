@@ -440,6 +440,29 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
             |]
 
+          it "doesn't doubly include generated modules under src/" $ do
+            touch "src/ABC.hs"
+            touch "src/XYZ.hs"
+            [i|
+            library:
+              source-dirs: src
+              exposed-modules: Foo
+              generated-other-modules: ABC
+              generated-exposed-modules: XYZ
+            |] `shouldRenderTo` (library [i|
+            hs-source-dirs:
+                src
+            exposed-modules:
+                Foo
+                XYZ
+            other-modules:
+                Paths_foo
+                ABC
+            autogen-modules:
+                ABC
+                XYZ
+            |]) {packageCabalVersion = ">= 2.0"}
+
         context "with other-modules" $ do
           it "infers exposed-modules" $ do
             touch "src/Foo.hs"
@@ -456,6 +479,28 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             other-modules:
                 Bar
             |]
+
+          it "doesn't doubly include generated modules under src/" $ do
+            touch "src/ABC.hs"
+            touch "src/XYZ.hs"
+            [i|
+            library:
+              source-dirs: src
+              other-modules: Foo
+              generated-other-modules: ABC
+              generated-exposed-modules: XYZ
+            |] `shouldRenderTo` (library [i|
+            hs-source-dirs:
+                src
+            exposed-modules:
+                XYZ
+            other-modules:
+                Foo
+                ABC
+            autogen-modules:
+                ABC
+                XYZ
+            |]) {packageCabalVersion = ">= 2.0"}
 
         context "with both exposed-modules and other-modules" $ do
           it "doesn't infer any modules" $ do
@@ -491,6 +536,27 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             other-modules:
                 Paths_foo
             |]
+
+          it "doesn't doubly include generated modules under src/" $ do
+            touch "src/ABC.hs"
+            touch "src/XYZ.hs"
+            [i|
+            library:
+              source-dirs: src
+              generated-other-modules: ABC
+              generated-exposed-modules: XYZ
+            |] `shouldRenderTo` (library [i|
+            hs-source-dirs:
+                src
+            exposed-modules:
+                XYZ
+            other-modules:
+                Paths_foo
+                ABC
+            autogen-modules:
+                ABC
+                XYZ
+            |]) {packageCabalVersion = ">= 2.0"}
 
         context "with a conditional" $ do
           it "doesn't infer any modules mentioned in that conditional" $ do
@@ -675,6 +741,25 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             other-modules:
                 Baz
           |]
+
+        it "doesn't doubly include generated modules under src/" $ do
+          touch "src/XYZ.hs"
+          [i|
+          executables:
+            foo:
+              main: Main.hs
+              source-dirs: src
+              generated-other-modules: XYZ
+          |] `shouldRenderTo` (executable "foo" [i|
+            main-is: Main.hs
+            hs-source-dirs:
+                src
+            other-modules:
+                Paths_foo
+                XYZ
+            autogen-modules:
+                XYZ
+          |]) {packageCabalVersion = ">= 2.0"}
 
         context "with conditional" $ do
           it "doesn't infer any modules mentioned in that conditional" $ do

@@ -923,11 +923,11 @@ toLibrary dir name globalOptions =
 
 determineModules :: [String] -> [String] -> Maybe (List String) -> Maybe (List String) -> Maybe (List String) -> Maybe (List String) -> ([String], [String], [String])
 determineModules pathsModule inferableModules mExposedModules mGeneratedExposedModules mOtherModules mGeneratedOtherModules = case (mExposedModules, mOtherModules) of
-  (Nothing, Nothing) -> (inferableModules ++ maybe [] fromList mGeneratedExposedModules, pathsModule ++ maybe [] fromList mGeneratedOtherModules, generatedModules)
+  (Nothing, Nothing) -> ((inferableModules \\ generatedModules) ++ maybe [] fromList mGeneratedExposedModules, pathsModule ++ maybe [] fromList mGeneratedOtherModules, generatedModules)
   _ -> (exposedModules, otherModules, generatedModules)
   where
-    exposedModules = maybe (inferableModules \\ otherModules) fromList mExposedModules ++ maybe [] fromList mGeneratedExposedModules
-    otherModules   = maybe ((inferableModules ++ pathsModule) \\ exposedModules) fromList mOtherModules ++ maybe [] fromList mGeneratedOtherModules
+    exposedModules = maybe (inferableModules \\ (otherModules ++ generatedModules)) fromList mExposedModules ++ maybe [] fromList mGeneratedExposedModules
+    otherModules   = maybe ((inferableModules ++ pathsModule) \\ (exposedModules ++ generatedModules)) fromList mOtherModules ++ maybe [] fromList mGeneratedOtherModules
     generatedModules = maybe [] fromList mGeneratedOtherModules ++ maybe [] fromList mGeneratedExposedModules
 
 fromLibrarySectionInConditional :: [String] -> LibrarySection -> Library
@@ -966,7 +966,7 @@ toExecutable dir packageName_ globalOptions =
     fromExecutableSection pathsModule inferableModules ExecutableSection{..} =
       (Executable executableSectionMain (otherModules ++ generatedModules) generatedModules)
       where
-        otherModules = maybe (inferableModules ++ pathsModule) fromList executableSectionOtherModules
+        otherModules = maybe ((inferableModules \\ generatedModules) ++ pathsModule) fromList executableSectionOtherModules
         generatedModules = maybe [] fromList executableSectionGeneratedOtherModules
 
 expandMain :: Section ExecutableSection -> Section ExecutableSection
