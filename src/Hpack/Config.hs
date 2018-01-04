@@ -923,8 +923,8 @@ toLibrary dir name globalOptions =
         signatures = fromMaybeList librarySectionSignatures
 
 data ModuleSpecification = ModuleSpecification {
-  moduleSpecificationModules :: Maybe (List String)
-, moduleSpecificationGeneratedModules :: Maybe (List String)
+  _moduleSpecificationModules :: Maybe (List String)
+, _moduleSpecificationGeneratedModules :: Maybe (List String)
 } deriving (Show, Eq)
 
 determineModules :: [String] -> [String] -> ModuleSpecification -> ModuleSpecification -> ([String], [String], [String])
