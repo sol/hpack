@@ -90,11 +90,11 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         extra-doc-files:
           - CHANGES.markdown
           - README.markdown
-        |] `shouldRenderTo` package [i|
+        |] `shouldRenderTo` (package [i|
         extra-doc-files:
             CHANGES.markdown
             README.markdown
-        |]
+        |]) {packageCabalVersion = ">= 1.18"}
 
       it "accepts glob patterns" $ do
         touch "CHANGES.markdown"
@@ -102,11 +102,11 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         [i|
         extra-doc-files:
           - "*.markdown"
-        |] `shouldRenderTo` package [i|
+        |] `shouldRenderTo` (package [i|
         extra-doc-files:
             CHANGES.markdown
             README.markdown
-        |]
+        |]) {packageCabalVersion = ">= 1.18"}
 
       it "warns if a glob pattern does not match anything" $ do
         [i|
