@@ -137,9 +137,11 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
       ]
      where
       packageCabalVersion :: Maybe Version
-      packageCabalVersion
-        | isJust packageCustomSetup = Just (makeVersion [1,24])
-        | otherwise = Nothing
+      packageCabalVersion = maximum [
+          Nothing
+        , makeVersion [1,24] <$ packageCustomSetup
+        , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
+        ]
 
       libraryCabalVersion :: Library -> Maybe Version
       libraryCabalVersion Library{..} = maximum [
