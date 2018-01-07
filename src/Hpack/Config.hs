@@ -38,6 +38,7 @@ module Hpack.Config (
 , pathsModuleFromPackageName
 , determineModules
 , BuildType(..)
+, Cond(..)
 
 , LibrarySection(..)
 , fromLibrarySectionInConditional
@@ -304,7 +305,7 @@ traverseCommonOptions t@Traverse{..} c@CommonOptions{..} = do
 
 traverseConditionalSection :: Traversal_ ConditionalSection
 traverseConditionalSection t@Traverse{..} = \ case
-  ThenElseConditional c -> ThenElseConditional <$> (traverseCapture c >>= traverse (traverseThenElse t))
+  ThenElseConditional c -> ThenElseConditional <$> (traverseCapture c >>= traverse (bitraverse (traverseThenElse t) return))
   FlatConditional c -> FlatConditional <$> (traverseCapture c >>= traverse (bitraverse (traverseWithCommonOptions t) return))
 
 traverseThenElse :: Traversal_ ThenElse
@@ -340,12 +341,12 @@ instance (HasFieldNames a, HasFieldNames b) => HasFieldNames (Product a b) where
     || ignoreUnderscoredUnknownFields (Proxy :: Proxy b)
 
 data ConditionalSection capture cSources jsSources a =
-    ThenElseConditional (capture (ThenElse capture cSources jsSources a))
+    ThenElseConditional (capture (Product (ThenElse capture cSources jsSources a) Condition))
   | FlatConditional (capture (Product (WithCommonOptions capture cSources jsSources a) Condition))
 
 instance Functor capture => Functor (ConditionalSection capture cSources jsSources) where
   fmap f = \ case
-    ThenElseConditional c -> ThenElseConditional (fmap f <$> c)
+    ThenElseConditional c -> ThenElseConditional (first (fmap f) <$> c)
     FlatConditional c -> FlatConditional (first (bimap (fmap f) f) <$> c)
 
 type ParseConditionalSection = ConditionalSection CaptureUnknownFields ParseCSources ParseJsSources
@@ -360,7 +361,7 @@ hasKey key (Object o) = HashMap.member key o
 hasKey _ _ = False
 
 newtype Condition = Condition {
-  conditionCondition :: String
+  _conditionCondition :: Cond
 } deriving (Eq, Show, Generic)
 
 instance FromJSON Condition where
@@ -368,9 +369,18 @@ instance FromJSON Condition where
 
 instance HasFieldNames Condition
 
+newtype Cond = Cond String
+  deriving (Eq, Show)
+
+instance FromJSON Cond where
+  parseJSON v = case v of
+    String _ -> Cond <$> parseJSON v
+    Bool True -> return (Cond "true")
+    Bool False -> return (Cond "false")
+    _ -> typeMismatch "Boolean or String" v
+
 data ThenElse capture cSources jsSources a = ThenElse {
-  _thenElseCondition :: String
-, thenElseThen :: capture (WithCommonOptions capture cSources jsSources a)
+  thenElseThen :: capture (WithCommonOptions capture cSources jsSources a)
 , thenElseElse :: capture (WithCommonOptions capture cSources jsSources a)
 } deriving Generic
 
@@ -1010,8 +1020,10 @@ toSection_ (Product CommonOptions{..} a) = Section {
 
     toConditional :: ConditionalSection Identity CSources JsSources a -> Conditional (Section a)
     toConditional x = case x of
-      FlatConditional (Identity (Product sect c)) -> Conditional (conditionCondition c) (toSection_ sect) Nothing
-      ThenElseConditional (Identity (ThenElse condition then_ else_)) -> Conditional condition (toSectionI_ then_) (Just $ toSectionI_ else_)
+      FlatConditional (Identity (Product sect c)) -> conditional c (toSection_ sect) Nothing
+      ThenElseConditional (Identity (Product (ThenElse then_ else_) c)) -> conditional c (toSectionI_ then_) (Just $ toSectionI_ else_)
+      where
+        conditional (Condition (Cond c)) = Conditional c
 
 pathsModuleFromPackageName :: String -> String
 pathsModuleFromPackageName name = "Paths_" ++ map f name

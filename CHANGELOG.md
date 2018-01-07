@@ -3,6 +3,7 @@
   - Add support for `signatures`
   - `extra-doc-files` requires setting `cabal-version` to at least
     1.18; this is now done properly.
+  - Accept bool for `condition` (see #230)
 
 ## Changes in 0.21.2
   - Fix a bug in module inference for conditionals (see #236)

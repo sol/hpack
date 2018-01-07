@@ -898,3 +898,25 @@ spec = do
         it "returns an error" $ \dir -> do
           let file = dir </> "package.yaml"
           readPackageConfig undefined file `shouldReturn` Left [i|#{file}: Yaml file not found: #{file}|]
+
+  describe "parseJSON" $ do
+    context "when parsing Cond" $ do
+      it "accepts Strings" $ do
+        [i|
+        os(windows)
+        |] `shouldParseAs` Right (Cond "os(windows)")
+
+      it "accepts True" $ do
+        [i|
+        yes
+        |] `shouldParseAs` Right (Cond "true")
+
+      it "accepts False" $ do
+        [i|
+        no
+        |] `shouldParseAs` Right (Cond "false")
+
+      it "rejects other values" $ do
+        [i|
+        23
+        |] `shouldParseAs` (Left "Error in $: expected Boolean or String, encountered Number" :: Either String Cond)
