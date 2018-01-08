@@ -52,7 +52,7 @@ meetup: http://typeful.net/talks/hpack
 | `executable` | `executable <package-name>` | | Shortcut for `executables: { package-name: ... }` | | `0.18.0` |
 | `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | | |
 | `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | | |
-| `defaults` | | | See [Defaults](#defaults) | | |
+| `defaults` | | | See [Defaults](#defaults), may be a list | | |
 
 **Note:** Hpack does not require you to specify a `cabal-version` manually.  When
 generating a `.cabal` file, Hpack sets the `cabal-version` automatically based

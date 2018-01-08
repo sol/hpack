@@ -10,6 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Hpack.Config (
   packageConfig
 , readPackageConfig
@@ -452,7 +453,7 @@ data PackageConfig capture cSources jsSources = PackageConfig {
 , packageConfigExecutables :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
 , packageConfigTests :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
 , packageConfigBenchmarks :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
-, packageConfigDefaults :: Maybe (capture Defaults)
+, packageConfigDefaults :: Maybe (List (capture Defaults))
 } deriving Generic
 
 traversePackageConfig :: Traversal PackageConfig
@@ -465,7 +466,7 @@ traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
   executables <- traverseNamedConfigs t packageConfigExecutables
   tests <- traverseNamedConfigs t packageConfigTests
   benchmarks <- traverseNamedConfigs t packageConfigBenchmarks
-  defaults <- traverse traverseCapture packageConfigDefaults
+  defaults <- traverse (traverse traverseCapture) packageConfigDefaults
   return p {
       packageConfigFlags = flags
     , packageConfigCustomSetup = customSetup
@@ -652,11 +653,12 @@ getDefaults
   :: FilePath
   -> PackageConfig Identity cSources jsSources
   -> Warnings (Errors IO) (CommonOptions Identity ParseCSources ParseJsSources Empty)
-getDefaults userDataDir PackageConfig{..} = case packageConfigDefaults of
-  Nothing -> return mempty
-  Just (runIdentity -> defaults) -> do
-    file <- lift $ ExceptT (ensure userDataDir defaults)
-    decodeYaml file >>= warnUnknownFieldsInDefaults file
+getDefaults userDataDir PackageConfig{..} = do
+  mconcat <$> mapM go (fromMaybeList packageConfigDefaults)
+  where
+    go (runIdentity -> defaults) = do
+      file <- lift $ ExceptT (ensure userDataDir defaults)
+      decodeYaml file >>= warnUnknownFieldsInDefaults file
 
 toExecutableMap :: Monad m => String -> Maybe (Map String a) -> Maybe a -> Warnings m (Maybe (Map String a))
 toExecutableMap name executables mExecutable = do
@@ -808,7 +810,7 @@ warnUnknownFieldsInConfig = warnGlobal >=> bitraverse return warnSections
       executables <- warnNamedSection "executable" packageConfigExecutables
       tests <- warnNamedSection "test" packageConfigTests
       benchmarks <- warnNamedSection "benchmark" packageConfigBenchmarks
-      defaults <- warnUnknownFields In "defaults section" (traverse (traverseCapture t) packageConfigDefaults)
+      defaults <- warnUnknownFields In "defaults section" (traverse (traverse $ traverseCapture t) packageConfigDefaults)
       return p {
           packageConfigFlags = flags
         , packageConfigCustomSetup = customSetup
