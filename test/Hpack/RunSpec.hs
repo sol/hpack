@@ -323,7 +323,7 @@ spec = do
 
   describe "renderSourceRepository" $ do
     it "renders source-repository without subdir correctly" $ do
-      let repository = SourceRepository "https://github.com/hspec/hspec" Nothing
+      let repository = SourceRepository "https://github.com/hspec/hspec" Nothing Nothing
       (render defaultRenderSettings 0 $ renderSourceRepository repository)
         `shouldBe` [
             "source-repository head"
@@ -332,13 +332,23 @@ spec = do
           ]
 
     it "renders source-repository with subdir" $ do
-      let repository = SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core")
+      let repository = SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core") Nothing
       (render defaultRenderSettings 0 $ renderSourceRepository repository)
         `shouldBe` [
             "source-repository head"
           , "  type: git"
           , "  location: https://github.com/hspec/hspec"
           , "  subdir: hspec-core"
+          ]
+
+    it "renders source-repository with branch" $ do
+      let repository = SourceRepository "https://github.com/hspec/hspec" Nothing (Just "some-branch")
+      (render defaultRenderSettings 0 $ renderSourceRepository repository)
+        `shouldBe` [
+            "source-repository head"
+          , "  type: git"
+          , "  location: https://github.com/hspec/hspec"
+          , "  branch: some-branch"
           ]
 
   describe "renderDirectories" $ do

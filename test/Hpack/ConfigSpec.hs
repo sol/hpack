@@ -239,6 +239,20 @@ spec = do
         ]
         )
 
+    it "warns on unknown field in github dictionary" $ do
+      withPackageWarnings_ [i|
+        name: foo
+        github:
+          repo: USER/REPO
+          foo: a
+          bar: b
+        |]
+        (`shouldBe` [
+         "Ignoring unknown field \"bar\" in github section"
+        , "Ignoring unknown field \"foo\" in github section"
+        ]
+        )  
+
     it "infers name" $ do
       withPackageConfig_ [i|
         {}
@@ -312,6 +326,51 @@ spec = do
         |]
         (packageHomepage >>> (`shouldBe` Just "https://github.com/hspec/hspec#readme"))
 
+    it "infers homepage URL from github when it is a dictionary" $ do
+      withPackageConfig_ [i|
+        github:
+          repo: USER/REPO
+          branch: BRANCH
+          subdir: A/B/C
+          homepage-anchor: ANCHOR
+        |]
+        (packageHomepage >>> (`shouldBe` Just "https://github.com/USER/REPO/tree/BRANCH/A/B/C#ANCHOR"))
+
+    it "infers homepage URL from github when it is a dictionary with a null homepage anchor" $ do
+      withPackageConfig_ [i|
+        github:
+          repo: USER/REPO
+          branch: BRANCH
+          subdir: A/B/C
+          homepage-anchor: null
+        |]
+        (packageHomepage >>> (`shouldBe` Just "https://github.com/USER/REPO/tree/BRANCH/A/B/C"))
+
+    it "infers homepage URL from github when it is a dictionary with implicit branch, subdir and anchor" $ do
+      withPackageConfig_ [i|
+        github:
+          repo: USER/REPO
+        |]
+        (packageHomepage >>> (`shouldBe` Just "https://github.com/USER/REPO#readme"))
+
+    it "infers homepage URL from github with explicit subdir and implicit branch" $ do
+      withPackageConfig_ [i|
+        github:
+          repo: USER/REPO
+          subdir: A/B/C
+          homepage-anchor: null
+        |]
+        (packageHomepage >>> (`shouldBe` Just "https://github.com/USER/REPO/tree/HEAD/A/B/C"))
+
+    it "infers homepage URL from github with implicit subdir and explicit branch" $ do
+      withPackageConfig_ [i|
+        github:
+          repo: USER/REPO
+          branch: BRANCH
+          homepage-anchor: null
+        |]
+        (packageHomepage >>> (`shouldBe` Just "https://github.com/USER/REPO/tree/BRANCH/"))
+
     it "omits homepage URL if it is null" $ do
       withPackageConfig_ [i|
         github: hspec/hspec
@@ -331,6 +390,16 @@ spec = do
         github: hspec/hspec
         |]
         (packageBugReports >>> (`shouldBe` Just "https://github.com/hspec/hspec/issues"))
+
+    it "infers bug-reports URL from github when it is a dictionary" $ do
+      withPackageConfig_ [i|
+        github:
+          repo: USER/REPO
+          branch: BRANCH
+          subdir: A/B/C
+          homepage-anchor: null
+        |]
+        (packageBugReports >>> (`shouldBe` Just "https://github.com/USER/REPO/issues"))
 
     it "omits bug-reports URL if it is null" $ do
       withPackageConfig_ [i|
@@ -445,19 +514,37 @@ spec = do
       withPackageConfig_ [i|
         github: hspec/hspec
         |]
-        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://github.com/hspec/hspec" Nothing)))
+        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://github.com/hspec/hspec" Nothing Nothing)))
 
     it "accepts third part of github URL as subdir" $ do
       withPackageConfig_ [i|
         github: hspec/hspec/hspec-core
         |]
-        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core"))))
+        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core") Nothing)))
+
+    it "accepts github as a dictionary" $ do
+      withPackageConfig_ [i|
+        github:
+          repo: USER/REPO
+          branch: BRANCH
+          subdir: A/B/C
+          homepage-anchor: ANCHOR
+        |]
+        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://github.com/USER/REPO" (Just "A/B/C") (Just "BRANCH"))))
+
+    it "accepts github as a dictionary with branch and subdir not present" $ do
+      withPackageConfig_ [i|
+        github:
+          repo: USER/REPO
+          homepage-anchor: ANCHOR
+        |]
+        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://github.com/USER/REPO" Nothing Nothing)))
 
     it "accepts arbitrary git URLs as source repository" $ do
       withPackageConfig_ [i|
         git: https://gitlab.com/gitlab-org/gitlab-ce.git
         |]
-        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://gitlab.com/gitlab-org/gitlab-ce.git" Nothing)))
+        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://gitlab.com/gitlab-org/gitlab-ce.git" Nothing Nothing)))
 
     it "accepts CPP options" $ do
       withPackageConfig_ [i|

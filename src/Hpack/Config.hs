@@ -31,6 +31,9 @@ module Hpack.Config (
 , Conditional(..)
 , Flag(..)
 , SourceRepository(..)
+, HomepageAnchor(..)
+, GithubFields(..)
+, GithubConfig(..)
 #ifdef TEST
 , renameDependencies
 , Empty(..)
@@ -443,7 +446,7 @@ data PackageConfig capture cSources jsSources = PackageConfig {
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigExtraDocFiles :: Maybe (List FilePath)
 , packageConfigDataFiles :: Maybe (List FilePath)
-, packageConfigGithub :: Maybe Text
+, packageConfigGithub :: Maybe (GithubConfig capture)
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe (capture CustomSetupSection)
 , packageConfigLibrary :: Maybe (SectionConfig capture cSources jsSources LibrarySection)
@@ -457,6 +460,7 @@ data PackageConfig capture cSources jsSources = PackageConfig {
 
 traversePackageConfig :: Traversal PackageConfig
 traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
+  githubConfig <- traverse traverseGithubConfig packageConfigGithub
   flags <- traverse (traverse traverseCapture) packageConfigFlags
   customSetup <- traverse traverseCapture packageConfigCustomSetup
   library <- traverse (traverseSectionConfig t) packageConfigLibrary
@@ -467,7 +471,8 @@ traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
   benchmarks <- traverseNamedConfigs t packageConfigBenchmarks
   defaults <- traverse traverseCapture packageConfigDefaults
   return p {
-      packageConfigFlags = flags
+      packageConfigGithub = githubConfig
+    , packageConfigFlags = flags
     , packageConfigCustomSetup = customSetup
     , packageConfigLibrary = library
     , packageConfigInternalLibraries = internalLibraries
@@ -479,6 +484,8 @@ traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
     }
   where
     traverseNamedConfigs = traverse . traverse . traverseSectionConfig
+    traverseGithubConfig (SimpleGithub repo) = pure (SimpleGithub repo)
+    traverseGithubConfig (ComplicatedGithub cap) = ComplicatedGithub <$> traverseCapture cap
 
 traverseSectionConfig :: Traversal_ SectionConfig
 traverseSectionConfig t = traverseCapture t >=> traverse (traverseWithCommonOptions t)
@@ -622,7 +629,61 @@ toFlag (name, FlagSection description manual def) = Flag name description manual
 data SourceRepository = SourceRepository {
   sourceRepositoryUrl :: String
 , sourceRepositorySubdir :: Maybe String
+, sourceRepositoryBranch :: Maybe String
 } deriving (Eq, Show)
+
+data GithubFields = GithubFields {
+  githubFieldsRepo :: String
+, githubFieldsSubdir :: Maybe String
+, githubFieldsBranch :: Maybe String
+, githubFieldsHomepageAnchor :: Maybe HomepageAnchor
+} deriving (Eq, Show, Generic)
+
+instance HasFieldNames GithubFields
+
+instance FromJSON GithubFields where
+  parseJSON value = handleNullValues <$> genericParseJSON value
+    where
+      handleNullValues :: GithubFields -> GithubFields
+      handleNullValues =
+          ifNull "homepage-anchor" (\p -> p {githubFieldsHomepageAnchor = Just HomepageAnchorNone})
+
+      ifNull :: String -> (a -> a) -> a -> a
+      ifNull name f
+        | isNull name value = f
+        | otherwise = id
+
+githubFieldsSourceRepository :: GithubFields -> SourceRepository
+githubFieldsSourceRepository (GithubFields repo subdir branch _) = SourceRepository (githubBaseUrl ++ repo) subdir branch
+
+data HomepageAnchor = HomepageAnchorNone | HomepageAnchor String
+  deriving (Eq, Show)
+
+instance FromJSON HomepageAnchor where
+  parseJSON Null = pure HomepageAnchorNone
+  parseJSON (String s) = pure (HomepageAnchor $ T.unpack s)
+  parseJSON v = typeMismatch "String or Null" v
+
+data GithubConfig capture =
+    SimpleGithub GithubFields
+  | ComplicatedGithub (capture GithubFields)
+
+type ParseGithubConfig = GithubConfig CaptureUnknownFields
+
+instance FromJSON ParseGithubConfig where
+  parseJSON v = case v of
+    Object _ -> ComplicatedGithub <$> parseJSON v
+    String input ->
+      let fields = case map T.unpack $ T.splitOn "/" input of
+            [user, repo, subdir] ->
+              GithubFields (user ++ "/" ++ repo) (Just subdir) Nothing Nothing
+            _ -> GithubFields (T.unpack input) Nothing Nothing Nothing
+      in pure $ SimpleGithub fields
+    _ -> typeMismatch "Object or String" v
+
+githubConfigFields :: GithubConfig Identity -> GithubFields
+githubConfigFields (SimpleGithub fields) = fields
+githubConfigFields (ComplicatedGithub (Identity fields)) = fields
 
 type Config capture cSources jsSources =
   Product (CommonOptions capture cSources jsSources Empty) (PackageConfig capture cSources jsSources)
@@ -756,30 +817,36 @@ toPackage_ dir (Product globalOptions PackageConfig{..}) = do
         f name = "Specified source-dir " ++ show name ++ " does not exist"
 
     sourceRepository :: Maybe SourceRepository
-    sourceRepository = github <|> (`SourceRepository` Nothing) <$> packageConfigGit
+    sourceRepository = github <|> (\url -> SourceRepository url Nothing Nothing) <$> packageConfigGit
 
     github :: Maybe SourceRepository
-    github = parseGithub <$> packageConfigGithub
-      where
-        parseGithub :: Text -> SourceRepository
-        parseGithub input = case map T.unpack $ T.splitOn "/" input of
-          [user, repo, subdir] ->
-            SourceRepository (githubBaseUrl ++ user ++ "/" ++ repo) (Just subdir)
-          _ -> SourceRepository (githubBaseUrl ++ T.unpack input) Nothing
+    github = githubFieldsSourceRepository . githubConfigFields <$> packageConfigGithub
 
     homepage :: Maybe String
     homepage = case packageConfigHomepage of
       Just Nothing -> Nothing
-      _ -> join packageConfigHomepage <|> fromGithub
+      _ -> join packageConfigHomepage <|> fmap (fromGithubFields . githubConfigFields) packageConfigGithub
       where
-        fromGithub = (++ "#readme") . sourceRepositoryUrl <$> github
+        getAnchor Nothing = "#readme"
+        getAnchor (Just HomepageAnchorNone) = ""
+        getAnchor (Just (HomepageAnchor anchor)) = "#" ++ anchor
+        fromGithubFields (GithubFields repo Nothing Nothing anchor) = githubBaseUrl ++ repo ++ getAnchor anchor
+        fromGithubFields (GithubFields repo subdir branch anchor) = concat
+          [ githubBaseUrl
+          , repo
+          , "/tree/"
+          , fromMaybe "HEAD" branch
+          , "/"
+          , fromMaybe "" subdir
+          , getAnchor anchor
+          ]
 
     bugReports :: Maybe String
     bugReports = case packageConfigBugReports of
       Just Nothing -> Nothing
-      _ -> join packageConfigBugReports <|> fromGithub
+      _ -> join packageConfigBugReports <|> fmap (fromGithubFields . githubConfigFields) packageConfigGithub
       where
-        fromGithub = (++ "/issues") . sourceRepositoryUrl <$> github
+        fromGithubFields (GithubFields repo _ _ _) = githubBaseUrl ++ repo ++ "/issues"
 
 sequenceUnknownFields :: Monad capture => Traverse capture capture Identity cSources cSources jsSources jsSources
 sequenceUnknownFields = defaultTraverse{traverseCapture = fmap Identity}
@@ -800,6 +867,7 @@ warnUnknownFieldsInConfig = warnGlobal >=> bitraverse return warnSections
 
     warnSections :: ParsePackageConfig -> Warnings m (PackageConfig Identity ParseCSources ParseJsSources)
     warnSections p@PackageConfig{..} = do
+      githubConfig <- traverse warnGithubConfig packageConfigGithub
       flags <- traverse (warnNamed For "flag" . fmap (traverseCapture t)) packageConfigFlags
       customSetup <- warnUnknownFields In "custom-setup section" (traverse (traverseCapture t) packageConfigCustomSetup)
       library <- warnUnknownFields In "library section" (traverse (traverseSectionConfig t) packageConfigLibrary)
@@ -810,7 +878,8 @@ warnUnknownFieldsInConfig = warnGlobal >=> bitraverse return warnSections
       benchmarks <- warnNamedSection "benchmark" packageConfigBenchmarks
       defaults <- warnUnknownFields In "defaults section" (traverse (traverseCapture t) packageConfigDefaults)
       return p {
-          packageConfigFlags = flags
+          packageConfigGithub = githubConfig
+        , packageConfigFlags = flags
         , packageConfigCustomSetup = customSetup
         , packageConfigLibrary = library
         , packageConfigInternalLibraries = internalLibraries
@@ -820,6 +889,10 @@ warnUnknownFieldsInConfig = warnGlobal >=> bitraverse return warnSections
         , packageConfigBenchmarks = benchmarks
         , packageConfigDefaults = defaults
         }
+
+    warnGithubConfig :: GithubConfig CaptureUnknownFields -> Warnings m (GithubConfig Identity)
+    warnGithubConfig (SimpleGithub fields) = pure (SimpleGithub fields)
+    warnGithubConfig (ComplicatedGithub cap) = ComplicatedGithub . Identity <$> warnUnknownFields In "github section" cap
 
     warnNamedSection
       :: String

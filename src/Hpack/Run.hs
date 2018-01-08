@@ -182,6 +182,7 @@ renderSourceRepository SourceRepository{..} = Stanza "source-repository head" [
     Field "type" "git"
   , Field "location" (Literal sourceRepositoryUrl)
   , Field "subdir" (maybe "" Literal sourceRepositorySubdir)
+  , Field "branch" (maybe "" Literal sourceRepositoryBranch)
   ]
 
 renderFlag :: Flag -> Element
