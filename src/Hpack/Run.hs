@@ -132,8 +132,11 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
     cabalVersion = (">= " ++) . showVersion <$> maximum [
         Just (makeVersion [1,10])
       , packageCabalVersion
-      , packageLibrary >>= libraryCabalVersion . sectionData
+      , packageLibrary >>= libraryCabalVersion
       , internalLibsCabalVersion packageInternalLibraries
+      , executablesCabalVersion packageExecutables
+      , executablesCabalVersion packageTests
+      , executablesCabalVersion packageBenchmarks
       ]
      where
       packageCabalVersion :: Maybe Version
@@ -143,17 +146,28 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
         , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
         ]
 
-      libraryCabalVersion :: Library -> Maybe Version
-      libraryCabalVersion Library{..} = maximum [
+      libraryCabalVersion :: Section Library -> Maybe Version
+      libraryCabalVersion sect = maximum [
           makeVersion [1,22] <$ guard hasReexportedModules
         , makeVersion [2,0]  <$ guard hasSignatures
+        , makeVersion [2,0] <$ guard hasGeneratedModules
         ]
         where
-          hasReexportedModules = (not . null) libraryReexportedModules
-          hasSignatures = (not . null) librarySignatures
+          hasReexportedModules = any (not . null . libraryReexportedModules) sect
+          hasSignatures = any (not . null . librarySignatures) sect
+          hasGeneratedModules = any (not . null . libraryGeneratedModules) sect
 
       internalLibsCabalVersion :: Map String (Section Library) -> Maybe Version
       internalLibsCabalVersion internalLibraries = makeVersion [2,0] <$ guard (not (Map.null internalLibraries))
+
+      executablesCabalVersion :: Map String (Section Executable) -> Maybe Version
+      executablesCabalVersion = foldr max Nothing . map executableCabalVersion . Map.elems
+
+      executableCabalVersion :: Section Executable -> Maybe Version
+      executableCabalVersion sect = makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
+
+      executableHasGeneratedModules :: Section Executable -> Bool
+      executableHasGeneratedModules = any (not . null . executableGeneratedModules)
 
 sortSectionFields :: [(String, [String])] -> [Element] -> [Element]
 sortSectionFields sectionsFieldOrder = go
@@ -226,10 +240,11 @@ renderExecutableSection :: Section Executable -> [Element]
 renderExecutableSection sect = renderSection renderExecutableFields sect ++ [defaultLanguage]
 
 renderExecutableFields :: Executable -> [Element]
-renderExecutableFields Executable{..} = mainIs ++ [otherModules]
+renderExecutableFields Executable{..} = mainIs ++ [otherModules, generatedModules]
   where
     mainIs = maybe [] (return . Field "main-is" . Literal) executableMain
     otherModules = renderOtherModules executableOtherModules
+    generatedModules = renderGeneratedModules executableGeneratedModules
 
 renderCustomSetup :: CustomSetup -> Element
 renderCustomSetup CustomSetup{..} =
@@ -246,6 +261,7 @@ renderLibraryFields Library{..} =
   maybe [] (return . renderExposed) libraryExposed ++ [
     renderExposedModules libraryExposedModules
   , renderOtherModules libraryOtherModules
+  , renderGeneratedModules libraryGeneratedModules
   , renderReexportedModules libraryReexportedModules
   , renderSignatures librarySignatures
   ]
@@ -303,6 +319,9 @@ renderExposedModules = Field "exposed-modules" . LineSeparatedList
 
 renderOtherModules :: [String] -> Element
 renderOtherModules = Field "other-modules" . LineSeparatedList
+
+renderGeneratedModules :: [String] -> Element
+renderGeneratedModules = Field "autogen-modules" . LineSeparatedList
 
 renderReexportedModules :: [String] -> Element
 renderReexportedModules = Field "reexported-modules" . LineSeparatedList
