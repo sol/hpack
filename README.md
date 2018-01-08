@@ -36,7 +36,7 @@ existing cabal file into a `package.yaml`.
 | `description` | · | | | | |
 | `category` | · | | | | |
 | `stability` | · | | | | |
-| `homepage` | · | If `github` given, `<repo>#readme` | | | |
+| `homepage` | · | If `github` given, `<repo>(/tree/<branch>)(/<subdir>)(#<anchor>)` | | | |
 | `bug-reports` | · | If `github` given, `<repo>/issues` | | | |
 | `author` | · | | May be a list | | |
 | `maintainer` | · | | May be a list | | |
