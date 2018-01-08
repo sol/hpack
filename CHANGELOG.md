@@ -1,4 +1,5 @@
 ## next
+  - Add support for `defaults`
   - Add `--numeric-version`
   - Add support for `signatures`
   - `extra-doc-files` requires setting `cabal-version` to at least
