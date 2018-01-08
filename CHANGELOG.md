@@ -6,6 +6,8 @@
   - Accept bool for `condition` (see #230)
   - `generated-exposed-modules` and `generated-other-modules`, for populating
     the `autogen-modules` field (#207).
+  - Corrected `cabal-version` setting for `reexported-modules` inside
+    a conditional.
 
 ## Changes in 0.21.2
   - Fix a bug in module inference for conditionals (see #236)

@@ -656,6 +656,59 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               Exposed
           |]) {packageCabalVersion = ">= 2.0"}
 
+        it "sets cabal-version to 2.0 when there are conditional generated modules" $
+          [i|
+          library:
+            source-dirs: src
+            when:
+              condition: os(windows)
+              generated-exposed-modules: Win
+          |] `shouldRenderTo` (library [i|
+          other-modules:
+              Paths_foo
+          hs-source-dirs:
+              src
+          if os(windows)
+            exposed-modules:
+                Win
+            autogen-modules:
+                Win
+         |]) {packageCabalVersion = ">= 2.0"}
+
+        it "sets cabal-version to 2.0 when there are conditional signatures" $
+          [i|
+          library:
+            source-dirs: src
+            when:
+              condition: os(windows)
+              signatures: Foo
+          |] `shouldRenderTo` (library [i|
+          other-modules:
+              Paths_foo
+          hs-source-dirs:
+              src
+          if os(windows)
+            signatures:
+                Foo
+         |]) {packageCabalVersion = ">= 2.0"}
+
+        it "sets cabal-version to 1.22 when there are conditional re-exports" $
+          [i|
+          library:
+            source-dirs: src
+            when:
+              condition: os(windows)
+              reexported-modules: Foo
+          |] `shouldRenderTo` (library [i|
+          other-modules:
+              Paths_foo
+          hs-source-dirs:
+              src
+          if os(windows)
+            reexported-modules:
+                Foo
+         |]) {packageCabalVersion = ">= 1.22"}
+
     context "with internal-libraries" $ do
       it "accepts internal-libraries" $ do
         touch "src/Foo.hs"
@@ -834,6 +887,23 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             main-is: Foo.hs
             ghc-options: -main-is Foo
           |]
+
+        it "sets cabal-version to 2.0 when using conditional generated modules" $ do
+          [i|
+          executables:
+            foo:
+              main: Main.hs
+              when:
+                condition: os(windows)
+                generated-other-modules: Win
+          |]  `shouldRenderTo` (executable_ "foo" [i|
+          if os(windows)
+            other-modules:
+                Win
+            autogen-modules:
+                Win
+          main-is: Main.hs
+          |]) {packageCabalVersion = ">= 2.0"}
 
     describe "when" $ do
       it "accepts conditionals" $ do

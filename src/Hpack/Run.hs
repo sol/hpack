@@ -132,7 +132,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
     cabalVersion = (">= " ++) . showVersion <$> maximum [
         Just (makeVersion [1,10])
       , packageCabalVersion
-      , packageLibrary >>= libraryCabalVersion . sectionData
+      , packageLibrary >>= libraryCabalVersion
       , internalLibsCabalVersion packageInternalLibraries
       , executablesCabalVersion packageExecutables
       , executablesCabalVersion packageTests
@@ -146,16 +146,16 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
         , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
         ]
 
-      libraryCabalVersion :: Library -> Maybe Version
-      libraryCabalVersion Library{..} = maximum [
+      libraryCabalVersion :: Section Library -> Maybe Version
+      libraryCabalVersion sect = maximum [
           makeVersion [1,22] <$ guard hasReexportedModules
         , makeVersion [2,0]  <$ guard hasSignatures
         , makeVersion [2,0] <$ guard hasGeneratedModules
         ]
         where
-          hasReexportedModules = (not . null) libraryReexportedModules
-          hasSignatures = (not . null) librarySignatures
-          hasGeneratedModules = (not . null) libraryGeneratedModules
+          hasReexportedModules = any (not . null . libraryReexportedModules) sect
+          hasSignatures = any (not . null . librarySignatures) sect
+          hasGeneratedModules = any (not . null . libraryGeneratedModules) sect
 
       internalLibsCabalVersion :: Map String (Section Library) -> Maybe Version
       internalLibsCabalVersion internalLibraries = makeVersion [2,0] <$ guard (not (Map.null internalLibraries))
@@ -167,7 +167,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
       executableCabalVersion sect = makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
 
       executableHasGeneratedModules :: Section Executable -> Bool
-      executableHasGeneratedModules = not . null . executableGeneratedModules . sectionData
+      executableHasGeneratedModules = any (not . null . executableGeneratedModules)
 
 sortSectionFields :: [(String, [String])] -> [Element] -> [Element]
 sortSectionFields sectionsFieldOrder = go
