@@ -1,6 +1,8 @@
 ## next
   - `generated-exposed-modules` and `generated-other-modules`, for populating
     the `autogen-modules` field (#207).
+  - Corrected `cabal-version` setting for `reexported-modules` inside
+    a conditional.
 
 ## Changes in 0.22.0
   - Add support for `defaults`

@@ -647,7 +647,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 condition: os(windows)
                 generated-exposed-modules: Exposed
                 generated-other-modules: Other
-            |] `shouldRenderTo` library [i|
+            |] `shouldRenderTo` (library [i|
             other-modules:
                 Paths_foo
             hs-source-dirs:
@@ -660,7 +660,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               autogen-modules:
                   Other
                   Exposed
-            |]
+            |]) {packageCabalVersion = ">= 2.0"}
 
     describe "internal-libraries" $ do
       it "accepts internal-libraries" $ do
