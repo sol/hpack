@@ -231,6 +231,75 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             "package.yaml: Ignoring unrecognized field $.defaults.bar"
           , file ++ ": Ignoring unrecognized field $.foo"
           ]
+    context "with local defaults" $ do
+      it "accepts defaults from local files" $ do
+        writeFile "defaults.yaml" [i|
+        default-extensions:
+          - RecordWildCards
+          - DeriveFunctor
+        |]
+        [i|
+        defaults:
+          local: defaults.yaml
+        library: {}
+        |] `shouldRenderTo` library [i|
+        other-modules:
+            Paths_foo
+        default-extensions: RecordWildCards DeriveFunctor
+        |]
+
+      it "accepts relative local defaults" $ do
+        writeFile "../foo/bar/defaults.yaml" [i|
+        default-extensions:
+          - RecordWildCards
+          - DeriveFunctor
+        |]
+        [i|
+        defaults:
+          local: ../foo/bar/defaults.yaml
+        library: {}
+        |] `shouldRenderTo` library [i|
+        other-modules:
+            Paths_foo
+        default-extensions: RecordWildCards DeriveFunctor
+        |]
+
+      it "fails if local defaults don't exist" $ do
+        [i|
+        defaults:
+          local: some-non-existent-file.yaml
+        library: {}
+        |] `shouldFailWith` "Invalid value for \"defaults\"! Local file some-non-existent-file.yaml does not exist!"
+
+      it "fails on parse error" $ do
+        writeFile "defaults.yaml" "[]"
+        [i|
+        defaults:
+          local: defaults.yaml
+        library: {}
+        |] `shouldFailWith` ("defaults.yaml: Error while parsing $ - expected Object, encountered Array")
+
+      it "warns on unknown fields in local defaults" $ do
+        writeFile "defaults.yaml" "foo: bar"
+        [i|
+        defaults:
+          local: defaults.yaml
+          bar: b
+        name: foo
+        library: {}
+        |] `shouldWarn` [
+            "defaults.yaml: Ignoring unrecognized field $.foo"
+          , "package.yaml: Ignoring unrecognized field $.defaults.bar"
+          ]
+
+      it "fails if both github and local fields are present" $ do
+        writeFile "defaults.yaml" "{}"
+        [i|
+        defaults:
+          local: defaults.yaml
+          github: foo/bar
+        library: {}
+        |] `shouldFailWith` ("package.yaml: Error while parsing $.defaults - both \"github\" and \"local\" are present; please use one or the other.")
 
     describe "version" $ do
       it "accepts string" $ do

@@ -25,12 +25,12 @@ import           Hpack.Syntax.Defaults
 
 type URL = String
 
-defaultsUrl :: Defaults -> URL
-defaultsUrl Defaults{..} = "https://raw.githubusercontent.com/" ++ defaultsGithubUser ++ "/" ++ defaultsGithubRepo ++ "/" ++ defaultsRef ++ "/" ++ intercalate "/" defaultsPath
+defaultsUrl :: DefaultsGithub -> URL
+defaultsUrl DefaultsGithub{..} = "https://raw.githubusercontent.com/" ++ defaultsGithubUser ++ "/" ++ defaultsGithubRepo ++ "/" ++ defaultsGithubRef ++ "/" ++ intercalate "/" defaultsGithubPath
 
-defaultsCachePath :: FilePath -> Defaults -> FilePath
-defaultsCachePath dir Defaults{..} = joinPath $
-  dir : "defaults" : defaultsGithubUser : defaultsGithubRepo : defaultsRef : defaultsPath
+defaultsCachePath :: FilePath -> DefaultsGithub -> FilePath
+defaultsCachePath dir DefaultsGithub{..} = joinPath $
+  dir : "defaults" : defaultsGithubUser : defaultsGithubRepo : defaultsGithubRef : defaultsGithubPath
 
 data Result = Found | NotFound | Failed String
   deriving (Eq, Show)
@@ -52,15 +52,21 @@ formatStatus :: Status -> String
 formatStatus (Status code message) = show code ++ " " ++ B.unpack message
 
 ensure :: FilePath -> Defaults -> IO (Either String FilePath)
-ensure dir defaults =
+ensure dir (DefaultsGithub_ defaults) =
   ensureFile file url >>= \ case
     Found -> return (Right file)
     NotFound -> return (Left notFound)
     Failed err -> return (Left err)
-  where
-    url = defaultsUrl defaults
-    file = defaultsCachePath dir defaults
-    notFound = "Invalid value for \"defaults\"! File " ++ url ++ " does not exist!"
+    where
+      url = defaultsUrl defaults
+      file = defaultsCachePath dir defaults
+      notFound = "Invalid value for \"defaults\"! File " ++ url ++ " does not exist!"
+ensure _ (DefaultsLocal_ (DefaultsLocal file)) =
+  doesFileExist file >>= \ case
+    True -> return (Right file)
+    False -> return (Left notFound)
+      where
+        notFound = "Invalid value for \"defaults\"! Local file " ++ file ++ " does not exist!"
 
 ensureFile :: FilePath -> URL -> IO Result
 ensureFile file url = do

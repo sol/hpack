@@ -83,10 +83,11 @@ on the features that are used.
 #### <a name="defaults"></a>Defaults
 
 Hpack allows the inclusion of [common fields](#common-fields) from a file on
-GitHub.
+GitHub or a local file.
 
 To use this feature a user must specify a GitHub repository, Git reference and
-a path to a file within that repository.
+a path to a file within that repository; alternatively, a path to the local
+file must be given.
 
 Example:
 
@@ -103,9 +104,12 @@ specification.
 
 | Field | Default | Notes | Example |
 | ----- | ------- | ----- | ------- |
-| `github` | | Accepts `<user>/<repo>` | `github: sol/hpack-template` |
-| `ref` | | | `ref: 2017` |
-| `path` | `.hpack/defaults.yaml` | A relative path to a file within the repository, path segments are separated by `/` and must not contain `:` and `\`. | `path: defaults.yaml` |
+| `github` | For github defaults. | Accepts `<user>/<repo>` | `github: sol/hpack-template` |
+| `ref` | | For github defaults. | `ref: 2017` |
+| `path` | `.hpack/defaults.yaml` | For github defaults. A relative path to a file within the repository, path segments are separated by `/` and must not contain `:` and `\`. | `path: defaults.yaml` |
+| `local` | | For local defaults. | |
+
+Exactly one of `github` and `local` must be given in a `defaults` section.
 
 Hpack supports shorthand syntax for specifying `github` and `ref` as a string:
 

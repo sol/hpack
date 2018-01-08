@@ -8,6 +8,9 @@ import           Data.Aeson.Config.FromValueSpec hiding (spec)
 import           Data.Aeson.Config.FromValue
 import           Hpack.Syntax.Defaults
 
+defaultsGithub :: String -> String -> String -> [FilePath] -> Defaults
+defaultsGithub user repo ref path = DefaultsGithub_ $ DefaultsGithub user repo ref path
+
 spec :: Spec
 spec = do
   describe "isValidUser" $ do
@@ -59,12 +62,7 @@ spec = do
           github: sol/hpack
           ref: 0.1.0
           path: defaults.yaml
-          |] `shouldDecodeTo_` Defaults {
-              defaultsGithubUser = "sol"
-            , defaultsGithubRepo = "hpack"
-            , defaultsRef = "0.1.0"
-            , defaultsPath = ["defaults.yaml"]
-            }
+          |] `shouldDecodeTo_` defaultsGithub "sol" "hpack" "0.1.0" ["defaults.yaml"]
 
         it "rejects invalid user names" $ do
           [yaml|
@@ -119,12 +117,7 @@ spec = do
         it "accepts Defaults from GitHub" $ do
           [yaml|
           sol/hpack@0.1.0
-          |] `shouldDecodeTo_` Defaults {
-              defaultsGithubUser = "sol"
-            , defaultsGithubRepo = "hpack"
-            , defaultsRef = "0.1.0"
-            , defaultsPath = [".hpack", "defaults.yaml"]
-            }
+          |] `shouldDecodeTo_` defaultsGithub "sol" "hpack" "0.1.0" [".hpack", "defaults.yaml"]
 
         it "rejects invalid user names" $ do
           [yaml|
