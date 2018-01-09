@@ -636,17 +636,16 @@ type ParseConfig = CaptureUnknownFields (Config CaptureUnknownFields ParseCSourc
 toPackage :: FilePath -> FilePath -> ParseConfig -> Warnings (Errors IO) Package
 toPackage userDataDir dir =
       warnUnknownFieldsInConfig
+  >=> expandDefaults userDataDir
   >=> traverseConfig (expandForeignSources dir)
-  >=> expandDefaults userDataDir dir
   >=> toPackage_ dir
 
 expandDefaults
   :: FilePath
-  -> FilePath
-  -> Config Identity CSources JsSources
-  -> Warnings (Errors IO) (Config Identity CSources JsSources)
-expandDefaults userDataDir dir (Product global config) = do
-  d <- getDefaults userDataDir config >>= traverseCommonOptions (expandForeignSources dir)
+  -> Config Identity ParseCSources ParseJsSources
+  -> Warnings (Errors IO) (Config Identity ParseCSources ParseJsSources)
+expandDefaults userDataDir (Product global config) = do
+  d <- getDefaults userDataDir config
   return (Product (d <> global) config)
 
 getDefaults
