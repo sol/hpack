@@ -319,7 +319,7 @@ traverseWithCommonOptions :: Traversal_ WithCommonOptions
 traverseWithCommonOptions t = bitraverse (traverseCommonOptions t) return
 
 data Product a b = Product a b
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance Bifunctor Product where
   bimap fa fb (Product a b) = Product (fa a) (fb b)
@@ -793,7 +793,7 @@ warnUnknownFieldsInDefaults
 warnUnknownFieldsInDefaults name = warnUnknownFields In name . (>>= traverseCommonOptions sequenceUnknownFields)
 
 warnUnknownFieldsInConfig :: forall m. Monad m => ParseConfig -> Warnings m (Config Identity ParseCSources ParseJsSources)
-warnUnknownFieldsInConfig = warnGlobal >=> bitraverse return warnSections
+warnUnknownFieldsInConfig = warnGlobal >=> traverse warnSections
   where
     t = sequenceUnknownFields
 
