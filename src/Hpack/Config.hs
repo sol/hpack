@@ -637,26 +637,36 @@ type Config capture cSources jsSources =
 traverseConfig :: Traversal Config
 traverseConfig t = bitraverse (traverseCommonOptions t) (traversePackageConfig t)
 
-type ConfigWithDefaults capture cSources jsSources = Product
-  (Product (DefaultsConfig capture) (CommonOptions capture cSources jsSources Empty))
-  (PackageConfig capture cSources jsSources)
+type CommonOptionsWithDefaults capture = Product
+  (DefaultsConfig capture)
+  (CommonOptions capture ParseCSources ParseJsSources Empty)
 
-type ParseConfig = CaptureUnknownFields (ConfigWithDefaults CaptureUnknownFields ParseCSources ParseJsSources)
+type ConfigWithDefaults capture = Product
+  (CommonOptionsWithDefaults capture)
+  (PackageConfig capture ParseCSources ParseJsSources)
+
+type ParseConfig = CaptureUnknownFields (ConfigWithDefaults CaptureUnknownFields)
 
 toPackage :: FilePath -> FilePath -> ParseConfig -> Warnings (Errors IO) Package
 toPackage userDataDir dir =
       warnUnknownFieldsInConfig
-  >=> expandDefaults userDataDir
+  >=> expandDefaultsInConfig userDataDir
   >=> traverseConfig (expandForeignSources dir)
   >=> toPackage_ dir
 
+expandDefaultsInConfig
+  :: FilePath
+  -> ConfigWithDefaults Identity
+  -> Warnings (Errors IO) (Config Identity ParseCSources ParseJsSources)
+expandDefaultsInConfig userDataDir = bitraverse (expandDefaults userDataDir) return
+
 expandDefaults
   :: FilePath
-  -> ConfigWithDefaults Identity ParseCSources ParseJsSources
-  -> Warnings (Errors IO) (Config Identity ParseCSources ParseJsSources)
-expandDefaults userDataDir (Product (Product DefaultsConfig{..} global) config) = do
+  -> CommonOptionsWithDefaults Identity
+  -> Warnings (Errors IO) (CommonOptions Identity ParseCSources ParseJsSources Empty)
+expandDefaults userDataDir (Product DefaultsConfig{..} global) = do
   d <- getDefaults userDataDir (fromMaybeList defaultsConfigDefaults)
-  return (Product (d <> global) config)
+  return (d <> global)
 
 getDefaults
   :: FilePath
@@ -667,7 +677,7 @@ getDefaults userDataDir xs = do
   where
     go (runIdentity -> defaults) = do
       file <- lift $ ExceptT (ensure userDataDir defaults)
-      decodeYaml file >>= warnUnknownFieldsInDefaults file
+      decodeYaml file >>= warnUnknownFieldsInDefaults file >>= expandDefaults userDataDir
 
 toExecutableMap :: Monad m => String -> Maybe (Map String a) -> Maybe a -> Warnings m (Maybe (Map String a))
 toExecutableMap name executables mExecutable = do
@@ -798,11 +808,16 @@ sequenceUnknownFields = defaultTraverse{traverseCapture = fmap Identity}
 warnUnknownFieldsInDefaults
   :: Monad m
   => String
-  -> CaptureUnknownFields (CommonOptions CaptureUnknownFields cSources jsSources Empty)
-  -> Warnings m (CommonOptions Identity cSources jsSources Empty)
-warnUnknownFieldsInDefaults name = warnUnknownFields In name . (>>= traverseCommonOptions sequenceUnknownFields)
+  -> CaptureUnknownFields (CommonOptionsWithDefaults CaptureUnknownFields)
+  -> Warnings m (CommonOptionsWithDefaults Identity)
+warnUnknownFieldsInDefaults name =
+    (warnUnknownFields In name . (>>= bitraverse sequenceDefaults (traverseCommonOptions sequenceUnknownFields)))
 
-warnUnknownFieldsInConfig :: forall m. Monad m => ParseConfig -> Warnings m (ConfigWithDefaults Identity ParseCSources ParseJsSources)
+sequenceDefaults :: Applicative m => DefaultsConfig m -> m (DefaultsConfig Identity)
+sequenceDefaults (DefaultsConfig defaults) = do
+  DefaultsConfig <$> traverse (traverse $ fmap Identity) defaults
+
+warnUnknownFieldsInConfig :: forall m. Monad m => ParseConfig -> Warnings m (ConfigWithDefaults Identity)
 warnUnknownFieldsInConfig =
       warnGlobal
   >=> bitraverse (bitraverse warnDefaults return) return
@@ -813,9 +828,7 @@ warnUnknownFieldsInConfig =
     warnGlobal c = warnUnknownFields In "package description" (c >>= bitraverse (traverse (traverseCommonOptions t)) return)
 
     warnDefaults :: DefaultsConfig CaptureUnknownFields -> Warnings m (DefaultsConfig Identity)
-    warnDefaults DefaultsConfig{..} = do
-      xs <- warnUnknownFields In "defaults section" (traverse (traverse $ traverseCapture t) defaultsConfigDefaults)
-      return (DefaultsConfig xs)
+    warnDefaults = warnUnknownFields In "defaults section" . sequenceDefaults
 
     warnSections :: ParsePackageConfig -> Warnings m (PackageConfig Identity ParseCSources ParseJsSources)
     warnSections p@PackageConfig{..} = do

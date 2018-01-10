@@ -60,6 +60,18 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         default-extensions: RecordWildCards DeriveFunctor
         |]
 
+      it "accepts defaults recursively" $ do
+        writeFile "defaults/foo/bar/v1/.hpack/defaults.yaml" "defaults: foo/bar@v2"
+        writeFile "defaults/foo/bar/v2/.hpack/defaults.yaml" "default-extensions: DeriveFunctor"
+        [i|
+        defaults: foo/bar@v1
+        library: {}
+        |] `shouldRenderTo` library [i|
+        other-modules:
+            Paths_foo
+        default-extensions: DeriveFunctor
+        |]
+
       it "fails if defaults don't exist" $ do
         pending
         [i|
