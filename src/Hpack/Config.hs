@@ -453,8 +453,16 @@ data PackageConfig capture cSources jsSources = PackageConfig {
 , packageConfigExecutables :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
 , packageConfigTests :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
 , packageConfigBenchmarks :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
-, packageConfigDefaults :: Maybe (List (capture Defaults))
 } deriving Generic
+
+data DefaultsConfig capture = DefaultsConfig {
+  defaultsConfigDefaults :: Maybe (List (capture Defaults))
+} deriving Generic
+
+instance HasFieldNames (DefaultsConfig a)
+
+instance FromJSON (DefaultsConfig CaptureUnknownFields) where
+  parseJSON = genericParseJSON
 
 traversePackageConfig :: Traversal PackageConfig
 traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
@@ -466,7 +474,6 @@ traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
   executables <- traverseNamedConfigs t packageConfigExecutables
   tests <- traverseNamedConfigs t packageConfigTests
   benchmarks <- traverseNamedConfigs t packageConfigBenchmarks
-  defaults <- traverse (traverse traverseCapture) packageConfigDefaults
   return p {
       packageConfigFlags = flags
     , packageConfigCustomSetup = customSetup
@@ -476,7 +483,6 @@ traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
     , packageConfigExecutables = executables
     , packageConfigTests = tests
     , packageConfigBenchmarks = benchmarks
-    , packageConfigDefaults = defaults
     }
   where
     traverseNamedConfigs = traverse . traverse . traverseSectionConfig
@@ -631,7 +637,11 @@ type Config capture cSources jsSources =
 traverseConfig :: Traversal Config
 traverseConfig t = bitraverse (traverseCommonOptions t) (traversePackageConfig t)
 
-type ParseConfig = CaptureUnknownFields (Config CaptureUnknownFields ParseCSources ParseJsSources)
+type ConfigWithDefaults capture cSources jsSources = Product
+  (Product (DefaultsConfig capture) (CommonOptions capture cSources jsSources Empty))
+  (PackageConfig capture cSources jsSources)
+
+type ParseConfig = CaptureUnknownFields (ConfigWithDefaults CaptureUnknownFields ParseCSources ParseJsSources)
 
 toPackage :: FilePath -> FilePath -> ParseConfig -> Warnings (Errors IO) Package
 toPackage userDataDir dir =
@@ -642,18 +652,18 @@ toPackage userDataDir dir =
 
 expandDefaults
   :: FilePath
-  -> Config Identity ParseCSources ParseJsSources
+  -> ConfigWithDefaults Identity ParseCSources ParseJsSources
   -> Warnings (Errors IO) (Config Identity ParseCSources ParseJsSources)
-expandDefaults userDataDir (Product global config) = do
-  d <- getDefaults userDataDir config
+expandDefaults userDataDir (Product (Product DefaultsConfig{..} global) config) = do
+  d <- getDefaults userDataDir (fromMaybeList defaultsConfigDefaults)
   return (Product (d <> global) config)
 
 getDefaults
   :: FilePath
-  -> PackageConfig Identity cSources jsSources
+  -> [Identity Defaults]
   -> Warnings (Errors IO) (CommonOptions Identity ParseCSources ParseJsSources Empty)
-getDefaults userDataDir PackageConfig{..} = do
-  mconcat <$> mapM go (fromMaybeList packageConfigDefaults)
+getDefaults userDataDir xs = do
+  mconcat <$> mapM go xs
   where
     go (runIdentity -> defaults) = do
       file <- lift $ ExceptT (ensure userDataDir defaults)
@@ -792,12 +802,20 @@ warnUnknownFieldsInDefaults
   -> Warnings m (CommonOptions Identity cSources jsSources Empty)
 warnUnknownFieldsInDefaults name = warnUnknownFields In name . (>>= traverseCommonOptions sequenceUnknownFields)
 
-warnUnknownFieldsInConfig :: forall m. Monad m => ParseConfig -> Warnings m (Config Identity ParseCSources ParseJsSources)
-warnUnknownFieldsInConfig = warnGlobal >=> traverse warnSections
+warnUnknownFieldsInConfig :: forall m. Monad m => ParseConfig -> Warnings m (ConfigWithDefaults Identity ParseCSources ParseJsSources)
+warnUnknownFieldsInConfig =
+      warnGlobal
+  >=> bitraverse (bitraverse warnDefaults return) return
+  >=> traverse warnSections
   where
     t = sequenceUnknownFields
 
-    warnGlobal c = warnUnknownFields In "package description" (c >>= bitraverse (traverseCommonOptions t) return)
+    warnGlobal c = warnUnknownFields In "package description" (c >>= bitraverse (traverse (traverseCommonOptions t)) return)
+
+    warnDefaults :: DefaultsConfig CaptureUnknownFields -> Warnings m (DefaultsConfig Identity)
+    warnDefaults DefaultsConfig{..} = do
+      xs <- warnUnknownFields In "defaults section" (traverse (traverse $ traverseCapture t) defaultsConfigDefaults)
+      return (DefaultsConfig xs)
 
     warnSections :: ParsePackageConfig -> Warnings m (PackageConfig Identity ParseCSources ParseJsSources)
     warnSections p@PackageConfig{..} = do
@@ -809,7 +827,6 @@ warnUnknownFieldsInConfig = warnGlobal >=> traverse warnSections
       executables <- warnNamedSection "executable" packageConfigExecutables
       tests <- warnNamedSection "test" packageConfigTests
       benchmarks <- warnNamedSection "benchmark" packageConfigBenchmarks
-      defaults <- warnUnknownFields In "defaults section" (traverse (traverse $ traverseCapture t) packageConfigDefaults)
       return p {
           packageConfigFlags = flags
         , packageConfigCustomSetup = customSetup
@@ -819,7 +836,6 @@ warnUnknownFieldsInConfig = warnGlobal >=> traverse warnSections
         , packageConfigExecutables = executables
         , packageConfigTests = tests
         , packageConfigBenchmarks = benchmarks
-        , packageConfigDefaults = defaults
         }
 
     warnNamedSection
