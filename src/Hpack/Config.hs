@@ -159,8 +159,15 @@ data LibrarySection = LibrarySection {
 , librarySectionSignatures :: Maybe (List String)
 } deriving (Eq, Show, Generic)
 
-emptyLibrarySection :: LibrarySection
-emptyLibrarySection = LibrarySection Nothing Nothing Nothing Nothing Nothing
+instance Monoid LibrarySection where
+  mempty = LibrarySection Nothing Nothing Nothing Nothing Nothing
+  mappend a b = LibrarySection {
+      librarySectionExposed = librarySectionExposed b <|> librarySectionExposed a
+    , librarySectionExposedModules = librarySectionExposedModules a <> librarySectionExposedModules b
+    , librarySectionOtherModules = librarySectionOtherModules a <> librarySectionOtherModules b
+    , librarySectionReexportedModules = librarySectionReexportedModules a <> librarySectionReexportedModules b
+    , librarySectionSignatures = librarySectionSignatures a <> librarySectionSignatures b
+    }
 
 instance HasFieldNames LibrarySection
 
@@ -172,8 +179,12 @@ data ExecutableSection = ExecutableSection {
 , executableSectionOtherModules :: Maybe (List String)
 } deriving (Eq, Show, Generic)
 
-emptyExecutableSection :: ExecutableSection
-emptyExecutableSection = ExecutableSection Nothing Nothing
+instance Monoid ExecutableSection where
+  mempty = ExecutableSection Nothing Nothing
+  mappend a b = ExecutableSection {
+      executableSectionMain = executableSectionMain b <|> executableSectionMain a
+    , executableSectionOtherModules = executableSectionOtherModules a <> executableSectionOtherModules b
+    }
 
 instance HasFieldNames ExecutableSection
 
@@ -933,7 +944,7 @@ inferModules dir packageName_ getMentionedModules getInferredModules fromData fr
 toLibrary :: FilePath -> String -> GlobalOptions -> SectionConfig Identity CSources JsSources LibrarySection -> IO (Section Library)
 toLibrary dir name globalOptions =
     inferModules dir name getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel fromLibrarySectionInConditional
-  . toSectionI (emptyLibrarySection <$ globalOptions)
+  . toSectionI (mempty <$ globalOptions)
   where
     getLibraryModules :: Library -> [String]
     getLibraryModules Library{..} = libraryExposedModules ++ libraryOtherModules
@@ -983,7 +994,7 @@ toExecutable :: FilePath -> String -> GlobalOptions -> SectionConfig Identity CS
 toExecutable dir packageName_ globalOptions =
     inferModules dir packageName_ getMentionedExecutableModules executableOtherModules fromExecutableSection (fromExecutableSection [])
   . expandMain
-  . toSectionI (emptyExecutableSection <$ globalOptions)
+  . toSectionI (mempty <$ globalOptions)
   where
     fromExecutableSection :: [String] -> [String] -> ExecutableSection -> Executable
     fromExecutableSection pathsModule inferableModules ExecutableSection{..} =
