@@ -675,9 +675,9 @@ expandDefaults
   :: FilePath
   -> CommonOptionsWithDefaults Identity
   -> Warnings (Errors IO) (CommonOptions Identity ParseCSources ParseJsSources Empty)
-expandDefaults userDataDir (Product DefaultsConfig{..} global) = do
+expandDefaults userDataDir (Product DefaultsConfig{..} c) = do
   d <- getDefaults userDataDir (fromMaybeList defaultsConfigDefaults)
-  return (d <> global)
+  return (d <> c)
 
 getDefaults
   :: FilePath
