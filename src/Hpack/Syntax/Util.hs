@@ -33,4 +33,4 @@ hyphenize name =
 #else
   camelTo
 #endif
-  '-' . drop (length name) . dropWhile (== '_')
+  '-' . drop (length (dropWhile (== '_') $ reverse name)) . dropWhile (== '_')

@@ -47,6 +47,7 @@ module Hpack.Config (
 ) where
 
 import           Control.Applicative
+import           Control.Arrow ((>>>))
 import           Control.Monad
 import           Data.Data
 import           Data.Bifunctor
@@ -332,6 +333,10 @@ traverseWithCommonOptions t = bitraverse (traverseCommonOptions t) return
 data Product a b = Product a b
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
+instance (Monoid a, Monoid b) => Monoid (Product a b) where
+  mempty = Product mempty mempty
+  Product a1 b1 `mappend` Product a2 b2 = Product (a1 <> a2) (b1 <> b2)
+
 instance Bifunctor Product where
   bimap fa fb (Product a b) = Product (fa a) (fb b)
 
@@ -411,6 +416,10 @@ instance (FromJSON a, HasFieldNames a) => FromJSON (ParseThenElse a) where
 data Empty = Empty
   deriving (Eq, Show)
 
+instance Monoid Empty where
+  mempty = Empty
+  mappend Empty Empty = Empty
+
 instance FromJSON Empty where
   parseJSON _ = return Empty
 
@@ -433,9 +442,21 @@ instance FromJSON BuildType where
     "Custom"    -> return Custom
     _           -> fail "build-type must be one of: Simple, Configure, Make, Custom"
 
+type SectionConfigWithDefaluts capture cSources jsSources a = capture (Product (DefaultsConfig capture) (WithCommonOptions capture cSources jsSources a))
+
+type PackageConfigWithDefaults capture cSources jsSources = PackageConfig_
+  (SectionConfigWithDefaluts capture cSources jsSources LibrarySection)
+  (SectionConfigWithDefaluts capture cSources jsSources ExecutableSection)
+  capture cSources jsSources
+
 type SectionConfig capture cSources jsSources a = capture (WithCommonOptions capture cSources jsSources a)
 
-data PackageConfig capture cSources jsSources = PackageConfig {
+type PackageConfig capture cSources jsSources = PackageConfig_
+  (SectionConfig capture cSources jsSources LibrarySection)
+  (SectionConfig capture cSources jsSources ExecutableSection)
+  capture cSources jsSources
+
+data PackageConfig_ library executable capture cSources jsSources = PackageConfig {
   packageConfigName :: Maybe String
 , packageConfigVersion :: Maybe String
 , packageConfigSynopsis :: Maybe String
@@ -458,12 +479,12 @@ data PackageConfig capture cSources jsSources = PackageConfig {
 , packageConfigGithub :: Maybe Text
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe (capture CustomSetupSection)
-, packageConfigLibrary :: Maybe (SectionConfig capture cSources jsSources LibrarySection)
-, packageConfigInternalLibraries :: Maybe (Map String (SectionConfig capture cSources jsSources LibrarySection))
-, packageConfigExecutable :: Maybe (SectionConfig capture cSources jsSources ExecutableSection)
-, packageConfigExecutables :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
-, packageConfigTests :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
-, packageConfigBenchmarks :: Maybe (Map String (SectionConfig capture cSources jsSources ExecutableSection))
+, packageConfigLibrary :: Maybe library
+, packageConfigInternalLibraries :: Maybe (Map String library)
+, packageConfigExecutable :: Maybe executable
+, packageConfigExecutables :: Maybe (Map String executable)
+, packageConfigTests :: Maybe (Map String executable)
+, packageConfigBenchmarks :: Maybe (Map String executable)
 } deriving Generic
 
 data DefaultsConfig capture = DefaultsConfig {
@@ -501,7 +522,11 @@ traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
 traverseSectionConfig :: Traversal_ SectionConfig
 traverseSectionConfig t = traverseCapture t >=> traverse (traverseWithCommonOptions t)
 
-type ParsePackageConfig = PackageConfig CaptureUnknownFields ParseCSources ParseJsSources
+traverseSectionConfigWithDefaluts :: Traversal_ SectionConfigWithDefaluts
+traverseSectionConfigWithDefaluts t =
+  traverseCapture t >=> traverse (bitraverse (traverseDefaultsConfig t) (traverseWithCommonOptions t))
+
+type ParsePackageConfig = PackageConfigWithDefaults CaptureUnknownFields ParseCSources ParseJsSources
 
 instance HasFieldNames ParsePackageConfig where
   ignoreUnderscoredUnknownFields _ = True
@@ -648,13 +673,17 @@ type Config capture cSources jsSources =
 traverseConfig :: Traversal Config
 traverseConfig t = bitraverse (traverseCommonOptions t) (traversePackageConfig t)
 
-type CommonOptionsWithDefaults capture = Product
-  (DefaultsConfig capture)
-  (CommonOptions capture ParseCSources ParseJsSources Empty)
-
 type ConfigWithDefaults capture = Product
-  (CommonOptionsWithDefaults capture)
-  (PackageConfig capture ParseCSources ParseJsSources)
+  (CommonOptionsWithDefaults capture Empty)
+  (PackageConfigWithDefaults capture ParseCSources ParseJsSources)
+
+type CommonOptionsWithDefaults capture a = Product
+  (DefaultsConfig capture)
+  (CommonOptions capture ParseCSources ParseJsSources a)
+
+type WithCommonOptionsWithDefaults capture a = Product
+  (DefaultsConfig capture)
+  (WithCommonOptions capture ParseCSources ParseJsSources a)
 
 type ParseConfig = CaptureUnknownFields (ConfigWithDefaults CaptureUnknownFields)
 
@@ -669,20 +698,49 @@ expandDefaultsInConfig
   :: FilePath
   -> ConfigWithDefaults Identity
   -> Warnings (Errors IO) (Config Identity ParseCSources ParseJsSources)
-expandDefaultsInConfig userDataDir = bitraverse (expandDefaults userDataDir) return
+expandDefaultsInConfig userDataDir = bitraverse (expandGlobalDefaults userDataDir) (expandSectionDefaults userDataDir)
+
+expandGlobalDefaults
+  :: FilePath
+  -> CommonOptionsWithDefaults Identity Empty
+  -> Warnings (Errors IO) (CommonOptions Identity ParseCSources ParseJsSources Empty)
+expandGlobalDefaults userDataDir = do
+  fmap (`Product` Empty) >>> expandDefaults userDataDir >=> \ (Product c Empty) -> return c
+
+expandSectionDefaults
+  :: FilePath
+  -> PackageConfigWithDefaults Identity ParseCSources ParseJsSources
+  -> Warnings (Errors IO) (PackageConfig Identity ParseCSources ParseJsSources)
+expandSectionDefaults userDataDir p@PackageConfig{..} = do
+  library <- traverse (traverse (expandDefaults userDataDir)) packageConfigLibrary
+  internalLibraries <- traverse (traverse (traverse (expandDefaults userDataDir))) packageConfigInternalLibraries
+  executable <- traverse (traverse (expandDefaults userDataDir)) packageConfigExecutable
+  executables <- traverse (traverse (traverse (expandDefaults userDataDir))) packageConfigExecutables
+  tests <- traverse (traverse (traverse (expandDefaults userDataDir))) packageConfigTests
+  benchmarks <- traverse (traverse (traverse (expandDefaults userDataDir))) packageConfigBenchmarks
+  return p{
+      packageConfigLibrary = library
+    , packageConfigInternalLibraries = internalLibraries
+    , packageConfigExecutable = executable
+    , packageConfigExecutables = executables
+    , packageConfigTests = tests
+    , packageConfigBenchmarks = benchmarks
+    }
 
 expandDefaults
-  :: FilePath
-  -> CommonOptionsWithDefaults Identity
-  -> Warnings (Errors IO) (CommonOptions Identity ParseCSources ParseJsSources Empty)
+  :: (HasFieldNames a, FromJSON a, Monoid a)
+  => FilePath
+  -> WithCommonOptionsWithDefaults Identity a
+  -> Warnings (Errors IO) (WithCommonOptions Identity ParseCSources ParseJsSources a)
 expandDefaults userDataDir (Product DefaultsConfig{..} c) = do
   d <- getDefaults userDataDir (fromMaybeList defaultsConfigDefaults)
   return (d <> c)
 
 getDefaults
-  :: FilePath
+  :: (HasFieldNames a, FromJSON a, Monoid a)
+  => FilePath
   -> [Identity Defaults]
-  -> Warnings (Errors IO) (CommonOptions Identity ParseCSources ParseJsSources Empty)
+  -> Warnings (Errors IO) (WithCommonOptions Identity ParseCSources ParseJsSources a)
 getDefaults userDataDir xs = do
   mconcat <$> mapM go xs
   where
@@ -813,20 +871,26 @@ toPackage_ dir (Product globalOptions PackageConfig{..}) = do
       where
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> github
 
-sequenceUnknownFields :: Monad capture => Traverse capture capture Identity cSources cSources jsSources jsSources
+sequenceUnknownFields :: Applicative capture => Traverse capture capture Identity cSources cSources jsSources jsSources
 sequenceUnknownFields = defaultTraverse{traverseCapture = fmap Identity}
 
 warnUnknownFieldsInDefaults
   :: Monad m
   => String
-  -> CaptureUnknownFields (CommonOptionsWithDefaults CaptureUnknownFields)
-  -> Warnings m (CommonOptionsWithDefaults Identity)
+  -> CaptureUnknownFields (WithCommonOptionsWithDefaults CaptureUnknownFields a)
+  -> Warnings m (WithCommonOptionsWithDefaults Identity a)
 warnUnknownFieldsInDefaults name =
-    (warnUnknownFields In name . (>>= bitraverse sequenceDefaults (traverseCommonOptions sequenceUnknownFields)))
+  (warnUnknownFields In name . (>>= bitraverse sequenceDefaults (traverseWithCommonOptions sequenceUnknownFields)))
 
-sequenceDefaults :: Applicative m => DefaultsConfig m -> m (DefaultsConfig Identity)
-sequenceDefaults (DefaultsConfig defaults) = do
-  DefaultsConfig <$> traverse (traverse $ fmap Identity) defaults
+traverseDefaultsConfig
+  :: Applicative m
+  => Traverse m capture capture_ cSources cSources_ jsSources jsSources_
+  -> DefaultsConfig capture -> m (DefaultsConfig capture_)
+traverseDefaultsConfig Traverse{..} (DefaultsConfig defaults) = do
+  DefaultsConfig <$> traverse (traverse $ traverseCapture) defaults
+
+sequenceDefaults :: Applicative capture => DefaultsConfig capture -> capture (DefaultsConfig Identity)
+sequenceDefaults = traverseDefaultsConfig sequenceUnknownFields
 
 warnUnknownFieldsInConfig :: forall m. Monad m => ParseConfig -> Warnings m (ConfigWithDefaults Identity)
 warnUnknownFieldsInConfig =
@@ -841,13 +905,13 @@ warnUnknownFieldsInConfig =
     warnDefaults :: DefaultsConfig CaptureUnknownFields -> Warnings m (DefaultsConfig Identity)
     warnDefaults = warnUnknownFields In "defaults section" . sequenceDefaults
 
-    warnSections :: ParsePackageConfig -> Warnings m (PackageConfig Identity ParseCSources ParseJsSources)
+    warnSections :: ParsePackageConfig -> Warnings m (PackageConfigWithDefaults Identity ParseCSources ParseJsSources)
     warnSections p@PackageConfig{..} = do
       flags <- traverse (warnNamed For "flag" . fmap (traverseCapture t)) packageConfigFlags
       customSetup <- warnUnknownFields In "custom-setup section" (traverse (traverseCapture t) packageConfigCustomSetup)
-      library <- warnUnknownFields In "library section" (traverse (traverseSectionConfig t) packageConfigLibrary)
+      library <- warnUnknownFields In "library section" (traverse (traverseSectionConfigWithDefaluts t) packageConfigLibrary)
       internalLibraries <- warnNamedSection "internal-libraries" packageConfigInternalLibraries
-      executable <- warnUnknownFields In "executable section" (traverse (traverseSectionConfig t) packageConfigExecutable)
+      executable <- warnUnknownFields In "executable section" (traverse (traverseSectionConfigWithDefaluts t) packageConfigExecutable)
       executables <- warnNamedSection "executable" packageConfigExecutables
       tests <- warnNamedSection "test" packageConfigTests
       benchmarks <- warnNamedSection "benchmark" packageConfigBenchmarks
@@ -864,9 +928,9 @@ warnUnknownFieldsInConfig =
 
     warnNamedSection
       :: String
-      -> Maybe (Map String (SectionConfig CaptureUnknownFields cSources jsSources a))
-      -> Warnings m (Maybe (Map String (SectionConfig Identity cSources jsSources a)))
-    warnNamedSection sectionType = traverse (warnNamed In (sectionType ++ " section") . fmap (traverseSectionConfig t))
+      -> Maybe (Map String (SectionConfigWithDefaluts CaptureUnknownFields cSources jsSources a))
+      -> Warnings m (Maybe (Map String (SectionConfigWithDefaluts Identity cSources jsSources a)))
+    warnNamedSection sectionType = traverse (warnNamed In (sectionType ++ " section") . fmap (traverseSectionConfigWithDefaluts t))
 
     warnNamed :: Preposition -> String -> Map String (CaptureUnknownFields a) -> Warnings m (Map String a)
     warnNamed preposition sect = fmap Map.fromList . mapM f . Map.toList

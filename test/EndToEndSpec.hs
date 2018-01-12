@@ -27,7 +27,7 @@ spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "hpack" $ do
     context "with defaults" $ do
-      it "accepts defaults" $ do
+      it "accepts global defaults" $ do
         writeFile "defaults/sol/hpack-template/2017/defaults.yaml" [i|
         default-extensions:
           - RecordWildCards
@@ -44,6 +44,24 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         other-modules:
             Paths_foo
         default-extensions: RecordWildCards DeriveFunctor
+        |]
+
+      it "accepts library defaults" $ do
+        writeFile "defaults/sol/hpack-template/2017/defaults.yaml" [i|
+        exposed-modules: Foo
+        |]
+
+        [i|
+        library:
+          defaults:
+            github: sol/hpack-template
+            path: defaults.yaml
+            ref: "2017"
+        |] `shouldRenderTo` library [i|
+        exposed-modules:
+            Foo
+        other-modules:
+            Paths_foo
         |]
 
       it "accepts a list of defaults" $ do
