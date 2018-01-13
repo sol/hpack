@@ -10,7 +10,8 @@ import qualified Prelude
 
 import           Helper
 
-import           System.Exit
+import           System.Directory (canonicalizePath)
+import           Control.Exception
 import           Data.Maybe
 import           Data.List
 import           Data.String.Interpolate
@@ -89,6 +90,19 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             Paths_foo
         default-extensions: DeriveFunctor
         |]
+
+      it "fails on cyclic defaults" $ do
+        let
+          file1 = "defaults/foo/bar/v1/.hpack/defaults.yaml"
+          file2 = "defaults/foo/bar/v2/.hpack/defaults.yaml"
+        writeFile file1 "defaults: foo/bar@v2"
+        writeFile file2 "defaults: foo/bar@v1"
+        canonic1 <- canonicalizePath file1
+        canonic2 <- canonicalizePath file2
+        [i|
+        defaults: foo/bar@v1
+        library: {}
+        |] `shouldFailWith` [i|cycle in defaults (#{canonic1} -> #{canonic2} -> #{canonic1})|]
 
       it "fails if defaults don't exist" $ do
         pending
@@ -826,7 +840,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             ]
 
 run :: FilePath -> String -> IO ([String], String)
-run c old = run_ c old >>= either die return
+run c old = run_ c old >>= either (throwIO . ErrorCall) return
 
 run_ :: FilePath -> String -> IO (Either String ([String], String))
 run_ c old = do

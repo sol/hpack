@@ -56,7 +56,7 @@ import           Data.Bitraversable
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
-import           Data.List (nub, (\\), sortBy)
+import           Data.List (nub, (\\), sortBy, intercalate)
 import           Data.Maybe
 import           Data.Monoid hiding (Product)
 import           Data.Ord
@@ -732,23 +732,32 @@ expandDefaults
   => FilePath
   -> WithCommonOptionsWithDefaults Identity a
   -> Warnings (Errors IO) (WithCommonOptions Identity ParseCSources ParseJsSources a)
-expandDefaults userDataDir = expand
+expandDefaults userDataDir = expand []
   where
-    expand
-      :: (HasFieldNames a, FromJSON a, Monoid a)
-      => WithCommonOptionsWithDefaults Identity a
+    expand :: (HasFieldNames a, FromJSON a, Monoid a) =>
+         [FilePath]
+      -> WithCommonOptionsWithDefaults Identity a
       -> Warnings (Errors IO) (WithCommonOptions Identity ParseCSources ParseJsSources a)
-    expand (Product DefaultsConfig{..} c) = do
-      d <- mconcat <$> mapM (get . runIdentity) (fromMaybeList defaultsConfigDefaults)
+    expand seen (Product DefaultsConfig{..} c) = do
+      d <- mconcat <$> mapM (get seen . runIdentity) (fromMaybeList defaultsConfigDefaults)
       return (d <> c)
 
-    get
-      :: (HasFieldNames a, FromJSON a, Monoid a)
-      => Defaults
+    get :: (HasFieldNames a, FromJSON a, Monoid a) =>
+         [FilePath]
+      -> Defaults
       -> Warnings (Errors IO) (WithCommonOptions Identity ParseCSources ParseJsSources a)
-    get defaults = do
+    get seen defaults = do
       file <- lift $ ExceptT (ensure userDataDir defaults)
-      decodeYaml file >>= warnUnknownFieldsInDefaults file >>= expand
+      seen_ <- lift (checkCycle seen file)
+      decodeYaml file >>= warnUnknownFieldsInDefaults file >>= expand seen_
+
+    checkCycle :: [FilePath] -> FilePath -> Errors IO [FilePath]
+    checkCycle seen file = do
+      canonic <- liftIO $ canonicalizePath file
+      let seen_ = canonic : seen
+      when (canonic `elem` seen) $ do
+        throwE ("cycle in defaults (" ++ intercalate " -> " (reverse seen_) ++ ")")
+      return seen_
 
 toExecutableMap :: Monad m => String -> Maybe (Map String a) -> Maybe a -> Warnings m (Maybe (Map String a))
 toExecutableMap name executables mExecutable = do
