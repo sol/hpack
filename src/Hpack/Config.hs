@@ -732,21 +732,23 @@ expandDefaults
   => FilePath
   -> WithCommonOptionsWithDefaults Identity a
   -> Warnings (Errors IO) (WithCommonOptions Identity ParseCSources ParseJsSources a)
-expandDefaults userDataDir (Product DefaultsConfig{..} c) = do
-  d <- getDefaults userDataDir (fromMaybeList defaultsConfigDefaults)
-  return (d <> c)
-
-getDefaults
-  :: (HasFieldNames a, FromJSON a, Monoid a)
-  => FilePath
-  -> [Identity Defaults]
-  -> Warnings (Errors IO) (WithCommonOptions Identity ParseCSources ParseJsSources a)
-getDefaults userDataDir xs = do
-  mconcat <$> mapM go xs
+expandDefaults userDataDir = expand
   where
-    go (runIdentity -> defaults) = do
+    expand
+      :: (HasFieldNames a, FromJSON a, Monoid a)
+      => WithCommonOptionsWithDefaults Identity a
+      -> Warnings (Errors IO) (WithCommonOptions Identity ParseCSources ParseJsSources a)
+    expand (Product DefaultsConfig{..} c) = do
+      d <- mconcat <$> mapM (get . runIdentity) (fromMaybeList defaultsConfigDefaults)
+      return (d <> c)
+
+    get
+      :: (HasFieldNames a, FromJSON a, Monoid a)
+      => Defaults
+      -> Warnings (Errors IO) (WithCommonOptions Identity ParseCSources ParseJsSources a)
+    get defaults = do
       file <- lift $ ExceptT (ensure userDataDir defaults)
-      decodeYaml file >>= warnUnknownFieldsInDefaults file >>= expandDefaults userDataDir
+      decodeYaml file >>= warnUnknownFieldsInDefaults file >>= expand
 
 toExecutableMap :: Monad m => String -> Maybe (Map String a) -> Maybe a -> Warnings m (Maybe (Map String a))
 toExecutableMap name executables mExecutable = do
