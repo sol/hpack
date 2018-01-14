@@ -28,7 +28,7 @@ before_install:
   - happy --version || true
   - cabal --version || true
   - stack --version || true
-  - tick --version || true
+  - tinc --version || true
 
 install:
   - case "$BUILD" in
