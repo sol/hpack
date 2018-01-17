@@ -5,6 +5,12 @@
   - `extra-doc-files` requires setting `cabal-version` to at least
     1.18; this is now done properly.
   - Accept bool for `condition` (see #230)
+  - Allow `github` to be an object, which newly permits setting the branch
+    and the homepage anchor, as well as the subdirectory.
+
+    This changes the generated homepage of any project using `github`
+    with a subdirectory: previously it pointed to the repository's
+    root, but now it points into the subdirectory.
 
 ## Changes in 0.21.2
   - Fix a bug in module inference for conditionals (see #236)

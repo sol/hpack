@@ -30,7 +30,7 @@ meetup: http://typeful.net/talks/hpack
 | `description` | · | | | | |
 | `category` | · | | | | |
 | `stability` | · | | | | |
-| `homepage` | · | If `github` given, `<repo>#readme` | | | |
+| `homepage` | · | If `github` given, `<repo>(/tree/<branch>)(/<subdir>)(#<anchor>)` | | | |
 | `bug-reports` | · | If `github` given, `<repo>/issues` | | | |
 | `author` | · | | May be a list | | |
 | `maintainer` | · | | May be a list | | |
@@ -42,7 +42,7 @@ meetup: http://typeful.net/talks/hpack
 | `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | | |
 | `extra-doc-files` | · | | Accepts [glob patterns](#file-globbing) | | `0.21.2` |
 | `data-files` | · | | Accepts [glob patterns](#file-globbing) | | |
-| `github` | `source-repository head` | | Accepts `user/repo` or `user/repo/subdir` | `github: foo/bar` |
+| `github` | `source-repository head` | | Accepts `user/repo` or `user/repo/subdir`, or [an object with fields, as specified below](#github-fields) | `github: foo/bar` | As an object: `0.22.0` |
 | `git`    | `source-repository head` | | No effect if `github` given | `git: https://my.repo.com/foo` | |
 | `custom-setup` | · | | See [Custom setup](#custom-setup) | | |
 | `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | | |
@@ -110,6 +110,15 @@ this reason it is recommended to only use tags as Git references.
  * If you want to prevent Hpack from accessing the network to download a
    defaults file, then you can achieve this by adding that file to the cache
    manually.
+
+#### <a name="github-fields"></a>Github fields
+
+| Hpack | Default | Notes
+| --- | --- | --- |
+| repo | Mandatory
+| subdir | `/` | If a homepage URL is generated from the Github description, it will point into this directory.
+| branch | `HEAD` |
+| homepage-anchor | `readme` | If a homepage URL is generated from the Github description, it will point to this anchor. Set to `null` for no anchor.
 
 #### <a name="custom-setup"></a>Custom setup
 
