@@ -1,5 +1,5 @@
 name: hpack
-version: 0.21.2
+version: 0.22.0
 synopsis: An alternative format for Haskell packages
 description: See README at <https://github.com/sol/hpack#readme>
 maintainer: Simon Hengel <sol@typeful.net>
