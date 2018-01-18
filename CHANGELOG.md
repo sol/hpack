@@ -1,4 +1,4 @@
-## next
+## Changes in 0.22.0
   - Add support for `defaults`
   - Add `--numeric-version`
   - Add support for `signatures`
