@@ -27,7 +27,7 @@ writeFile file c = touch file >> Prelude.writeFile file c
 spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "hpack" $ do
-    context "with defaults" $ do
+    describe "defaults" $ do
       it "accepts global defaults" $ do
         writeFile "defaults/sol/hpack-template/2017/defaults.yaml" [i|
         default-extensions:
@@ -41,9 +41,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           path: defaults.yaml
           ref: "2017"
         library: {}
-        |] `shouldRenderTo` library [i|
-        other-modules:
-            Paths_foo
+        |] `shouldRenderTo` library_ [i|
         default-extensions: RecordWildCards DeriveFunctor
         |]
 
@@ -73,9 +71,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo/bar@v1
           - foo/bar@v2
         library: {}
-        |] `shouldRenderTo` library [i|
-        other-modules:
-            Paths_foo
+        |] `shouldRenderTo` library_ [i|
         default-extensions: RecordWildCards DeriveFunctor
         |]
 
@@ -85,9 +81,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         [i|
         defaults: foo/bar@v1
         library: {}
-        |] `shouldRenderTo` library [i|
-        other-modules:
-            Paths_foo
+        |] `shouldRenderTo` library_ [i|
         default-extensions: DeriveFunctor
         |]
 
@@ -345,24 +339,11 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           |] `shouldWarn` pure "Specified pattern \"foo/*.c\" for c-sources does not match any files"
 
       context "with library" $ do
-        it "accepts signatures" $ do
-          [i|
-          library:
-            signatures: Foo
-          |] `shouldRenderTo` (library [i|
-          other-modules:
-              Paths_foo
-          signatures:
-              Foo
-          |]) {packageCabalVersion = ">= 2.0"}
-
         it "accepts global c-sources" $ do
           [i|
           c-sources: cbits/*.c
           library: {}
-          |] `shouldRenderTo` library [i|
-          other-modules:
-              Paths_foo
+          |] `shouldRenderTo` library_ [i|
           c-sources:
               cbits/bar.c
               cbits/foo.c
@@ -372,9 +353,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           [i|
           library:
             c-sources: cbits/*.c
-          |] `shouldRenderTo` library [i|
-          other-modules:
-              Paths_foo
+          |] `shouldRenderTo` library_ [i|
           c-sources:
               cbits/bar.c
               cbits/foo.c
@@ -386,9 +365,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             when:
               condition: os(windows)
               c-sources: cbits/*.c
-          |] `shouldRenderTo` library [i|
-          other-modules:
-              Paths_foo
+          |] `shouldRenderTo` library_ [i|
           if os(windows)
             c-sources:
                 cbits/bar.c
@@ -418,7 +395,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               cbits/foo.c
           |]
 
-    context "with custom-setup" $ do
+    describe "custom-setup" $ do
       it "warns on unknown fields" $ do
         [i|
         name: foo
@@ -451,33 +428,38 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             base
         |]) {packageBuildType = "Make"}
 
-    context "with library" $ do
+    describe "library" $ do
       it "accepts reexported-modules" $ do
         [i|
         library:
           reexported-modules: Baz
-        |] `shouldRenderTo` (library [i|
-        reexported-modules:
-            Baz
-        other-modules:
-            Paths_foo
+        |] `shouldRenderTo` (library_ [i|
+          reexported-modules:
+              Baz
         |]) {packageCabalVersion = ">= 1.22"}
 
-      it "includes all generated modules" $ do
+      it "accepts signatures" $ do
         [i|
         library:
-          generated-exposed-modules: ABC
-          generated-other-modules: XYZ
-        |] `shouldRenderTo` (library [i|
-        exposed-modules:
-            ABC
-        other-modules:
-            Paths_foo
-            XYZ
-        autogen-modules:
-            XYZ
-            ABC
+          signatures: Foo
+        |] `shouldRenderTo` (library_ [i|
+          signatures:
+              Foo
         |]) {packageCabalVersion = ">= 2.0"}
+
+      context "when package.yaml contains duplicate modules" $ do
+        it "generates a cabal file with duplicate modules" $ do
+          -- garbage in, garbage out
+          [i|
+          library:
+            exposed-modules: Foo
+            other-modules: Foo
+          |] `shouldRenderTo` library [i|
+          exposed-modules:
+              Foo
+          other-modules:
+              Foo
+          |]
 
       context "when inferring modules" $ do
         context "with exposed-modules" $ do
@@ -498,29 +480,6 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
             |]
 
-          it "doesn't doubly include generated modules under src/" $ do
-            touch "src/ABC.hs"
-            touch "src/XYZ.hs"
-            [i|
-            library:
-              source-dirs: src
-              exposed-modules: Foo
-              generated-other-modules: ABC
-              generated-exposed-modules: XYZ
-            |] `shouldRenderTo` (library [i|
-            hs-source-dirs:
-                src
-            exposed-modules:
-                Foo
-                XYZ
-            other-modules:
-                Paths_foo
-                ABC
-            autogen-modules:
-                ABC
-                XYZ
-            |]) {packageCabalVersion = ">= 2.0"}
-
         context "with other-modules" $ do
           it "infers exposed-modules" $ do
             touch "src/Foo.hs"
@@ -537,28 +496,6 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             other-modules:
                 Bar
             |]
-
-          it "doesn't doubly include generated modules under src/" $ do
-            touch "src/ABC.hs"
-            touch "src/XYZ.hs"
-            [i|
-            library:
-              source-dirs: src
-              other-modules: Foo
-              generated-other-modules: ABC
-              generated-exposed-modules: XYZ
-            |] `shouldRenderTo` (library [i|
-            hs-source-dirs:
-                src
-            exposed-modules:
-                XYZ
-            other-modules:
-                Foo
-                ABC
-            autogen-modules:
-                ABC
-                XYZ
-            |]) {packageCabalVersion = ">= 2.0"}
 
         context "with both exposed-modules and other-modules" $ do
           it "doesn't infer any modules" $ do
@@ -594,27 +531,6 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             other-modules:
                 Paths_foo
             |]
-
-          it "doesn't doubly include generated modules under src/" $ do
-            touch "src/ABC.hs"
-            touch "src/XYZ.hs"
-            [i|
-            library:
-              source-dirs: src
-              generated-other-modules: ABC
-              generated-exposed-modules: XYZ
-            |] `shouldRenderTo` (library [i|
-            hs-source-dirs:
-                src
-            exposed-modules:
-                XYZ
-            other-modules:
-                Paths_foo
-                ABC
-            autogen-modules:
-                ABC
-                XYZ
-            |]) {packageCabalVersion = ">= 2.0"}
 
         context "with a conditional" $ do
           it "doesn't infer any modules mentioned in that conditional" $ do
@@ -683,38 +599,70 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                     unix/
               |]
 
-        it "includes all generated modules" $ do
-          [i|
-          library:
-            source-dirs: src
-            generated-exposed-modules: Exposed
-            generated-other-modules: Other
-            when:
-              condition: os(windows)
-              generated-exposed-modules: WinExposed
-              generated-other-modules: WinOther
-          |] `shouldRenderTo` (library [i|
-          hs-source-dirs:
-              src
-          if os(windows)
+        context "with generated modules" $ do
+          it "includes generated modules in autogen-modules" $ do
+            [i|
+            library:
+              generated-exposed-modules: Foo
+              generated-other-modules: Bar
+            |] `shouldRenderTo` (library [i|
             exposed-modules:
-                WinExposed
+                Foo
             other-modules:
-                WinOther
+                Paths_foo
+                Bar
             autogen-modules:
-                WinOther
-                WinExposed
-          exposed-modules:
-              Exposed
-          other-modules:
-              Paths_foo
-              Other
-          autogen-modules:
-              Other
-              Exposed
-          |]) {packageCabalVersion = ">= 2.0"}
+                Foo
+                Bar
+            |]) {packageCabalVersion = ">= 2.0"}
 
-    context "with internal-libraries" $ do
+          it "does not infer any mentioned generated modules" $ do
+            touch "src/Exposed.hs"
+            touch "src/Other.hs"
+            [i|
+            library:
+              source-dirs: src
+              generated-exposed-modules: Exposed
+              generated-other-modules: Other
+            |] `shouldRenderTo` (library [i|
+            hs-source-dirs:
+                src
+            exposed-modules:
+                Exposed
+            other-modules:
+                Paths_foo
+                Other
+            autogen-modules:
+                Exposed
+                Other
+            |]) {packageCabalVersion = ">= 2.0"}
+
+          it "does not infer any generated modules mentioned inside conditionals" $ do
+            touch "src/Exposed.hs"
+            touch "src/Other.hs"
+            [i|
+            library:
+              source-dirs: src
+              when:
+                condition: os(windows)
+                generated-exposed-modules: Exposed
+                generated-other-modules: Other
+            |] `shouldRenderTo` library [i|
+            other-modules:
+                Paths_foo
+            hs-source-dirs:
+                src
+            if os(windows)
+              exposed-modules:
+                  Exposed
+              other-modules:
+                  Other
+              autogen-modules:
+                  Other
+                  Exposed
+            |]
+
+    describe "internal-libraries" $ do
       it "accepts internal-libraries" $ do
         touch "src/Foo.hs"
         [i|
@@ -746,7 +694,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             source-dirs: src
         |] `shouldWarn` pure "Specified source-dir \"src\" does not exist"
 
-    context "with executables" $ do
+    describe "executables" $ do
       it "accepts arbitrary entry points as main" $ do
         touch "src/Foo.hs"
         touch "src/Bar.hs"
@@ -800,23 +748,23 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Baz
           |]
 
-        it "doesn't doubly include generated modules under src/" $ do
-          touch "src/XYZ.hs"
+        it "does not infer any mentioned generated modules" $ do
+          touch "src/Foo.hs"
           [i|
           executables:
             foo:
               main: Main.hs
               source-dirs: src
-              generated-other-modules: XYZ
+              generated-other-modules: Foo
           |] `shouldRenderTo` (executable "foo" [i|
             main-is: Main.hs
             hs-source-dirs:
                 src
             other-modules:
                 Paths_foo
-                XYZ
+                Foo
             autogen-modules:
-                XYZ
+                Foo
           |]) {packageCabalVersion = ">= 2.0"}
 
         context "with conditional" $ do
@@ -1021,6 +969,17 @@ customSetup a = (package content) {packageCabalVersion = ">= 1.24", packageBuild
     content = [i|
 custom-setup
 #{indentBy 2 $ unindent a}
+|]
+
+library_ :: String -> Package
+library_ l = package content
+  where
+    content = [i|
+library
+  other-modules:
+      Paths_foo
+#{indentBy 2 $ unindent l}
+  default-language: Haskell2010
 |]
 
 library :: String -> Package

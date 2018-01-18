@@ -37,8 +37,6 @@ module Hpack.Config (
 , Empty(..)
 , getModules
 , pathsModuleFromPackageName
-, ModuleSpecification(..)
-, determineModules
 , BuildType(..)
 , Cond(..)
 
@@ -996,8 +994,8 @@ traverseSectionAndConditionals fData fConditionals acc0 sect@Section{..} = do
     traverseConditionals = traverse . traverse . traverseSectionAndConditionals fConditionals fConditionals
 
 getMentionedLibraryModules :: LibrarySection -> [String]
-getMentionedLibraryModules LibrarySection{..} =
-  fromMaybeList librarySectionExposedModules ++ fromMaybeList librarySectionOtherModules
+getMentionedLibraryModules (LibrarySection _ exposedModules generatedExposedModules otherModules generatedOtherModules _ _)
+  = fromMaybeList (exposedModules <> generatedExposedModules <> otherModules <> generatedOtherModules)
 
 listModules :: FilePath -> Section a -> IO [String]
 listModules dir Section{..} = concat <$> mapM (getModules dir) sectionSourceDirs
@@ -1037,36 +1035,32 @@ toLibrary dir name globalOptions =
       Library librarySectionExposed exposedModules otherModules generatedModules reexportedModules signatures
       where
         (exposedModules, otherModules, generatedModules) =
-          determineModules pathsModule inferableModules (ModuleSpecification librarySectionExposedModules librarySectionGeneratedExposedModules) (ModuleSpecification librarySectionOtherModules librarySectionGeneratedOtherModules)
+          determineModules pathsModule inferableModules librarySectionExposedModules librarySectionGeneratedExposedModules librarySectionOtherModules librarySectionGeneratedOtherModules
         reexportedModules = fromMaybeList librarySectionReexportedModules
         signatures = fromMaybeList librarySectionSignatures
 
-data ModuleSpecification = ModuleSpecification {
-  _moduleSpecificationModules :: Maybe (List String)
-, _moduleSpecificationGeneratedModules :: Maybe (List String)
-} deriving (Show, Eq)
-
-determineModules :: [String] -> [String] -> ModuleSpecification -> ModuleSpecification -> ([String], [String], [String])
-determineModules pathsModule inferableModules (ModuleSpecification mExposedModules mGeneratedExposedModules) (ModuleSpecification mOtherModules mGeneratedOtherModules) = case (mExposedModules, mOtherModules) of
-  (Nothing, Nothing) -> ((inferableModules \\ generatedModules) ++ maybe [] fromList mGeneratedExposedModules, pathsModule ++ maybe [] fromList mGeneratedOtherModules, generatedModules)
-  _ -> (exposedModules, otherModules, generatedModules)
+determineModules :: [String] -> [String] -> Maybe (List String) -> Maybe (List String) -> Maybe (List String) -> Maybe (List String) -> ([String], [String], [String])
+determineModules pathsModule inferable mExposed mGeneratedExposed mOther mGeneratedOther =
+  (exposed, others, generated)
   where
-    exposedModules = maybe (inferableModules \\ (otherModules ++ generatedModules)) fromList mExposedModules ++ maybe [] fromList mGeneratedExposedModules
-    otherModules   = maybe ((inferableModules ++ pathsModule) \\ (exposedModules ++ generatedModules)) fromList mOtherModules ++ maybe [] fromList mGeneratedOtherModules
-    generatedModules = maybe [] fromList mGeneratedOtherModules ++ maybe [] fromList mGeneratedExposedModules
+    generated = fromMaybeList (mGeneratedExposed <> mGeneratedOther)
+    exposed = maybe inferable fromList mExposed ++ fromMaybeList mGeneratedExposed
+    others = maybe ((inferable \\ exposed) ++ pathsModule) fromList mOther ++ fromMaybeList mGeneratedOther
 
 fromLibrarySectionInConditional :: [String] -> LibrarySection -> Library
-fromLibrarySectionInConditional inferableModules lib@(LibrarySection _ exposedModules _ otherModules librarySectionGeneratedOtherModules _ _) = do
+fromLibrarySectionInConditional inferableModules lib@(LibrarySection _ exposedModules _ otherModules _ _ _) =
   case (exposedModules, otherModules) of
-    (Nothing, Nothing) -> (fromLibrarySectionPlain lib) {libraryOtherModules = inferableModules ++ fromMaybeList librarySectionGeneratedOtherModules}
+    (Nothing, Nothing) -> addToOtherModules inferableModules (fromLibrarySectionPlain lib)
     _ -> fromLibrarySectionPlain lib
+  where
+    addToOtherModules xs r = r {libraryOtherModules = xs ++ libraryOtherModules r}
 
 fromLibrarySectionPlain :: LibrarySection -> Library
 fromLibrarySectionPlain LibrarySection{..} = Library {
     libraryExposed = librarySectionExposed
-  , libraryExposedModules = fromMaybeList librarySectionExposedModules ++ fromMaybeList librarySectionGeneratedExposedModules
-  , libraryOtherModules = fromMaybeList librarySectionOtherModules ++ fromMaybeList librarySectionGeneratedOtherModules
-  , libraryGeneratedModules = fromMaybeList librarySectionGeneratedOtherModules ++ fromMaybeList librarySectionGeneratedExposedModules
+  , libraryExposedModules = fromMaybeList (librarySectionExposedModules <> librarySectionGeneratedExposedModules)
+  , libraryOtherModules = fromMaybeList (librarySectionOtherModules <> librarySectionGeneratedOtherModules)
+  , libraryGeneratedModules = fromMaybeList (librarySectionGeneratedOtherModules <> librarySectionGeneratedExposedModules)
   , libraryReexportedModules = fromMaybeList librarySectionReexportedModules
   , librarySignatures = fromMaybeList librarySectionSignatures
   }
@@ -1078,8 +1072,8 @@ toExecutables :: FilePath -> String -> GlobalOptions -> Maybe (Map String (Secti
 toExecutables dir packageName_ globalOptions = traverse (toExecutable dir packageName_ globalOptions) . fromMaybe mempty
 
 getMentionedExecutableModules :: ExecutableSection -> [String]
-getMentionedExecutableModules ExecutableSection{..} =
-  fromMaybeList executableSectionOtherModules ++ maybe [] return (executableSectionMain >>= toModule . splitDirectories)
+getMentionedExecutableModules (ExecutableSection main otherModules generatedModules)=
+  maybe id (:) (main >>= toModule . splitDirectories) $ fromMaybeList (otherModules <> generatedModules)
 
 toExecutable :: FilePath -> String -> GlobalOptions -> SectionConfig Identity CSources JsSources ExecutableSection -> IO (Section Executable)
 toExecutable dir packageName_ globalOptions =
@@ -1091,7 +1085,7 @@ toExecutable dir packageName_ globalOptions =
     fromExecutableSection pathsModule inferableModules ExecutableSection{..} =
       (Executable executableSectionMain (otherModules ++ generatedModules) generatedModules)
       where
-        otherModules = maybe ((inferableModules \\ generatedModules) ++ pathsModule) fromList executableSectionOtherModules
+        otherModules = maybe (inferableModules ++ pathsModule) fromList executableSectionOtherModules
         generatedModules = maybe [] fromList executableSectionGeneratedOtherModules
 
 expandMain :: Section ExecutableSection -> Section ExecutableSection
@@ -1180,6 +1174,3 @@ getModules dir src_ = sort <$> do
     removeSetup src
       | src == dir = filter (/= "Setup")
       | otherwise = id
-
-fromMaybeList :: Maybe (List a) -> [a]
-fromMaybeList = maybe [] fromList

@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
 module Hpack.RunSpec (spec) where
 
 import           Helper
 import           Data.List
-import qualified Data.Map.Lazy as Map
 
 import           Hpack.ConfigSpec hiding (spec)
 import           Hpack.Config hiding (package)
@@ -12,6 +12,9 @@ import           Hpack.Run
 
 library :: Library
 library = Library Nothing [] [] [] [] []
+
+executable :: Section Executable
+executable = section (Executable (Just "Main.hs") [] [])
 
 renderEmptySection :: Empty -> [Element]
 renderEmptySection Empty = []
@@ -159,7 +162,7 @@ spec = do
           ]
 
       it "retains section field order" $ do
-        renderPackage defaultRenderSettings 0 [] [("executable foo", ["default-language", "main-is", "ghc-options"])] package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") [] []) {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
+        renderPackage defaultRenderSettings 0 [] [("executable foo", ["default-language", "main-is", "ghc-options"])] package {packageExecutables = [("foo", executable {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -173,7 +176,7 @@ spec = do
 
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage_ package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") [] []) {sectionDependencies = Dependencies $ Map.fromList
+        renderPackage_ package {packageExecutables = [("foo", executable {sectionDependencies = Dependencies
         [("foo", VersionRange "== 0.1.0"), ("bar", AnyVersion)]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
@@ -189,7 +192,7 @@ spec = do
           ]
 
       it "includes GHC options" $ do
-        renderPackage_ package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") [] []) {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [("foo", executable {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -202,7 +205,7 @@ spec = do
           ]
 
       it "includes frameworks" $ do
-        renderPackage_ package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") [] []) {sectionFrameworks = ["foo", "bar"]})]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [("foo", executable {sectionFrameworks = ["foo", "bar"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -217,7 +220,7 @@ spec = do
           ]
 
       it "includes extra-framework-dirs" $ do
-        renderPackage_ package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") [] []) {sectionExtraFrameworksDirs = ["foo", "bar"]})]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [("foo", executable {sectionExtraFrameworksDirs = ["foo", "bar"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -232,7 +235,7 @@ spec = do
           ]
 
       it "includes GHC profiling options" $ do
-        renderPackage_ package {packageExecutables = Map.fromList [("foo", (section $ Executable (Just "Main.hs") [] []) {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]})]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [("foo", executable {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"

@@ -5,6 +5,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Hpack.Util (
   List(..)
+, fromMaybeList
 , GhcOption
 , GhcProfOption
 , GhcjsOption
@@ -51,6 +52,9 @@ instance FromJSON a => FromJSON (List a) where
   parseJSON v = List <$> case v of
     Array _ -> parseJSON v
     _ -> return <$> parseJSON v
+
+fromMaybeList :: Maybe (List a) -> [a]
+fromMaybeList = maybe [] fromList
 
 type GhcOption = String
 type GhcProfOption = String

@@ -3,6 +3,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Hpack.ConfigSpec (
   spec
@@ -12,11 +13,10 @@ module Hpack.ConfigSpec (
 ) where
 
 import           Helper
-
 import           Data.Aeson.Types
 import           Data.String.Interpolate.IsString
 import           Control.Arrow
-import           GHC.Exts
+import qualified GHC.Exts as Exts
 import           System.Directory (createDirectory)
 import           Data.Either
 import qualified Data.Map.Lazy as Map
@@ -26,7 +26,7 @@ import           Hpack.Dependency
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
 
-instance IsList (Maybe (List a)) where
+instance Exts.IsList (Maybe (List a)) where
   type Item (Maybe (List a)) = a
   fromList = Just . List
   toList = undefined
@@ -69,43 +69,6 @@ spec = do
   describe "pathsModuleFromPackageName" $ do
     it "replaces dashes with underscores in package name" $ do
       pathsModuleFromPackageName "foo-bar" `shouldBe` "Paths_foo_bar"
-
-  describe "determineModules" $ do
-    it "adds the Paths_* module to the other-modules" $ do
-      let exposed = ModuleSpecification ["Foo"] Nothing
-          other = ModuleSpecification Nothing Nothing
-      determineModules ["Paths_foo"] [] exposed other `shouldBe` (["Foo"], ["Paths_foo"], [])
-
-    it "adds the Paths_* module to the other-modules when no modules are specified" $ do
-      let exposed = ModuleSpecification Nothing Nothing
-          other = ModuleSpecification Nothing Nothing
-      determineModules ["Paths_foo"] [] exposed other `shouldBe` ([], ["Paths_foo"], [])
-
-    context "when the Paths_* module is part of the exposed-modules" $ do
-      it "does not add the Paths_* module to the other-modules" $ do
-        let exposed = ModuleSpecification ["Foo", "Paths_foo"] Nothing
-            other = ModuleSpecification Nothing Nothing
-        determineModules ["Paths_foo"] [] exposed other `shouldBe` (["Foo", "Paths_foo"], [], [])
-
-    it "includes all generated modules when exposed-modules and other-modules are Nothing" $ do
-      let exposed = ModuleSpecification Nothing ["ABC"]
-          other = ModuleSpecification Nothing ["XYZ"]
-      determineModules ["Paths_foo"] [] exposed other `shouldBe` (["ABC"], ["Paths_foo", "XYZ"], ["XYZ", "ABC"])
-
-    it "includes all generated modules when given explicit exposed-modules" $ do
-      let exposed = ModuleSpecification ["Foo"] ["ABC"]
-          other = ModuleSpecification Nothing ["XYZ"]
-      determineModules ["Paths_foo"] [] exposed other `shouldBe` (["Foo", "ABC"], ["Paths_foo", "XYZ"], ["XYZ", "ABC"])
-
-    it "includes all generated modules when given explicit exposed-modules and other-modules" $ do
-      let exposed = ModuleSpecification ["Foo"] ["ABC"]
-          other = ModuleSpecification ["Internal"] ["XYZ"]
-      determineModules ["Paths_foo"] [] exposed other `shouldBe` (["Foo", "ABC"], ["Internal", "XYZ"], ["XYZ", "ABC"])
-
-    it "includes all generated modules when given explicit other-modules" $ do
-      let exposed = ModuleSpecification Nothing ["ABC"]
-          other = ModuleSpecification ["Internal"] ["XYZ"]
-      determineModules ["Paths_foo"] [] exposed other `shouldBe` (["ABC"], ["Internal", "XYZ"], ["XYZ", "ABC"])
 
   describe "fromLibrarySectionInConditional" $ do
     let
