@@ -34,7 +34,7 @@ data Value =
   | WordList [String]
   deriving (Eq, Show)
 
-data Element = Stanza String [Element] | Group Element Element | Field String Value
+data Element = Stanza String [Element] | Group Element Element | Field String Value | Verbatim String
   deriving (Eq, Show)
 
 data Lines = SingleLine String | MultipleLines [String]
@@ -62,6 +62,7 @@ render :: RenderSettings -> Nesting -> Element -> [String]
 render settings nesting (Stanza name elements) = indent settings nesting name : renderElements settings (succ nesting) elements
 render settings nesting (Group a b) = render settings nesting a ++ render settings nesting b
 render settings nesting (Field name value) = renderField settings nesting name value
+render settings nesting (Verbatim str) = map (indent settings nesting) (lines str)
 
 renderElements :: RenderSettings -> Nesting -> [Element] -> [String]
 renderElements settings nesting = concatMap (render settings nesting)

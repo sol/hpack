@@ -113,6 +113,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
       , renderTests packageTests
       , renderBenchmarks packageBenchmarks
       ]
+      ++ maybe [] renderVerbatim packageVerbatim
 
     fields :: [Element]
     fields = sortFieldsBy existingFieldOrder . mapMaybe (\(name, value) -> Field name . Literal <$> value) $ [
@@ -306,8 +307,12 @@ renderSection renderSectionData Section{..} =
   , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigDependencies)
   , renderDependencies "build-tools" sectionBuildTools
   ]
+  ++ maybe [] renderVerbatim sectionVerbatim
   ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ map (renderConditional renderSectionData) sectionConditionals
+
+renderVerbatim :: Verbatim -> [Element]
+renderVerbatim = return . Verbatim
 
 renderConditional :: (a -> [Element]) -> Conditional (Section a) -> Element
 renderConditional renderSectionData (Conditional condition sect mElse) = case mElse of

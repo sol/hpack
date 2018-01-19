@@ -281,6 +281,22 @@ Glob patterns are expanded according to the following rules:
    separators)
  - `?`, `*` and `**` do not match a `.` at the beginning of a file/directory
 
+### Passing things verbatim to Cabal
+
+Hpack is meant to be general and handle most common use cases.  However, in
+rare cases you might want to access a Cabal feature that is not (yet) supported
+by Hpack.  To accommodate for this Hpack allows you to pass things verbatim to
+cabal.  The `verbatim` field is used for that.  It is recognized top-level, in
+sections, and in conditionals.
+
+Example:
+
+```yaml
+verbatim: |
+  build-tool-depends:
+      hspec-discover:hspec-discover == 2.*
+```
+
 ### Not repeating yourself
 
 It is possible to use YAML [anchors][yaml-anchor] (`&`), [aliases][yaml-alias]

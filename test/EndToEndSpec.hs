@@ -1069,6 +1069,36 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             , "package.yaml: Ignoring unrecognized field $.when.else.when.else.baz"
             ]
 
+    describe "verbatim" $ do
+      it "is included verbatim" $ do
+        [i|
+        library:
+          verbatim: |
+            foo: 23
+            bar: 42
+        |] `shouldRenderTo` library [i|
+        other-modules:
+            Paths_foo
+        foo: 23
+        bar: 42
+        |]
+
+      context "when specified globally" $ do
+        it "is not propagated into sections" $ do
+          [i|
+          verbatim: |
+            foo: 23
+            bar: 42
+          library: {}
+          |] `shouldRenderTo` package [i|
+          library
+            other-modules:
+                Paths_foo
+            default-language: Haskell2010
+          foo: 23
+          bar: 42
+          |]
+
 run :: HasCallStack => FilePath -> String -> IO ([String], String)
 run c old = run_ c old >>= either assertFailure return
 
