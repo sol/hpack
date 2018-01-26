@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -16,11 +15,7 @@ import           GHC.Generics
 
 import           Hpack.Syntax.GenericsUtil
 
-#if MIN_VERSION_aeson(1,0,0)
 genericParseJSON :: forall a d m. (GFromJSON Zero (Rep a), HasTypeName a d m) => Value -> Parser a
-#else
-genericParseJSON :: forall a d m. (GFromJSON (Rep a), HasTypeName a d m) => Value -> Parser a
-#endif
 genericParseJSON = Aeson.genericParseJSON defaultOptions {fieldLabelModifier = hyphenize name}
   where
     name :: String
@@ -28,9 +23,4 @@ genericParseJSON = Aeson.genericParseJSON defaultOptions {fieldLabelModifier = h
 
 hyphenize :: String -> String -> String
 hyphenize name =
-#if MIN_VERSION_aeson(0,10,0)
-  camelTo2
-#else
-  camelTo
-#endif
-  '-' . drop (length (dropWhile (== '_') $ reverse name)) . dropWhile (== '_')
+  camelTo2 '-' . drop (length (dropWhile (== '_') $ reverse name)) . dropWhile (== '_')

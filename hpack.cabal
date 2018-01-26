@@ -1,8 +1,8 @@
--- This file has been generated from package.yaml by hpack version 0.22.0.
+-- This file has been generated from package.yaml by hpack version 0.23.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a810403afb86b045741c0bad9d0d0d278cd4582751e39f0912edd62038c29692
+-- hash: 673b49264a8acc7c22607806c4d188ae1979a8dd940edacfae4895002f4bc64a
 
 name:           hpack
 version:        0.23.0
@@ -31,7 +31,7 @@ library
   build-depends:
       Cabal
     , Glob
-    , aeson >=0.11
+    , aeson >=1.0.0
     , base >=4.8 && <5
     , bifunctors
     , bytestring
@@ -80,7 +80,7 @@ executable hpack
   build-depends:
       Cabal
     , Glob
-    , aeson >=0.11
+    , aeson >=1.0.0
     , base >=4.8 && <5
     , bifunctors
     , bytestring
@@ -115,7 +115,7 @@ test-suite spec
       Cabal
     , Glob
     , QuickCheck
-    , aeson >=0.11
+    , aeson >=1.0.0
     , base >=4.8 && <5
     , bifunctors
     , bytestring
