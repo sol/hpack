@@ -1,4 +1,4 @@
-## next
+## Changes in 0.23.0
   - Add support for custom decoders to allow for alternate syntax (e.g. Dhall)
   - `generated-exposed-modules` and `generated-other-modules`, for populating
     the `autogen-modules` field (#207).

@@ -1,11 +1,11 @@
--- This file has been generated from package.yaml by hpack version 0.21.2.
+-- This file has been generated from package.yaml by hpack version 0.22.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ed684f1c6e2ea1bdc1674463da6eeef99a1dd9a3fac6bf2ce309d3d675879539
+-- hash: a810403afb86b045741c0bad9d0d0d278cd4582751e39f0912edd62038c29692
 
 name:           hpack
-version:        0.22.0
+version:        0.23.0
 synopsis:       An alternative format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
