@@ -33,25 +33,28 @@ import           System.Directory
 import           Data.Version
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
+import qualified Data.Aeson as Aeson
 
 import           Hpack.Util
 import           Hpack.Config
 import           Hpack.Render
 import           Hpack.FormattingHints
+import           Hpack.Yaml
 
 data RunOptions = RunOptions {
   runOptionsConfigDir :: Maybe FilePath
 , runOptionsConfigFile :: FilePath
+, runOptionsDecode :: FilePath -> IO (Either String Aeson.Value)
 }
 
 defaultRunOptions :: RunOptions
-defaultRunOptions = RunOptions Nothing packageConfig
+defaultRunOptions = RunOptions Nothing packageConfig decodeYaml
 
 run :: RunOptions -> IO ([String], FilePath, String)
-run (RunOptions mDir c) = do
+run (RunOptions mDir c decode) = do
   let dir = fromMaybe "" mDir
   userDataDir <- getAppUserDataDirectory "hpack"
-  mPackage <- readPackageConfig userDataDir (dir </> c)
+  mPackage <- readPackageConfigWith decode userDataDir (dir </> c)
   case mPackage of
     Right (pkg, warnings) -> do
       let cabalFile = dir </> (packageName pkg ++ ".cabal")

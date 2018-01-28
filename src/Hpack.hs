@@ -9,6 +9,9 @@ module Hpack (
 , Force(..)
 , version
 , main
+, mainWith
+, RunOptions(..)
+, defaultRunOptions
 #ifdef TEST
 , header
 , hpackWithVersionResult
@@ -21,6 +24,7 @@ import qualified Data.Version as Version
 import           System.Environment
 import           System.Exit
 import           System.IO (stderr)
+import           Data.Aeson (Value)
 
 import           Paths_hpack (version)
 import           Hpack.Options
@@ -29,6 +33,7 @@ import           Hpack.Run
 import           Hpack.Util
 import           Hpack.Utf8 as Utf8
 import           Hpack.CabalFile
+import           Hpack.Yaml
 
 programVersion :: Version -> String
 programVersion v = "hpack version " ++ Version.showVersion v
@@ -44,15 +49,18 @@ header p v hash = unlines [
   ]
 
 main :: IO ()
-main = do
-  result <- getArgs >>= parseOptions packageConfig
+main = mainWith packageConfig decodeYaml
+
+mainWith :: FilePath -> (FilePath -> IO (Either String Value)) -> IO ()
+mainWith configFile decode = do
+  result <- getArgs >>= parseOptions configFile
   case result of
     PrintVersion -> putStrLn (programVersion version)
     PrintNumericVersion -> putStrLn (Version.showVersion version)
     Help -> printHelp
     Run options -> case options of
-      Options _verbose _force True dir file -> hpackStdOut (RunOptions dir file)
-      Options verbose force False dir file -> hpack (RunOptions dir file) verbose force
+      Options _verbose _force True dir file -> hpackStdOut (RunOptions dir file decode)
+      Options verbose force False dir file -> hpack (RunOptions dir file decode) verbose force
     ParseError -> do
       printHelp
       exitFailure

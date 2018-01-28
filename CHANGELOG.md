@@ -1,4 +1,5 @@
 ## next
+  - Add support for custom decoders to allow for alternate syntax (e.g. Dhall)
   - `generated-exposed-modules` and `generated-other-modules`, for populating
     the `autogen-modules` field (#207).
   - Corrected `cabal-version` setting for `reexported-modules` inside

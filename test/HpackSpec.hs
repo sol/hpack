@@ -9,7 +9,6 @@ import           Control.DeepSeq
 
 import           Hpack.Config (packageConfig)
 import           Hpack.CabalFile
-import           Hpack.Run (defaultRunOptions)
 import           Hpack hiding (hpack)
 
 readFile :: FilePath -> IO String

@@ -14,6 +14,7 @@
 module Hpack.Config (
   packageConfig
 , readPackageConfig
+, readPackageConfigWith
 , renamePackage
 , packageDependencies
 , package
@@ -563,8 +564,12 @@ decodeYaml :: FromJSON a => FilePath -> Warnings (Errors IO) a
 decodeYaml = lift . ExceptT . Yaml.decodeYaml
 
 readPackageConfig :: FilePath -> FilePath -> IO (Either String (Package, [String]))
-readPackageConfig userDataDir file = runExceptT $ runWriterT $ do
-  config <- decodeYaml file
+readPackageConfig = readPackageConfigWith Yaml.decodeYaml
+
+readPackageConfigWith :: (FilePath -> IO (Either String Value)) -> FilePath -> FilePath -> IO (Either String (Package, [String]))
+readPackageConfigWith readValue userDataDir file = runExceptT $ runWriterT $ do
+  value <- lift . ExceptT $ readValue file
+  config <- lift . ExceptT . return $ first ((file ++ ": ") ++) (parseEither parseJSON value)
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
   toPackage userDataDir dir config
 
