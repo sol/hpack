@@ -26,6 +26,10 @@ spec = do
       let cabalFile = ["-- This file has been generated from package.yaml by hpack version 0.10.0."]
       extractVersion cabalFile `shouldBe` Just (makeVersion [0, 10, 0])
 
+    it "is agnostic to file name" $ do
+      let cabalFile = ["-- This file has been generated from some random file by hpack version 0.10.0."]
+      extractVersion cabalFile `shouldBe` Just (makeVersion [0, 10, 0])
+
     it "is total" $ do
       let cabalFile = ["-- This file has been generated from package.yaml by hpack version "]
       extractVersion cabalFile `shouldBe` Nothing

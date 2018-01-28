@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE RecordWildCards #-}
 module Hpack (
   hpack
 , hpackResult
@@ -11,7 +12,6 @@ module Hpack (
 #ifdef TEST
 , header
 , hpackWithVersionResult
-, splitDirectory
 #endif
 ) where
 
@@ -21,8 +21,6 @@ import qualified Data.Version as Version
 import           System.Environment
 import           System.Exit
 import           System.IO (stderr)
-import           System.FilePath
-import           System.Directory
 
 import           Paths_hpack (version)
 import           Hpack.Options
@@ -47,14 +45,14 @@ header p v hash = unlines [
 
 main :: IO ()
 main = do
-  args <- getArgs
-  case parseOptions args of
+  result <- getArgs >>= parseOptions packageConfig
+  case result of
     PrintVersion -> putStrLn (programVersion version)
     PrintNumericVersion -> putStrLn (Version.showVersion version)
     Help -> printHelp
     Run options -> case options of
-      Options _verbose _force True dir -> hpackStdOut dir
-      Options verbose force False dir -> hpack dir verbose force
+      Options _verbose _force True dir file -> hpackStdOut (RunOptions dir file)
+      Options verbose force False dir file -> hpack (RunOptions dir file) verbose force
     ParseError -> do
       printHelp
       exitFailure
@@ -67,10 +65,10 @@ printHelp = do
     , "       hpack --help"
     ]
 
-hpack :: Maybe FilePath -> Verbose -> Force -> IO ()
+hpack :: RunOptions -> Verbose -> Force -> IO ()
 hpack = hpackWithVersion version
 
-hpackResult :: Maybe FilePath -> Force -> IO Result
+hpackResult :: RunOptions -> Force -> IO Result
 hpackResult = hpackWithVersionResult version
 
 data Result = Result {
@@ -86,9 +84,9 @@ data Status =
   | OutputUnchanged
   deriving (Eq, Show)
 
-hpackWithVersion :: Version -> Maybe FilePath -> Verbose -> Force -> IO ()
-hpackWithVersion v p verbose force = do
-    r <- hpackWithVersionResult v p force
+hpackWithVersion :: Version -> RunOptions -> Verbose -> Force -> IO ()
+hpackWithVersion v options verbose force = do
+    r <- hpackWithVersionResult v options force
     printWarnings (resultWarnings r)
     when (verbose == Verbose) $ putStrLn $
       case resultStatus r of
@@ -101,17 +99,6 @@ printWarnings :: [String] -> IO ()
 printWarnings warnings = do
   forM_ warnings $ \warning -> Utf8.hPutStrLn stderr ("WARNING: " ++ warning)
 
-splitDirectory :: Maybe FilePath -> IO (Maybe FilePath, FilePath)
-splitDirectory Nothing = return (Nothing, packageConfig)
-splitDirectory (Just p) = do
-  isDirectory <- doesDirectoryExist p
-  return $ if isDirectory
-    then (Just p, packageConfig)
-    else let
-      file = takeFileName p
-      dir = takeDirectory p
-      in (guard (p /= file) >> Just dir, if null file then packageConfig else file)
-
 mkStatus :: [String] -> Version -> CabalFile -> Status
 mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
   (Nothing, _) -> ExistingCabalFileWasModifiedManually
@@ -123,10 +110,9 @@ mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
     | old == new -> OutputUnchanged
     | otherwise -> Generated
 
-hpackWithVersionResult :: Version -> Maybe FilePath -> Force -> IO Result
-hpackWithVersionResult v p force = do
-  (dir, file) <- splitDirectory p
-  (warnings, cabalFile, new) <- run dir file
+hpackWithVersionResult :: Version -> RunOptions -> Force -> IO Result
+hpackWithVersionResult v options@RunOptions{..} force = do
+  (warnings, cabalFile, new) <- run options
   oldCabalFile <- readCabalFile cabalFile
   let
     status = case force of
@@ -135,17 +121,16 @@ hpackWithVersionResult v p force = do
   case status of
     Generated -> do
       let hash = sha256 new
-      Utf8.writeFile cabalFile (header file v hash ++ new)
+      Utf8.writeFile cabalFile (header runOptionsConfigFile v hash ++ new)
     _ -> return ()
-  return Result
-    { resultWarnings = warnings
+  return Result {
+      resultWarnings = warnings
     , resultCabalFile = cabalFile
     , resultStatus = status
     }
 
-hpackStdOut :: Maybe FilePath -> IO ()
-hpackStdOut p = do
-  (dir, file) <- splitDirectory p
-  (warnings, _cabalFile, new) <- run dir file
+hpackStdOut :: RunOptions -> IO ()
+hpackStdOut options = do
+  (warnings, _cabalFile, new) <- run options
   Utf8.putStr new
   printWarnings warnings

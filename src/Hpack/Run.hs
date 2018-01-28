@@ -4,7 +4,9 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE CPP #-}
 module Hpack.Run (
-  run
+  RunOptions(..)
+, defaultRunOptions
+, run
 , renderPackage
 , RenderSettings(..)
 , Alignment(..)
@@ -37,8 +39,16 @@ import           Hpack.Config
 import           Hpack.Render
 import           Hpack.FormattingHints
 
-run :: Maybe FilePath -> FilePath -> IO ([String], FilePath, String)
-run mDir c = do
+data RunOptions = RunOptions {
+  runOptionsConfigDir :: Maybe FilePath
+, runOptionsConfigFile :: FilePath
+}
+
+defaultRunOptions :: RunOptions
+defaultRunOptions = RunOptions Nothing packageConfig
+
+run :: RunOptions -> IO ([String], FilePath, String)
+run (RunOptions mDir c) = do
   let dir = fromMaybe "" mDir
   userDataDir <- getAppUserDataDirectory "hpack"
   mPackage <- readPackageConfig userDataDir (dir </> c)

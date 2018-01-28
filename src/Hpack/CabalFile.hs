@@ -34,9 +34,11 @@ extractHash :: [String] -> Maybe Hash
 extractHash = extract "-- hash: " Just
 
 extractVersion :: [String] -> Maybe Version
-extractVersion = extract prefix (parseVersion . safeInit)
+extractVersion = extract prefix (stripFileName >=> parseVersion . safeInit)
   where
-    prefix = "-- This file has been generated from package.yaml by hpack version "
+    prefix = "-- This file has been generated from "
+    stripFileName :: String -> Maybe String
+    stripFileName = listToMaybe . mapMaybe (stripPrefix " by hpack version ") . tails
 
 extract :: String -> (String -> Maybe a) -> [String] -> Maybe a
 extract prefix parse = listToMaybe . mapMaybe (stripPrefix prefix >=> parse)
