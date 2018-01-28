@@ -1,13 +1,35 @@
 # hpack: An alternative format for Haskell packages
 
-The Hpack package format is based on [YAML](http://yaml.org/).  Packages
-are described in a file named `package.yaml`.
+Hpack is a format for Haskell packages.  It is a modern alternative to the
+Cabal package format and follows different design principles.
 
-Hpack is designed to remove redundancies from your package descriptions.
+
+## Design principles
+The guiding design principles for Hpack are:
+
+* Don't require the user to state the obvious, make sensible assumptions by
+  default
+* Give the user 100% control when needed
+* Don't require the user to repeat things, facilitate [DRY](https://en.wikipedia.org/wiki/Don't_repeat_yourself)ness
+
+## Surface syntax: YAML and Dhall
+
+By default Hpack uses [YAML](http://yaml.org/) as surface syntax.
+With [sol/hpack-dhall](https://github.com/sol/hpack-dhall) the [Dhall
+configuration language](https://github.com/dhall-lang/dhall-haskell) can be
+used instead of YAML.
+
+## Tool integration
+
+Hpack packages are described in a file named `package.yaml`.  The [`stack`
+build tool](https://haskellstack.org/) has native support for Hpack.  For other
+build tools the `hpack` executable can be used to generate a `.cabal` file.
+
+## There is no user guide
 
 There is reference documentation below, but introductory documentation is still
-lacking. For the time being, take a look at the slides from my talk about Hpack at the Singapore Haskell
-meetup: http://typeful.net/talks/hpack
+lacking. For the time being, take a look at the slides from my talk about Hpack
+at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 
 ## Examples
 
