@@ -119,7 +119,7 @@ spec = do
           splitDirectory (Just file) `shouldReturn` (Just dir, "foo.yaml")
 
     context "when path does not exist" $ do
-      it "defaults directory to Nothing" $ do
+      it "splits path into directory and file name" $ do
         inTempDirectory $ do
           splitDirectory (Just "test/foo.yaml") `shouldReturn` (Just "test", "foo.yaml")
 
@@ -129,6 +129,6 @@ spec = do
           splitDirectory (Just "test") `shouldReturn` (Nothing, "test")
 
     context "when directory does not exist" $ do
-      it "defaults directory to Nothing" $ do
+      it "defaults file name to package.yaml" $ do
         inTempDirectory $ do
           splitDirectory (Just "test/") `shouldReturn` (Just "test", "package.yaml")
