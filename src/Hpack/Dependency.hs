@@ -121,7 +121,7 @@ instance FromJSON Dependency where
       (name, versionRange) <- parseJSON v >>= parseDependency
       return (Dependency name versionRange)
     Object o -> addSourceDependency o
-    _ -> typeMismatch "String or an Object" v
+    _ -> typeMismatch "Object or String" v
     where
       addSourceDependency o = Dependency <$> name <*> (SourceDependency <$> parseJSON v)
         where

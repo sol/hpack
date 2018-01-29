@@ -70,6 +70,7 @@ import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Writer
 import           Control.Monad.Trans.Except
 import           Control.Monad.IO.Class
+import           Data.Aeson.Internal
 
 import           Hpack.Syntax.Util
 import           Hpack.Syntax.UnknownFields
@@ -569,7 +570,7 @@ type Warnings m = WriterT [String] m
 type Errors = ExceptT String
 
 decodeYaml :: FromJSON a => FilePath -> Warnings (Errors IO) a
-decodeYaml = lift . ExceptT . Yaml.decodeYaml
+decodeYaml file = lift . ExceptT $ (>>= parseValue file) <$> Yaml.decodeYaml file
 
 readPackageConfig :: FilePath -> FilePath -> IO (Either String (Package, [String]))
 readPackageConfig = readPackageConfigWith Yaml.decodeYaml
@@ -577,9 +578,23 @@ readPackageConfig = readPackageConfigWith Yaml.decodeYaml
 readPackageConfigWith :: (FilePath -> IO (Either String Value)) -> FilePath -> FilePath -> IO (Either String (Package, [String]))
 readPackageConfigWith readValue userDataDir file = runExceptT $ runWriterT $ do
   value <- lift . ExceptT $ readValue file
-  config <- lift . ExceptT . return $ first ((file ++ ": ") ++) (parseEither parseJSON value)
+  config <- lift . ExceptT . return $ parseValue file value
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
   toPackage userDataDir dir config
+
+parseValue :: FromJSON a => FilePath -> Value -> Either String a
+parseValue file value = case ifromJSON value of
+  IError path err -> Left (file ++ ": Error while parsing " ++ formatPath "$" path ++ " - " ++ sanitizeError err)
+  ISuccess a -> Right a
+  where
+    formatPath acc [] = acc
+    formatPath acc (Index n : xs) = formatPath (acc ++ "[" ++ show n ++ "]") xs
+    formatPath acc (Key key : xs) = formatPath (acc ++ "." ++ T.unpack key) xs
+
+    sanitizeError = replace "record (:*:)" "Object"
+
+replace :: String -> String -> String -> String
+replace old new = T.unpack . T.replace (T.pack old) (T.pack new) . T.pack
 
 data Package = Package {
   packageName :: String

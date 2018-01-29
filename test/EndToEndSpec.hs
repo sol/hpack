@@ -116,7 +116,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           path: defaults.yaml
           ref: "2017"
         library: {}
-        |] `shouldFailWith` (file ++ ": Error in $: expected record (:*:), encountered Array")
+        |] `shouldFailWith` (file ++ ": Error while parsing $ - expected Object, encountered Array")
 
       it "warns on unknown fields" $ do
         let file = joinPath ["defaults", "sol", "hpack-template", "2017", "defaults.yaml"]
@@ -150,7 +150,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       it "rejects other values" $ do
         [i|
         version: {}
-        |] `shouldFailWith` "package.yaml: Error in $.version: expected Number or String, encountered Object"
+        |] `shouldFailWith` "package.yaml: Error while parsing $.version - expected Number or String, encountered Object"
 
     describe "extra-doc-files" $ do
       it "accepts a list of files" $ do
@@ -916,7 +916,14 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             then:
               dependencies: Win32
             else: null
-          |] `shouldFailWith` "package.yaml: Error in $.when.else: expected record (:*:), encountered Null"
+          |] `shouldFailWith` "package.yaml: Error while parsing $.when.else - expected Object, encountered Null"
+
+        it "rejects invalid conditionals" $ do
+          [i|
+            dependencies:
+              - foo
+              - 23
+          |] `shouldFailWith` "package.yaml: Error while parsing $.dependencies[1] - expected Object or String, encountered Number"
 
         it "warns on unknown fields" $ do
           [i|
