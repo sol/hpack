@@ -9,6 +9,7 @@ module Hpack.Dependency (
 , GitRef
 , GitUrl
 , githubBaseUrl
+, scientificToVersion
 ) where
 
 import qualified Data.Text as T
@@ -75,6 +76,11 @@ instance FromJSON DependencyVersion where
 
 scientificToDependencyVersion :: Scientific -> DependencyVersion
 scientificToDependencyVersion n = VersionRange ("==" ++ version)
+  where
+    version = scientificToVersion n
+
+scientificToVersion :: Scientific -> String
+scientificToVersion n = version
   where
     version = formatScientific Fixed (Just decimalPlaces) n
     decimalPlaces

@@ -462,9 +462,17 @@ type PackageConfig capture cSources jsSources = PackageConfig_
   (SectionConfig capture cSources jsSources ExecutableSection)
   capture cSources jsSources
 
+data PackageVersion = PackageVersion {unPackageVersion :: String}
+
+instance FromJSON PackageVersion where
+  parseJSON v = case v of
+    Number n -> return (PackageVersion $ scientificToVersion n)
+    String s -> PackageVersion <$> parseJSON v
+    _ -> typeMismatch "Number or String" v
+
 data PackageConfig_ library executable capture cSources jsSources = PackageConfig {
   packageConfigName :: Maybe String
-, packageConfigVersion :: Maybe String
+, packageConfigVersion :: Maybe PackageVersion
 , packageConfigSynopsis :: Maybe String
 , packageConfigDescription :: Maybe String
 , packageConfigHomepage :: Maybe (Maybe String)
@@ -818,7 +826,7 @@ toPackage_ dir (Product globalOptions PackageConfig{..}) = do
 
       pkg = Package {
         packageName = packageName_
-      , packageVersion = fromMaybe "0.0.0" packageConfigVersion
+      , packageVersion = maybe "0.0.0" unPackageVersion packageConfigVersion
       , packageSynopsis = packageConfigSynopsis
       , packageDescription = packageConfigDescription
       , packageHomepage = homepage

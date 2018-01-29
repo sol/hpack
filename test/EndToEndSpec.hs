@@ -134,6 +134,24 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           , "Ignoring unknown field \"foo\" in " ++ file
           ]
 
+    describe "version" $ do
+      it "accepts string" $ do
+        [i|
+        version: 0.1.0
+        |] `shouldRenderTo` (package [i|
+        |]) {packageVersion = "0.1.0"}
+
+      it "accepts number" $ do
+        [i|
+        version: 0.1
+        |] `shouldRenderTo` (package [i|
+        |]) {packageVersion = "0.1"}
+
+      it "rejects other values" $ do
+        [i|
+        version: {}
+        |] `shouldFailWith` "package.yaml: Error in $.version: expected Number or String, encountered Object"
+
     describe "extra-doc-files" $ do
       it "accepts a list of files" $ do
         touch "CHANGES.markdown"
@@ -1021,10 +1039,11 @@ executable #{name}
 |]
 
 package :: String -> Package
-package = Package "foo" "Simple" ">= 1.10"
+package = Package "foo" "0.0.0" "Simple" ">= 1.10"
 
 data Package = Package {
   packageName :: String
+, packageVersion :: String
 , packageBuildType :: String
 , packageCabalVersion :: String
 , packageContent :: String
@@ -1033,7 +1052,7 @@ data Package = Package {
 renderPackage :: Package -> String
 renderPackage Package{..} = unindent [i|
 name: #{packageName}
-version: 0.0.0
+version: #{packageVersion}
 build-type: #{packageBuildType}
 cabal-version: #{packageCabalVersion}
 
