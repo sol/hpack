@@ -22,9 +22,10 @@ import qualified Distribution.Version as D
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import           Data.Scientific
-import           Data.Aeson.Types
 import           Control.Applicative
 import           GHC.Exts
+
+import           Data.Aeson.Config.FromValue
 
 githubBaseUrl :: String
 githubBaseUrl = "https://github.com/"
@@ -50,11 +51,11 @@ data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
 type GitUrl = String
 type GitRef = String
 
-instance FromJSON Dependencies where
-  parseJSON v = case v of
-    String _ -> dependenciesFromList . return <$> parseJSON v
-    Array _ -> dependenciesFromList <$> parseJSON v
-    Object _ -> Dependencies <$> parseJSON v
+instance FromValue Dependencies where
+  fromValue v = case v of
+    String _ -> dependenciesFromList . return <$> fromValue v
+    Array _ -> dependenciesFromList <$> fromValue v
+    Object _ -> Dependencies <$> fromValue v
     _ -> typeMismatch "Array, Object, or String" v
     where
       fromDependency :: Dependency -> (String, DependencyVersion)
@@ -63,10 +64,11 @@ instance FromJSON Dependencies where
       dependenciesFromList :: [Dependency] -> Dependencies
       dependenciesFromList = Dependencies . Map.fromList . map fromDependency
 
-instance FromJSON DependencyVersion where
-  parseJSON v = case v of
+
+instance FromValue DependencyVersion where
+  fromValue v = case v of
     Null -> return AnyVersion
-    Object _ -> SourceDependency <$> parseJSON v
+    Object _ -> SourceDependency <$> fromValue v
     Number n -> return (scientificToDependencyVersion n)
     String s -> parseVersionRange ("== " ++ input) <|> parseVersionRange input
       where
@@ -88,8 +90,8 @@ scientificToVersion n = version
       | otherwise = 0
     e = base10Exponent n
 
-instance FromJSON SourceDependency where
-  parseJSON = withObject "SourceDependency" (\o -> let
+instance FromValue SourceDependency where
+  fromValue = withObject (\o -> let
     local :: Parser SourceDependency
     local = Local <$> o .: "path"
 
@@ -115,15 +117,13 @@ data Dependency = Dependency {
 , _dependencyVersion :: DependencyVersion
 } deriving (Eq, Show)
 
-instance FromJSON Dependency where
-  parseJSON v = case v of
-    String _ -> do
-      (name, versionRange) <- parseJSON v >>= parseDependency
-      return (Dependency name versionRange)
+instance FromValue Dependency where
+  fromValue v = case v of
+    String s -> uncurry Dependency <$> parseDependency (T.unpack s)
     Object o -> addSourceDependency o
     _ -> typeMismatch "Object or String" v
     where
-      addSourceDependency o = Dependency <$> name <*> (SourceDependency <$> parseJSON v)
+      addSourceDependency o = Dependency <$> name <*> (SourceDependency <$> fromValue v)
         where
           name :: Parser String
           name = o .: "name"

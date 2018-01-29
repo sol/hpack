@@ -21,7 +21,7 @@ import qualified Data.ByteString.Char8 as B
 import           System.FilePath
 import           System.Directory
 
-import           Hpack.Syntax
+import           Hpack.Syntax.Defaults
 
 type URL = String
 

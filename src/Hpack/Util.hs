@@ -1,12 +1,6 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Hpack.Util (
-  List(..)
-, fromMaybeList
-, GhcOption
+  GhcOption
 , GhcProfOption
 , GhcjsOption
 , CppOption
@@ -25,7 +19,6 @@ module Hpack.Util (
 
 import           Control.Exception
 import           Control.Monad
-import           Data.Aeson.Types
 import           Data.Char
 import           Data.List hiding (sort)
 import           Data.Ord
@@ -44,17 +37,6 @@ sort = sortBy (comparing lexicographically)
 
 lexicographically :: String -> (String, String)
 lexicographically x = (map toLower x, x)
-
-newtype List a = List {fromList :: [a]}
-  deriving (Eq, Show, Functor, Foldable, Traversable, Monoid)
-
-instance FromJSON a => FromJSON (List a) where
-  parseJSON v = List <$> case v of
-    Array _ -> parseJSON v
-    _ -> return <$> parseJSON v
-
-fromMaybeList :: Maybe (List a) -> [a]
-fromMaybeList = maybe [] fromList
 
 type GhcOption = String
 type GhcProfOption = String

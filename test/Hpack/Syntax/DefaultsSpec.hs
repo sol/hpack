@@ -1,10 +1,12 @@
 {-# LANGUAGE QuasiQuotes #-}
-module Hpack.SyntaxSpec (spec) where
+module Hpack.Syntax.DefaultsSpec (spec) where
 
 import           Helper
-import           Data.String.Interpolate.IsString
 
-import           Hpack.Syntax
+import           Data.Aeson.Config.FromValueSpec hiding (spec)
+
+import           Data.Aeson.Config.FromValue
+import           Hpack.Syntax.Defaults
 
 spec :: Spec
 spec = do
@@ -46,15 +48,18 @@ spec = do
     it "accepts hyphens" $ do
       isValidRepo "foo-bar" `shouldBe` True
 
-  describe "parseJSON" $ do
+  describe "fromValue" $ do
     context "when parsing Defaults" $ do
+      let
+        left :: String -> DecodeResult Defaults
+        left = Left
       context "with Object" $ do
         it "accepts Defaults from GitHub" $ do
-          [i|
+          [yaml|
           github: sol/hpack
           ref: 0.1.0
           path: defaults.yaml
-          |] `shouldParseAs` Right Defaults {
+          |] `shouldDecodeTo_` Defaults {
               defaultsGithubUser = "sol"
             , defaultsGithubRepo = "hpack"
             , defaultsRef = "0.1.0"
@@ -62,59 +67,59 @@ spec = do
             }
 
         it "rejects invalid user names" $ do
-          [i|
+          [yaml|
           github: ../hpack
           ref: 0.1.0
           path: defaults.yaml
-          |] `shouldParseAs` (Left "Error in $.github: invalid user name \"..\"" :: Either String Defaults)
+          |] `shouldDecodeTo` left "Error while parsing $.github - invalid user name \"..\""
 
         it "rejects invalid repository names" $ do
-          [i|
+          [yaml|
           github: sol/..
           ref: 0.1.0
           path: defaults.yaml
-          |] `shouldParseAs` (Left "Error in $.github: invalid repository name \"..\"" :: Either String Defaults)
+          |] `shouldDecodeTo` left "Error while parsing $.github - invalid repository name \"..\""
 
         it "rejects invalid Git references" $ do
-          [i|
+          [yaml|
           github: sol/hpack
           ref: ../foo/bar
           path: defaults.yaml
-          |] `shouldParseAs` (Left "Error in $.ref: invalid Git reference \"../foo/bar\"" :: Either String Defaults)
+          |] `shouldDecodeTo` left "Error while parsing $.ref - invalid Git reference \"../foo/bar\""
 
         it "rejects \\ in path" $ do
-          [i|
+          [yaml|
           github: sol/hpack
           ref: 0.1.0
-          path: hpack\\defaults.yaml
-          |] `shouldParseAs` (Left "Error in $.path: rejecting '\\' in \"hpack\\\\defaults.yaml\", please use '/' to separate path components" :: Either String Defaults)
+          path: hpack\defaults.yaml
+          |] `shouldDecodeTo` left "Error while parsing $.path - rejecting '\\' in \"hpack\\\\defaults.yaml\", please use '/' to separate path components"
 
         it "rejects : in path" $ do
-          [i|
+          [yaml|
           github: sol/hpack
           ref: 0.1.0
           path: foo:bar.yaml
-          |] `shouldParseAs` (Left "Error in $.path: rejecting ':' in \"foo:bar.yaml\"" :: Either String Defaults)
+          |] `shouldDecodeTo` left "Error while parsing $.path - rejecting ':' in \"foo:bar.yaml\""
 
         it "rejects absolute paths" $ do
-          [i|
+          [yaml|
           github: sol/hpack
           ref: 0.1.0
           path: /defaults.yaml
-          |] `shouldParseAs` (Left "Error in $.path: rejecting absolute path \"/defaults.yaml\"" :: Either String Defaults)
+          |] `shouldDecodeTo` left "Error while parsing $.path - rejecting absolute path \"/defaults.yaml\""
 
         it "rejects .. in path" $ do
-          [i|
+          [yaml|
           github: sol/hpack
           ref: 0.1.0
           path: ../../defaults.yaml
-          |] `shouldParseAs` (Left "Error in $.path: rejecting \"..\" in \"../../defaults.yaml\"" :: Either String Defaults)
+          |] `shouldDecodeTo` left "Error while parsing $.path - rejecting \"..\" in \"../../defaults.yaml\""
 
       context "with String" $ do
         it "accepts Defaults from GitHub" $ do
-          [i|
+          [yaml|
           sol/hpack@0.1.0
-          |] `shouldParseAs` Right Defaults {
+          |] `shouldDecodeTo_` Defaults {
               defaultsGithubUser = "sol"
             , defaultsGithubRepo = "hpack"
             , defaultsRef = "0.1.0"
@@ -122,27 +127,27 @@ spec = do
             }
 
         it "rejects invalid user names" $ do
-          [i|
+          [yaml|
           ../hpack@0.1.0
-          |] `shouldParseAs` (Left "Error in $: invalid user name \"..\"" :: Either String Defaults)
+          |] `shouldDecodeTo` left "Error while parsing $ - invalid user name \"..\""
 
         it "rejects invalid repository names" $ do
-          [i|
+          [yaml|
           sol/..@0.1.0
-          |] `shouldParseAs` (Left "Error in $: invalid repository name \"..\"" :: Either String Defaults)
+          |] `shouldDecodeTo` left "Error while parsing $ - invalid repository name \"..\""
 
         it "rejects invalid Git references" $ do
-          [i|
+          [yaml|
           sol/pack@../foo/bar
-          |] `shouldParseAs` (Left "Error in $: invalid Git reference \"../foo/bar\"" :: Either String Defaults)
+          |] `shouldDecodeTo` left "Error while parsing $ - invalid Git reference \"../foo/bar\""
 
         it "rejects missing Git reference" $ do
-          [i|
+          [yaml|
           sol/hpack
-          |] `shouldParseAs` (Left "Error in $: missing Git reference for \"sol/hpack\", the expected format is user/repo@ref" :: Either String Defaults)
+          |] `shouldDecodeTo` left "Error while parsing $ - missing Git reference for \"sol/hpack\", the expected format is user/repo@ref"
 
       context "with neither Object nor String" $ do
         it "fails" $ do
-          [i|
+          [yaml|
           10
-          |] `shouldParseAs` (Left "Error in $: expected Object or String, encountered Number" :: Either String Defaults)
+          |] `shouldDecodeTo` left "Error while parsing $ - expected Object or String, encountered Number"

@@ -1,8 +1,8 @@
-module Hpack.Syntax.UtilSpec (spec) where
+module Data.Aeson.Config.UtilSpec (spec) where
 
 import           Test.Hspec
 
-import           Hpack.Syntax.Util
+import           Data.Aeson.Config.Util
 
 spec :: Spec
 spec = do

@@ -32,6 +32,7 @@ dependencies:
   - http-types
   - http-client
   - http-client-tls
+  - vector
 
 library:
   source-dirs: src
@@ -60,3 +61,6 @@ tests:
       - temporary
       - mockery >= 0.3
       - interpolate
+      - template-haskell
+      - HUnit
+      - yaml >= 0.8.28

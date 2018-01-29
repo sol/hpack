@@ -1,7 +1,8 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE RecordWildCards #-}
-module Hpack.Syntax (
+module Hpack.Syntax.Defaults (
   Defaults(..)
 #ifdef TEST
 , isValidUser
@@ -10,31 +11,25 @@ module Hpack.Syntax (
 ) where
 
 import           Data.List
-import           Data.Data
+import qualified Data.Text as T
 import           System.FilePath.Posix (splitDirectories)
 
-import           Hpack.Syntax.Util
-import           Hpack.Syntax.UnknownFields
+import           Data.Aeson.Config.FromValue
 import           Hpack.Syntax.Git
 
 data ParseDefaults = ParseDefaults {
   parseDefaultsGithub :: Github
 , parseDefaultsRef :: Ref
 , parseDefaultsPath :: Maybe Path
-} deriving Generic
-
-instance HasFieldNames ParseDefaults
-
-instance FromJSON ParseDefaults where
-  parseJSON = genericParseJSON
+} deriving (Generic, FromValue)
 
 data Github = Github {
   githubUser :: String
 , githubRepo :: String
 }
 
-instance FromJSON Github where
-  parseJSON v = parseJSON v >>= parseGithub
+instance FromValue Github where
+  fromValue = withString parseGithub
 
 parseGithub :: String -> Parser Github
 parseGithub github
@@ -70,8 +65,8 @@ alphaNum = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9']
 
 data Ref = Ref {unRef :: String}
 
-instance FromJSON Ref where
-  parseJSON v = parseJSON v >>= parseRef
+instance FromValue Ref where
+  fromValue = withString parseRef
 
 parseRef :: String -> Parser Ref
 parseRef ref
@@ -80,8 +75,8 @@ parseRef ref
 
 data Path = Path {unPath :: [FilePath]}
 
-instance FromJSON Path where
-  parseJSON v = parseJSON v >>= parsePath
+instance FromValue Path where
+  fromValue = withString parsePath
     where
       parsePath path
         | '\\' `elem` path = fail ("rejecting '\\' in " ++ show path ++ ", please use '/' to separate path components")
@@ -99,10 +94,10 @@ data Defaults = Defaults {
 , defaultsPath :: [FilePath]
 } deriving (Eq, Show)
 
-instance FromJSON Defaults where
-  parseJSON v = toDefaults <$> case v of
-    String _ -> parseJSON v >>= parseDefaultsFromString
-    Object _ -> parseJSON v
+instance FromValue Defaults where
+  fromValue v = toDefaults <$> case v of
+    String s -> parseDefaultsFromString (T.unpack s)
+    Object _ -> fromValue v
     _ -> typeMismatch "Object or String" v
     where
       toDefaults :: ParseDefaults -> Defaults
@@ -117,6 +112,3 @@ parseDefaultsFromString :: String -> Parser ParseDefaults
 parseDefaultsFromString xs = case break (== '@') xs of
   (github, '@' : ref) -> ParseDefaults <$> parseGithub github <*> parseRef ref <*> pure Nothing
   _ -> fail ("missing Git reference for " ++ show xs ++ ", the expected format is user/repo@ref")
-
-instance HasFieldNames Defaults where
-  fieldNames Proxy = fieldNames (Proxy :: Proxy ParseDefaults)

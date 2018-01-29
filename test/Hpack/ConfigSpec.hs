@@ -15,7 +15,8 @@ module Hpack.ConfigSpec (
 ) where
 
 import           Helper
-import           Data.Aeson.Types
+import           Data.Aeson.Config.FromValueSpec hiding (spec)
+
 import           Data.String.Interpolate.IsString
 import           Control.Arrow
 import qualified GHC.Exts as Exts
@@ -23,10 +24,13 @@ import           System.Directory (createDirectory)
 import           Data.Either
 import qualified Data.Map.Lazy as Map
 
-import           Hpack.Util
 import           Hpack.Dependency
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
+
+import           Data.Aeson.Config.Types
+import           Data.Aeson.Config.FromValue
+
 
 instance Exts.IsList (Maybe (List a)) where
   type Item (Maybe (List a)) = a
@@ -152,78 +156,6 @@ spec = do
         getModules dir  "./." `shouldReturn` ["Foo"]
 
   describe "readPackageConfig" $ do
-    it "warns on unknown fields" $ do
-      withPackageWarnings_ [i|
-        name: foo
-        bar: 23
-        baz: 42
-        _qux: 66
-        |]
-        (`shouldMatchList` [
-          "Ignoring unknown field \"bar\" in package description"
-        , "Ignoring unknown field \"baz\" in package description"
-        ]
-        )
-
-    it "warns on unknown fields in when block, list" $ do
-      withPackageWarnings_ [i|
-        name: foo
-        when:
-          - condition: impl(ghc)
-            bar: 23
-            baz: 42
-            _qux: 66
-        |]
-        (`shouldMatchList` [
-          "Ignoring unknown field \"_qux\" in package description"
-        , "Ignoring unknown field \"bar\" in package description"
-        , "Ignoring unknown field \"baz\" in package description"
-        ]
-        )
-
-    it "warns on unknown fields in when block, single" $ do
-      withPackageWarnings_ [i|
-        name: foo
-        when:
-          condition: impl(ghc)
-          github: foo/bar
-          dependencies: ghc-prim
-          baz: 42
-        |]
-        (`shouldMatchList` [
-          "Ignoring unknown field \"baz\" in package description"
-        , "Ignoring unknown field \"github\" in package description"
-        ]
-        )
-
-    it "warns on unknown fields in when block in library section" $ do
-      withPackageWarnings_ [i|
-        name: foo
-        library:
-          when:
-            condition: impl(ghc)
-            baz: 42
-        |]
-        (`shouldBe` [
-          "Ignoring unknown field \"baz\" in library section"
-        ]
-        )
-
-    it "warns on unknown fields in when block in executable section" $ do
-      withPackageWarnings_ [i|
-        name: foo
-        executables:
-          foo:
-            main: Main.hs
-            when:
-              condition: impl(ghc)
-              baz: 42
-        |]
-        (`shouldBe` [
-          "Ignoring unknown field \"baz\" in executable section \"foo\""
-        ]
-        )
-
     it "warns on missing name" $ do
       withPackageWarnings_ [i|
         {}
@@ -320,33 +252,6 @@ spec = do
         |]
         (packageLicenseFile >>> (`shouldBe` ["FOO", "BAR"]))
 
-    it "accepts build-type: Simple" $ do
-      withPackageConfig_ [i|
-        build-type: Simple
-        |]
-        (`shouldBe` package {packageBuildType = Simple})
-
-    it "accepts build-type: Configure" $ do
-      withPackageConfig_ [i|
-        build-type: Configure
-        |]
-        (`shouldBe` package {packageBuildType = Configure})
-
-    it "accepts build-type: Make" $ do
-      withPackageConfig_ [i|
-        build-type: Make
-        |]
-        (`shouldBe` package {packageBuildType = Make})
-
-    it "accepts build-type: Custom" $ do
-      withPackageConfig_ [i|
-        build-type: Custom
-        |]
-        (`shouldBe` package {packageBuildType = Custom})
-
-    it "rejects unknown build-type" $ do
-      parseEither parseJSON (String "foobar") `shouldBe` (Left "Error in $: build-type must be one of: Simple, Configure, Make, Custom" :: Either String BuildType)
-
     it "accepts flags" $ do
       withPackageConfig_ [i|
         flags:
@@ -356,21 +261,6 @@ spec = do
             default: no
         |]
         (packageFlags >>> (`shouldBe` [Flag "integration-tests" (Just "Run the integration test suite") True False]))
-
-    it "warns on unknown fields in flag sections" $ do
-      withPackageWarnings_ [i|
-        name: foo
-        flags:
-          integration-tests:
-            description: Run the integration test suite
-            manual: yes
-            default: no
-            foo: 23
-        |]
-        (`shouldBe` [
-          "Ignoring unknown field \"foo\" for flag \"integration-tests\""
-        ]
-        )
 
     it "accepts extra-source-files" $ do
       withPackageConfig [i|
@@ -510,19 +400,6 @@ spec = do
         (packageName >>> (`shouldBe` "n2"))
 
     context "when reading library section" $ do
-      it "warns on unknown fields" $ do
-        withPackageWarnings_ [i|
-          name: foo
-          library:
-            bar: 23
-            baz: 42
-          |]
-          (`shouldMatchList` [
-            "Ignoring unknown field \"bar\" in library section"
-          , "Ignoring unknown field \"baz\" in library section"
-          ]
-          )
-
       it "accepts source-dirs" $ do
         withPackageConfig_ [i|
           library:
@@ -585,21 +462,6 @@ spec = do
           (packageLibrary >>> (`shouldBe` Just (section library{libraryExposed = Just False})))
 
     context "when reading executable section" $ do
-      it "warns on unknown fields" $ do
-        withPackageWarnings_ [i|
-          name: foo
-          executables:
-            foo:
-              main: Main.hs
-              bar: 42
-              baz: 23
-          |]
-          (`shouldMatchList` [
-            "Ignoring unknown field \"bar\" in executable section \"foo\""
-          , "Ignoring unknown field \"baz\" in executable section \"foo\""
-          ]
-          )
-
       it "reads executables section" $ do
         withPackageConfig_ [i|
           executables:
@@ -614,15 +476,6 @@ spec = do
             main: driver/Main.hs
           |]
           (packageExecutables >>> (`shouldBe` Map.fromList [("foo", section $ executable "driver/Main.hs")]))
-
-      it "warns on unknown executable fields" $ do
-        withPackageWarnings_ [i|
-          name: foo
-          executable:
-            main: Main.hs
-            unknown: true
-          |]
-          (`shouldBe` ["Ignoring unknown field \"unknown\" in executable section"])
 
       context "with both executable and executables" $ do
         it "gives executable precedence" $ do
@@ -748,38 +601,7 @@ spec = do
           |]
           (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]})]})
 
-    context "when reading benchmark section" $ do
-      it "warns on unknown fields" $ do
-        withPackageWarnings_ [i|
-          name: foo
-          benchmarks:
-            foo:
-              main: Main.hs
-              bar: 42
-              baz: 23
-          |]
-          (`shouldMatchList` [
-            "Ignoring unknown field \"bar\" in benchmark section \"foo\""
-          , "Ignoring unknown field \"baz\" in benchmark section \"foo\""
-          ]
-          )
-
     context "when reading test section" $ do
-      it "warns on unknown fields" $ do
-        withPackageWarnings_ [i|
-          name: foo
-          tests:
-            foo:
-              main: Main.hs
-              bar: 42
-              baz: 23
-          |]
-          (`shouldMatchList` [
-            "Ignoring unknown field \"bar\" in test section \"foo\""
-          , "Ignoring unknown field \"baz\" in test section \"foo\""
-          ]
-          )
-
       it "reads test section" $ do
         withPackageConfig_ [i|
           tests:
@@ -841,24 +663,34 @@ spec = do
           let file = dir </> "package.yaml"
           readPackageConfig undefined file `shouldReturn` Left [i|#{file}: Yaml file not found: #{file}|]
 
-  describe "parseJSON" $ do
-    context "when parsing Cond" $ do
+  describe "fromValue" $ do
+    context "with Cond" $ do
       it "accepts Strings" $ do
-        [i|
+        [yaml|
         os(windows)
-        |] `shouldParseAs` Right (Cond "os(windows)")
+        |] `shouldDecodeTo_` Cond "os(windows)"
 
       it "accepts True" $ do
-        [i|
+        [yaml|
         yes
-        |] `shouldParseAs` Right (Cond "true")
+        |] `shouldDecodeTo_` Cond "true"
 
       it "accepts False" $ do
-        [i|
+        [yaml|
         no
-        |] `shouldParseAs` Right (Cond "false")
+        |] `shouldDecodeTo_` Cond "false"
 
       it "rejects other values" $ do
-        [i|
+        [yaml|
         23
-        |] `shouldParseAs` (Left "Error in $: expected Boolean or String, encountered Number" :: Either String Cond)
+        |] `shouldDecodeTo` (Left "Error while parsing $ - expected Boolean or String, encountered Number" :: DecodeResult Cond)
+
+  describe "formatOrList" $ do
+    it "formats a singleton list" $ do
+      formatOrList ["foo"] `shouldBe` "foo"
+
+    it "formats a 2-element list" $ do
+      formatOrList ["foo", "bar"] `shouldBe` "foo or bar"
+
+    it "formats an n-element list" $ do
+      formatOrList ["foo", "bar", "baz"] `shouldBe` "foo, bar, or baz"

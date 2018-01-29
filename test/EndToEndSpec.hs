@@ -9,9 +9,9 @@ import           Prelude hiding (writeFile)
 import qualified Prelude
 
 import           Helper
+import           Test.HUnit
 
 import           System.Directory (canonicalizePath)
-import           Control.Exception
 import           Data.Maybe
 import           Data.List
 import           Data.String.Interpolate
@@ -218,16 +218,15 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         name: foo
         library: {}
         |] `shouldWarn` [
-            "Ignoring unknown field \"bar\" in defaults section"
-          , "Ignoring unknown field \"foo\" in " ++ file
+            "package.yaml: Ignoring unrecognized field $.defaults.bar"
+          , file ++ ": Ignoring unrecognized field $.foo"
           ]
 
     describe "version" $ do
       it "accepts string" $ do
         [i|
         version: 0.1.0
-        |] `shouldRenderTo` (package [i|
-        |]) {packageVersion = "0.1.0"}
+        |] `shouldRenderTo` (package "") {packageVersion = "0.1.0"}
 
       it "accepts number" $ do
         [i|
@@ -239,6 +238,33 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         [i|
         version: {}
         |] `shouldFailWith` "package.yaml: Error while parsing $.version - expected Number or String, encountered Object"
+
+    describe "build-type" $ do
+      it "accept Simple" $ do
+        [i|
+        build-type: Simple
+        |] `shouldRenderTo` (package "") {packageBuildType = "Simple"}
+
+      it "accept Configure" $ do
+        [i|
+        build-type: Configure
+        |] `shouldRenderTo` (package "") {packageBuildType = "Configure"}
+
+      it "accept Make" $ do
+        [i|
+        build-type: Make
+        |] `shouldRenderTo` (package "") {packageBuildType = "Make"}
+
+      it "accept Custom" $ do
+        [i|
+        build-type: Custom
+        |] `shouldRenderTo` (package "") {packageBuildType = "Custom"}
+
+      it "rejects invalid values" $ do
+        [i|
+        build-type: foo
+        |] `shouldFailWith` "package.yaml: Error while parsing $.build-type - expected one of Simple, Configure, Make, or Custom"
+
 
     describe "extra-doc-files" $ do
       it "accepts a list of files" $ do
@@ -509,8 +535,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           foo: 1
           bar: 2
         |] `shouldWarn` [
-            "Ignoring unknown field \"bar\" in custom-setup section"
-          , "Ignoring unknown field \"foo\" in custom-setup section"
+            "package.yaml: Ignoring unrecognized field $.custom-setup.bar"
+          , "package.yaml: Ignoring unrecognized field $.custom-setup.foo"
           ]
 
       it "accepts dependencies" $ do
@@ -790,7 +816,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         internal-libraries:
           bar:
             baz: 42
-        |] `shouldWarn` pure "Ignoring unknown field \"baz\" in internal-libraries section \"bar\""
+        |] `shouldWarn` pure "package.yaml: Ignoring unrecognized field $.internal-libraries.bar.baz"
 
       it "warns on missing source-dirs" $ do
         [i|
@@ -972,10 +998,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - condition: os(windows)
             baz: 23
         |] `shouldWarn` [
-            "Ignoring unknown field \"foo\" in package description"
-          , "Ignoring unknown field \"bar\" in package description"
-          , "Ignoring unknown field \"bar2\" in package description"
-          , "Ignoring unknown field \"baz\" in package description"
+            "package.yaml: Ignoring unrecognized field $.foo"
+          , "package.yaml: Ignoring unrecognized field $.when[0].bar"
+          , "package.yaml: Ignoring unrecognized field $.when[0].when.bar2"
+          , "package.yaml: Ignoring unrecognized field $.when[1].baz"
           ]
 
       context "when parsing conditionals with else-branch" $ do
@@ -1028,13 +1054,13 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 else:
                   baz: null
           |] `shouldWarn` [
-              "Ignoring unknown field \"foo\" in package description"
-            , "Ignoring unknown field \"bar\" in package description"
-            , "Ignoring unknown field \"baz\" in package description"
+              "package.yaml: Ignoring unrecognized field $.when.foo"
+            , "package.yaml: Ignoring unrecognized field $.when.then.bar"
+            , "package.yaml: Ignoring unrecognized field $.when.else.when.else.baz"
             ]
 
-run :: FilePath -> String -> IO ([String], String)
-run c old = run_ c old >>= either (throwIO . ErrorCall) return
+run :: HasCallStack => FilePath -> String -> IO ([String], String)
+run c old = run_ c old >>= either assertFailure return
 
 run_ :: FilePath -> String -> IO (Either String ([String], String))
 run_ c old = do

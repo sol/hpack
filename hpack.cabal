@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 673b49264a8acc7c22607806c4d188ae1979a8dd940edacfae4895002f4bc64a
+-- hash: 1597d0d933485404bf8046e9586ac2203f8b08fd83d3d61e0e1cc39f6890024b
 
 name:           hpack
 version:        0.23.0
@@ -48,6 +48,7 @@ library
     , text
     , transformers
     , unordered-containers
+    , vector
     , yaml
   exposed-modules:
       Hpack
@@ -55,6 +56,10 @@ library
       Hpack.Run
       Hpack.Yaml
   other-modules:
+      Data.Aeson.Config.FromValue
+      Data.Aeson.Config.Parser
+      Data.Aeson.Config.Types
+      Data.Aeson.Config.Util
       Hpack.CabalFile
       Hpack.Defaults
       Hpack.Dependency
@@ -62,11 +67,8 @@ library
       Hpack.Haskell
       Hpack.Options
       Hpack.Render
-      Hpack.Syntax
-      Hpack.Syntax.GenericsUtil
+      Hpack.Syntax.Defaults
       Hpack.Syntax.Git
-      Hpack.Syntax.UnknownFields
-      Hpack.Syntax.Util
       Hpack.Utf8
       Hpack.Util
       Paths_hpack
@@ -98,6 +100,7 @@ executable hpack
     , text
     , transformers
     , unordered-containers
+    , vector
     , yaml
   other-modules:
       Paths_hpack
@@ -114,6 +117,7 @@ test-suite spec
   build-depends:
       Cabal
     , Glob
+    , HUnit
     , QuickCheck
     , aeson >=1.0.0
     , base >=4.8 && <5
@@ -132,12 +136,17 @@ test-suite spec
     , mockery >=0.3
     , pretty
     , scientific
+    , template-haskell
     , temporary
     , text
     , transformers
     , unordered-containers
-    , yaml
+    , vector
+    , yaml >=0.8.28
   other-modules:
+      Data.Aeson.Config.FromValueSpec
+      Data.Aeson.Config.TypesSpec
+      Data.Aeson.Config.UtilSpec
       EndToEndSpec
       Helper
       Hpack.CabalFileSpec
@@ -149,13 +158,15 @@ test-suite spec
       Hpack.OptionsSpec
       Hpack.RenderSpec
       Hpack.RunSpec
-      Hpack.Syntax.GenericsUtilSpec
+      Hpack.Syntax.DefaultsSpec
       Hpack.Syntax.GitSpec
-      Hpack.Syntax.UtilSpec
-      Hpack.SyntaxSpec
       Hpack.Utf8Spec
       Hpack.UtilSpec
       HpackSpec
+      Data.Aeson.Config.FromValue
+      Data.Aeson.Config.Parser
+      Data.Aeson.Config.Types
+      Data.Aeson.Config.Util
       Hpack
       Hpack.CabalFile
       Hpack.Config
@@ -166,11 +177,8 @@ test-suite spec
       Hpack.Options
       Hpack.Render
       Hpack.Run
-      Hpack.Syntax
-      Hpack.Syntax.GenericsUtil
+      Hpack.Syntax.Defaults
       Hpack.Syntax.Git
-      Hpack.Syntax.UnknownFields
-      Hpack.Syntax.Util
       Hpack.Utf8
       Hpack.Util
       Hpack.Yaml

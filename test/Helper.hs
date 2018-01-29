@@ -7,10 +7,8 @@ module Helper (
 , withTempDirectory
 , module System.FilePath
 , withCurrentDirectory
-, shouldParseAs
+, yaml
 ) where
-import           Data.Yaml
-import           Data.ByteString (ByteString)
 
 import           Test.Hspec
 import           Test.Mockery.Directory
@@ -19,6 +17,9 @@ import           System.Directory (getCurrentDirectory, setCurrentDirectory, can
 import           Control.Exception
 import qualified System.IO.Temp as Temp
 import           System.FilePath
+
+import           Data.Yaml.TH (yamlQQ)
+import           Language.Haskell.TH.Quote (QuasiQuoter)
 
 withCurrentDirectory :: FilePath -> IO a -> IO a
 withCurrentDirectory dir action = do
@@ -30,6 +31,5 @@ withTempDirectory :: (FilePath -> IO a) -> IO a
 withTempDirectory action = Temp.withSystemTempDirectory "hspec" $ \dir -> do
   canonicalizePath dir >>= action
 
-shouldParseAs :: (HasCallStack, Show a, Eq a, FromJSON a) => ByteString -> Either String a -> Expectation
-shouldParseAs input expected = do
-  decodeEither input `shouldBe` expected
+yaml :: Language.Haskell.TH.Quote.QuasiQuoter
+yaml = yamlQQ
