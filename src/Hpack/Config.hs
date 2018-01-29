@@ -467,7 +467,7 @@ data PackageVersion = PackageVersion {unPackageVersion :: String}
 instance FromJSON PackageVersion where
   parseJSON v = case v of
     Number n -> return (PackageVersion $ scientificToVersion n)
-    String s -> PackageVersion <$> parseJSON v
+    String _ -> PackageVersion <$> parseJSON v
     _ -> typeMismatch "Number or String" v
 
 data PackageConfig_ library executable capture cSources jsSources = PackageConfig {
