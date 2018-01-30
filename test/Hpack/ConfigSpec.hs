@@ -4,6 +4,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Hpack.ConfigSpec (
   spec
@@ -43,7 +45,7 @@ executable main_ = Executable (Just main_) ["Paths_foo"] []
 library :: Library
 library = Library Nothing [] ["Paths_foo"] [] [] []
 
-withPackage :: String -> IO () -> ((Package, [String]) -> Expectation) -> Expectation
+withPackage :: HasCallStack => String -> IO () -> ((Package, [String]) -> Expectation) -> Expectation
 withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
   let dir = dir_ </> "foo"
   createDirectory dir
@@ -58,10 +60,10 @@ withPackageConfig content beforeAction expectation = withPackage content beforeA
 withPackageConfig_ :: String -> (Package -> Expectation) -> Expectation
 withPackageConfig_ content = withPackageConfig content (return ())
 
-withPackageWarnings :: String -> IO () -> ([String] -> Expectation) -> Expectation
+withPackageWarnings :: HasCallStack => String -> IO () -> ([String] -> Expectation) -> Expectation
 withPackageWarnings content beforeAction expectation = withPackage content beforeAction (expectation . snd)
 
-withPackageWarnings_ :: String -> ([String] -> Expectation) -> Expectation
+withPackageWarnings_ :: HasCallStack => String -> ([String] -> Expectation) -> Expectation
 withPackageWarnings_ content = withPackageWarnings content (return ())
 
 spec :: Spec
