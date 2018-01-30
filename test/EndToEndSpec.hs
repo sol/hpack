@@ -27,6 +27,94 @@ writeFile file c = touch file >> Prelude.writeFile file c
 spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "hpack" $ do
+    describe "github" $ do
+      it "accepts owner/repo" $ do
+        [i|
+        github: hspec/hspec
+        |] `shouldRenderTo` package [i|
+        homepage: https://github.com/hspec/hspec#readme
+        bug-reports: https://github.com/hspec/hspec/issues
+        source-repository head
+          type: git
+          location: https://github.com/hspec/hspec
+        |]
+
+      it "accepts owner/repo/path" $ do
+        [i|
+        github: hspec/hspec/hspec-core
+        |] `shouldRenderTo` package [i|
+        homepage: https://github.com/hspec/hspec#readme
+        bug-reports: https://github.com/hspec/hspec/issues
+        source-repository head
+          type: git
+          location: https://github.com/hspec/hspec
+          subdir: hspec-core
+        |]
+
+    describe "homepage" $ do
+      it "accepts homepage URL" $ do
+        [i|
+        homepage: https://example.com/
+        |] `shouldRenderTo` package [i|
+        homepage: https://example.com/
+        |]
+
+      context "with github" $ do
+        it "gives homepage URL precedence" $ do
+          [i|
+          github: hspec/hspec
+          homepage: https://example.com/
+          |] `shouldRenderTo` package [i|
+          homepage: https://example.com/
+          bug-reports: https://github.com/hspec/hspec/issues
+          source-repository head
+            type: git
+            location: https://github.com/hspec/hspec
+          |]
+
+        it "omits homepage URL if it is null" $ do
+          [i|
+          github: hspec/hspec
+          homepage: null
+          |] `shouldRenderTo` package [i|
+          bug-reports: https://github.com/hspec/hspec/issues
+          source-repository head
+            type: git
+            location: https://github.com/hspec/hspec
+          |]
+
+    describe "bug-reports" $ do
+      it "accepts bug-reports URL" $ do
+        [i|
+        bug-reports: https://example.com/
+        |] `shouldRenderTo` package [i|
+        bug-reports: https://example.com/
+        |]
+
+      context "with github" $ do
+        it "gives bug-reports URL precedence" $ do
+          [i|
+          github: hspec/hspec
+          bug-reports: https://example.com/
+          |] `shouldRenderTo` package [i|
+          homepage: https://github.com/hspec/hspec#readme
+          bug-reports: https://example.com/
+          source-repository head
+            type: git
+            location: https://github.com/hspec/hspec
+          |]
+
+        it "omits bug-reports URL if it is null" $ do
+          [i|
+          github: hspec/hspec
+          bug-reports: null
+          |] `shouldRenderTo` package [i|
+          homepage: https://github.com/hspec/hspec#readme
+          source-repository head
+            type: git
+            location: https://github.com/hspec/hspec
+          |]
+
     describe "defaults" $ do
       it "accepts global defaults" $ do
         writeFile "defaults/sol/hpack-template/2017/defaults.yaml" [i|

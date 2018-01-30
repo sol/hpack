@@ -293,46 +293,6 @@ spec = do
         |]
         (packageStability >>> (`shouldBe` Just "experimental"))
 
-    it "accepts homepage URL" $ do
-      withPackageConfig_ [i|
-        github: hspec/hspec
-        homepage: https://example.com/
-        |]
-        (packageHomepage >>> (`shouldBe` Just "https://example.com/"))
-
-    it "infers homepage URL from github" $ do
-      withPackageConfig_ [i|
-        github: hspec/hspec
-        |]
-        (packageHomepage >>> (`shouldBe` Just "https://github.com/hspec/hspec#readme"))
-
-    it "omits homepage URL if it is null" $ do
-      withPackageConfig_ [i|
-        github: hspec/hspec
-        homepage: null
-        |]
-        (packageHomepage >>> (`shouldBe` Nothing))
-
-    it "accepts bug-reports URL" $ do
-      withPackageConfig_ [i|
-        github: hspec/hspec
-        bug-reports: https://example.com/issues
-        |]
-        (packageBugReports >>> (`shouldBe` Just "https://example.com/issues"))
-
-    it "infers bug-reports URL from github" $ do
-      withPackageConfig_ [i|
-        github: hspec/hspec
-        |]
-        (packageBugReports >>> (`shouldBe` Just "https://github.com/hspec/hspec/issues"))
-
-    it "omits bug-reports URL if it is null" $ do
-      withPackageConfig_ [i|
-        github: hspec/hspec
-        bug-reports: null
-        |]
-        (packageBugReports >>> (`shouldBe` Nothing))
-
     it "accepts license" $ do
       withPackageConfig_ [i|
         license: MIT
@@ -434,18 +394,6 @@ spec = do
         touch "data/bar/index.html"
         )
         (packageDataFiles >>> (`shouldMatchList` ["data/foo/index.html", "data/bar/index.html"]))
-
-    it "accepts github" $ do
-      withPackageConfig_ [i|
-        github: hspec/hspec
-        |]
-        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://github.com/hspec/hspec" Nothing)))
-
-    it "accepts third part of github URL as subdir" $ do
-      withPackageConfig_ [i|
-        github: hspec/hspec/hspec-core
-        |]
-        (packageSourceRepository >>> (`shouldBe` Just (SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core"))))
 
     it "accepts arbitrary git URLs as source repository" $ do
       withPackageConfig_ [i|
