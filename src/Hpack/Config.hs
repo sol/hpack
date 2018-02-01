@@ -33,6 +33,10 @@ module Hpack.Config (
 
 , renamePackage
 , packageDependencies
+, packageExecutableDependencies
+, packageTestDependencies
+, packageBenchmarkDependencies
+, packageLibraryDependencies
 , package
 , section
 , Package(..)
@@ -91,6 +95,7 @@ import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Writer
 import           Control.Monad.Trans.Except
 import           Control.Monad.IO.Class
+import qualified GHC.Exts as Exts
 
 import           Data.Aeson.Config.Types
 import           Data.Aeson.Config.FromValue hiding (decodeValue)
@@ -152,14 +157,37 @@ renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Depen
     renameConditional :: Conditional (Section a) -> Conditional (Section a)
     renameConditional (Conditional condition then_ else_) = Conditional condition (renameDependencies old new then_) (renameDependencies old new <$> else_)
 
+-- | A list of a package's dependencies sorted lexicographically by name.
 packageDependencies :: Package -> [(String, DependencyVersion)]
-packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . fst)) $
-     (concatMap deps packageExecutables)
-  ++ (concatMap deps packageTests)
-  ++ (concatMap deps packageBenchmarks)
-  ++ maybe [] deps packageLibrary
-  where
-    deps xs = [(name, version) | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
+packageDependencies p = nub . sortBy (comparing (lexicographically . fst)) $ Exts.toList $ mconcat [
+    packageExecutableDependencies p
+  , packageBenchmarkDependencies p
+  , packageTestDependencies p
+  , packageLibraryDependencies p
+  ]
+
+-- | The dependencies from a specific package field's sections.
+--
+-- Example to get dependencies of all tests from a package 'p':
+--   'packageFieldDependencies packageTests p'
+packageFieldDependencies :: (Package -> Map String (Section a)) -> Package -> Dependencies
+packageFieldDependencies packageField = mconcat . map sectionDependencies . Map.elems . packageField
+
+-- | All package executable's dependencies.
+packageExecutableDependencies :: Package -> Dependencies
+packageExecutableDependencies = packageFieldDependencies packageExecutables
+
+-- | All package benchmark's dependencies.
+packageBenchmarkDependencies :: Package -> Dependencies
+packageBenchmarkDependencies = packageFieldDependencies packageBenchmarks
+
+-- | All package test's dependencies.
+packageTestDependencies :: Package -> Dependencies
+packageTestDependencies = packageFieldDependencies packageTests
+
+-- | A package library's dependencies.
+packageLibraryDependencies :: Package -> Dependencies
+packageLibraryDependencies = maybe mempty sectionDependencies . packageLibrary
 
 section :: a -> Section a
 section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty []
