@@ -27,6 +27,16 @@ writeFile file c = touch file >> Prelude.writeFile file c
 spec :: Spec
 spec = around_ (inTempDirectoryNamed "foo") $ do
   describe "hpack" $ do
+    it "ignores fields that start with an underscore" $ do
+      [i|
+      _foo:
+        bar: 23
+      library: {}
+      |] `shouldRenderTo` library [i|
+      other-modules:
+          Paths_foo
+      |]
+
     describe "github" $ do
       it "accepts owner/repo" $ do
         [i|
@@ -210,12 +220,12 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         let file = joinPath ["defaults", "sol", "hpack-template", "2017", "defaults.yaml"]
         writeFile file "foo: bar"
         [i|
+        name: foo
         defaults:
           github: sol/hpack-template
           path: defaults.yaml
           ref: "2017"
           bar: baz
-        name: foo
         library: {}
         |] `shouldWarn` [
             "package.yaml: Ignoring unrecognized field $.defaults.bar"
@@ -1076,17 +1086,17 @@ run_ c old = do
         Right (warnings, output)
     Left err -> Left err
 
-newtype PlainString = PlainString String
+data RenderResult = RenderResult [String] String
   deriving Eq
 
-instance Show PlainString where
-  show (PlainString xs) = xs
+instance Show RenderResult where
+  show (RenderResult warnings output) = unlines (map ("WARNING in " ++) warnings) ++ output
 
 shouldRenderTo :: HasCallStack => String -> Package -> Expectation
 shouldRenderTo input p = do
-  writeFile packageConfig input
-  (_ , output) <- run packageConfig expected
-  PlainString (dropEmptyLines output) `shouldBe` PlainString expected
+  writeFile packageConfig ("name: foo\n" ++ unindent input)
+  (warnings, output) <- run packageConfig expected
+  RenderResult warnings (dropEmptyLines output) `shouldBe` RenderResult [] expected
   where
     expected = dropEmptyLines (renderPackage p)
     dropEmptyLines = unlines . filter (not . null) . lines

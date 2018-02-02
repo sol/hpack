@@ -1,5 +1,6 @@
 ## next
   - Allow `version` be a numbers
+  - Ignore fields that start with an underscore everywhere, not just globally
 
 ## Changes in 0.23.0
   - Add support for custom decoders to allow for alternate syntax (e.g. Dhall)

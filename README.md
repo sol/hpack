@@ -302,8 +302,8 @@ executables:
     main: my-exe-2.hs
 ```
 
-Warnings for unknown fields will not be emitted for top-level fields starting
-with an underscore, so you can declare global aliases too:
+Fields that start with an underscore are ignored by `hpack`, so they can be
+used to declare aliases:
 
 ```yaml
 _exe-ghc-options: &exe-ghc-options

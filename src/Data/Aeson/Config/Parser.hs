@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Data.Aeson.Config.Parser (
   Parser
 , runParser
@@ -89,7 +90,8 @@ determineUnconsumed ((<> Set.singleton []) -> consumed) = Set.toList . execWrite
           Null -> return ()
           Object o -> do
             forM_ (HashMap.toList o) $ \ (k, v) -> do
-              go (Key k : path) v
+              unless ("_" `T.isPrefixOf` k) $ do
+                go (Key k : path) v
           Array xs -> do
             forM_ (zip [0..] $ V.toList xs) $ \ (n, v) -> do
               go (Index n : path) v

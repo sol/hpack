@@ -65,6 +65,17 @@ spec = do
             bar: 23
         |] `shouldDecodeTo` Right (Person "Joe" 23 (Just (Address "somewhere" "123456")), ["$.address.foo"])
 
+      it "ignores fields that start with an underscore" $ do
+        [yaml|
+        name: "Joe"
+        age: 23
+        address:
+          region: somewhere
+          zip: "123456"
+          _foo:
+            bar: 23
+        |] `shouldDecodeTo_` Person "Joe" 23 (Just (Address "somewhere" "123456"))
+
       it "fails on missing field" $ do
         [yaml|
         name: "Joe"
