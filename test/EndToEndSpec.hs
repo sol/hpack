@@ -1070,25 +1070,72 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             ]
 
     describe "verbatim" $ do
-      it "is included verbatim" $ do
+      it "accepts strings" $ do
         [i|
         library:
           verbatim: |
             foo: 23
             bar: 42
-        |] `shouldRenderTo` library [i|
-        other-modules:
-            Paths_foo
-        foo: 23
-        bar: 42
+        |] `shouldRenderTo` package [i|
+        library
+          other-modules:
+              Paths_foo
+          default-language: Haskell2010
+          foo: 23
+          bar: 42
+        |]
+
+      it "accepts multi-line strings as field values" $ do
+        [i|
+        library:
+          verbatim:
+            build-depneds: |
+              foo
+              bar
+              baz
+        |] `shouldRenderTo` package [i|
+        library
+          other-modules:
+              Paths_foo
+          default-language: Haskell2010
+          build-depneds:
+              foo
+              bar
+              baz
+        |]
+
+      it "allows to null out existing fields" $ do
+        [i|
+        library:
+          verbatim:
+            default-language: null
+        |] `shouldRenderTo` package [i|
+        library
+          other-modules:
+              Paths_foo
         |]
 
       context "when specified globally" $ do
+        it "overrides header fields" $ do
+          [i|
+          verbatim:
+            cabal-version: ">= 2.0"
+          |] `shouldRenderTo` (package "") {packageCabalVersion = ">= 2.0"}
+
+        it "overrides other fields" $ do
+          touch "foo"
+          [i|
+          extra-source-files: foo
+          verbatim:
+            extra-source-files: bar
+          |] `shouldRenderTo` package [i|
+          extra-source-files: bar
+          |]
+
         it "is not propagated into sections" $ do
           [i|
-          verbatim: |
+          verbatim:
             foo: 23
-            bar: 42
           library: {}
           |] `shouldRenderTo` package [i|
           library
@@ -1096,7 +1143,21 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
             default-language: Haskell2010
           foo: 23
-          bar: 42
+          |]
+
+      context "within a section" $ do
+        it "overrides section fields" $ do
+          [i|
+          tests:
+            spec:
+              verbatim:
+                type: detailed-0.9
+          |] `shouldRenderTo` package [i|
+          test-suite spec
+            type: detailed-0.9
+            other-modules:
+                Paths_foo
+            default-language: Haskell2010
           |]
 
 run :: HasCallStack => FilePath -> String -> IO ([String], String)

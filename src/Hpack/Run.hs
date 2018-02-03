@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -37,6 +38,7 @@ import qualified Data.Aeson as Aeson
 
 import           Hpack.Util
 import           Hpack.Config
+import           Hpack.Dependency (scientificToVersion)
 import           Hpack.Render
 import           Hpack.FormattingHints
 import           Hpack.Yaml
@@ -78,7 +80,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
     chunks = map unlines . filter (not . null) . map (render settings 0) $ sortSectionFields sectionsFieldOrder stanzas
 
     header :: [String]
-    header = concatMap (render settings {renderSettingsFieldAlignment = alignment} 0) fields
+    header = concatMap (render settings {renderSettingsFieldAlignment = alignment} 0) (filterVerbatim packageVerbatim $ fields)
 
     extraSourceFiles :: Element
     extraSourceFiles = Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
@@ -99,7 +101,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
     library = maybe [] (return . renderLibrary) packageLibrary
 
     stanzas :: [Element]
-    stanzas =
+    stanzas = addVerbatim packageVerbatim $
       extraSourceFiles
       : extraDocFiles
       : dataFiles
@@ -113,7 +115,6 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
       , renderTests packageTests
       , renderBenchmarks packageBenchmarks
       ]
-      ++ maybe [] renderVerbatim packageVerbatim
 
     fields :: [Element]
     fields = sortFieldsBy existingFieldOrder . mapMaybe (\(name, value) -> Field name . Literal <$> value) $ [
@@ -232,7 +233,7 @@ renderExecutables = map renderExecutable . Map.toList
 
 renderExecutable :: (String, Section Executable) -> Element
 renderExecutable (name, sect@(sectionData -> Executable{..})) =
-  Stanza ("executable " ++ name) (renderExecutableSection sect)
+  Stanza ("executable " ++ name) (renderExecutableSection [] sect)
 
 renderTests :: Map String (Section Executable) -> [Element]
 renderTests = map renderTest . Map.toList
@@ -240,7 +241,7 @@ renderTests = map renderTest . Map.toList
 renderTest :: (String, Section Executable) -> Element
 renderTest (name, sect) =
   Stanza ("test-suite " ++ name)
-    (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
+    (renderExecutableSection [Field "type" "exitcode-stdio-1.0"] sect)
 
 renderBenchmarks :: Map String (Section Executable) -> [Element]
 renderBenchmarks = map renderBenchmark . Map.toList
@@ -248,10 +249,10 @@ renderBenchmarks = map renderBenchmark . Map.toList
 renderBenchmark :: (String, Section Executable) -> Element
 renderBenchmark (name, sect) =
   Stanza ("benchmark " ++ name)
-    (Field "type" "exitcode-stdio-1.0" : renderExecutableSection sect)
+    (renderExecutableSection [Field "type" "exitcode-stdio-1.0"] sect)
 
-renderExecutableSection :: Section Executable -> [Element]
-renderExecutableSection sect = renderSection renderExecutableFields sect ++ [defaultLanguage]
+renderExecutableSection :: [Element] -> Section Executable -> [Element]
+renderExecutableSection extraFields = renderSection renderExecutableFields extraFields [defaultLanguage]
 
 renderExecutableFields :: Executable -> [Element]
 renderExecutableFields Executable{..} = mainIs ++ [otherModules, generatedModules]
@@ -268,7 +269,7 @@ renderLibrary :: Section Library -> Element
 renderLibrary sect = Stanza "library" $ renderLibrarySection sect
 
 renderLibrarySection :: Section Library -> [Element]
-renderLibrarySection sect = renderSection renderLibraryFields sect ++ [defaultLanguage]
+renderLibrarySection = renderSection renderLibraryFields [] [defaultLanguage]
 
 renderLibraryFields :: Library -> [Element]
 renderLibraryFields Library{..} =
@@ -283,9 +284,10 @@ renderLibraryFields Library{..} =
 renderExposed :: Bool -> Element
 renderExposed = Field "exposed" . Literal . show
 
-renderSection :: (a -> [Element]) -> Section a -> [Element]
-renderSection renderSectionData Section{..} =
-  renderSectionData sectionData ++ [
+renderSection :: (a -> [Element]) -> [Element] -> [Element] -> Section a -> [Element]
+renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = addVerbatim sectionVerbatim $
+     extraFieldsStart
+  ++ renderSectionData sectionData ++ [
     renderDirectories "hs-source-dirs" sectionSourceDirs
   , renderDefaultExtensions sectionDefaultExtensions
   , renderOtherExtensions sectionOtherExtensions
@@ -307,19 +309,49 @@ renderSection renderSectionData Section{..} =
   , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigDependencies)
   , renderDependencies "build-tools" sectionBuildTools
   ]
-  ++ maybe [] renderVerbatim sectionVerbatim
   ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ map (renderConditional renderSectionData) sectionConditionals
+  ++ extraFieldsEnd
 
-renderVerbatim :: Verbatim -> [Element]
-renderVerbatim = return . Verbatim
+addVerbatim :: [Verbatim] -> [Element] -> [Element]
+addVerbatim verbatim fields = filterVerbatim verbatim fields ++ renderVerbatim verbatim
+
+filterVerbatim :: [Verbatim] -> [Element] -> [Element]
+filterVerbatim verbatim = filter p
+  where
+    p :: Element -> Bool
+    p = \ case
+      Field name _ -> name `notElem` fields
+      _ -> True
+    fields = concatMap verbatimFieldNames verbatim
+
+verbatimFieldNames :: Verbatim -> [String]
+verbatimFieldNames verbatim = case verbatim of
+  VerbatimLiteral _ -> []
+  VerbatimObject o -> Map.keys o
+
+renderVerbatim :: [Verbatim] -> [Element]
+renderVerbatim = concatMap $ \ case
+  VerbatimLiteral s -> [Verbatim s]
+  VerbatimObject o -> renderVerbatimObject o
+
+renderVerbatimObject :: Map String VerbatimValue -> [Element]
+renderVerbatimObject = map renderPair . Map.toList
+  where
+    renderPair (key, value) = case value of
+      VerbatimString s -> case lines s of
+        [x] -> Field key (Literal x)
+        xs -> Field key (LineSeparatedList xs)
+      VerbatimNumber n -> Field key (Literal $ scientificToVersion n)
+      VerbatimBool b -> Field key (Literal $ show b)
+      VerbatimNull -> Field key (Literal "")
 
 renderConditional :: (a -> [Element]) -> Conditional (Section a) -> Element
 renderConditional renderSectionData (Conditional condition sect mElse) = case mElse of
   Nothing -> if_
-  Just else_ -> Group if_ (Stanza "else" $ renderSection renderSectionData else_)
+  Just else_ -> Group if_ (Stanza "else" $ renderSection renderSectionData [] [] else_)
   where
-    if_ = Stanza ("if " ++ condition) (renderSection renderSectionData sect)
+    if_ = Stanza ("if " ++ condition) (renderSection renderSectionData [] [] sect)
 
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"

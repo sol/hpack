@@ -27,7 +27,8 @@ module Hpack.Config (
 , GitRef
 , GitUrl
 , GhcOption
-, Verbatim
+, Verbatim(..)
+, VerbatimValue(..)
 , CustomSetup(..)
 , Section(..)
 , Library(..)
@@ -63,6 +64,7 @@ import           Data.Monoid hiding (Product)
 import           Data.Ord
 import           Data.Text (Text)
 import qualified Data.Text as T
+import           Data.Scientific (Scientific)
 import           System.Directory
 import           System.FilePath
 import           Control.Monad.Trans.Class
@@ -109,7 +111,7 @@ package name version = Package {
   , packageExecutables = mempty
   , packageTests = mempty
   , packageBenchmarks = mempty
-  , packageVerbatim = Nothing
+  , packageVerbatim = []
   }
 
 renamePackage :: String -> Package -> Package
@@ -140,7 +142,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, version) | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty Nothing
+section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -185,7 +187,32 @@ instance Monoid ExecutableSection where
     , executableSectionGeneratedOtherModules = executableSectionGeneratedOtherModules a <> executableSectionGeneratedOtherModules b
     }
 
-type Verbatim = String
+data VerbatimValue =
+    VerbatimString String
+  | VerbatimNumber Scientific
+  | VerbatimBool Bool
+  | VerbatimNull
+  deriving (Eq, Show)
+
+instance FromValue VerbatimValue where
+  fromValue v = case v of
+    String s -> return (VerbatimString $ T.unpack s)
+    Number n -> return (VerbatimNumber n)
+    Bool b -> return (VerbatimBool b)
+    Null -> return VerbatimNull
+    Object _ -> err
+    Array _ -> err
+    where
+      err = typeMismatch (formatOrList ["String", "Number", "Bool", "Null"]) v
+
+data Verbatim = VerbatimLiteral String | VerbatimObject (Map String VerbatimValue)
+  deriving (Eq, Show)
+
+instance FromValue Verbatim where
+  fromValue v =
+        VerbatimLiteral <$> fromValue v
+    <|> VerbatimObject <$> fromValue v
+    <|> typeMismatch (formatOrList ["String", "Object"]) v
 
 data CommonOptions cSources jsSources a = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
@@ -210,7 +237,7 @@ data CommonOptions cSources jsSources a = CommonOptions {
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List (ConditionalSection cSources jsSources a))
 , commonOptionsBuildTools :: Maybe Dependencies
-, commonOptionsVerbatim :: Maybe Verbatim
+, commonOptionsVerbatim :: Maybe (List Verbatim)
 } deriving (Functor, Generic)
 
 type ParseCommonOptions = CommonOptions ParseCSources ParseJsSources
@@ -527,7 +554,7 @@ data Package = Package {
 , packageExecutables :: Map String (Section Executable)
 , packageTests :: Map String (Section Executable)
 , packageBenchmarks :: Map String (Section Executable)
-, packageVerbatim :: Maybe Verbatim
+, packageVerbatim :: [Verbatim]
 } deriving (Eq, Show)
 
 data CustomSetup = CustomSetup {
@@ -573,7 +600,7 @@ data Section a = Section {
 , sectionBuildable :: Maybe Bool
 , sectionConditionals :: [Conditional (Section a)]
 , sectionBuildTools :: Dependencies
-, sectionVerbatim :: Maybe Verbatim
+, sectionVerbatim :: [Verbatim]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Conditional a = Conditional {
@@ -763,7 +790,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       , packageExecutables = executables
       , packageTests = tests
       , packageBenchmarks = benchmarks
-      , packageVerbatim = globalVerbatim
+      , packageVerbatim = fromMaybeList globalVerbatim
       }
 
   tell nameWarnings
@@ -992,7 +1019,7 @@ toSection_ (Product CommonOptions{..} a) = Section {
       , sectionPkgConfigDependencies = fromMaybeList commonOptionsPkgConfigDependencies
       , sectionConditionals = conditionals
       , sectionBuildTools = fromMaybe mempty commonOptionsBuildTools
-      , sectionVerbatim = commonOptionsVerbatim
+      , sectionVerbatim = fromMaybeList commonOptionsVerbatim
       }
   where
     conditionals = map toConditional (fromMaybeList commonOptionsWhen)

@@ -1,7 +1,7 @@
 ## next
+  - Add support for `verbatim` Cabal escape hatch
   - Allow `version` be a numbers
   - Ignore fields that start with an underscore everywhere, not just globally
-  - Add support for `cabal` escape hatch
 
 ## Changes in 0.23.0
   - Add support for custom decoders to allow for alternate syntax (e.g. Dhall)

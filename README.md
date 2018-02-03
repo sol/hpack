@@ -281,13 +281,43 @@ Glob patterns are expanded according to the following rules:
    separators)
  - `?`, `*` and `**` do not match a `.` at the beginning of a file/directory
 
-### Passing things verbatim to Cabal
+### Passing things to Cabal verbatim
 
-Hpack is meant to be general and handle most common use cases.  However, in
-rare cases you might want to access a Cabal feature that is not (yet) supported
-by Hpack.  To accommodate for this Hpack allows you to pass things verbatim to
-cabal.  The `verbatim` field is used for that.  It is recognized top-level, in
-sections, and in conditionals.
+(since `hpack-0.24.0`)
+
+In cases where Hpack does not (yet!) support what you want to do, you can use
+the `verbatim` field to pass things to Cabal verbatim.
+It is recognized top-level, in sections, and in conditionals.
+
+`verbatim` accepts an object or a string (or a list of objects and strings).
+
+#### Objects
+
+When an object is used:
+
+ - field values can be strings, numbers, booleans, or `null`
+ - existing `.cabal` fields can be overridden
+ - existing `.cabal` fields can be removed by overriding with `null`
+ - additional `.cabal` fields can be added
+
+ Example:
+
+```yaml
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs: test
+    verbatim:
+      type: detailed-0.9     # change type from exitcode-stdio-1.0
+      default-language: null # remove default-language
+```
+
+#### Strings
+
+When a string is used:
+
+ - it will be added verbatim, indented to match the indentation of the surrounding context.
+ - all existing `.cabal` fields are left untouched
 
 Example:
 
@@ -295,6 +325,22 @@ Example:
 verbatim: |
   build-tool-depends:
       hspec-discover:hspec-discover == 2.*
+```
+
+#### Lists of objects and strings
+
+You can combine the use of objects and strings to gain more fine-grained
+control, e.g. you can remove an existing field with an object and then include
+it with a string so that you have 100% control over the layout.
+
+
+```yaml
+verbatim:
+  - build-depends: null
+  - |
+    -- let's use Cabal 5.0 dependency syntax
+    build-depends:
+      hspec: [2-3[
 ```
 
 ### Not repeating yourself
