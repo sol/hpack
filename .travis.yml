@@ -46,6 +46,21 @@ script:
         stack --no-terminal test --haddock --no-haddock-deps;;
     esac
 
+after_success:
+  - > # Upload binary to GitHub.
+    curl --location https://github.com/tfausak/github-release/releases/download/1.1.3/github-release-1.1.3-linux.gz --output github-release.gz
+    && gunzip github-release.gz
+    && chmod +x github-release
+    && ./github-release version
+    && if test -n "$TRAVIS_TAG"
+      ; then ./github-release upload
+        --token "$GITHUB_TOKEN"
+        --repo "$TRAVIS_REPO_SLUG"
+        --tag "$TRAVIS_TAG"
+        --file "$(stack exec which hpack)"
+        --name "hpack-$TRAVIS_TAG-linux"
+      ; fi
+
 cache:
   directories:
     - $HOME/.tinc/cache
