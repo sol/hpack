@@ -50,19 +50,20 @@ after_success:
   - > # Upload tarball to Hackage.
     mkdir -p "$HOME/.stack/upload"
     && echo "{ \"username\": \"$HACKAGE_USERNAME\", \"password\": \"$HACKAGE_PASSWORD\" }" > "$HOME/.stack/uploads/credentials.json"
-    && if test -n "$TRAVIS_TAG"; then stack upload .; fi
+    && if test "$TRAVIS_OS_NAME" = linux -a -n "$TRAVIS_TAG"
+      ; then stack upload .
+      ; fi
   - > # Upload binary to GitHub.
     curl --location https://github.com/tfausak/github-release/releases/download/1.1.3/github-release-1.1.3-linux.gz --output github-release.gz
     && gunzip github-release.gz
     && chmod +x github-release
-    && ./github-release version
     && if test -n "$TRAVIS_TAG"
       ; then ./github-release upload
         --token "$GITHUB_TOKEN"
         --repo "$TRAVIS_REPO_SLUG"
         --tag "$TRAVIS_TAG"
         --file "$(stack exec which hpack)"
-        --name "hpack-$TRAVIS_TAG-linux"
+        --name "hpack-$TRAVIS_TAG-$TRAVIS_OS_NAME"
       ; fi
 
 cache:
