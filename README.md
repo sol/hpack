@@ -449,3 +449,13 @@ autocmd BufWritePost package.yaml silent !hpack --silent
 [Stack](https://haskellstack.org) has built-in support for Hpack.
 If you are using Stack you can use `package.yaml` instead of a `.cabal` file.  No additional
 steps are required.
+
+## Binaries for use on Travis CI
+
+You can get binaries for use on Travis CI with:
+
+```
+curl -sSL https://github.com/sol/hpack/raw/master/get-hpack.sh | bash
+```
+
+(both Linux and OSX are supported)
