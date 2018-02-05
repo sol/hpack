@@ -76,6 +76,7 @@ deploy:
     username: SimonHengel
     password:
       secure: mt78qPgZKTKbTWG19+fsgbbdKv+j5JUzukaLY8/66uV/pyVMBMwXZ9iT5RM61D8K4GQSFDinWoZHidnlzlvUzv1SK3o084n04BLajNPdVjm1fmUCWa1w52ImK6LzkBMn4pew2aYxMBwfY17kOhR9XKZX6pvY3IFPnU9EZ1zlagQ=
+    skip_cleanup: true # needed so that before_deploy won't fail
     on:
       repo: sol/hpack
       tags: true
