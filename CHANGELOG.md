@@ -1,4 +1,4 @@
-## next
+## Changes in 0.25.0
   - Keep non-existing literal files on glob expansion (see #101)
 
 ## Changes in 0.24.0
