@@ -18,3 +18,17 @@ test_script:
 # The ugly echo "" hack is to avoid complaints about 0 being an invalid file
 # descriptor
 - echo "" | stack --no-terminal test
+
+on_success:
+  - > # Upload binary to GitHub.
+    curl -OutFile github-release.zip -Uri https://github.com/tfausak/github-release/releases/download/1.1.3/github-release-1.1.3-windows.zip
+    ; 7z x github-release.zip github-release.exe
+    ; if ($APPVEYOR_REPO_TAG_NAME) {
+      stack build --copy-bins --local-bin-path .
+      ; ./github-release.exe upload
+        --token $GITHUB_TOKEN
+        --repo $APPVEYOR_REPO_NAME
+        --tag $APPVEYOR_REPO_TAG_NAME
+        --file hpack.exe
+        --name hpack-$APPVEYOR_REPO_TAG_NAME-windows.exe
+    }
