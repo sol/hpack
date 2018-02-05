@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 module Hpack.Util (
   GhcOption
 , GhcProfOption
@@ -20,6 +19,7 @@ module Hpack.Util (
 import           Control.Exception
 import           Control.Monad
 import           Data.Char
+import           Data.Bifunctor
 import           Data.List hiding (sort)
 import           Data.Ord
 import           System.IO.Error
@@ -100,23 +100,40 @@ tryReadFile file = do
 toPosixFilePath :: FilePath -> FilePath
 toPosixFilePath = Posix.joinPath . splitDirectories
 
+data GlobResult = GlobResult {
+  _globResultPattern :: String
+, _globResultCompiledPattern :: Pattern
+, _globResultFiles :: [FilePath]
+}
+
 expandGlobs :: String -> FilePath -> [String] -> IO ([String], [FilePath])
 expandGlobs name dir patterns = do
-  files <- globDir_ compiledPatterns dir >>= mapM removeDirectories
-  let warnings = [warn pattern | ([], pattern) <- zip files patterns]
-  return (warnings, combineResults files)
+  files <- globDir compiledPatterns dir >>= mapM removeDirectories
+  let
+    results :: [GlobResult]
+    results = map (uncurry $ uncurry GlobResult) $ zip (zip patterns compiledPatterns) files
+  return (combineResults results)
   where
-    globDir_ :: [Pattern] -> FilePath -> IO [[FilePath]]
-#if MIN_VERSION_Glob(0,9,0)
-    globDir_ = globDir
-#else
-    globDir_ xs = fmap fst . globDir xs
-#endif
-    combineResults :: [[FilePath]] -> [FilePath]
-    combineResults = nub . sort . map (toPosixFilePath . makeRelative dir) . concat
+    combineResults :: [GlobResult] -> ([String], [FilePath])
+    combineResults = bimap concat (nub . sort . concat) . unzip . map fromResult
 
-    warn :: String -> String
-    warn pattern = "Specified pattern " ++ show pattern ++ " for " ++ name ++ " does not match any files"
+    fromResult :: GlobResult -> ([String], [FilePath])
+    fromResult (GlobResult pattern compiledPattern files) = case files of
+      [] -> (warning, literalFile)
+      xs -> ([], map normalize xs)
+      where
+        warning = [warn pattern compiledPattern]
+        literalFile
+          | isLiteral compiledPattern = [pattern]
+          | otherwise = []
+
+    normalize :: FilePath -> FilePath
+    normalize = toPosixFilePath . makeRelative dir
+
+    warn :: String -> Pattern -> String
+    warn pattern compiledPattern
+      | isLiteral compiledPattern = "Specified file " ++ show pattern ++ " for " ++ name ++ " does not exist"
+      | otherwise = "Specified pattern " ++ show pattern ++ " for " ++ name ++ " does not match any files"
 
     compiledPatterns :: [Pattern]
     compiledPatterns = map (compileWith options) patterns

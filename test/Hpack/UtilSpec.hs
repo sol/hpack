@@ -77,8 +77,8 @@ spec = do
 
   describe "expandGlobs" $ around withTempDirectory $ do
     it "accepts simple files" $ \dir -> do
-        touch (dir </> "foo.js")
-        expandGlobs "field-name" dir ["foo.js"] `shouldReturn` ([], ["foo.js"])
+      touch (dir </> "foo.js")
+      expandGlobs "field-name" dir ["foo.js"] `shouldReturn` ([], ["foo.js"])
 
     it "removes duplicates" $ \dir -> do
       touch (dir </> "foo.js")
@@ -128,11 +128,15 @@ spec = do
 
     context "when a pattern does not match anything" $ do
       it "warns" $ \dir -> do
-        expandGlobs "field-name" dir ["foo"] `shouldReturn`
-          (["Specified pattern \"foo\" for field-name does not match any files"], [])
+        expandGlobs "field-name" dir ["*.foo"] `shouldReturn`
+          (["Specified pattern \"*.foo\" for field-name does not match any files"], [])
 
     context "when a pattern only matches a directory" $ do
       it "warns" $ \dir -> do
         createDirectory (dir </> "foo")
-        expandGlobs "field-name" dir ["foo"] `shouldReturn`
-          (["Specified pattern \"foo\" for field-name does not match any files"], [])
+        expandGlobs "field-name" dir ["fo?"] `shouldReturn`
+          (["Specified pattern \"fo?\" for field-name does not match any files"], [])
+
+    context "when a literal file does not exist" $ do
+      it "warns and keeps the file" $ \dir -> do
+        expandGlobs "field-name" dir ["foo.js"] `shouldReturn` (["Specified file \"foo.js\" for field-name does not exist"], ["foo.js"])

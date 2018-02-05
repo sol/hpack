@@ -1,4 +1,7 @@
 ## next
+  - Keep non-existing literal files on glob expansion (see #101)
+
+## Changes in 0.24.0
   - Add support for `verbatim` Cabal escape hatch
   - Allow `version` be a numbers
   - Ignore fields that start with an underscore everywhere, not just globally
