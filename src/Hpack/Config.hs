@@ -209,10 +209,10 @@ data Verbatim = VerbatimLiteral String | VerbatimObject (Map String VerbatimValu
   deriving (Eq, Show)
 
 instance FromValue Verbatim where
-  fromValue v =
-        VerbatimLiteral <$> fromValue v
-    <|> VerbatimObject <$> fromValue v
-    <|> typeMismatch (formatOrList ["String", "Object"]) v
+  fromValue v = case v of
+    String s -> return (VerbatimLiteral $ T.unpack s)
+    Object _ -> VerbatimObject <$> fromValue v
+    _ -> typeMismatch (formatOrList ["String", "Object"]) v
 
 data CommonOptions cSources jsSources a = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
