@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
-module Hpack.FormattingHints (
+module Hpack.Render.Hints (
   FormattingHints (..)
 , sniffFormattingHints
 #ifdef TEST
@@ -20,7 +20,7 @@ import           Data.Maybe
 import           Data.List
 import           Control.Applicative
 
-import           Hpack.Render
+import           Hpack.Render.Dsl
 
 data FormattingHints = FormattingHints {
   formattingHintsFieldOrder :: [String]

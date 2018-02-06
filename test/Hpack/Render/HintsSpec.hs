@@ -1,9 +1,9 @@
-module Hpack.FormattingHintsSpec (spec) where
+module Hpack.Render.HintsSpec (spec) where
 
 import           Test.Hspec
 
-import           Hpack.FormattingHints
-import           Hpack.Render
+import           Hpack.Render.Hints
+import           Hpack.Render.Dsl
 
 spec :: Spec
 spec = do

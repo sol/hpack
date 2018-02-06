@@ -1,133 +1,379 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE CPP #-}
 module Hpack.Render (
--- * AST
-  Element (..)
-, Value (..)
-
--- * Render
-, RenderSettings (..)
-, CommaStyle (..)
+  renderPackage
+, RenderSettings(..)
+, Alignment(..)
+, CommaStyle(..)
 , defaultRenderSettings
-, Alignment (..)
-, Nesting
-, render
-
--- * Utils
-, sortFieldsBy
-
 #ifdef TEST
-, Lines (..)
-, renderValue
-, addSortKey
+, renderConditional
+, renderLibraryFields
+, renderExecutableFields
+, renderFlag
+, renderSourceRepository
+, renderDirectories
+, formatDescription
 #endif
 ) where
 
-import           Data.String
+import           Control.Monad
+import           Data.Char
+import           Data.Maybe
 import           Data.List
+import           Data.Version
+import           Data.Map.Lazy (Map)
+import qualified Data.Map.Lazy as Map
 
-data Value =
-    Literal String
-  | CommaSeparatedList [String]
-  | LineSeparatedList [String]
-  | WordList [String]
-  deriving (Eq, Show)
+import           Hpack.Util
+import           Hpack.Config
+import           Hpack.Syntax.Dependency (scientificToVersion)
+import           Hpack.Render.Dsl
 
-data Element = Stanza String [Element] | Group Element Element | Field String Value | Verbatim String
-  deriving (Eq, Show)
-
-data Lines = SingleLine String | MultipleLines [String]
-  deriving (Eq, Show)
-
-data CommaStyle = LeadingCommas | TrailingCommas
-  deriving (Eq, Show)
-
-newtype Nesting = Nesting Int
-  deriving (Eq, Show, Num, Enum)
-
-newtype Alignment = Alignment Int
-  deriving (Eq, Show, Num)
-
-data RenderSettings = RenderSettings {
-  renderSettingsIndentation :: Int
-, renderSettingsFieldAlignment :: Alignment
-, renderSettingsCommaStyle :: CommaStyle
-} deriving (Eq, Show)
-
-defaultRenderSettings :: RenderSettings
-defaultRenderSettings = RenderSettings 2 0 LeadingCommas
-
-render :: RenderSettings -> Nesting -> Element -> [String]
-render settings nesting (Stanza name elements) = indent settings nesting name : renderElements settings (succ nesting) elements
-render settings nesting (Group a b) = render settings nesting a ++ render settings nesting b
-render settings nesting (Field name value) = renderField settings nesting name value
-render settings nesting (Verbatim str) = map (indent settings nesting) (lines str)
-
-renderElements :: RenderSettings -> Nesting -> [Element] -> [String]
-renderElements settings nesting = concatMap (render settings nesting)
-
-renderField :: RenderSettings -> Nesting -> String -> Value -> [String]
-renderField settings@RenderSettings{..} nesting name value = case renderValue settings value of
-  SingleLine "" -> []
-  SingleLine x -> [indent settings nesting (name ++ ": " ++ padding ++ x)]
-  MultipleLines [] -> []
-  MultipleLines xs -> (indent settings nesting name ++ ":") : map (indent settings $ succ nesting) xs
+renderPackage :: RenderSettings -> Alignment -> [String] -> [(String, [String])] -> Package -> String
+renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
   where
-    Alignment fieldAlignment = renderSettingsFieldAlignment
-    padding = replicate (fieldAlignment - length name - 2) ' '
+    chunks :: [String]
+    chunks = map unlines . filter (not . null) . map (render settings 0) $ sortSectionFields sectionsFieldOrder stanzas
 
-renderValue :: RenderSettings -> Value -> Lines
-renderValue RenderSettings{..} v = case v of
-  Literal s -> SingleLine s
-  WordList ws -> SingleLine $ unwords ws
-  LineSeparatedList xs -> renderLineSeparatedList renderSettingsCommaStyle xs
-  CommaSeparatedList xs -> renderCommaSeparatedList renderSettingsCommaStyle xs
+    header :: [String]
+    header = concatMap (render settings {renderSettingsFieldAlignment = alignment} 0) (filterVerbatim packageVerbatim $ fields)
 
-renderLineSeparatedList :: CommaStyle -> [String] -> Lines
-renderLineSeparatedList style = MultipleLines . map (padding ++)
+    extraSourceFiles :: Element
+    extraSourceFiles = Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
+
+    extraDocFiles :: Element
+    extraDocFiles = Field "extra-doc-files" (LineSeparatedList packageExtraDocFiles)
+
+    dataFiles :: Element
+    dataFiles = Field "data-files" (LineSeparatedList packageDataFiles)
+
+    sourceRepository :: [Element]
+    sourceRepository = maybe [] (return . renderSourceRepository) packageSourceRepository
+
+    customSetup :: [Element]
+    customSetup = maybe [] (return . renderCustomSetup) packageCustomSetup
+
+    library :: [Element]
+    library = maybe [] (return . renderLibrary) packageLibrary
+
+    stanzas :: [Element]
+    stanzas = addVerbatim packageVerbatim $
+      extraSourceFiles
+      : extraDocFiles
+      : dataFiles
+      : sourceRepository
+      ++ concat [
+        customSetup
+      , map renderFlag packageFlags
+      , library
+      , renderInternalLibraries packageInternalLibraries
+      , renderExecutables packageExecutables
+      , renderTests packageTests
+      , renderBenchmarks packageBenchmarks
+      ]
+
+    fields :: [Element]
+    fields = sortFieldsBy existingFieldOrder . mapMaybe (\(name, value) -> Field name . Literal <$> value) $ [
+        ("name", Just packageName)
+      , ("version", Just packageVersion)
+      , ("synopsis", packageSynopsis)
+      , ("description", (formatDescription alignment <$> packageDescription))
+      , ("category", packageCategory)
+      , ("stability", packageStability)
+      , ("homepage", packageHomepage)
+      , ("bug-reports", packageBugReports)
+      , ("author", formatList packageAuthor)
+      , ("maintainer", formatList packageMaintainer)
+      , ("copyright", formatList packageCopyright)
+      , ("license", packageLicense)
+      , case packageLicenseFile of
+          [file] -> ("license-file", Just file)
+          files  -> ("license-files", formatList files)
+      , ("tested-with", packageTestedWith)
+      , ("build-type", Just (show packageBuildType))
+      , ("cabal-version", cabalVersion)
+      ]
+
+    formatList :: [String] -> Maybe String
+    formatList xs = guard (not $ null xs) >> (Just $ intercalate separator xs)
+      where
+        separator = let Alignment n = alignment in ",\n" ++ replicate n ' '
+
+    cabalVersion :: Maybe String
+    cabalVersion = (">= " ++) . showVersion <$> maximum [
+        Just (makeVersion [1,10])
+      , packageCabalVersion
+      , packageLibrary >>= libraryCabalVersion
+      , internalLibsCabalVersion packageInternalLibraries
+      , executablesCabalVersion packageExecutables
+      , executablesCabalVersion packageTests
+      , executablesCabalVersion packageBenchmarks
+      ]
+     where
+      packageCabalVersion :: Maybe Version
+      packageCabalVersion = maximum [
+          Nothing
+        , makeVersion [1,24] <$ packageCustomSetup
+        , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
+        ]
+
+      libraryCabalVersion :: Section Library -> Maybe Version
+      libraryCabalVersion sect = maximum [
+          makeVersion [1,22] <$ guard hasReexportedModules
+        , makeVersion [2,0]  <$ guard hasSignatures
+        , makeVersion [2,0] <$ guard hasGeneratedModules
+        ]
+        where
+          hasReexportedModules = any (not . null . libraryReexportedModules) sect
+          hasSignatures = any (not . null . librarySignatures) sect
+          hasGeneratedModules = any (not . null . libraryGeneratedModules) sect
+
+      internalLibsCabalVersion :: Map String (Section Library) -> Maybe Version
+      internalLibsCabalVersion internalLibraries = makeVersion [2,0] <$ guard (not (Map.null internalLibraries))
+
+      executablesCabalVersion :: Map String (Section Executable) -> Maybe Version
+      executablesCabalVersion = foldr max Nothing . map executableCabalVersion . Map.elems
+
+      executableCabalVersion :: Section Executable -> Maybe Version
+      executableCabalVersion sect = makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
+
+      executableHasGeneratedModules :: Section Executable -> Bool
+      executableHasGeneratedModules = any (not . null . executableGeneratedModules)
+
+sortSectionFields :: [(String, [String])] -> [Element] -> [Element]
+sortSectionFields sectionsFieldOrder = go
   where
-    padding = case style of
-      LeadingCommas -> "  "
-      TrailingCommas -> ""
-
-renderCommaSeparatedList :: CommaStyle -> [String] -> Lines
-renderCommaSeparatedList style = MultipleLines . case style of
-  LeadingCommas -> map renderLeadingComma . zip (True : repeat False)
-  TrailingCommas -> map renderTrailingComma . reverse . zip (True : repeat False) . reverse
-  where
-    renderLeadingComma :: (Bool, String) -> String
-    renderLeadingComma (isFirst, x)
-      | isFirst   = "  " ++ x
-      | otherwise = ", " ++ x
-
-    renderTrailingComma :: (Bool, String) -> String
-    renderTrailingComma (isLast, x)
-      | isLast    = x
-      | otherwise = x ++ ","
-
-instance IsString Value where
-  fromString = Literal
-
-indent :: RenderSettings -> Nesting -> String -> String
-indent RenderSettings{..} (Nesting nesting) s = replicate (nesting * renderSettingsIndentation) ' ' ++ s
-
-sortFieldsBy :: [String] -> [Element] -> [Element]
-sortFieldsBy existingFieldOrder =
-    map snd
-  . sortOn fst
-  . addSortKey
-  . map (\a -> (existingIndex a, a))
-  where
-    existingIndex :: Element -> Maybe Int
-    existingIndex (Field name _) = name `elemIndex` existingFieldOrder
-    existingIndex _ = Nothing
-
-addSortKey :: [(Maybe Int, a)] -> [((Int, Int), a)]
-addSortKey = go (-1) . zip [0..]
-  where
-    go :: Int -> [(Int, (Maybe Int, a))] -> [((Int, Int), a)]
-    go n xs = case xs of
+    go sections = case sections of
       [] -> []
-      (x, (Just y, a)) : ys -> ((y, x), a) : go y ys
-      (x, (Nothing, a)) : ys -> ((n, x), a) : go n ys
+      Stanza name fields : xs | Just fieldOrder <- lookup name sectionsFieldOrder -> Stanza name (sortFieldsBy fieldOrder fields) : go xs
+      x : xs -> x : go xs
+
+formatDescription :: Alignment -> String -> String
+formatDescription (Alignment alignment) description = case map emptyLineToDot $ lines description of
+  x : xs -> intercalate "\n" (x : map (indentation ++) xs)
+  [] -> ""
+  where
+    n = max alignment (length ("description: " :: String))
+    indentation = replicate n ' '
+
+    emptyLineToDot xs
+      | isEmptyLine xs = "."
+      | otherwise = xs
+
+    isEmptyLine = all isSpace
+
+renderSourceRepository :: SourceRepository -> Element
+renderSourceRepository SourceRepository{..} = Stanza "source-repository head" [
+    Field "type" "git"
+  , Field "location" (Literal sourceRepositoryUrl)
+  , Field "subdir" (maybe "" Literal sourceRepositorySubdir)
+  ]
+
+renderFlag :: Flag -> Element
+renderFlag Flag {..} = Stanza ("flag " ++ flagName) $ description ++ [
+    Field "manual" (Literal $ show flagManual)
+  , Field "default" (Literal $ show flagDefault)
+  ]
+  where
+    description = maybe [] (return . Field "description" . Literal) flagDescription
+
+renderInternalLibraries :: Map String (Section Library) -> [Element]
+renderInternalLibraries = map renderInternalLibrary . Map.toList
+
+renderInternalLibrary :: (String, Section Library) -> Element
+renderInternalLibrary (name, sect) =
+  Stanza ("library " ++ name) (renderLibrarySection sect)
+
+renderExecutables :: Map String (Section Executable) -> [Element]
+renderExecutables = map renderExecutable . Map.toList
+
+renderExecutable :: (String, Section Executable) -> Element
+renderExecutable (name, sect@(sectionData -> Executable{..})) =
+  Stanza ("executable " ++ name) (renderExecutableSection [] sect)
+
+renderTests :: Map String (Section Executable) -> [Element]
+renderTests = map renderTest . Map.toList
+
+renderTest :: (String, Section Executable) -> Element
+renderTest (name, sect) =
+  Stanza ("test-suite " ++ name)
+    (renderExecutableSection [Field "type" "exitcode-stdio-1.0"] sect)
+
+renderBenchmarks :: Map String (Section Executable) -> [Element]
+renderBenchmarks = map renderBenchmark . Map.toList
+
+renderBenchmark :: (String, Section Executable) -> Element
+renderBenchmark (name, sect) =
+  Stanza ("benchmark " ++ name)
+    (renderExecutableSection [Field "type" "exitcode-stdio-1.0"] sect)
+
+renderExecutableSection :: [Element] -> Section Executable -> [Element]
+renderExecutableSection extraFields = renderSection renderExecutableFields extraFields [defaultLanguage]
+
+renderExecutableFields :: Executable -> [Element]
+renderExecutableFields Executable{..} = mainIs ++ [otherModules, generatedModules]
+  where
+    mainIs = maybe [] (return . Field "main-is" . Literal) executableMain
+    otherModules = renderOtherModules executableOtherModules
+    generatedModules = renderGeneratedModules executableGeneratedModules
+
+renderCustomSetup :: CustomSetup -> Element
+renderCustomSetup CustomSetup{..} =
+  Stanza "custom-setup" [renderDependencies "setup-depends" customSetupDependencies]
+
+renderLibrary :: Section Library -> Element
+renderLibrary sect = Stanza "library" $ renderLibrarySection sect
+
+renderLibrarySection :: Section Library -> [Element]
+renderLibrarySection = renderSection renderLibraryFields [] [defaultLanguage]
+
+renderLibraryFields :: Library -> [Element]
+renderLibraryFields Library{..} =
+  maybe [] (return . renderExposed) libraryExposed ++ [
+    renderExposedModules libraryExposedModules
+  , renderOtherModules libraryOtherModules
+  , renderGeneratedModules libraryGeneratedModules
+  , renderReexportedModules libraryReexportedModules
+  , renderSignatures librarySignatures
+  ]
+
+renderExposed :: Bool -> Element
+renderExposed = Field "exposed" . Literal . show
+
+renderSection :: (a -> [Element]) -> [Element] -> [Element] -> Section a -> [Element]
+renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = addVerbatim sectionVerbatim $
+     extraFieldsStart
+  ++ renderSectionData sectionData ++ [
+    renderDirectories "hs-source-dirs" sectionSourceDirs
+  , renderDefaultExtensions sectionDefaultExtensions
+  , renderOtherExtensions sectionOtherExtensions
+  , renderGhcOptions sectionGhcOptions
+  , renderGhcProfOptions sectionGhcProfOptions
+  , renderGhcjsOptions sectionGhcjsOptions
+  , renderCppOptions sectionCppOptions
+  , renderCcOptions sectionCcOptions
+  , renderDirectories "include-dirs" sectionIncludeDirs
+  , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
+  , Field "c-sources" (LineSeparatedList sectionCSources)
+  , Field "js-sources" (LineSeparatedList sectionJsSources)
+  , renderDirectories "extra-lib-dirs" sectionExtraLibDirs
+  , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
+  , renderDirectories "extra-frameworks-dirs" sectionExtraFrameworksDirs
+  , Field "frameworks" (LineSeparatedList sectionFrameworks)
+  , renderLdOptions sectionLdOptions
+  , renderDependencies "build-depends" sectionDependencies
+  , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigDependencies)
+  , renderDependencies "build-tools" sectionBuildTools
+  ]
+  ++ maybe [] (return . renderBuildable) sectionBuildable
+  ++ map (renderConditional renderSectionData) sectionConditionals
+  ++ extraFieldsEnd
+
+addVerbatim :: [Verbatim] -> [Element] -> [Element]
+addVerbatim verbatim fields = filterVerbatim verbatim fields ++ renderVerbatim verbatim
+
+filterVerbatim :: [Verbatim] -> [Element] -> [Element]
+filterVerbatim verbatim = filter p
+  where
+    p :: Element -> Bool
+    p = \ case
+      Field name _ -> name `notElem` fields
+      _ -> True
+    fields = concatMap verbatimFieldNames verbatim
+
+verbatimFieldNames :: Verbatim -> [String]
+verbatimFieldNames verbatim = case verbatim of
+  VerbatimLiteral _ -> []
+  VerbatimObject o -> Map.keys o
+
+renderVerbatim :: [Verbatim] -> [Element]
+renderVerbatim = concatMap $ \ case
+  VerbatimLiteral s -> [Verbatim s]
+  VerbatimObject o -> renderVerbatimObject o
+
+renderVerbatimObject :: Map String VerbatimValue -> [Element]
+renderVerbatimObject = map renderPair . Map.toList
+  where
+    renderPair (key, value) = case value of
+      VerbatimString s -> case lines s of
+        [x] -> Field key (Literal x)
+        xs -> Field key (LineSeparatedList xs)
+      VerbatimNumber n -> Field key (Literal $ scientificToVersion n)
+      VerbatimBool b -> Field key (Literal $ show b)
+      VerbatimNull -> Field key (Literal "")
+
+renderConditional :: (a -> [Element]) -> Conditional (Section a) -> Element
+renderConditional renderSectionData (Conditional condition sect mElse) = case mElse of
+  Nothing -> if_
+  Just else_ -> Group if_ (Stanza "else" $ renderSection renderSectionData [] [] else_)
+  where
+    if_ = Stanza ("if " ++ condition) (renderSection renderSectionData [] [] sect)
+
+defaultLanguage :: Element
+defaultLanguage = Field "default-language" "Haskell2010"
+
+renderDirectories :: String -> [String] -> Element
+renderDirectories name = Field name . LineSeparatedList . replaceDots
+  where
+    replaceDots = map replaceDot
+    replaceDot xs = case xs of
+      "." -> "./."
+      _ -> xs
+
+renderExposedModules :: [String] -> Element
+renderExposedModules = Field "exposed-modules" . LineSeparatedList
+
+renderOtherModules :: [String] -> Element
+renderOtherModules = Field "other-modules" . LineSeparatedList
+
+renderGeneratedModules :: [String] -> Element
+renderGeneratedModules = Field "autogen-modules" . LineSeparatedList
+
+renderReexportedModules :: [String] -> Element
+renderReexportedModules = Field "reexported-modules" . LineSeparatedList
+
+renderSignatures :: [String] -> Element
+renderSignatures = Field "signatures" . CommaSeparatedList
+
+renderDependencies :: String -> Dependencies -> Element
+renderDependencies name = Field name . CommaSeparatedList . map renderDependency . Map.toList . unDependencies
+
+renderDependency :: (String, DependencyVersion) -> String
+renderDependency (name, version) = name ++ v
+  where
+    v = case version of
+      AnyVersion -> ""
+      VersionRange x -> " " ++ x
+      SourceDependency _ -> ""
+
+renderGhcOptions :: [GhcOption] -> Element
+renderGhcOptions = Field "ghc-options" . WordList
+
+renderGhcProfOptions :: [GhcProfOption] -> Element
+renderGhcProfOptions = Field "ghc-prof-options" . WordList
+
+renderGhcjsOptions :: [GhcjsOption] -> Element
+renderGhcjsOptions = Field "ghcjs-options" . WordList
+
+renderCppOptions :: [CppOption] -> Element
+renderCppOptions = Field "cpp-options" . WordList
+
+renderCcOptions :: [CcOption] -> Element
+renderCcOptions = Field "cc-options" . WordList
+
+renderLdOptions :: [LdOption] -> Element
+renderLdOptions = Field "ld-options" . WordList
+
+renderBuildable :: Bool -> Element
+renderBuildable = Field "buildable" . Literal . show
+
+renderDefaultExtensions :: [String] -> Element
+renderDefaultExtensions = Field "default-extensions" . WordList
+
+renderOtherExtensions :: [String] -> Element
+renderOtherExtensions = Field "other-extensions" . WordList

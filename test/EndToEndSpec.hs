@@ -17,9 +17,9 @@ import           Data.List
 import           Data.String.Interpolate
 import           Data.String.Interpolate.Util
 
-import qualified Hpack.Run as Hpack
+import qualified Hpack.Render as Hpack
 import           Hpack.Config (packageConfig, readPackageConfig)
-import           Hpack.FormattingHints (FormattingHints(..), sniffFormattingHints)
+import           Hpack.Render.Hints (FormattingHints(..), sniffFormattingHints)
 
 writeFile :: FilePath -> String -> IO ()
 writeFile file c = touch file >> Prelude.writeFile file c
