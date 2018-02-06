@@ -1,3 +1,8 @@
+## next
+  - Remove Git conflict markers before checking the hash of any existing
+    `.cabal` files (equivalent to `git checkout --ours`).  This allows you to
+    regenerate the `.cabal` on conflicts when rebasing without passing `-f`.
+
 ## Changes in 0.25.0
   - Keep non-existing literal files on glob expansion (see #101)
 

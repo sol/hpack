@@ -1,9 +1,12 @@
+{-# LANGUAGE QuasiQuotes #-}
 module Hpack.CabalFileSpec (spec) where
 
 import           Helper
 import           Test.QuickCheck
 import           Data.Version (showVersion)
 import           Control.Monad
+import           Data.String.Interpolate
+import           Data.String.Interpolate.Util
 
 import           Paths_hpack (version)
 
@@ -40,3 +43,22 @@ spec = do
       forAll (replicateM 3 positive) $ \xs -> do
         let v = makeVersion xs
         parseVersion (showVersion v) `shouldBe` Just v
+
+  describe "removeGitConflictMarkers" $ do
+    it "remove git conflict markers (git checkout --ours)" $ do
+      let
+        input = lines $ unindent [i|
+          foo
+          <<<<<<< 4a1ca1694ed77195a080688df9bef53c23045211
+          bar2
+          =======
+          bar1
+          >>>>>>> update foo on branch foo
+          baz
+          |]
+        expected = lines $ unindent [i|
+          foo
+          bar2
+          baz
+          |]
+      removeGitConflictMarkers input `shouldBe` expected

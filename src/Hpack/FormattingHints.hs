@@ -38,7 +38,10 @@ sniffFormattingHints (breakLines -> input) = FormattingHints {
 }
 
 breakLines :: String -> [String]
-breakLines = filter (not . null) . map (reverse . dropWhile isSpace . reverse) . lines
+breakLines = filter (not . null) . map stripEnd . lines
+
+stripEnd :: String -> String
+stripEnd = reverse . dropWhile isSpace . reverse
 
 extractFieldOrder :: [String] -> [String]
 extractFieldOrder = map fst . catMaybes . map splitField

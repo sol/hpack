@@ -28,7 +28,7 @@ readCabalFile cabalFile = fmap parse <$> tryReadFile cabalFile
     parse (splitHeader -> (h, c)) = CabalFile (extractVersion h) (extractHash h) c
 
     splitHeader :: String -> ([String], [String])
-    splitHeader = fmap (dropWhile null) . span ("--" `isPrefixOf`) . lines
+    splitHeader = fmap (dropWhile null) . span ("--" `isPrefixOf`) . removeGitConflictMarkers . lines
 
 extractHash :: [String] -> Maybe Hash
 extractHash = extract "-- hash: " Just
@@ -51,3 +51,24 @@ parseVersion :: String -> Maybe Version
 parseVersion xs = case [v | (v, "") <- readP_to_S Version.parseVersion xs] of
   [v] -> Just v
   _ -> Nothing
+
+removeGitConflictMarkers :: [String] -> [String]
+removeGitConflictMarkers = takeBoth
+  where
+    takeBoth input = case break (isPrefixOf marker) input of
+      (both, _marker : rest) -> both ++ takeOurs rest
+      (both, []) -> both
+      where
+        marker = "<<<<<<< "
+
+    takeOurs input = case break (== marker) input of
+      (ours, _marker : rest) -> ours ++ dropTheirs rest
+      (ours, []) -> ours
+      where
+        marker = "======="
+
+    dropTheirs input = case break (isPrefixOf marker) input of
+      (_theirs, _marker : rest) -> takeBoth rest
+      (_theirs, []) -> []
+      where
+        marker = ">>>>>>> "
