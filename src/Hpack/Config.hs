@@ -81,7 +81,7 @@ import           Hpack.Util hiding (expandGlobs)
 import qualified Hpack.Util as Util
 import           Hpack.Defaults
 import qualified Hpack.Yaml as Yaml
-import           Hpack.Dependency
+import           Hpack.Syntax.Dependency
 
 package :: String -> String -> Package
 package name version = Package {

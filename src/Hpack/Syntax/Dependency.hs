@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
-module Hpack.Dependency (
+module Hpack.Syntax.Dependency (
   Dependencies(..)
 , DependencyVersion(..)
 , SourceDependency(..)

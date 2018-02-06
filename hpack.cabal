@@ -1,8 +1,8 @@
--- This file has been generated from package.yaml by hpack version 0.24.0.
+-- This file has been generated from package.yaml by hpack version 0.25.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bdc3b02a4c50d7839928d668388a26aa10ba6b493748bcfc2eb9cabd61cc016d
+-- hash: db1f3817059e4533853ab4674190d68f7834b1927fb2c06126ce8833de42891d
 
 name:           hpack
 version:        0.25.0
@@ -62,12 +62,12 @@ library
       Data.Aeson.Config.Util
       Hpack.CabalFile
       Hpack.Defaults
-      Hpack.Dependency
       Hpack.FormattingHints
       Hpack.Haskell
       Hpack.Options
       Hpack.Render
       Hpack.Syntax.Defaults
+      Hpack.Syntax.Dependency
       Hpack.Syntax.Git
       Hpack.Utf8
       Hpack.Util
@@ -152,13 +152,13 @@ test-suite spec
       Hpack.CabalFileSpec
       Hpack.ConfigSpec
       Hpack.DefaultsSpec
-      Hpack.DependencySpec
       Hpack.FormattingHintsSpec
       Hpack.HaskellSpec
       Hpack.OptionsSpec
       Hpack.RenderSpec
       Hpack.RunSpec
       Hpack.Syntax.DefaultsSpec
+      Hpack.Syntax.DependencySpec
       Hpack.Syntax.GitSpec
       Hpack.Utf8Spec
       Hpack.UtilSpec
@@ -171,13 +171,13 @@ test-suite spec
       Hpack.CabalFile
       Hpack.Config
       Hpack.Defaults
-      Hpack.Dependency
       Hpack.FormattingHints
       Hpack.Haskell
       Hpack.Options
       Hpack.Render
       Hpack.Run
       Hpack.Syntax.Defaults
+      Hpack.Syntax.Dependency
       Hpack.Syntax.Git
       Hpack.Utf8
       Hpack.Util

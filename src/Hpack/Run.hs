@@ -38,7 +38,7 @@ import qualified Data.Aeson as Aeson
 
 import           Hpack.Util
 import           Hpack.Config
-import           Hpack.Dependency (scientificToVersion)
+import           Hpack.Syntax.Dependency (scientificToVersion)
 import           Hpack.Render
 import           Hpack.FormattingHints
 import           Hpack.Yaml

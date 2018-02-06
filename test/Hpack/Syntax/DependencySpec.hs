@@ -2,14 +2,14 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Hpack.DependencySpec (spec) where
+module Hpack.Syntax.DependencySpec (spec) where
 
 import           Helper
 
 import           Data.Aeson.Config.FromValueSpec (shouldDecodeTo, shouldDecodeTo_)
 
 import           Data.Aeson.Config.FromValue
-import           Hpack.Dependency
+import           Hpack.Syntax.Dependency
 
 left :: String -> DecodeResult Dependencies
 left = Left

@@ -24,7 +24,7 @@ import           System.Directory (createDirectory)
 import           Data.Either
 import qualified Data.Map.Lazy as Map
 
-import           Hpack.Dependency
+import           Hpack.Syntax.Dependency
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
 
