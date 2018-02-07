@@ -107,7 +107,7 @@ specification.
 | `github` | For github defaults. | Accepts `<user>/<repo>` | `github: sol/hpack-template` |
 | `ref` | | For github defaults. | `ref: 2017` |
 | `path` | `.hpack/defaults.yaml` | For github defaults. A relative path to a file within the repository, path segments are separated by `/` and must not contain `:` and `\`. | `path: defaults.yaml` |
-| `local` | | For local defaults. | |
+| `local` | | For local defaults. New in `0.26.0`. | |
 
 Exactly one of `github` and `local` must be given in a `defaults` section.
 
