@@ -683,7 +683,7 @@ spec = do
       it "rejects other values" $ do
         [yaml|
         23
-        |] `shouldDecodeTo` (Left "Error while parsing $ - expected Boolean or String, encountered Number" :: DecodeResult Cond)
+        |] `shouldDecodeTo` (Left "Error while parsing $ - expected Boolean or String, encountered Number" :: Result Cond)
 
   describe "formatOrList" $ do
     it "formats a singleton list" $ do

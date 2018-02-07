@@ -54,7 +54,7 @@ spec = do
   describe "fromValue" $ do
     context "when parsing Defaults" $ do
       let
-        left :: String -> DecodeResult Defaults
+        left :: String -> Result Defaults
         left = Left
       context "with Object" $ do
         it "fails when neither github nor local is present" $ do

@@ -12,7 +12,7 @@ spec = do
   describe "fromValue" $ do
     context "List" $ do
       let
-        parseError :: String -> DecodeResult (List Int)
+        parseError :: String -> Result (List Int)
         parseError prefix = Left (prefix ++ " - expected Int, encountered String")
 
       context "when parsing single values" $ do

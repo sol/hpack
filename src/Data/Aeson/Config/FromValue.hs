@@ -11,7 +11,7 @@
 module Data.Aeson.Config.FromValue (
   FromValue(..)
 , Parser
-, DecodeResult
+, Result
 , decodeValue
 
 , Generic
@@ -52,9 +52,9 @@ import           Data.Aeson.Types (FromJSON(..))
 import           Data.Aeson.Config.Util
 import           Data.Aeson.Config.Parser
 
-type DecodeResult a = Either String (a, [String])
+type Result a = Either String (a, [String])
 
-decodeValue :: FromValue a => Value -> DecodeResult a
+decodeValue :: FromValue a => Value -> Result a
 decodeValue = runParser fromValue
 
 (.:) :: FromValue a => Object -> Text -> Parser a

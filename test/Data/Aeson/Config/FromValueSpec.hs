@@ -12,7 +12,7 @@ import qualified Data.Map.Lazy as Map
 
 import           Data.Aeson.Config.FromValue
 
-shouldDecodeTo :: (HasCallStack, Eq a, Show a, FromValue a) => Value -> DecodeResult a -> Expectation
+shouldDecodeTo :: (HasCallStack, Eq a, Show a, FromValue a) => Value -> Result a -> Expectation
 shouldDecodeTo value expected = decodeValue value `shouldBe` expected
 
 shouldDecodeTo_ :: (HasCallStack, Eq a, Show a, FromValue a) => Value -> a -> Expectation
@@ -39,7 +39,7 @@ spec = do
   describe "fromValue" $ do
     context "with a record" $ do
       let
-        left :: String -> DecodeResult Person
+        left :: String -> Result Person
         left = Left
       it "decodes a record" $ do
         [yaml|

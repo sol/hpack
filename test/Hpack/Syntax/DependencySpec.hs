@@ -11,7 +11,7 @@ import           Data.Aeson.Config.FromValueSpec (shouldDecodeTo, shouldDecodeTo
 import           Data.Aeson.Config.FromValue
 import           Hpack.Syntax.Dependency
 
-left :: String -> DecodeResult Dependencies
+left :: String -> Result Dependencies
 left = Left
 
 spec :: Spec
