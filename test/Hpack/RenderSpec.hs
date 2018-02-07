@@ -21,8 +21,8 @@ renderEmptySection Empty = []
 
 spec :: Spec
 spec = do
-  describe "renderPackage" $ do
-    let renderPackage_ = renderPackage defaultRenderSettings 0 [] []
+  describe "renderPackageWith" $ do
+    let renderPackage_ = renderPackageWith defaultRenderSettings 0 [] []
     it "renders a package" $ do
       renderPackage_ package `shouldBe` unlines [
           "name: foo"
@@ -32,7 +32,7 @@ spec = do
         ]
 
     it "aligns fields" $ do
-      renderPackage defaultRenderSettings 16 [] [] package `shouldBe` unlines [
+      renderPackageWith defaultRenderSettings 16 [] [] package `shouldBe` unlines [
           "name:           foo"
         , "version:        0.0.0"
         , "build-type:     Simple"
@@ -51,7 +51,7 @@ spec = do
         ]
 
     it "aligns description" $ do
-      renderPackage defaultRenderSettings 16 [] [] package {packageDescription = Just "foo\n\nbar\n"} `shouldBe` unlines [
+      renderPackageWith defaultRenderSettings 16 [] [] package {packageDescription = Just "foo\n\nbar\n"} `shouldBe` unlines [
           "name:           foo"
         , "version:        0.0.0"
         , "description:    foo"
@@ -80,7 +80,7 @@ spec = do
         ]
 
     it "aligns license-files" $ do
-      renderPackage defaultRenderSettings 16 [] [] package {packageLicenseFile = ["FOO", "BAR"]} `shouldBe` unlines [
+      renderPackageWith defaultRenderSettings 16 [] [] package {packageLicenseFile = ["FOO", "BAR"]} `shouldBe` unlines [
           "name:           foo"
         , "version:        0.0.0"
         , "license-files:  FOO,"
@@ -99,7 +99,7 @@ spec = do
         ]
 
     it "aligns copyright holders" $ do
-      renderPackage defaultRenderSettings 16 [] [] package {packageCopyright = ["(c) 2015 Foo", "(c) 2015 Bar"]} `shouldBe` unlines [
+      renderPackageWith defaultRenderSettings 16 [] [] package {packageCopyright = ["(c) 2015 Foo", "(c) 2015 Bar"]} `shouldBe` unlines [
           "name:           foo"
         , "version:        0.0.0"
         , "copyright:      (c) 2015 Foo,"
@@ -146,7 +146,7 @@ spec = do
 
     context "when given list of existing fields" $ do
       it "retains field order" $ do
-        renderPackage defaultRenderSettings 16 ["cabal-version", "version", "name", "build-type"] [] package `shouldBe` unlines [
+        renderPackageWith defaultRenderSettings 16 ["cabal-version", "version", "name", "build-type"] [] package `shouldBe` unlines [
             "cabal-version:  >= 1.10"
           , "version:        0.0.0"
           , "name:           foo"
@@ -154,7 +154,7 @@ spec = do
           ]
 
       it "uses default field order for new fields" $ do
-        renderPackage defaultRenderSettings 16 ["name", "version", "cabal-version"] [] package `shouldBe` unlines [
+        renderPackageWith defaultRenderSettings 16 ["name", "version", "cabal-version"] [] package `shouldBe` unlines [
             "name:           foo"
           , "version:        0.0.0"
           , "build-type:     Simple"
@@ -162,7 +162,7 @@ spec = do
           ]
 
       it "retains section field order" $ do
-        renderPackage defaultRenderSettings 0 [] [("executable foo", ["default-language", "main-is", "ghc-options"])] package {packageExecutables = [("foo", executable {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
+        renderPackageWith defaultRenderSettings 0 [] [("executable foo", ["default-language", "main-is", "ghc-options"])] package {packageExecutables = [("foo", executable {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"

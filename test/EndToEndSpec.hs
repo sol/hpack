@@ -18,7 +18,7 @@ import           Data.String.Interpolate
 import           Data.String.Interpolate.Util
 
 import qualified Hpack.Render as Hpack
-import           Hpack.Config (packageConfig, readPackageConfig)
+import           Hpack.Config (packageConfig, readPackageConfig, DecodeOptions(..), DecodeResult(..), defaultDecodeOptions)
 import           Hpack.Render.Hints (FormattingHints(..), sniffFormattingHints)
 
 writeFile :: FilePath -> String -> IO ()
@@ -1181,14 +1181,14 @@ run c old = run_ c old >>= either assertFailure return
 
 run_ :: FilePath -> String -> IO (Either String ([String], String))
 run_ c old = do
-  mPackage <- readPackageConfig "" c
+  mPackage <- readPackageConfig defaultDecodeOptions {decodeOptionsConfigFile = c, decodeOptionsUserDataDir = Just ""}
   return $ case mPackage of
-    Right (pkg, warnings) ->
+    Right (DecodeResult pkg _ warnings) ->
       let
-        FormattingHints{..} = sniffFormattingHints old
+        FormattingHints{..} = sniffFormattingHints (lines old)
         alignment = fromMaybe 0 formattingHintsAlignment
         settings = formattingHintsRenderSettings
-        output = Hpack.renderPackage settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder pkg
+        output = Hpack.renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder pkg
       in
         Right (warnings, output)
     Left err -> Left err

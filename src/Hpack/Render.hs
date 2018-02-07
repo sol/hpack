@@ -6,10 +6,11 @@
 {-# LANGUAGE CPP #-}
 module Hpack.Render (
   renderPackage
+, renderPackageWith
+, defaultRenderSettings
 , RenderSettings(..)
 , Alignment(..)
 , CommaStyle(..)
-, defaultRenderSettings
 #ifdef TEST
 , renderConditional
 , renderLibraryFields
@@ -32,16 +33,24 @@ import qualified Data.Map.Lazy as Map
 import           Hpack.Util
 import           Hpack.Config
 import           Hpack.Syntax.Dependency (scientificToVersion)
+import           Hpack.Render.Hints
 import           Hpack.Render.Dsl
 
-renderPackage :: RenderSettings -> Alignment -> [String] -> [(String, [String])] -> Package -> String
-renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
+renderPackage :: [String] -> Package -> String
+renderPackage oldCabalFile = renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder
+  where
+    FormattingHints{..} = sniffFormattingHints oldCabalFile
+    alignment = fromMaybe 16 formattingHintsAlignment
+    settings = formattingHintsRenderSettings
+
+renderPackageWith :: RenderSettings -> Alignment -> [String] -> [(String, [String])] -> Package -> String
+renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
   where
     chunks :: [String]
     chunks = map unlines . filter (not . null) . map (render settings 0) $ sortSectionFields sectionsFieldOrder stanzas
 
     header :: [String]
-    header = concatMap (render settings {renderSettingsFieldAlignment = alignment} 0) (filterVerbatim packageVerbatim $ fields)
+    header = concatMap (render settings {renderSettingsFieldAlignment = headerFieldsAlignment} 0) (filterVerbatim packageVerbatim $ headerFields)
 
     extraSourceFiles :: Element
     extraSourceFiles = Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
@@ -77,12 +86,12 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
       , renderBenchmarks packageBenchmarks
       ]
 
-    fields :: [Element]
-    fields = sortFieldsBy existingFieldOrder . mapMaybe (\(name, value) -> Field name . Literal <$> value) $ [
+    headerFields :: [Element]
+    headerFields = sortFieldsBy existingFieldOrder . mapMaybe (\(name, value) -> Field name . Literal <$> value) $ [
         ("name", Just packageName)
       , ("version", Just packageVersion)
       , ("synopsis", packageSynopsis)
-      , ("description", (formatDescription alignment <$> packageDescription))
+      , ("description", (formatDescription headerFieldsAlignment <$> packageDescription))
       , ("category", packageCategory)
       , ("stability", packageStability)
       , ("homepage", packageHomepage)
@@ -102,7 +111,7 @@ renderPackage settings alignment existingFieldOrder sectionsFieldOrder Package{.
     formatList :: [String] -> Maybe String
     formatList xs = guard (not $ null xs) >> (Just $ intercalate separator xs)
       where
-        separator = let Alignment n = alignment in ",\n" ++ replicate n ' '
+        separator = let Alignment n = headerFieldsAlignment in ",\n" ++ replicate n ' '
 
     cabalVersion :: Maybe String
     cabalVersion = (">= " ++) . showVersion <$> maximum [

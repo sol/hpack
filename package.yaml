@@ -39,7 +39,7 @@ library:
   exposed-modules:
     - Hpack
     - Hpack.Config
-    - Hpack.Run
+    - Hpack.Render
     - Hpack.Yaml
 
 executable:

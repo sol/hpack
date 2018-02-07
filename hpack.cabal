@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4e63892df38b75ee4ce15ca7ddfeec12a158ab94a611773db6d2d2aaae96898d
+-- hash: 915b06f21c258063ad56ca291cf410f98c11e9a0b4e56022aca70ca2d3f16288
 
 name:           hpack
 version:        0.25.0
@@ -53,7 +53,7 @@ library
   exposed-modules:
       Hpack
       Hpack.Config
-      Hpack.Run
+      Hpack.Render
       Hpack.Yaml
   other-modules:
       Data.Aeson.Config.FromValue
@@ -64,7 +64,6 @@ library
       Hpack.Defaults
       Hpack.Haskell
       Hpack.Options
-      Hpack.Render
       Hpack.Render.Dsl
       Hpack.Render.Hints
       Hpack.Syntax.Defaults
@@ -177,7 +176,6 @@ test-suite spec
       Hpack.Render
       Hpack.Render.Dsl
       Hpack.Render.Hints
-      Hpack.Run
       Hpack.Syntax.Defaults
       Hpack.Syntax.Dependency
       Hpack.Syntax.Git

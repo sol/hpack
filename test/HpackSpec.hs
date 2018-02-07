@@ -7,7 +7,7 @@ import qualified Prelude as Prelude
 
 import           Control.DeepSeq
 
-import           Hpack.Config (packageConfig)
+import           Hpack.Config
 import           Hpack.CabalFile
 import           Hpack hiding (hpack)
 
@@ -21,9 +21,9 @@ spec = do
       let
         file = "foo.cabal"
 
-        hpackWithVersion v = hpackWithVersionResult v defaultRunOptions NoForce
-        hpack = hpackWithVersionResult version defaultRunOptions NoForce
-        hpackForce = hpackWithVersionResult version defaultRunOptions Force
+        hpackWithVersion v = hpackWithVersionResult v defaultDecodeOptions NoForce
+        hpack = hpackWithVersionResult version defaultDecodeOptions NoForce
+        hpackForce = hpackWithVersionResult version defaultDecodeOptions Force
 
         generated = Result [] file Generated
         modifiedManually = Result [] file ExistingCabalFileWasModifiedManually

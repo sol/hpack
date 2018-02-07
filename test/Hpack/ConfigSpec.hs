@@ -49,14 +49,17 @@ executable main_ = Executable (Just main_) ["Paths_foo"] []
 library :: Library
 library = Library Nothing [] ["Paths_foo"] [] [] []
 
+testDecodeOptions :: FilePath -> DecodeOptions
+testDecodeOptions file = defaultDecodeOptions {decodeOptionsConfigFile = file, decodeOptionsUserDataDir = Just undefined}
+
 withPackage :: HasCallStack => String -> IO () -> ((Package, [String]) -> Expectation) -> Expectation
 withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
   let dir = dir_ </> "foo"
   createDirectory dir
   writeFile (dir </> "package.yaml") content
   withCurrentDirectory dir beforeAction
-  r <- readPackageConfig undefined (dir </> "package.yaml")
-  either expectationFailure expectation r
+  r <- readPackageConfig (testDecodeOptions $ dir </> "package.yaml")
+  either expectationFailure (\ (DecodeResult p _ warnings) -> expectation (p, warnings)) r
 
 withPackageConfig :: String -> IO () -> (Package -> Expectation) -> Expectation
 withPackageConfig content beforeAction expectation = withPackage content beforeAction (expectation . fst)
@@ -647,7 +650,7 @@ spec = do
             foo: bar
             foo baz
             |]
-          readPackageConfig undefined file `shouldReturn` Left (file ++ ":3:12: could not find expected ':' while scanning a simple key")
+          readPackageConfig (testDecodeOptions file) `shouldReturn` Left (file ++ ":3:12: could not find expected ':' while scanning a simple key")
 
       context "when package.yaml is invalid" $ do
         it "returns an error" $ \dir -> do
@@ -656,12 +659,12 @@ spec = do
             - one
             - two
             |]
-          readPackageConfig undefined file >>= (`shouldSatisfy` isLeft)
+          readPackageConfig (testDecodeOptions file) >>= (`shouldSatisfy` isLeft)
 
       context "when package.yaml does not exist" $ do
         it "returns an error" $ \dir -> do
           let file = dir </> "package.yaml"
-          readPackageConfig undefined file `shouldReturn` Left [i|#{file}: Yaml file not found: #{file}|]
+          readPackageConfig (testDecodeOptions file) `shouldReturn` Left [i|#{file}: Yaml file not found: #{file}|]
 
   describe "fromValue" $ do
     context "with Cond" $ do

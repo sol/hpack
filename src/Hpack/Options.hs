@@ -1,7 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 module Hpack.Options where
 
-import           Control.Monad
 import           System.FilePath
 import           System.Directory
 
@@ -18,46 +17,50 @@ data Options = Options {
   optionsVerbose :: Verbose
 , optionsForce :: Force
 , optionsToStdout :: Bool
-, optionsConfigDir :: Maybe FilePath
 , optionsConfigFile :: FilePath
 } deriving (Eq, Show)
 
 parseOptions :: FilePath -> [String] -> IO ParseResult
-parseOptions defaultConfigFile xs = case xs of
+parseOptions defaultConfigFile = \ case
   ["--version"] -> return PrintVersion
   ["--numeric-version"] -> return PrintNumericVersion
   ["--help"] -> return Help
-  _ -> case targets of
-    Just (target, toStdout) -> do
-      (dir, file) <- splitDirectory defaultConfigFile target
-      return $ Run (Options verbose force toStdout dir file)
-    Nothing -> return ParseError
-    where
-      silentFlag = "--silent"
-      forceFlags = ["--force", "-f"]
+  args -> parseRunOptions defaultConfigFile args
 
-      flags = silentFlag : forceFlags
+parseRunOptions :: FilePath -> [String] -> IO ParseResult
+parseRunOptions defaultConfigFile xs = case targets of
+  Right (target, toStdout) -> do
+    file <- expandConfigFile defaultConfigFile target
+    return $ Run (Options verbose force toStdout file)
+  Left err -> return err
+  where
+    silentFlag = "--silent"
+    forceFlags = ["--force", "-f"]
 
-      verbose = if silentFlag `elem` xs then NoVerbose else Verbose
-      force = if any (`elem` xs) forceFlags then Force else NoForce
-      ys = filter (`notElem` flags) xs
+    flags = silentFlag : forceFlags
 
-      targets = case ys of
-        ["-"] -> Just (Nothing, True)
-        ["-", "-"] -> Nothing
-        [dir] -> Just (Just dir, False)
-        [dir, "-"] -> Just (Just dir, True)
-        [] -> Just (Nothing, False)
-        _ -> Nothing
+    verbose = if silentFlag `elem` xs then NoVerbose else Verbose
+    force = if any (`elem` xs) forceFlags then Force else NoForce
+    ys = filter (`notElem` flags) xs
 
-splitDirectory :: FilePath -> Maybe FilePath -> IO (Maybe FilePath, FilePath)
-splitDirectory defaultFileName = \ case
-  Nothing -> return (Nothing, defaultFileName)
-  (Just p) -> do
-    isDirectory <- doesDirectoryExist p
-    return $ if isDirectory
-      then (Just p, defaultFileName)
-      else let
-        file = takeFileName p
-        dir = takeDirectory p
-        in (guard (p /= file) >> Just dir, if null file then defaultFileName else file)
+    targets :: Either ParseResult (Maybe FilePath, Bool)
+    targets = case ys of
+      ["-"] -> Right (Nothing, True)
+      ["-", "-"] -> Left ParseError
+      [path] -> Right (Just path, False)
+      [path, "-"] -> Right (Just path, True)
+      [] -> Right (Nothing, False)
+      _ -> Left ParseError
+
+expandConfigFile :: FilePath -> Maybe FilePath -> IO FilePath
+expandConfigFile defaultConfigFile = \ case
+  Nothing -> return defaultConfigFile
+  Just "" -> return defaultConfigFile
+  Just target -> do
+    isFile <- doesFileExist target
+    isDirectory <- doesDirectoryExist target
+    return $ case takeFileName target of
+      _ | isFile -> target
+      _ | isDirectory -> target </> defaultConfigFile
+      "" -> target </> defaultConfigFile
+      _ -> target

@@ -42,20 +42,23 @@ spec = do
             ]
       extractSectionsFieldOrder input `shouldBe` [("library", ["foo", "bar"]), ("executable foo", ["bar", "baz"])]
 
-  describe "breakLines" $ do
-    it "breaks input into lines" $ do
-      let input = unlines [
+  describe "sanitize" $ do
+    it "removes empty lines" $ do
+      let input = [
               "foo"
             , ""
             , "   "
             , "  bar  "
             , "  baz"
             ]
-      breakLines input `shouldBe` [
+      sanitize input `shouldBe` [
               "foo"
             , "  bar"
             , "  baz"
             ]
+
+    it "removes trailing whitespace" $ do
+      sanitize ["foo  ", "bar  "] `shouldBe` ["foo", "bar"]
 
   describe "unindent" $ do
     it "unindents" $ do

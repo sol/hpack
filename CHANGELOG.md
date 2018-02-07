@@ -1,4 +1,6 @@
 ## next
+  - Major refactoring of the exposed API (much cleaner now, but lot's of
+    breaking changes!)
   - Remove Git conflict markers before checking the hash of any existing
     `.cabal` files (equivalent to `git checkout --ours`).  This allows you to
     regenerate the `.cabal` on conflicts when rebasing without passing `-f`.

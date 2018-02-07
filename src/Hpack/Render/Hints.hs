@@ -6,7 +6,7 @@ module Hpack.Render.Hints (
 #ifdef TEST
 , extractFieldOrder
 , extractSectionsFieldOrder
-, breakLines
+, sanitize
 , unindent
 , sniffAlignment
 , splitField
@@ -29,16 +29,16 @@ data FormattingHints = FormattingHints {
 , formattingHintsRenderSettings :: RenderSettings
 } deriving (Eq, Show)
 
-sniffFormattingHints :: String -> FormattingHints
-sniffFormattingHints (breakLines -> input) = FormattingHints {
+sniffFormattingHints :: [String] -> FormattingHints
+sniffFormattingHints (sanitize -> input) = FormattingHints {
   formattingHintsFieldOrder = extractFieldOrder input
 , formattingHintsSectionsFieldOrder = extractSectionsFieldOrder input
 , formattingHintsAlignment = sniffAlignment input
 , formattingHintsRenderSettings = sniffRenderSettings input
 }
 
-breakLines :: String -> [String]
-breakLines = filter (not . null) . map stripEnd . lines
+sanitize :: [String] -> [String]
+sanitize = filter (not . null) . map stripEnd
 
 stripEnd :: String -> String
 stripEnd = reverse . dropWhile isSpace . reverse

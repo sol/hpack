@@ -13,9 +13,12 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 module Hpack.Config (
-  packageConfig
+  DecodeOptions(..)
+, defaultDecodeOptions
+, packageConfig
+, DecodeResult(..)
 , readPackageConfig
-, readPackageConfigWith
+
 , renamePackage
 , packageDependencies
 , package
@@ -508,15 +511,36 @@ type Errors = ExceptT String
 decodeYaml :: FromValue a => FilePath -> Warnings (Errors IO) a
 decodeYaml file = lift (ExceptT $ Yaml.decodeYaml file) >>= decodeValue file
 
-readPackageConfig :: FilePath -> FilePath -> IO (Either String (Package, [String]))
-readPackageConfig = readPackageConfigWith Yaml.decodeYaml
+data DecodeOptions = DecodeOptions {
+  decodeOptionsConfigFile :: FilePath
+, decodeOptionsUserDataDir :: Maybe FilePath
+, decodeOptionsDecode :: FilePath -> IO (Either String Value)
+}
 
-readPackageConfigWith :: (FilePath -> IO (Either String Value)) -> FilePath -> FilePath -> IO (Either String (Package, [String]))
-readPackageConfigWith readValue userDataDir file = runExceptT $ runWriterT $ do
+defaultDecodeOptions :: DecodeOptions
+defaultDecodeOptions = DecodeOptions packageConfig Nothing Yaml.decodeYaml
+
+data DecodeResult = DecodeResult {
+  decodeResultPackage :: Package
+, decodeResultCabalFile :: FilePath
+, decodeResultWarnings :: [String]
+} deriving (Eq, Show)
+
+readPackageConfig :: DecodeOptions -> IO (Either String DecodeResult)
+readPackageConfig (DecodeOptions file mUserDataDir readValue) = runExceptT $ fmap addCabalFile . runWriterT $ do
   value <- lift . ExceptT $ readValue file
   config <- decodeValue file value
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
+  userDataDir <- liftIO $ maybe (getAppUserDataDirectory "hpack") return mUserDataDir
   toPackage userDataDir dir config
+  where
+    addCabalFile :: (Package, [String]) -> DecodeResult
+    addCabalFile (pkg, warnings) = DecodeResult pkg (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
+
+    takeDirectory_ :: FilePath -> FilePath
+    takeDirectory_ p
+      | takeFileName p == p = ""
+      | otherwise = takeDirectory p
 
 decodeValue :: FromValue a => FilePath -> Value -> Warnings (Errors IO) a
 decodeValue file value = do
