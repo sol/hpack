@@ -124,5 +124,5 @@ instance FromValue Defaults where
     String s -> DefaultsGithub_ . toDefaultsGithub <$> parseDefaultsGithubFromString (T.unpack s)
     Object o | "local" `member` o -> DefaultsLocal_ <$> fromValue v
     Object o | "github" `member` o -> DefaultsGithub_ . toDefaultsGithub <$> fromValue v
-    Object o -> fail "neither key \"github\" nor key \"local\" present"
+    Object _ -> fail "neither key \"github\" nor key \"local\" present"
     _ -> typeMismatch "Object or String" v
