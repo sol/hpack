@@ -52,21 +52,21 @@ formatStatus :: Status -> String
 formatStatus (Status code message) = show code ++ " " ++ B.unpack message
 
 ensure :: FilePath -> Defaults -> IO (Either String FilePath)
-ensure dir (DefaultsGithub_ defaults) =
-  ensureFile file url >>= \ case
-    Found -> return (Right file)
-    NotFound -> return (Left notFound)
-    Failed err -> return (Left err)
-    where
+ensure dir = \ case
+  DefaultsGithub_ defaults -> do
+    let
       url = defaultsUrl defaults
       file = defaultsCachePath dir defaults
-      notFound = "Invalid value for \"defaults\"! File " ++ url ++ " does not exist!"
-ensure _ (DefaultsLocal_ (DefaultsLocal file)) =
-  doesFileExist file >>= \ case
-    True -> return (Right file)
-    False -> return (Left notFound)
-      where
-        notFound = "Invalid value for \"defaults\"! Local file " ++ file ++ " does not exist!"
+    ensureFile file url >>= \ case
+      Found -> return (Right file)
+      NotFound -> return (Left $ notFound url)
+      Failed err -> return (Left err)
+  DefaultsLocal_ (DefaultsLocal file) ->
+    doesFileExist file >>= \ case
+      True -> return (Right file)
+      False -> return (Left $ notFound file)
+  where
+    notFound file = "Invalid value for \"defaults\"! File " ++ file ++ " does not exist!"
 
 ensureFile :: FilePath -> URL -> IO Result
 ensureFile file url = do

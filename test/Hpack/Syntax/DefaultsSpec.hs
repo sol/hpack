@@ -57,6 +57,14 @@ spec = do
         left :: String -> DecodeResult Defaults
         left = Left
       context "with Object" $ do
+        it "fails when neither github nor local is present" $ do
+          [yaml|
+          defaults:
+            foo: one
+            bar: two
+          library: {}
+          |] `shouldDecodeTo` left "Error while parsing $ - neither key \"github\" nor key \"local\" present"
+
         it "accepts Defaults from GitHub" $ do
           [yaml|
           github: sol/hpack
