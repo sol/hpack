@@ -8,7 +8,7 @@ module Hpack.Syntax.Defaults (
 , DefaultsGithub(..)
 , DefaultsLocal(..)
 #ifdef TEST
-, isValidUser
+, isValidOwner
 , isValidRepo
 #endif
 ) where
@@ -28,7 +28,7 @@ data ParseDefaultsGithub = ParseDefaultsGithub {
 } deriving (Generic, FromValue)
 
 data Github = Github {
-  githubUser :: String
+  githubOwner :: String
 , githubRepo :: String
 }
 
@@ -37,19 +37,19 @@ instance FromValue Github where
 
 parseGithub :: String -> Parser Github
 parseGithub github
-  | not (isValidUser user) = fail ("invalid user name " ++ show user)
+  | not (isValidOwner owner) = fail ("invalid owner name " ++ show owner)
   | not (isValidRepo repo) = fail ("invalid repository name " ++ show repo)
-  | otherwise = return (Github user repo)
+  | otherwise = return (Github owner repo)
   where
-    (user, repo) = drop 1 <$> break (== '/') github
+    (owner, repo) = drop 1 <$> break (== '/') github
 
-isValidUser :: String -> Bool
-isValidUser user =
-     not (null user)
-  && all isAlphaNumOrHyphen user
-  && doesNotHaveConsecutiveHyphens user
-  && doesNotBeginWithHyphen user
-  && doesNotEndWithHyphen user
+isValidOwner :: String -> Bool
+isValidOwner owner =
+     not (null owner)
+  && all isAlphaNumOrHyphen owner
+  && doesNotHaveConsecutiveHyphens owner
+  && doesNotBeginWithHyphen owner
+  && doesNotEndWithHyphen owner
   where
     isAlphaNumOrHyphen = (`elem` '-' : alphaNum)
     doesNotHaveConsecutiveHyphens = not . isInfixOf "--"
@@ -93,7 +93,7 @@ parsePath path
     p = splitDirectories path
 
 data DefaultsGithub = DefaultsGithub {
-  defaultsGithubUser :: String
+  defaultsGithubOwner :: String
 , defaultsGithubRepo :: String
 , defaultsGithubRef :: String
 , defaultsGithubPath :: [FilePath]
@@ -101,7 +101,7 @@ data DefaultsGithub = DefaultsGithub {
 
 toDefaultsGithub :: ParseDefaultsGithub -> DefaultsGithub
 toDefaultsGithub ParseDefaultsGithub{..} = DefaultsGithub {
-    defaultsGithubUser = githubUser parseDefaultsGithubGithub
+    defaultsGithubOwner = githubOwner parseDefaultsGithubGithub
   , defaultsGithubRepo = githubRepo parseDefaultsGithubGithub
   , defaultsGithubRef = unRef parseDefaultsGithubRef
   , defaultsGithubPath = maybe [".hpack", "defaults.yaml"] unPath parseDefaultsGithubPath
@@ -110,7 +110,7 @@ toDefaultsGithub ParseDefaultsGithub{..} = DefaultsGithub {
 parseDefaultsGithubFromString :: String -> Parser ParseDefaultsGithub
 parseDefaultsGithubFromString xs = case break (== '@') xs of
   (github, '@' : ref) -> ParseDefaultsGithub <$> parseGithub github <*> parseRef ref <*> pure Nothing
-  _ -> fail ("missing Git reference for " ++ show xs ++ ", the expected format is user/repo@ref")
+  _ -> fail ("missing Git reference for " ++ show xs ++ ", the expected format is owner/repo@ref")
 
 data DefaultsLocal = DefaultsLocal {
   defaultsLocalLocal :: String

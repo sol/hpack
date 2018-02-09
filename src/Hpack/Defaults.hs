@@ -26,11 +26,11 @@ import           Hpack.Syntax.Defaults
 type URL = String
 
 defaultsUrl :: DefaultsGithub -> URL
-defaultsUrl DefaultsGithub{..} = "https://raw.githubusercontent.com/" ++ defaultsGithubUser ++ "/" ++ defaultsGithubRepo ++ "/" ++ defaultsGithubRef ++ "/" ++ intercalate "/" defaultsGithubPath
+defaultsUrl DefaultsGithub{..} = "https://raw.githubusercontent.com/" ++ defaultsGithubOwner ++ "/" ++ defaultsGithubRepo ++ "/" ++ defaultsGithubRef ++ "/" ++ intercalate "/" defaultsGithubPath
 
 defaultsCachePath :: FilePath -> DefaultsGithub -> FilePath
 defaultsCachePath dir DefaultsGithub{..} = joinPath $
-  dir : "defaults" : defaultsGithubUser : defaultsGithubRepo : defaultsGithubRef : defaultsGithubPath
+  dir : "defaults" : defaultsGithubOwner : defaultsGithubRepo : defaultsGithubRef : defaultsGithubPath
 
 data Result = Found | NotFound | Failed String
   deriving (Eq, Show)

@@ -64,7 +64,7 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 | `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | | |
 | `extra-doc-files` | · | | Accepts [glob patterns](#file-globbing) | | `0.21.2` |
 | `data-files` | · | | Accepts [glob patterns](#file-globbing) | | |
-| `github` | `source-repository head` | | Accepts `user/repo` or `user/repo/subdir` | `github: foo/bar` |
+| `github` | `source-repository head` | | Accepts `owner/repo` or `owner/repo/subdir` | `github: foo/bar` |
 | `git`    | `source-repository head` | | No effect if `github` given | `git: https://my.repo.com/foo` | |
 | `custom-setup` | · | | See [Custom setup](#custom-setup) | | |
 | `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | | |
@@ -104,7 +104,7 @@ specification.
 
 | Field | Default | Notes | Example |
 | ----- | ------- | ----- | ------- |
-| `github` | For github defaults. | Accepts `<user>/<repo>` | `github: sol/hpack-template` |
+| `github` | For github defaults. | Accepts `<owner>/<repo>` | `github: sol/hpack-template` |
 | `ref` | | For github defaults. | `ref: 2017` |
 | `path` | `.hpack/defaults.yaml` | For github defaults. A relative path to a file within the repository, path segments are separated by `/` and must not contain `:` and `\`. | `path: defaults.yaml` |
 | `local` | | For local defaults. New in `0.26.0`. | |
@@ -126,7 +126,7 @@ defaults:
 ```
 
 **Note:** Hpack caches downloaded files under
-`~/.hpack/defaults/<user>/<repo>/<path>`.  Once downloaded, a file is reused
+`~/.hpack/defaults/<owner>/<repo>/<path>`.  Once downloaded, a file is reused
 from the cache.  If the content on GitHub changes the file is not updated.  For
 this reason it is recommended to only use tags as Git references.
 

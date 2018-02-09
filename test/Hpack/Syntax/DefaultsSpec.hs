@@ -9,28 +9,28 @@ import           Data.Aeson.Config.FromValue
 import           Hpack.Syntax.Defaults
 
 defaultsGithub :: String -> String -> String -> [FilePath] -> Defaults
-defaultsGithub user repo ref path = DefaultsGithub_ $ DefaultsGithub user repo ref path
+defaultsGithub owner repo ref path = DefaultsGithub_ $ DefaultsGithub owner repo ref path
 
 spec :: Spec
 spec = do
-  describe "isValidUser" $ do
+  describe "isValidOwner" $ do
     it "rejects the empty string" $ do
-      isValidUser "" `shouldBe` False
+      isValidOwner "" `shouldBe` False
 
-    it "accepts valid user names" $ do
-      isValidUser "Foo-Bar-23" `shouldBe` True
+    it "accepts valid owner names" $ do
+      isValidOwner "Foo-Bar-23" `shouldBe` True
 
     it "rejects dots" $ do
-      isValidUser "foo.bar" `shouldBe` False
+      isValidOwner "foo.bar" `shouldBe` False
 
     it "rejects multiple consecutive hyphens" $ do
-      isValidUser "foo--bar" `shouldBe` False
+      isValidOwner "foo--bar" `shouldBe` False
 
     it "rejects hyphens at the beginning" $ do
-      isValidUser "-foo" `shouldBe` False
+      isValidOwner "-foo" `shouldBe` False
 
     it "rejects hyphens at the end" $ do
-      isValidUser "foo-" `shouldBe` False
+      isValidOwner "foo-" `shouldBe` False
 
   describe "isValidRepo" $ do
     it "rejects the empty string" $ do
@@ -72,12 +72,12 @@ spec = do
           path: defaults.yaml
           |] `shouldDecodeTo_` defaultsGithub "sol" "hpack" "0.1.0" ["defaults.yaml"]
 
-        it "rejects invalid user names" $ do
+        it "rejects invalid owner names" $ do
           [yaml|
           github: ../hpack
           ref: 0.1.0
           path: defaults.yaml
-          |] `shouldDecodeTo` left "Error while parsing $.github - invalid user name \"..\""
+          |] `shouldDecodeTo` left "Error while parsing $.github - invalid owner name \"..\""
 
         it "rejects invalid repository names" $ do
           [yaml|
@@ -127,10 +127,10 @@ spec = do
           sol/hpack@0.1.0
           |] `shouldDecodeTo_` defaultsGithub "sol" "hpack" "0.1.0" [".hpack", "defaults.yaml"]
 
-        it "rejects invalid user names" $ do
+        it "rejects invalid owner names" $ do
           [yaml|
           ../hpack@0.1.0
-          |] `shouldDecodeTo` left "Error while parsing $ - invalid user name \"..\""
+          |] `shouldDecodeTo` left "Error while parsing $ - invalid owner name \"..\""
 
         it "rejects invalid repository names" $ do
           [yaml|
@@ -145,7 +145,7 @@ spec = do
         it "rejects missing Git reference" $ do
           [yaml|
           sol/hpack
-          |] `shouldDecodeTo` left "Error while parsing $ - missing Git reference for \"sol/hpack\", the expected format is user/repo@ref"
+          |] `shouldDecodeTo` left "Error while parsing $ - missing Git reference for \"sol/hpack\", the expected format is owner/repo@ref"
 
       context "with neither Object nor String" $ do
         it "fails" $ do

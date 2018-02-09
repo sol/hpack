@@ -824,8 +824,8 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       where
         parseGithub :: Text -> SourceRepository
         parseGithub input = case map T.unpack $ T.splitOn "/" input of
-          [user, repo, subdir] ->
-            SourceRepository (githubBaseUrl ++ user ++ "/" ++ repo) (Just subdir)
+          [owner, repo, subdir] ->
+            SourceRepository (githubBaseUrl ++ owner ++ "/" ++ repo) (Just subdir)
           _ -> SourceRepository (githubBaseUrl ++ T.unpack input) Nothing
 
     homepage :: Maybe String
