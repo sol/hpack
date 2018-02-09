@@ -25,12 +25,12 @@ import           Hpack.Syntax.Defaults
 
 type URL = String
 
-defaultsUrl :: DefaultsGithub -> URL
-defaultsUrl DefaultsGithub{..} = "https://raw.githubusercontent.com/" ++ defaultsGithubOwner ++ "/" ++ defaultsGithubRepo ++ "/" ++ defaultsGithubRef ++ "/" ++ intercalate "/" defaultsGithubPath
+defaultsUrl :: Github -> URL
+defaultsUrl Github{..} = "https://raw.githubusercontent.com/" ++ githubOwner ++ "/" ++ githubRepo ++ "/" ++ githubRef ++ "/" ++ intercalate "/" githubPath
 
-defaultsCachePath :: FilePath -> DefaultsGithub -> FilePath
-defaultsCachePath dir DefaultsGithub{..} = joinPath $
-  dir : "defaults" : defaultsGithubOwner : defaultsGithubRepo : defaultsGithubRef : defaultsGithubPath
+defaultsCachePath :: FilePath -> Github -> FilePath
+defaultsCachePath dir Github{..} = joinPath $
+  dir : "defaults" : githubOwner : githubRepo : githubRef : githubPath
 
 data Result = Found | NotFound | Failed String
   deriving (Eq, Show)
@@ -53,7 +53,7 @@ formatStatus (Status code message) = show code ++ " " ++ B.unpack message
 
 ensure :: FilePath -> Defaults -> IO (Either String FilePath)
 ensure dir = \ case
-  DefaultsGithub_ defaults -> do
+  DefaultsGithub defaults -> do
     let
       url = defaultsUrl defaults
       file = defaultsCachePath dir defaults
@@ -61,7 +61,7 @@ ensure dir = \ case
       Found -> return (Right file)
       NotFound -> return (Left $ notFound url)
       Failed err -> return (Left err)
-  DefaultsLocal_ (DefaultsLocal file) ->
+  DefaultsLocal (Local file) ->
     doesFileExist file >>= \ case
       True -> return (Right file)
       False -> return (Left $ notFound file)

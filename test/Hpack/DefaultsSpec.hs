@@ -11,7 +11,7 @@ spec :: Spec
 spec = do
   describe "ensure" $ do
     it "fails when local file does not exist" $ do
-      ensure undefined (DefaultsLocal_ $ DefaultsLocal "foo") `shouldReturn` Left "Invalid value for \"defaults\"! File foo does not exist!"
+      ensure undefined (DefaultsLocal $ Local "foo") `shouldReturn` Left "Invalid value for \"defaults\"! File foo does not exist!"
 
   describe "ensureFile" $ do
     let

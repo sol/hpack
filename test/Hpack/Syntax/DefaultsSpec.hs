@@ -9,7 +9,7 @@ import           Data.Aeson.Config.FromValue
 import           Hpack.Syntax.Defaults
 
 defaultsGithub :: String -> String -> String -> [FilePath] -> Defaults
-defaultsGithub owner repo ref path = DefaultsGithub_ $ DefaultsGithub owner repo ref path
+defaultsGithub owner repo ref path = DefaultsGithub $ Github owner repo ref path
 
 spec :: Spec
 spec = do

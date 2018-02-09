@@ -5,8 +5,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module Hpack.Syntax.Defaults (
   Defaults(..)
-, DefaultsGithub(..)
-, DefaultsLocal(..)
+, Github(..)
+, Local(..)
 #ifdef TEST
 , isValidOwner
 , isValidRepo
@@ -21,25 +21,25 @@ import           System.FilePath.Posix (splitDirectories)
 import           Data.Aeson.Config.FromValue
 import           Hpack.Syntax.Git
 
-data ParseDefaultsGithub = ParseDefaultsGithub {
-  parseDefaultsGithubGithub :: Github
-, parseDefaultsGithubRef :: Ref
-, parseDefaultsGithubPath :: Maybe Path
+data ParseGithub = ParseGithub {
+  parseGithubGithub :: GithubRepo
+, parseGithubRef :: Ref
+, parseGithubPath :: Maybe Path
 } deriving (Generic, FromValue)
 
-data Github = Github {
-  githubOwner :: String
-, githubRepo :: String
+data GithubRepo = GithubRepo {
+  githubRepoOwner :: String
+, githubRepoName :: String
 }
 
-instance FromValue Github where
+instance FromValue GithubRepo where
   fromValue = withString parseGithub
 
-parseGithub :: String -> Parser Github
+parseGithub :: String -> Parser GithubRepo
 parseGithub github
   | not (isValidOwner owner) = fail ("invalid owner name " ++ show owner)
   | not (isValidRepo repo) = fail ("invalid repository name " ++ show repo)
-  | otherwise = return (Github owner repo)
+  | otherwise = return (GithubRepo owner repo)
   where
     (owner, repo) = drop 1 <$> break (== '/') github
 
@@ -92,37 +92,37 @@ parsePath path
   where
     p = splitDirectories path
 
-data DefaultsGithub = DefaultsGithub {
-  defaultsGithubOwner :: String
-, defaultsGithubRepo :: String
-, defaultsGithubRef :: String
-, defaultsGithubPath :: [FilePath]
+data Github = Github {
+  githubOwner :: String
+, githubRepo :: String
+, githubRef :: String
+, githubPath :: [FilePath]
 } deriving (Eq, Show)
 
-toDefaultsGithub :: ParseDefaultsGithub -> DefaultsGithub
-toDefaultsGithub ParseDefaultsGithub{..} = DefaultsGithub {
-    defaultsGithubOwner = githubOwner parseDefaultsGithubGithub
-  , defaultsGithubRepo = githubRepo parseDefaultsGithubGithub
-  , defaultsGithubRef = unRef parseDefaultsGithubRef
-  , defaultsGithubPath = maybe [".hpack", "defaults.yaml"] unPath parseDefaultsGithubPath
+toDefaultsGithub :: ParseGithub -> Github
+toDefaultsGithub ParseGithub{..} = Github {
+    githubOwner = githubRepoOwner parseGithubGithub
+  , githubRepo = githubRepoName parseGithubGithub
+  , githubRef = unRef parseGithubRef
+  , githubPath = maybe [".hpack", "defaults.yaml"] unPath parseGithubPath
   }
 
-parseDefaultsGithubFromString :: String -> Parser ParseDefaultsGithub
+parseDefaultsGithubFromString :: String -> Parser ParseGithub
 parseDefaultsGithubFromString xs = case break (== '@') xs of
-  (github, '@' : ref) -> ParseDefaultsGithub <$> parseGithub github <*> parseRef ref <*> pure Nothing
+  (github, '@' : ref) -> ParseGithub <$> parseGithub github <*> parseRef ref <*> pure Nothing
   _ -> fail ("missing Git reference for " ++ show xs ++ ", the expected format is owner/repo@ref")
 
-data DefaultsLocal = DefaultsLocal {
-  defaultsLocalLocal :: String
+data Local = Local {
+  localLocal :: String
 } deriving (Eq, Show, Generic, FromValue)
 
-data Defaults = DefaultsLocal_ DefaultsLocal | DefaultsGithub_ DefaultsGithub
+data Defaults = DefaultsLocal Local | DefaultsGithub Github
   deriving (Eq, Show)
 
 instance FromValue Defaults where
   fromValue v = case v of
-    String s -> DefaultsGithub_ . toDefaultsGithub <$> parseDefaultsGithubFromString (T.unpack s)
-    Object o | "local" `member` o -> DefaultsLocal_ <$> fromValue v
-    Object o | "github" `member` o -> DefaultsGithub_ . toDefaultsGithub <$> fromValue v
+    String s -> DefaultsGithub . toDefaultsGithub <$> parseDefaultsGithubFromString (T.unpack s)
+    Object o | "local" `member` o -> DefaultsLocal <$> fromValue v
+    Object o | "github" `member` o -> DefaultsGithub . toDefaultsGithub <$> fromValue v
     Object _ -> fail "neither key \"github\" nor key \"local\" present"
     _ -> typeMismatch "Object or String" v
