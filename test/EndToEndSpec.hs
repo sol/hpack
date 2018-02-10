@@ -440,6 +440,29 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             foo.js
             jsbits/bar.js
         |]
+
+    describe "cxx-options" $ do
+      it "accepts cxx-options" $ do
+        [i|
+        executable:
+          cxx-options: -Wall
+        |] `shouldRenderTo` (executable_ "foo" [i|
+        cxx-options: -Wall
+        |]) {packageCabalVersion = ">= 2.2"}
+
+    describe "cxx-sources" $ before_ (touch "foo.cc" >> touch "cxxbits/bar.cc") $ do
+      it "accepts cxx-sources" $ do
+        [i|
+        executable:
+          cxx-sources:
+            - foo.cc
+            - cxxbits/*.cc
+        |] `shouldRenderTo` (executable_ "foo" [i|
+        cxx-sources:
+            cxxbits/bar.cc
+            foo.cc
+        |]) {packageCabalVersion = ">= 2.2"}
+
     describe "extra-lib-dirs" $ do
       it "accepts extra-lib-dirs" $ do
         [i|

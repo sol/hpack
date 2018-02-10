@@ -160,6 +160,8 @@ values are merged with per section values.
 | `cpp-options` | · | | |
 | `cc-options` | · | | |
 | `c-sources` | · | | Accepts [glob patterns](#file-globbing) |
+| `cxx-options` | · | | |
+| `cxx-sources` | · | | Accepts [glob patterns](#file-globbing) |
 | `js-sources` | · | | Accepts [glob patterns](#file-globbing) |
 | `extra-lib-dirs` | · | | |
 | `extra-libraries` | · | | |

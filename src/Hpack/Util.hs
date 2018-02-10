@@ -4,6 +4,7 @@ module Hpack.Util (
 , GhcjsOption
 , CppOption
 , CcOption
+, CxxOption
 , LdOption
 , parseMain
 , toModule
@@ -43,6 +44,7 @@ type GhcProfOption = String
 type GhcjsOption = String
 type CppOption = String
 type CcOption = String
+type CxxOption = String
 type LdOption = String
 
 parseMain :: String -> (FilePath, [GhcOption])
