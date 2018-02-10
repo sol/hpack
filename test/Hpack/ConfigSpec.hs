@@ -50,7 +50,7 @@ library :: Library
 library = Library Nothing [] ["Paths_foo"] [] [] []
 
 testDecodeOptions :: FilePath -> DecodeOptions
-testDecodeOptions file = defaultDecodeOptions {decodeOptionsConfigFile = file, decodeOptionsUserDataDir = Just undefined}
+testDecodeOptions file = defaultDecodeOptions {decodeOptionsTarget = file, decodeOptionsUserDataDir = Just undefined}
 
 withPackage :: HasCallStack => String -> IO () -> ((Package, [String]) -> Expectation) -> Expectation
 withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do

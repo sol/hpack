@@ -1181,7 +1181,7 @@ run c old = run_ c old >>= either assertFailure return
 
 run_ :: FilePath -> String -> IO (Either String ([String], String))
 run_ c old = do
-  mPackage <- readPackageConfig defaultDecodeOptions {decodeOptionsConfigFile = c, decodeOptionsUserDataDir = Just ""}
+  mPackage <- readPackageConfig defaultDecodeOptions {decodeOptionsTarget = c, decodeOptionsUserDataDir = Just ""}
   return $ case mPackage of
     Right (DecodeResult pkg _ warnings) ->
       let

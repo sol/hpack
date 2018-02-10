@@ -130,7 +130,7 @@ hpackWithVersionResult v options force = do
   case status of
     Generated -> do
       let hash = sha256 new
-      Utf8.writeFile cabalFile (header (decodeOptionsConfigFile options) v hash ++ new)
+      Utf8.writeFile cabalFile (header (decodeOptionsTarget options) v hash ++ new)
     _ -> return ()
   return Result {
       resultWarnings = warnings

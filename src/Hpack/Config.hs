@@ -512,7 +512,7 @@ decodeYaml :: FromValue a => FilePath -> Warnings (Errors IO) a
 decodeYaml file = lift (ExceptT $ Yaml.decodeYaml file) >>= decodeValue file
 
 data DecodeOptions = DecodeOptions {
-  decodeOptionsConfigFile :: FilePath
+  decodeOptionsTarget :: FilePath
 , decodeOptionsUserDataDir :: Maybe FilePath
 , decodeOptionsDecode :: FilePath -> IO (Either String Value)
 }
