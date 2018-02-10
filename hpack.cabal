@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: be273982270a16a90031b898e5e74c3aa9aa6ed7e5fdae91fbca4c0dc6bcd056
+-- hash: 4e63892df38b75ee4ce15ca7ddfeec12a158ab94a611773db6d2d2aaae96898d
 
 name:           hpack
 version:        0.25.0
@@ -31,7 +31,7 @@ library
   build-depends:
       Cabal
     , Glob >=0.9.0
-    , aeson >=1.0.0
+    , aeson >=1.2.1.0
     , base >=4.9 && <5
     , bifunctors
     , bytestring
@@ -83,7 +83,7 @@ executable hpack
   build-depends:
       Cabal
     , Glob >=0.9.0
-    , aeson >=1.0.0
+    , aeson >=1.2.1.0
     , base >=4.9 && <5
     , bifunctors
     , bytestring
@@ -120,7 +120,7 @@ test-suite spec
     , Glob >=0.9.0
     , HUnit
     , QuickCheck
-    , aeson >=1.0.0
+    , aeson >=1.2.1.0
     , base >=4.9 && <5
     , bifunctors
     , bytestring

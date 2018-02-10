@@ -22,7 +22,7 @@ dependencies:
   - containers
   - unordered-containers
   - yaml
-  - aeson >= 1.0.0
+  - aeson >= 1.2.1.0
   - scientific
   - Cabal
   - pretty
