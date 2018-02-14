@@ -61,11 +61,10 @@ ensure userDataDir dir = \ case
       Found -> return (Right file)
       NotFound -> return (Left $ notFound url)
       Failed err -> return (Left err)
-  DefaultsLocal (Local file) -> do
-    let file' = dir </> file
-    doesFileExist file' >>= \ case
-      True -> return (Right file')
-      False -> return (Left $ notFound file')
+  DefaultsLocal (Local ((dir </>) -> file)) -> do
+    doesFileExist file >>= \ case
+      True -> return (Right file)
+      False -> return (Left $ notFound file)
   where
     notFound file = "Invalid value for \"defaults\"! File " ++ file ++ " does not exist!"
 
