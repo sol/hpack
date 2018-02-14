@@ -16,14 +16,14 @@ readFile name = Prelude.readFile name >>= (return $!!)
 
 spec :: Spec
 spec = do
-  describe "hpackWithVersionResult" $ do
+  describe "hpackResult" $ do
     context "with existing cabal file" $ around_ inTempDirectory $ before_ (writeFile packageConfig "name: foo") $ do
       let
         file = "foo.cabal"
 
-        hpackWithVersion v = hpackWithVersionResult v defaultDecodeOptions NoForce
-        hpack = hpackWithVersionResult version defaultDecodeOptions NoForce
-        hpackForce = hpackWithVersionResult version defaultDecodeOptions Force
+        hpackWithVersion v = hpackResultWithVersion v defaultOptions
+        hpack = hpackResult defaultOptions
+        hpackForce = hpackResult defaultOptions {optionsForce = Force}
 
         generated = Result [] file Generated
         modifiedManually = Result [] file ExistingCabalFileWasModifiedManually

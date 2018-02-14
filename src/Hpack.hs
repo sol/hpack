@@ -1,18 +1,40 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
 module Hpack (
-  hpack
+-- | /__NOTE:__/ This module is exposed to allow integration of Hpack into
+-- other tools.  It is not meant for general use by end users.  The following
+-- caveats apply:
+--
+-- * The API is undocumented, consult the source instead.
+--
+-- * The exposed types and functions primarily serve Hpack's own needs, not
+-- that of a public API.  Breaking changes can happen as Hpack evolves.
+--
+-- As an Hpack user you either want to use the @hpack@ executable or a build
+-- tool that supports Hpack (e.g. @stack@ or @cabal2nix@).
+
+-- * Version
+  version
+
+-- * Running Hpack
+, hpack
 , hpackResult
+, printResult
 , Result(..)
 , Status(..)
+
+-- * Options
+, defaultOptions
+, setTarget
+, setDecode
+, getOptions
 , Verbose(..)
+, Options(..)
 , Force(..)
-, version
-, main
-, mainWith
+
 #ifdef TEST
+, hpackResultWithVersion
 , header
-, hpackWithVersionResult
 #endif
 ) where
 
@@ -32,7 +54,6 @@ import           Hpack.Render
 import           Hpack.Util
 import           Hpack.Utf8 as Utf8
 import           Hpack.CabalFile
-import           Hpack.Yaml
 
 programVersion :: Version -> String
 programVersion v = "hpack version " ++ Version.showVersion v
@@ -47,19 +68,28 @@ header p v hash = unlines [
   , ""
   ]
 
-main :: IO ()
-main = mainWith packageConfig decodeYaml
+data Options = Options {
+  optionsDecodeOptions :: DecodeOptions
+, optionsForce :: Force
+, optionsToStdout :: Bool
+}
 
-mainWith :: FilePath -> (FilePath -> IO (Either String Value)) -> IO ()
-mainWith configFile decode = do
-  result <- getArgs >>= parseOptions configFile
+getOptions :: FilePath -> [String] -> IO (Maybe (Verbose, Options))
+getOptions defaultPackageConfig args = do
+  result <- parseOptions defaultPackageConfig args
   case result of
-    PrintVersion -> putStrLn (programVersion version)
-    PrintNumericVersion -> putStrLn (Version.showVersion version)
-    Help -> printHelp
+    PrintVersion -> do
+      putStrLn (programVersion version)
+      return Nothing
+    PrintNumericVersion -> do
+      putStrLn (Version.showVersion version)
+      return Nothing
+    Help -> do
+      printHelp
+      return Nothing
     Run options -> case options of
-      Options _verbose _force True file -> hpackStdOut (DecodeOptions file Nothing decode)
-      Options verbose force False file -> hpack (DecodeOptions file Nothing decode) verbose force
+      ParseOptions verbose force toStdout file -> do
+        return $ Just (verbose, Options defaultDecodeOptions {decodeOptionsTarget = file} force toStdout)
     ParseError -> do
       printHelp
       exitFailure
@@ -73,11 +103,19 @@ printHelp = do
     , "       " ++ name ++ " --help"
     ]
 
-hpack :: DecodeOptions -> Verbose -> Force -> IO ()
-hpack = hpackWithVersion version
+hpack :: Verbose -> Options -> IO ()
+hpack verbose options = hpackResult options >>= printResult verbose
 
-hpackResult :: DecodeOptions -> Force -> IO Result
-hpackResult = hpackWithVersionResult version
+defaultOptions :: Options
+defaultOptions = Options defaultDecodeOptions NoForce False
+
+setTarget :: FilePath -> Options -> Options
+setTarget target options@Options{..} =
+  options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsTarget = target}}
+
+setDecode :: (FilePath -> IO (Either String Value)) -> Options -> Options
+setDecode decode options@Options{..} =
+  options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsDecode = decode}}
 
 data Result = Result {
   resultWarnings :: [String]
@@ -92,20 +130,18 @@ data Status =
   | OutputUnchanged
   deriving (Eq, Show)
 
-hpackWithVersion :: Version -> DecodeOptions -> Verbose -> Force -> IO ()
-hpackWithVersion v options verbose force = do
-    r <- hpackWithVersionResult v options force
-    printWarnings (resultWarnings r)
-    when (verbose == Verbose) $ putStrLn $
-      case resultStatus r of
-        Generated -> "generated " ++ resultCabalFile r
-        OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
-        AlreadyGeneratedByNewerHpack -> resultCabalFile r ++ " was generated with a newer version of hpack, please upgrade and try again."
-        ExistingCabalFileWasModifiedManually -> resultCabalFile r ++ " was modified manually, please use --force to overwrite."
+printResult :: Verbose -> Result -> IO ()
+printResult verbose r = do
+  printWarnings (resultWarnings r)
+  when (verbose == Verbose) $ putStrLn $
+    case resultStatus r of
+      Generated -> "generated " ++ resultCabalFile r
+      OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
+      AlreadyGeneratedByNewerHpack -> resultCabalFile r ++ " was generated with a newer version of hpack, please upgrade and try again."
+      ExistingCabalFileWasModifiedManually -> resultCabalFile r ++ " was modified manually, please use --force to overwrite."
 
 printWarnings :: [String] -> IO ()
-printWarnings warnings = do
-  forM_ warnings $ \warning -> Utf8.hPutStrLn stderr ("WARNING: " ++ warning)
+printWarnings = mapM_ $ Utf8.hPutStrLn stderr . ("WARNING: " ++)
 
 mkStatus :: [String] -> Version -> CabalFile -> Status
 mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
@@ -118,8 +154,11 @@ mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
     | old == new -> OutputUnchanged
     | otherwise -> Generated
 
-hpackWithVersionResult :: Version -> DecodeOptions -> Force -> IO Result
-hpackWithVersionResult v options force = do
+hpackResult :: Options -> IO Result
+hpackResult = hpackResultWithVersion version
+
+hpackResultWithVersion :: Version -> Options -> IO Result
+hpackResultWithVersion v (Options options force toStdout) = do
   DecodeResult pkg cabalFile warnings <- readPackageConfig options >>= either die return
   oldCabalFile <- readCabalFile cabalFile
   let new = renderPackage (maybe [] cabalFileContents oldCabalFile) pkg
@@ -130,16 +169,12 @@ hpackWithVersionResult v options force = do
   case status of
     Generated -> do
       let hash = sha256 new
-      Utf8.writeFile cabalFile (header (decodeOptionsTarget options) v hash ++ new)
+      if toStdout
+        then Utf8.putStr new
+        else Utf8.writeFile cabalFile (header (decodeOptionsTarget options) v hash ++ new)
     _ -> return ()
   return Result {
       resultWarnings = warnings
     , resultCabalFile = cabalFile
     , resultStatus = status
     }
-
-hpackStdOut :: DecodeOptions -> IO ()
-hpackStdOut options = do
-  DecodeResult pkg _cabalFile warnings <- readPackageConfig options >>= either die return
-  Utf8.putStr (renderPackage [] pkg)
-  printWarnings warnings
