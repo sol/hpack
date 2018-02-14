@@ -51,12 +51,17 @@ module Hpack.Config (
 , Conditional(..)
 , Flag(..)
 , SourceRepository(..)
+, BuildType(..)
+, GhcProfOption
+, GhcjsOption
+, CppOption
+, CcOption
+, LdOption
 #ifdef TEST
 , renameDependencies
 , Empty(..)
 , getModules
 , pathsModuleFromPackageName
-, BuildType(..)
 , Cond(..)
 
 , LibrarySection(..)
