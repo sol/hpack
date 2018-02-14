@@ -1,9 +1,10 @@
-## next
+## Changes in 0.26.0
   - Major refactoring of the exposed API (much cleaner now, but lot's of
     breaking changes!)
   - Remove Git conflict markers before checking the hash of any existing
-    `.cabal` files (equivalent to `git checkout --ours`).  This allows you to
-    regenerate the `.cabal` on conflicts when rebasing without passing `-f`.
+    `.cabal` files (equivalent to `git checkout --ours`).  This allows to
+    regenerate the `.cabal` file on conflicts when rebasing without passing
+    `-f` in some cases and helps with preserving the formatting.
   - Allow local files to be used as defaults (#248)
 
 ## Changes in 0.25.0
