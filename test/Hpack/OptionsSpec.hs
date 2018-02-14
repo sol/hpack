@@ -69,7 +69,7 @@ spec = do
 
     context "when target directory does not exist" $ do
       it "appends default file" $ do
-        expandTarget defaultTarget (Just "foo/") `shouldReturn` "foo" </> defaultTarget
+        expandTarget defaultTarget (Just "foo/") `shouldReturn` ("foo/" ++ defaultTarget)
 
     context "when target is the empty string" $ do
       it "return default file" $ do
