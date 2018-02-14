@@ -51,7 +51,7 @@ cache:
 before_deploy:
   - case "$BUILD" in
       tinc)
-        mv dist/build/hpack/hpack .;;
+        cp dist/build/hpack/hpack .;;
       stack)
         stack install --local-bin-path .;;
     esac
