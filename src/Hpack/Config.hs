@@ -686,34 +686,37 @@ type WithCommonOptionsWithDefaults a = Product DefaultsConfig (WithCommonOptions
 
 toPackage :: FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) Package
 toPackage userDataDir dir =
-      expandDefaultsInConfig userDataDir
+      expandDefaultsInConfig userDataDir dir
   >=> traverseConfig (expandForeignSources dir)
   >=> toPackage_ dir
 
 expandDefaultsInConfig
   :: FilePath
+  -> FilePath
   -> ConfigWithDefaults
   -> Warnings (Errors IO) (Config ParseCSources ParseJsSources)
-expandDefaultsInConfig userDataDir = bitraverse (expandGlobalDefaults userDataDir) (expandSectionDefaults userDataDir)
+expandDefaultsInConfig userDataDir dir = bitraverse (expandGlobalDefaults userDataDir dir) (expandSectionDefaults userDataDir dir)
 
 expandGlobalDefaults
   :: FilePath
+  -> FilePath
   -> CommonOptionsWithDefaults Empty
   -> Warnings (Errors IO) (CommonOptions ParseCSources ParseJsSources Empty)
-expandGlobalDefaults userDataDir = do
-  fmap (`Product` Empty) >>> expandDefaults userDataDir >=> \ (Product c Empty) -> return c
+expandGlobalDefaults userDataDir dir = do
+  fmap (`Product` Empty) >>> expandDefaults userDataDir dir >=> \ (Product c Empty) -> return c
 
 expandSectionDefaults
   :: FilePath
+  -> FilePath
   -> PackageConfigWithDefaults ParseCSources ParseJsSources
   -> Warnings (Errors IO) (PackageConfig ParseCSources ParseJsSources)
-expandSectionDefaults userDataDir p@PackageConfig{..} = do
-  library <- traverse (expandDefaults userDataDir) packageConfigLibrary
-  internalLibraries <- traverse (traverse (expandDefaults userDataDir)) packageConfigInternalLibraries
-  executable <- traverse (expandDefaults userDataDir) packageConfigExecutable
-  executables <- traverse (traverse (expandDefaults userDataDir)) packageConfigExecutables
-  tests <- traverse (traverse (expandDefaults userDataDir)) packageConfigTests
-  benchmarks <- traverse (traverse (expandDefaults userDataDir)) packageConfigBenchmarks
+expandSectionDefaults userDataDir dir p@PackageConfig{..} = do
+  library <- traverse (expandDefaults userDataDir dir) packageConfigLibrary
+  internalLibraries <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigInternalLibraries
+  executable <- traverse (expandDefaults userDataDir dir) packageConfigExecutable
+  executables <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigExecutables
+  tests <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigTests
+  benchmarks <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigBenchmarks
   return p{
       packageConfigLibrary = library
     , packageConfigInternalLibraries = internalLibraries
@@ -726,26 +729,30 @@ expandSectionDefaults userDataDir p@PackageConfig{..} = do
 expandDefaults
   :: (FromValue a, Monoid a)
   => FilePath
+  -> FilePath
   -> WithCommonOptionsWithDefaults a
   -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseJsSources a)
 expandDefaults userDataDir = expand []
   where
     expand :: (FromValue a, Monoid a) =>
          [FilePath]
+      -> FilePath
       -> WithCommonOptionsWithDefaults a
       -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseJsSources a)
-    expand seen (Product DefaultsConfig{..} c) = do
-      d <- mconcat <$> mapM (get seen) (fromMaybeList defaultsConfigDefaults)
+    expand seen dir (Product DefaultsConfig{..} c) = do
+      d <- mconcat <$> mapM (get seen dir) (fromMaybeList defaultsConfigDefaults)
       return (d <> c)
 
     get :: forall a. (FromValue a, Monoid a) =>
          [FilePath]
+      -> FilePath
       -> Defaults
       -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseJsSources a)
-    get seen defaults = do
-      file <- lift $ ExceptT (ensure userDataDir defaults)
+    get seen dir defaults = do
+      file <- lift $ ExceptT (ensure userDataDir dir defaults)
       seen_ <- lift (checkCycle seen file)
-      decodeYaml file >>= expand seen_
+      let dir_ = takeDirectory file
+      decodeYaml file >>= expand seen_ dir_
 
     checkCycle :: [FilePath] -> FilePath -> Errors IO [FilePath]
     checkCycle seen file = do

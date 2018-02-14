@@ -1,3 +1,7 @@
+## next
+  - Local defaults are now resolved relative to the file they are
+    mentioned in, not the CWD that hpack is invoked from.
+
 ## Changes in 0.26.0
   - Major refactoring of the exposed API (much cleaner now, but lot's of
     breaking changes!)

@@ -11,7 +11,9 @@ spec :: Spec
 spec = do
   describe "ensure" $ do
     it "fails when local file does not exist" $ do
-      ensure undefined (DefaultsLocal $ Local "foo") `shouldReturn` Left "Invalid value for \"defaults\"! File foo does not exist!"
+      cwd <- getCurrentDirectory
+      let expected = Left $ "Invalid value for \"defaults\"! File " ++ cwd ++ "/foo does not exist!"
+      ensure undefined cwd (DefaultsLocal $ Local "foo") `shouldReturn` expected
 
   describe "ensureFile" $ do
     let

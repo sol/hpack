@@ -6,6 +6,8 @@ import           Prelude hiding (readFile)
 import qualified Prelude as Prelude
 
 import           Control.DeepSeq
+import           System.Directory (createDirectory)
+import           Test.Hspec (shouldContain)
 
 import           Hpack.Config
 import           Hpack.CabalFile
@@ -94,3 +96,48 @@ spec = do
               old <- readFile file
               hpack `shouldReturn` outputUnchanged
               readFile file `shouldReturn` old
+
+    context "with a relative path to local defaults" $ do
+      it "resolves relative to package.yaml, not CWD" $ do
+        withTempDirectory $ flip withCurrentDirectory $ do
+          createDirectory "foo"
+          writeFile "defaults.yaml" "ghc-options: A"
+          writeFile "foo/defaults.yaml" "ghc-options: B"
+          writeFile "foo/package.yaml" $ unlines
+            [ "name: foo"
+            , "defaults:"
+            , "  local: defaults.yaml"
+            , "executable:"
+            , "  main: Main.hs"
+            ]
+          _ <- hpackResult $ setTarget "foo/package.yaml" defaultOptions
+          fromOutside <- readFile "foo/foo.cabal"
+          _ <- withCurrentDirectory "foo" $ hpackResult defaultOptions
+          readFile "foo/foo.cabal" `shouldReturn` fromOutside
+
+      it "does not have false positives in cycle detection due to same-named default files in different directories" $ do
+        withTempDirectory $ flip withCurrentDirectory $ do
+          createDirectory "x"
+          writeFile "defaults-a.yaml" $ unlines
+            [ "defaults:"
+            , "  local: defaults-b.yaml"
+            ]
+          writeFile "defaults-b.yaml" $ unlines
+            [ "defaults:"
+            , "  local: x/defaults-b.yaml"
+            ]
+          writeFile "x/defaults-b.yaml" $ unlines
+            [ "defaults:"
+            , "  local: defaults-a.yaml"
+            ]
+          writeFile "x/defaults-a.yaml" "ghc-options: X"
+          writeFile "package.yaml" $ unlines
+            [ "name: foo"
+            , "defaults:"
+            , "  local: defaults-a.yaml"
+            , "executable:"
+            , "  main: Main.hs"
+            ]
+          _ <- hpackResult defaultOptions
+          res <- readFile "foo.cabal"
+          res `shouldContain` "ghc-options: X"
