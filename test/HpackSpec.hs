@@ -97,6 +97,22 @@ spec = do
               hpack `shouldReturn` outputUnchanged
               readFile file `shouldReturn` old
 
+    context "with an absolute path to local defaults" $ do
+      it "resolves the path correctly" $ do
+        withTempDirectory $ flip withCurrentDirectory $ do
+          withTempDirectory $ \ defaultsDir -> do
+            writeFile (defaultsDir </> "defaults.yaml") "ghc-options: A"
+            writeFile "package.yaml" $ unlines
+              [ "name: foo"
+              , "defaults:"
+              , "  local: " ++ (defaultsDir </> "defaults.yaml")
+              , "executable:"
+              , "  main: Main.hs"
+              ]
+            _ <- hpackResult $ setTarget "package.yaml" defaultOptions
+            res <- readFile "foo.cabal"
+            res `shouldContain` "ghc-options: A"
+
     context "with a relative path to local defaults" $ do
       it "resolves relative to package.yaml, not CWD" $ do
         withTempDirectory $ flip withCurrentDirectory $ do
