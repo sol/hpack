@@ -51,17 +51,17 @@ get url file = do
 formatStatus :: Status -> String
 formatStatus (Status code message) = show code ++ " " ++ B.unpack message
 
-ensure :: FilePath -> Defaults -> IO (Either String FilePath)
-ensure dir = \ case
+ensure :: FilePath -> FilePath -> Defaults -> IO (Either String FilePath)
+ensure userDataDir dir = \ case
   DefaultsGithub defaults -> do
     let
       url = defaultsUrl defaults
-      file = defaultsCachePath dir defaults
+      file = defaultsCachePath userDataDir defaults
     ensureFile file url >>= \ case
       Found -> return (Right file)
       NotFound -> return (Left $ notFound url)
       Failed err -> return (Left err)
-  DefaultsLocal (Local file) ->
+  DefaultsLocal (Local ((dir </>) -> file)) -> do
     doesFileExist file >>= \ case
       True -> return (Right file)
       False -> return (Left $ notFound file)
