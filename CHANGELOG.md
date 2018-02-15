@@ -1,4 +1,4 @@
-## next
+## Changes in 0.27.0
   - Local defaults are now resolved relative to the file they are
     mentioned in, not the CWD that hpack is invoked from.
 
