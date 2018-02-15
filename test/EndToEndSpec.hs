@@ -233,14 +233,20 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           ]
 
       it "accepts defaults from local files" $ do
-        writeFile "defaults.yaml" [i|
+        writeFile "defaults/foo.yaml" [i|
+        defaults:
+          local: bar.yaml
+        |]
+
+        writeFile "defaults/bar.yaml" [i|
         default-extensions:
           - RecordWildCards
           - DeriveFunctor
         |]
+
         [i|
         defaults:
-          local: defaults.yaml
+          local: defaults/foo.yaml
         library: {}
         |] `shouldRenderTo` library [i|
         other-modules:
