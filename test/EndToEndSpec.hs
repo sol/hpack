@@ -11,7 +11,7 @@ import qualified Prelude
 import           Helper
 import           Test.HUnit
 
-import           System.Directory (canonicalizePath)
+import           System.Directory (canonicalizePath, createDirectory)
 import           Data.Maybe
 import           Data.List
 import           Data.String.Interpolate
@@ -1176,12 +1176,12 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             default-language: Haskell2010
           |]
 
-run :: HasCallStack => FilePath -> String -> IO ([String], String)
-run c old = run_ c old >>= either assertFailure return
+run :: HasCallStack => FilePath -> FilePath -> String -> IO ([String], String)
+run userDataDir c old = run_ userDataDir c old >>= either assertFailure return
 
-run_ :: FilePath -> String -> IO (Either String ([String], String))
-run_ c old = do
-  mPackage <- readPackageConfig defaultDecodeOptions {decodeOptionsTarget = c, decodeOptionsUserDataDir = Just ""}
+run_ :: FilePath -> FilePath -> String -> IO (Either String ([String], String))
+run_ userDataDir c old = do
+  mPackage <- readPackageConfig defaultDecodeOptions {decodeOptionsTarget = c, decodeOptionsUserDataDir = Just userDataDir}
   return $ case mPackage of
     Right (DecodeResult pkg _ warnings) ->
       let
@@ -1202,8 +1202,11 @@ instance Show RenderResult where
 shouldRenderTo :: HasCallStack => String -> Package -> Expectation
 shouldRenderTo input p = do
   writeFile packageConfig ("name: foo\n" ++ unindent input)
-  (warnings, output) <- run packageConfig expected
-  RenderResult warnings (dropEmptyLines output) `shouldBe` RenderResult [] expected
+  let currentDirectory = ".working-directory"
+  createDirectory currentDirectory
+  withCurrentDirectory currentDirectory $ do
+    (warnings, output) <- run ".." (".." </> packageConfig) expected
+    RenderResult warnings (dropEmptyLines output) `shouldBe` RenderResult [] expected
   where
     expected = dropEmptyLines (renderPackage p)
     dropEmptyLines = unlines . filter (not . null) . lines
@@ -1211,13 +1214,13 @@ shouldRenderTo input p = do
 shouldWarn :: HasCallStack => String -> [String] -> Expectation
 shouldWarn input expected = do
   writeFile packageConfig input
-  (warnings, _) <- run packageConfig ""
+  (warnings, _) <- run "" packageConfig ""
   sort warnings `shouldBe` sort expected
 
 shouldFailWith :: HasCallStack => String -> String -> Expectation
 shouldFailWith input expected = do
   writeFile packageConfig input
-  run_ packageConfig "" `shouldReturn` Left expected
+  run_ "" packageConfig "" `shouldReturn` Left expected
 
 customSetup :: String -> Package
 customSetup a = (package content) {packageCabalVersion = ">= 1.24", packageBuildType = "Custom"}
