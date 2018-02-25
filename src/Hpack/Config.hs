@@ -183,7 +183,13 @@ data LibrarySection = LibrarySection {
 
 instance Monoid LibrarySection where
   mempty = LibrarySection Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-  mappend a b = LibrarySection {
+#if !MIN_VERSION_base(4,11,0)
+  mappend a b =
+#else
+instance Semigroup LibrarySection where
+  (<>)    a b =
+#endif
+    LibrarySection {
       librarySectionExposed = librarySectionExposed b <|> librarySectionExposed a
     , librarySectionExposedModules = librarySectionExposedModules a <> librarySectionExposedModules b
     , librarySectionGeneratedExposedModules = librarySectionGeneratedExposedModules a <> librarySectionGeneratedExposedModules b
@@ -201,7 +207,13 @@ data ExecutableSection = ExecutableSection {
 
 instance Monoid ExecutableSection where
   mempty = ExecutableSection Nothing Nothing Nothing
-  mappend a b = ExecutableSection {
+#if !MIN_VERSION_base(4,11,0)
+  mappend a b =
+#else
+instance Semigroup ExecutableSection where
+  (<>)    a b =
+#endif
+    ExecutableSection {
       executableSectionMain = executableSectionMain b <|> executableSectionMain a
     , executableSectionOtherModules = executableSectionOtherModules a <> executableSectionOtherModules b
     , executableSectionGeneratedOtherModules = executableSectionGeneratedOtherModules a <> executableSectionGeneratedOtherModules b
@@ -289,7 +301,13 @@ instance (Monoid cSources, Monoid jsSources) => Monoid (CommonOptions cSources j
   , commonOptionsBuildTools = Nothing
   , commonOptionsVerbatim = Nothing
   }
-  mappend a b = CommonOptions {
+#if !MIN_VERSION_base(4,11,0)
+  mappend a b =
+#else
+instance (Semigroup cSources, Semigroup jsSources) => Semigroup (CommonOptions cSources jsSources a) where
+  (<>)    a b =
+#endif
+    CommonOptions {
     commonOptionsSourceDirs = commonOptionsSourceDirs a <> commonOptionsSourceDirs b
   , commonOptionsDependencies = commonOptionsDependencies b <> commonOptionsDependencies a
   , commonOptionsPkgConfigDependencies = commonOptionsPkgConfigDependencies a <> commonOptionsPkgConfigDependencies b
@@ -416,7 +434,12 @@ data Empty = Empty
 
 instance Monoid Empty where
   mempty = Empty
+#if !MIN_VERSION_base(4,11,0)
   mappend Empty Empty = Empty
+#else
+instance Semigroup Empty where
+  (<>)    Empty Empty = Empty
+#endif
 
 instance FromValue Empty where
   fromValue _ = return Empty
