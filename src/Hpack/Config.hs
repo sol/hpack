@@ -162,7 +162,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, version) | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty []
+section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -234,7 +234,7 @@ instance FromValue Verbatim where
     Object _ -> VerbatimObject <$> fromValue v
     _ -> typeMismatch (formatOrList ["String", "Object"]) v
 
-data CommonOptions cSources jsSources a = CommonOptions {
+data CommonOptions cSources cxxSources jsSources a = CommonOptions {
   commonOptionsSourceDirs :: Maybe (List FilePath)
 , commonOptionsDependencies :: Maybe Dependencies
 , commonOptionsPkgConfigDependencies :: Maybe (List String)
@@ -246,6 +246,8 @@ data CommonOptions cSources jsSources a = CommonOptions {
 , commonOptionsCppOptions :: Maybe (List CppOption)
 , commonOptionsCcOptions :: Maybe (List CcOption)
 , commonOptionsCSources :: cSources
+, commonOptionsCxxOptions :: Maybe (List CxxOption)
+, commonOptionsCxxSources :: cxxSources
 , commonOptionsJsSources :: jsSources
 , commonOptionsExtraLibDirs :: Maybe (List FilePath)
 , commonOptionsExtraLibraries :: Maybe (List FilePath)
@@ -255,15 +257,15 @@ data CommonOptions cSources jsSources a = CommonOptions {
 , commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
-, commonOptionsWhen :: Maybe (List (ConditionalSection cSources jsSources a))
+, commonOptionsWhen :: Maybe (List (ConditionalSection cSources cxxSources jsSources a))
 , commonOptionsBuildTools :: Maybe Dependencies
 , commonOptionsVerbatim :: Maybe (List Verbatim)
 } deriving (Functor, Generic)
 
-type ParseCommonOptions = CommonOptions ParseCSources ParseJsSources
+type ParseCommonOptions = CommonOptions ParseCSources ParseCxxSources ParseJsSources
 instance FromValue a => FromValue (ParseCommonOptions a)
 
-instance (Monoid cSources, Monoid jsSources) => Monoid (CommonOptions cSources jsSources a) where
+instance (Monoid cSources, Monoid cxxSources, Monoid jsSources) => Monoid (CommonOptions cSources cxxSources jsSources a) where
   mempty = CommonOptions {
     commonOptionsSourceDirs = Nothing
   , commonOptionsDependencies = Nothing
@@ -276,6 +278,8 @@ instance (Monoid cSources, Monoid jsSources) => Monoid (CommonOptions cSources j
   , commonOptionsCppOptions = Nothing
   , commonOptionsCcOptions = Nothing
   , commonOptionsCSources = mempty
+  , commonOptionsCxxOptions = Nothing
+  , commonOptionsCxxSources = mempty
   , commonOptionsJsSources = mempty
   , commonOptionsExtraLibDirs = Nothing
   , commonOptionsExtraLibraries = Nothing
@@ -301,6 +305,8 @@ instance (Monoid cSources, Monoid jsSources) => Monoid (CommonOptions cSources j
   , commonOptionsCppOptions = commonOptionsCppOptions a <> commonOptionsCppOptions b
   , commonOptionsCcOptions = commonOptionsCcOptions a <> commonOptionsCcOptions b
   , commonOptionsCSources = commonOptionsCSources a <> commonOptionsCSources b
+  , commonOptionsCxxOptions = commonOptionsCxxOptions a <> commonOptionsCxxOptions b
+  , commonOptionsCxxSources = commonOptionsCxxSources a <> commonOptionsCxxSources b
   , commonOptionsJsSources = commonOptionsJsSources a <> commonOptionsJsSources b
   , commonOptionsExtraLibDirs = commonOptionsExtraLibDirs a <> commonOptionsExtraLibDirs b
   , commonOptionsExtraLibraries = commonOptionsExtraLibraries a <> commonOptionsExtraLibraries b
@@ -316,35 +322,40 @@ instance (Monoid cSources, Monoid jsSources) => Monoid (CommonOptions cSources j
   }
 
 type ParseCSources = Maybe (List FilePath)
+type ParseCxxSources = Maybe (List FilePath)
 type ParseJsSources = Maybe (List FilePath)
 
 type CSources = [FilePath]
+type CxxSources = [FilePath]
 type JsSources = [FilePath]
 
-type WithCommonOptions cSources jsSources a = Product (CommonOptions cSources jsSources a) a
+type WithCommonOptions cSources cxxSources jsSources a = Product (CommonOptions cSources cxxSources jsSources a) a
 
-data Traverse m cSources cSources_ jsSources jsSources_ = Traverse {
+data Traverse m cSources cSources_ cxxSources cxxSources_ jsSources jsSources_ = Traverse {
   traverseCSources :: cSources -> m cSources_
+, traverseCxxSources :: cxxSources -> m cxxSources_
 , traverseJsSources :: jsSources -> m jsSources_
 }
 
-type Traversal t = forall m cSources cSources_ jsSources jsSources_. Monad m
-  => Traverse m cSources cSources_ jsSources jsSources_
-  -> t cSources jsSources
-  -> m (t cSources_ jsSources_)
+type Traversal t = forall m cSources cSources_ cxxSources cxxSources_ jsSources jsSources_. Monad m
+  => Traverse m cSources cSources_ cxxSources cxxSources_ jsSources jsSources_
+  -> t cSources cxxSources jsSources
+  -> m (t cSources_ cxxSources_ jsSources_)
 
-type Traversal_ t = forall m cSources cSources_ jsSources jsSources_ a. Monad m
-  => Traverse m cSources cSources_ jsSources jsSources_
-  -> t cSources jsSources a
-  -> m (t cSources_ jsSources_ a)
+type Traversal_ t = forall m cSources cSources_ cxxSources cxxSources_ jsSources jsSources_ a. Monad m
+  => Traverse m cSources cSources_ cxxSources cxxSources_ jsSources jsSources_
+  -> t cSources cxxSources jsSources a
+  -> m (t cSources_ cxxSources_ jsSources_ a)
 
 traverseCommonOptions :: Traversal_ CommonOptions
 traverseCommonOptions t@Traverse{..} c@CommonOptions{..} = do
   cSources <- traverseCSources commonOptionsCSources
+  cxxSources <- traverseCxxSources commonOptionsCxxSources
   jsSources <- traverseJsSources commonOptionsJsSources
   xs <- traverse (traverse (traverseConditionalSection t)) commonOptionsWhen
   return c {
       commonOptionsCSources = cSources
+    , commonOptionsCxxSources = cxxSources
     , commonOptionsJsSources = jsSources
     , commonOptionsWhen = xs
     }
@@ -363,16 +374,16 @@ traverseThenElse t@Traverse{..} c@ThenElse{..} = do
 traverseWithCommonOptions :: Traversal_ WithCommonOptions
 traverseWithCommonOptions t = bitraverse (traverseCommonOptions t) return
 
-data ConditionalSection cSources jsSources a =
-    ThenElseConditional (Product (ThenElse cSources jsSources a) Condition)
-  | FlatConditional (Product (WithCommonOptions cSources jsSources a) Condition)
+data ConditionalSection cSources cxxSources jsSources a =
+    ThenElseConditional (Product (ThenElse cSources cxxSources jsSources a) Condition)
+  | FlatConditional (Product (WithCommonOptions cSources cxxSources jsSources a) Condition)
 
-instance Functor (ConditionalSection cSources jsSources) where
+instance Functor (ConditionalSection cSources cxxSources jsSources) where
   fmap f = \ case
     ThenElseConditional c -> ThenElseConditional (first (fmap f) c)
     FlatConditional c -> FlatConditional (first (bimap (fmap f) f) c)
 
-type ParseConditionalSection = ConditionalSection ParseCSources ParseJsSources
+type ParseConditionalSection = ConditionalSection ParseCSources ParseCxxSources ParseJsSources
 
 instance FromValue a => FromValue (ParseConditionalSection a) where
   fromValue v
@@ -397,17 +408,17 @@ instance FromValue Cond where
     Bool False -> return (Cond "false")
     _ -> typeMismatch "Boolean or String" v
 
-data ThenElse cSources jsSources a = ThenElse {
-  thenElseThen :: WithCommonOptions cSources jsSources a
-, thenElseElse :: WithCommonOptions cSources jsSources a
+data ThenElse cSources cxxSources jsSources a = ThenElse {
+  thenElseThen :: WithCommonOptions cSources cxxSources jsSources a
+, thenElseElse :: WithCommonOptions cSources cxxSources jsSources a
 } deriving Generic
 
-instance Functor (ThenElse cSources jsSources) where
+instance Functor (ThenElse cSources cxxSources jsSources) where
   fmap f c@ThenElse{..} = c{thenElseThen = map_ thenElseThen, thenElseElse = map_ thenElseElse}
     where
       map_ = bimap (fmap f) f
 
-type ParseThenElse = ThenElse ParseCSources ParseJsSources
+type ParseThenElse = ThenElse ParseCSources ParseCxxSources ParseJsSources
 
 instance FromValue a => FromValue (ParseThenElse a)
 
@@ -444,17 +455,17 @@ formatOrList xs = case reverse xs of
   y : x : [] -> x ++ " or " ++ y
   x : ys@(_:_:_) -> intercalate ", " . reverse $ ("or " ++ x) : ys
 
-type SectionConfigWithDefaluts cSources jsSources a = Product DefaultsConfig (WithCommonOptions cSources jsSources a)
+type SectionConfigWithDefaluts cSources cxxSources jsSources a = Product DefaultsConfig (WithCommonOptions cSources cxxSources jsSources a)
 
-type PackageConfigWithDefaults cSources jsSources = PackageConfig_
-  (SectionConfigWithDefaluts cSources jsSources LibrarySection)
-  (SectionConfigWithDefaluts cSources jsSources ExecutableSection)
-  cSources jsSources
+type PackageConfigWithDefaults cSources cxxSources jsSources = PackageConfig_
+  (SectionConfigWithDefaluts cSources cxxSources jsSources LibrarySection)
+  (SectionConfigWithDefaluts cSources cxxSources jsSources ExecutableSection)
+  cSources cxxSources jsSources
 
-type PackageConfig cSources jsSources = PackageConfig_
-  (WithCommonOptions cSources jsSources LibrarySection)
-  (WithCommonOptions cSources jsSources ExecutableSection)
-  cSources jsSources
+type PackageConfig cSources cxxSources jsSources = PackageConfig_
+  (WithCommonOptions cSources cxxSources jsSources LibrarySection)
+  (WithCommonOptions cSources cxxSources jsSources ExecutableSection)
+  cSources cxxSources jsSources
 
 data PackageVersion = PackageVersion {unPackageVersion :: String}
 
@@ -464,7 +475,7 @@ instance FromValue PackageVersion where
     String s -> return (T.unpack s)
     _ -> typeMismatch "Number or String" v
 
-data PackageConfig_ library executable cSources jsSources = PackageConfig {
+data PackageConfig_ library executable cSources cxxSources jsSources = PackageConfig {
   packageConfigName :: Maybe String
 , packageConfigVersion :: Maybe PackageVersion
 , packageConfigSynopsis :: Maybe String
@@ -518,7 +529,7 @@ traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
   where
     traverseNamedConfigs = traverse . traverse . traverseWithCommonOptions
 
-type ParsePackageConfig = PackageConfigWithDefaults ParseCSources ParseJsSources
+type ParsePackageConfig = PackageConfigWithDefaults ParseCSources ParseCxxSources ParseJsSources
 
 instance FromValue ParsePackageConfig
 
@@ -630,6 +641,8 @@ data Section a = Section {
 , sectionCppOptions :: [CppOption]
 , sectionCcOptions :: [CcOption]
 , sectionCSources :: [FilePath]
+, sectionCxxOptions :: [CxxOption]
+, sectionCxxSources :: [FilePath]
 , sectionJsSources :: [FilePath]
 , sectionExtraLibDirs :: [FilePath]
 , sectionExtraLibraries :: [FilePath]
@@ -671,18 +684,18 @@ data SourceRepository = SourceRepository {
 , sourceRepositorySubdir :: Maybe String
 } deriving (Eq, Show)
 
-type Config cSources jsSources =
-  Product (CommonOptions cSources jsSources Empty) (PackageConfig cSources jsSources)
+type Config cSources cxxSources jsSources =
+  Product (CommonOptions cSources cxxSources jsSources Empty) (PackageConfig cSources cxxSources jsSources)
 
 traverseConfig :: Traversal Config
 traverseConfig t = bitraverse (traverseCommonOptions t) (traversePackageConfig t)
 
 type ConfigWithDefaults = Product
   (CommonOptionsWithDefaults Empty)
-  (PackageConfigWithDefaults ParseCSources ParseJsSources)
+  (PackageConfigWithDefaults ParseCSources ParseCxxSources ParseJsSources)
 
-type CommonOptionsWithDefaults a = Product DefaultsConfig (CommonOptions ParseCSources ParseJsSources a)
-type WithCommonOptionsWithDefaults a = Product DefaultsConfig (WithCommonOptions ParseCSources ParseJsSources a)
+type CommonOptionsWithDefaults a = Product DefaultsConfig (CommonOptions ParseCSources ParseCxxSources ParseJsSources a)
+type WithCommonOptionsWithDefaults a = Product DefaultsConfig (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 
 toPackage :: FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) Package
 toPackage userDataDir dir =
@@ -694,22 +707,22 @@ expandDefaultsInConfig
   :: FilePath
   -> FilePath
   -> ConfigWithDefaults
-  -> Warnings (Errors IO) (Config ParseCSources ParseJsSources)
+  -> Warnings (Errors IO) (Config ParseCSources ParseCxxSources ParseJsSources)
 expandDefaultsInConfig userDataDir dir = bitraverse (expandGlobalDefaults userDataDir dir) (expandSectionDefaults userDataDir dir)
 
 expandGlobalDefaults
   :: FilePath
   -> FilePath
   -> CommonOptionsWithDefaults Empty
-  -> Warnings (Errors IO) (CommonOptions ParseCSources ParseJsSources Empty)
+  -> Warnings (Errors IO) (CommonOptions ParseCSources ParseCxxSources ParseJsSources Empty)
 expandGlobalDefaults userDataDir dir = do
   fmap (`Product` Empty) >>> expandDefaults userDataDir dir >=> \ (Product c Empty) -> return c
 
 expandSectionDefaults
   :: FilePath
   -> FilePath
-  -> PackageConfigWithDefaults ParseCSources ParseJsSources
-  -> Warnings (Errors IO) (PackageConfig ParseCSources ParseJsSources)
+  -> PackageConfigWithDefaults ParseCSources ParseCxxSources ParseJsSources
+  -> Warnings (Errors IO) (PackageConfig ParseCSources ParseCxxSources ParseJsSources)
 expandSectionDefaults userDataDir dir p@PackageConfig{..} = do
   library <- traverse (expandDefaults userDataDir dir) packageConfigLibrary
   internalLibraries <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigInternalLibraries
@@ -731,14 +744,14 @@ expandDefaults
   => FilePath
   -> FilePath
   -> WithCommonOptionsWithDefaults a
-  -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseJsSources a)
+  -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 expandDefaults userDataDir = expand []
   where
     expand :: (FromValue a, Monoid a) =>
          [FilePath]
       -> FilePath
       -> WithCommonOptionsWithDefaults a
-      -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseJsSources a)
+      -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
     expand seen dir (Product DefaultsConfig{..} c) = do
       d <- mconcat <$> mapM (get seen dir) (fromMaybeList defaultsConfigDefaults)
       return (d <> c)
@@ -747,7 +760,7 @@ expandDefaults userDataDir = expand []
          [FilePath]
       -> FilePath
       -> Defaults
-      -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseJsSources a)
+      -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
     get seen dir defaults = do
       file <- lift $ ExceptT (ensure userDataDir dir defaults)
       seen_ <- lift (checkCycle seen file)
@@ -771,9 +784,9 @@ toExecutableMap name executables mExecutable = do
       return $ Just (Map.fromList [(name, executable)])
     Nothing -> return executables
 
-type GlobalOptions = CommonOptions CSources JsSources Empty
+type GlobalOptions = CommonOptions CSources CxxSources JsSources Empty
 
-toPackage_ :: MonadIO m => FilePath -> Product GlobalOptions (PackageConfig CSources JsSources) -> Warnings m Package
+toPackage_ :: MonadIO m => FilePath -> Product GlobalOptions (PackageConfig CSources CxxSources JsSources) -> Warnings m Package
 toPackage_ dir (Product g PackageConfig{..}) = do
   let
     globalVerbatim = commonOptionsVerbatim g
@@ -893,9 +906,10 @@ toPackage_ dir (Product g PackageConfig{..}) = do
 expandForeignSources
   :: MonadIO m
   => FilePath
-  -> Traverse (Warnings m) ParseCSources CSources ParseJsSources JsSources
+  -> Traverse (Warnings m) ParseCSources CSources ParseCxxSources CxxSources ParseJsSources JsSources
 expandForeignSources dir = Traverse {
     traverseCSources = expand "c-sources"
+  , traverseCxxSources = expand "cxx-sources"
   , traverseJsSources = expand "js-sources"
   }
   where
@@ -955,7 +969,7 @@ inferModules dir packageName_ getMentionedModules getInferredModules fromData fr
         r = fromConfig pathsModule inferableModules conf
       return (outerModules ++ getInferredModules r, r)
 
-toLibrary :: FilePath -> String -> GlobalOptions -> WithCommonOptions CSources JsSources LibrarySection -> IO (Section Library)
+toLibrary :: FilePath -> String -> GlobalOptions -> WithCommonOptions CSources CxxSources JsSources LibrarySection -> IO (Section Library)
 toLibrary dir name globalOptions =
     inferModules dir name getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel fromLibrarySectionInConditional
   . toSection (mempty <$ globalOptions)
@@ -997,17 +1011,17 @@ fromLibrarySectionPlain LibrarySection{..} = Library {
   , librarySignatures = fromMaybeList librarySectionSignatures
   }
 
-toInternalLibraries :: FilePath -> String -> GlobalOptions -> Maybe (Map String (WithCommonOptions CSources JsSources LibrarySection)) -> IO (Map String (Section Library))
+toInternalLibraries :: FilePath -> String -> GlobalOptions -> Maybe (Map String (WithCommonOptions CSources CxxSources JsSources LibrarySection)) -> IO (Map String (Section Library))
 toInternalLibraries dir packageName_ globalOptions = traverse (toLibrary dir packageName_ globalOptions) . fromMaybe mempty
 
-toExecutables :: FilePath -> String -> GlobalOptions -> Maybe (Map String (WithCommonOptions CSources JsSources ExecutableSection)) -> IO (Map String (Section Executable))
+toExecutables :: FilePath -> String -> GlobalOptions -> Maybe (Map String (WithCommonOptions CSources CxxSources JsSources ExecutableSection)) -> IO (Map String (Section Executable))
 toExecutables dir packageName_ globalOptions = traverse (toExecutable dir packageName_ globalOptions) . fromMaybe mempty
 
 getMentionedExecutableModules :: ExecutableSection -> [String]
 getMentionedExecutableModules (ExecutableSection main otherModules generatedModules)=
   maybe id (:) (main >>= toModule . splitDirectories) $ fromMaybeList (otherModules <> generatedModules)
 
-toExecutable :: FilePath -> String -> GlobalOptions -> WithCommonOptions CSources JsSources ExecutableSection -> IO (Section Executable)
+toExecutable :: FilePath -> String -> GlobalOptions -> WithCommonOptions CSources CxxSources JsSources ExecutableSection -> IO (Section Executable)
 toExecutable dir packageName_ globalOptions =
     inferModules dir packageName_ getMentionedExecutableModules executableOtherModules fromExecutableSection (fromExecutableSection [])
   . expandMain
@@ -1039,10 +1053,10 @@ expandMain = flatten . expand
       , sectionConditionals = map (fmap flatten) sectionConditionals
       }
 
-toSection :: CommonOptions CSources JsSources a -> WithCommonOptions CSources JsSources a -> Section a
+toSection :: CommonOptions CSources CxxSources JsSources a -> WithCommonOptions CSources CxxSources JsSources a -> Section a
 toSection globalOptions (Product options a) = toSection_ (Product (globalOptions <> options) a)
 
-toSection_ :: WithCommonOptions CSources JsSources a -> Section a
+toSection_ :: WithCommonOptions CSources CxxSources JsSources a -> Section a
 toSection_ (Product CommonOptions{..} a) = Section {
         sectionData = a
       , sectionSourceDirs = fromMaybeList commonOptionsSourceDirs
@@ -1054,6 +1068,8 @@ toSection_ (Product CommonOptions{..} a) = Section {
       , sectionCppOptions = fromMaybeList commonOptionsCppOptions
       , sectionCcOptions = fromMaybeList commonOptionsCcOptions
       , sectionCSources = commonOptionsCSources
+      , sectionCxxOptions = fromMaybeList commonOptionsCxxOptions
+      , sectionCxxSources = commonOptionsCxxSources
       , sectionJsSources = commonOptionsJsSources
       , sectionExtraLibDirs = fromMaybeList commonOptionsExtraLibDirs
       , sectionExtraLibraries = fromMaybeList commonOptionsExtraLibraries
@@ -1072,7 +1088,7 @@ toSection_ (Product CommonOptions{..} a) = Section {
   where
     conditionals = map toConditional (fromMaybeList commonOptionsWhen)
 
-    toConditional :: ConditionalSection CSources JsSources a -> Conditional (Section a)
+    toConditional :: ConditionalSection CSources CxxSources JsSources a -> Conditional (Section a)
     toConditional x = case x of
       ThenElseConditional (Product (ThenElse then_ else_) c) -> conditional c (toSection_ then_) (Just $ toSection_ else_)
       FlatConditional (Product sect c) -> conditional c (toSection_ sect) Nothing

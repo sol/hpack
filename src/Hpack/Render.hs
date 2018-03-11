@@ -148,6 +148,7 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
           makeVersion [1,22] <$ guard hasReexportedModules
         , makeVersion [2,0]  <$ guard hasSignatures
         , makeVersion [2,0] <$ guard hasGeneratedModules
+        , makeVersion [2,2] <$ guard (hasCxxParams sect)
         ]
         where
           hasReexportedModules = any (not . null . libraryReexportedModules) sect
@@ -155,16 +156,34 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
           hasGeneratedModules = any (not . null . libraryGeneratedModules) sect
 
       internalLibsCabalVersion :: Map String (Section Library) -> Maybe Version
-      internalLibsCabalVersion internalLibraries = makeVersion [2,0] <$ guard (not (Map.null internalLibraries))
+      internalLibsCabalVersion internalLibraries
+        | Map.null internalLibraries = Nothing
+        | otherwise = foldr max (Just $ makeVersion [2,0]) versions
+        where
+          versions = libraryCabalVersion <$> Map.elems internalLibraries
 
       executablesCabalVersion :: Map String (Section Executable) -> Maybe Version
       executablesCabalVersion = foldr max Nothing . map executableCabalVersion . Map.elems
 
       executableCabalVersion :: Section Executable -> Maybe Version
-      executableCabalVersion sect = makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
+      executableCabalVersion sect = maximum [
+          makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
+        , makeVersion [2,2] <$ guard (hasCxxParams sect)
+        ]
 
       executableHasGeneratedModules :: Section Executable -> Bool
       executableHasGeneratedModules = any (not . null . executableGeneratedModules)
+
+      hasCxxParams :: Section a -> Bool
+      hasCxxParams sect = or [
+          check sect
+        , any (any check) (sectionConditionals sect)
+        ]
+        where
+          check s = or [
+              (not . null . sectionCxxOptions) s
+            , (not . null . sectionCxxSources) s
+            ]
 
 sortSectionFields :: [(String, [String])] -> [Element] -> [Element]
 sortSectionFields sectionsFieldOrder = go
@@ -278,9 +297,11 @@ renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = ad
   , renderGhcjsOptions sectionGhcjsOptions
   , renderCppOptions sectionCppOptions
   , renderCcOptions sectionCcOptions
+  , renderCxxOptions sectionCxxOptions
   , renderDirectories "include-dirs" sectionIncludeDirs
   , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
   , Field "c-sources" (LineSeparatedList sectionCSources)
+  , Field "cxx-sources" (LineSeparatedList sectionCxxSources)
   , Field "js-sources" (LineSeparatedList sectionJsSources)
   , renderDirectories "extra-lib-dirs" sectionExtraLibDirs
   , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
@@ -386,6 +407,9 @@ renderCppOptions = Field "cpp-options" . WordList
 
 renderCcOptions :: [CcOption] -> Element
 renderCcOptions = Field "cc-options" . WordList
+
+renderCxxOptions :: [CxxOption] -> Element
+renderCxxOptions = Field "cxx-options" . WordList
 
 renderLdOptions :: [LdOption] -> Element
 renderLdOptions = Field "ld-options" . WordList
