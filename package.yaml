@@ -62,5 +62,5 @@ tests:
       - mockery >= 0.3
       - interpolate
       - template-haskell
-      - HUnit
+      - HUnit >= 1.6.0.0
       - yaml >= 0.8.28

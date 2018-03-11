@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3172713e09611ee19cc9d92dafaabdc4ca26daada30517f9458fa486d4ae02ba
+-- hash: 52aef45d66a8fadada84283c38d9811605e1e6e4e0c3312fa348846aee77afe7
 
 name:           hpack
 version:        0.27.0
@@ -117,7 +117,7 @@ test-suite spec
   build-depends:
       Cabal
     , Glob >=0.9.0
-    , HUnit
+    , HUnit >=1.6.0.0
     , QuickCheck
     , aeson >=1.2.1.0
     , base >=4.9 && <5
