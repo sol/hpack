@@ -460,12 +460,10 @@ type SectionConfigWithDefaluts cSources cxxSources jsSources a = Product Default
 type PackageConfigWithDefaults cSources cxxSources jsSources = PackageConfig_
   (SectionConfigWithDefaluts cSources cxxSources jsSources LibrarySection)
   (SectionConfigWithDefaluts cSources cxxSources jsSources ExecutableSection)
-  cSources cxxSources jsSources
 
 type PackageConfig cSources cxxSources jsSources = PackageConfig_
   (WithCommonOptions cSources cxxSources jsSources LibrarySection)
   (WithCommonOptions cSources cxxSources jsSources ExecutableSection)
-  cSources cxxSources jsSources
 
 data PackageVersion = PackageVersion {unPackageVersion :: String}
 
@@ -475,7 +473,7 @@ instance FromValue PackageVersion where
     String s -> return (T.unpack s)
     _ -> typeMismatch "Number or String" v
 
-data PackageConfig_ library executable cSources cxxSources jsSources = PackageConfig {
+data PackageConfig_ library executable = PackageConfig {
   packageConfigName :: Maybe String
 , packageConfigVersion :: Maybe PackageVersion
 , packageConfigSynopsis :: Maybe String
