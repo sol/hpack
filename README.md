@@ -21,11 +21,11 @@ used instead of YAML.
 
 ## Tool integration
 
-Hpack packages are described in a file named `package.yaml`.  The [`stack`
-build tool](https://haskellstack.org/) and
-[`cabal2nix`](https://hackage.haskell.org/package/cabal2nix) have native
-support for Hpack.  For other build tools the `hpack` executable can be used to
-generate a `.cabal` file.
+Hpack packages are described in a file named `package.yaml`.  Both
+[`cabal2nix`](https://hackage.haskell.org/package/cabal2nix) and
+[`stack`](https://haskellstack.org/) support `package.yaml` natively.  For
+other build tools the `hpack` executable can be used to generate a `.cabal`
+file from `package.yaml`.
 
 ## There is no user guide
 
