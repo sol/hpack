@@ -59,19 +59,18 @@ renderPackageWith :: RenderSettings -> Alignment -> [String] -> [(String, [Strin
 renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
   where
     chunks :: [String]
-    chunks = map unlines . filter (not . null) . map (render settings 0) $ sortSectionFields sectionsFieldOrder stanzas
+    chunks = map unlines . filter (not . null) . map (render settings 0) $ sortStanzaFields sectionsFieldOrder stanzas
 
     header :: [String]
-    header = concatMap (render settings {renderSettingsFieldAlignment = headerFieldsAlignment} 0) (filterVerbatim packageVerbatim $ headerFields)
+    header = concatMap (render settings {renderSettingsFieldAlignment = headerFieldsAlignment} 0) packageFields
 
-    extraSourceFiles :: Element
-    extraSourceFiles = Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
-
-    extraDocFiles :: Element
-    extraDocFiles = Field "extra-doc-files" (LineSeparatedList packageExtraDocFiles)
-
-    dataFiles :: Element
-    dataFiles = Field "data-files" (LineSeparatedList packageDataFiles)
+    packageFields :: [Element]
+    packageFields = addVerbatim packageVerbatim . sortFieldsBy existingFieldOrder $
+      headerFields ++ [
+        Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
+      , Field "extra-doc-files" (LineSeparatedList packageExtraDocFiles)
+      , Field "data-files" (LineSeparatedList packageDataFiles)
+      ]
 
     sourceRepository :: [Element]
     sourceRepository = maybe [] (return . renderSourceRepository) packageSourceRepository
@@ -83,13 +82,9 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
     library = maybe [] (return . renderLibrary) packageLibrary
 
     stanzas :: [Element]
-    stanzas = addVerbatim packageVerbatim $
-      extraSourceFiles
-      : extraDocFiles
-      : dataFiles
-      : sourceRepository
-      ++ concat [
-        customSetup
+    stanzas = concat [
+        sourceRepository
+      , customSetup
       , map renderFlag packageFlags
       , library
       , renderInternalLibraries packageInternalLibraries
@@ -99,7 +94,7 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
       ]
 
     headerFields :: [Element]
-    headerFields = sortFieldsBy existingFieldOrder . mapMaybe (\(name, value) -> Field name . Literal <$> value) $ [
+    headerFields = mapMaybe (\(name, value) -> Field name . Literal <$> value) $ [
         ("name", Just packageName)
       , ("version", Just packageVersion)
       , ("synopsis", packageSynopsis)
@@ -185,8 +180,8 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
             , (not . null . sectionCxxSources) s
             ]
 
-sortSectionFields :: [(String, [String])] -> [Element] -> [Element]
-sortSectionFields sectionsFieldOrder = go
+sortStanzaFields :: [(String, [String])] -> [Element] -> [Element]
+sortStanzaFields sectionsFieldOrder = go
   where
     go sections = case sections of
       [] -> []

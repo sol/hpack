@@ -114,7 +114,6 @@ spec = do
         , "version: 0.0.0"
         , "build-type: Simple"
         , "cabal-version: >= 1.10"
-        , ""
         , "extra-source-files:"
         , "    foo"
         , "    bar"

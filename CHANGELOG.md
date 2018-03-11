@@ -1,5 +1,6 @@
 ## next
   - Add support for `cxx-options` and `cxx-sources` (see #205)
+  - Generate valid `.cabal` files when `verbatim` is used top-level (see #280)
 
 ## Changes in 0.27.0
   - Local defaults are now resolved relative to the file they are

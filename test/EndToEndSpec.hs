@@ -1183,11 +1183,11 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             foo: 23
           library: {}
           |] `shouldRenderTo` package [i|
+          foo: 23
           library
             other-modules:
                 Paths_foo
             default-language: Haskell2010
-          foo: 23
           |]
 
       context "within a section" $ do
