@@ -37,6 +37,34 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           Paths_foo
       |]
 
+    describe "data-files" $ do
+      it "accepts data-files" $ do
+        touch "data/foo/index.html"
+        touch "data/bar/index.html"
+        [i|
+        data-files:
+          - data/**/*.html
+        |] `shouldRenderTo` package [i|
+        data-files:
+            data/bar/index.html
+            data/foo/index.html
+        |]
+
+    describe "data-dir" $ do
+      it "accepts data-dir" $ do
+        touch "data/foo.html"
+        touch "data/bar.html"
+        [i|
+        data-dir: data
+        data-files:
+          - "*.html"
+        |] `shouldRenderTo` package [i|
+        data-files:
+            bar.html
+            foo.html
+        data-dir: data
+        |]
+
     describe "github" $ do
       it "accepts owner/repo" $ do
         [i|

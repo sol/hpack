@@ -124,6 +124,7 @@ package name version = Package {
   , packageExtraSourceFiles = []
   , packageExtraDocFiles = []
   , packageDataFiles = []
+  , packageDataDir = Nothing
   , packageSourceRepository = Nothing
   , packageCustomSetup = Nothing
   , packageLibrary = Nothing
@@ -493,6 +494,7 @@ data PackageConfig_ library executable = PackageConfig {
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigExtraDocFiles :: Maybe (List FilePath)
 , packageConfigDataFiles :: Maybe (List FilePath)
+, packageConfigDataDir :: Maybe FilePath
 , packageConfigGithub :: Maybe Text
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe CustomSetupSection
@@ -597,6 +599,7 @@ data Package = Package {
 , packageExtraSourceFiles :: [FilePath]
 , packageExtraDocFiles :: [FilePath]
 , packageDataFiles :: [FilePath]
+, packageDataDir :: Maybe FilePath
 , packageSourceRepository :: Maybe SourceRepository
 , packageCustomSetup :: Maybe CustomSetup
 , packageLibrary :: Maybe (Section Library)
@@ -812,7 +815,10 @@ toPackage_ dir (Product g PackageConfig{..}) = do
 
   extraSourceFiles <- expandGlobs "extra-source-files" dir (fromMaybeList packageConfigExtraSourceFiles)
   extraDocFiles <- expandGlobs "extra-doc-files" dir (fromMaybeList packageConfigExtraDocFiles)
-  dataFiles <- expandGlobs "data-files" dir (fromMaybeList packageConfigDataFiles)
+
+  let dataBaseDir = maybe dir (dir </>) packageConfigDataDir
+
+  dataFiles <- expandGlobs "data-files" dataBaseDir (fromMaybeList packageConfigDataFiles)
 
   let defaultBuildType :: BuildType
       defaultBuildType = maybe Simple (const Custom) mCustomSetup
@@ -842,6 +848,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       , packageExtraSourceFiles = extraSourceFiles
       , packageExtraDocFiles = extraDocFiles
       , packageDataFiles = dataFiles
+      , packageDataDir = packageConfigDataDir
       , packageSourceRepository = sourceRepository
       , packageCustomSetup = mCustomSetup
       , packageLibrary = mLibrary

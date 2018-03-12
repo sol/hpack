@@ -66,6 +66,7 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 | `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | | |
 | `extra-doc-files` | · | | Accepts [glob patterns](#file-globbing) | | `0.21.2` |
 | `data-files` | · | | Accepts [glob patterns](#file-globbing) | | |
+| `data-dir` | · | | | | |
 | `github` | `source-repository head` | | Accepts `owner/repo` or `owner/repo/subdir` | `github: foo/bar` |
 | `git`    | `source-repository head` | | No effect if `github` given | `git: https://my.repo.com/foo` | |
 | `custom-setup` | · | | See [Custom setup](#custom-setup) | | |

@@ -277,17 +277,6 @@ spec = do
         )
         (packageExtraSourceFiles >>> (`shouldBe` ["CHANGES.markdown", "README.markdown"]))
 
-    it "accepts data-files" $ do
-      withPackageConfig [i|
-        data-files:
-          - data/**/*.html
-        |]
-        (do
-        touch "data/foo/index.html"
-        touch "data/bar/index.html"
-        )
-        (packageDataFiles >>> (`shouldMatchList` ["data/foo/index.html", "data/bar/index.html"]))
-
     it "accepts arbitrary git URLs as source repository" $ do
       withPackageConfig_ [i|
         git: https://gitlab.com/gitlab-org/gitlab-ce.git

@@ -1,5 +1,6 @@
 ## next
   - Add support for `cxx-options` and `cxx-sources` (see #205)
+  - Add support for `data-dir` (see #100)
   - Generate valid `.cabal` files when `verbatim` is used top-level (see #280)
 
 ## Changes in 0.27.0

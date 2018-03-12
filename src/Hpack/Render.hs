@@ -70,7 +70,7 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
         Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
       , Field "extra-doc-files" (LineSeparatedList packageExtraDocFiles)
       , Field "data-files" (LineSeparatedList packageDataFiles)
-      ]
+      ] ++ maybe [] (return . Field "data-dir" . Literal) packageDataDir
 
     sourceRepository :: [Element]
     sourceRepository = maybe [] (return . renderSourceRepository) packageSourceRepository
