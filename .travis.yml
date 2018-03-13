@@ -59,22 +59,13 @@ before_deploy:
   - mv hpack.gz hpack_${TRAVIS_OS_NAME}.gz
 
 deploy:
-  - provider: releases
-    api_key:
-      secure: AAn9f1+CNC7qMB/9R0eAMj4xoR4nVxHMnswJ/H9kJiCClkPiaODvs6DBWjhDeZ9Y8MyDmsVNgkCNgYTWa/3Ym1rJdf1fCC4XKPHASAbf6+BJ1kna3zrrm7GIi7Yb8hHTA7nBhiwNhAS4wT//CtoJo5hrcW6BecIb8rXOX+5baOw=
-    file_glob: true
-    file: hpack_*.gz
-    skip_cleanup: true
-    on:
-      repo: sol/hpack
-      tags: true
-      condition: $RELEASE = true
-  - provider: hackage
-    username: SimonHengel
-    password:
-      secure: mt78qPgZKTKbTWG19+fsgbbdKv+j5JUzukaLY8/66uV/pyVMBMwXZ9iT5RM61D8K4GQSFDinWoZHidnlzlvUzv1SK3o084n04BLajNPdVjm1fmUCWa1w52ImK6LzkBMn4pew2aYxMBwfY17kOhR9XKZX6pvY3IFPnU9EZ1zlagQ=
-    skip_cleanup: true # needed so that before_deploy won't fail
-    on:
-      repo: sol/hpack
-      tags: true
-      condition: $HACKAGE = true
+  provider: releases
+  api_key:
+    secure: AAn9f1+CNC7qMB/9R0eAMj4xoR4nVxHMnswJ/H9kJiCClkPiaODvs6DBWjhDeZ9Y8MyDmsVNgkCNgYTWa/3Ym1rJdf1fCC4XKPHASAbf6+BJ1kna3zrrm7GIi7Yb8hHTA7nBhiwNhAS4wT//CtoJo5hrcW6BecIb8rXOX+5baOw=
+  file_glob: true
+  file: hpack_*.gz
+  skip_cleanup: true
+  on:
+    repo: sol/hpack
+    tags: true
+    condition: $RELEASE = true
