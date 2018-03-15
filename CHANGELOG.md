@@ -1,3 +1,6 @@
+## Changes in 0.28.1
+  - GHC 8.4.1 compatibility
+
 ## Changes in 0.28.0
   - Add support for `cxx-options` and `cxx-sources` (see #205)
   - Add support for `data-dir` (see #100)
