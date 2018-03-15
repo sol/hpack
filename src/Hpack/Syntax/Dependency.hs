@@ -13,6 +13,7 @@ module Hpack.Syntax.Dependency (
 ) where
 
 import qualified Data.Text as T
+import           Data.Semigroup (Semigroup(..))
 import           Text.PrettyPrint (renderStyle, Style(..), Mode(..))
 import           Control.Monad
 import qualified Distribution.Compat.ReadP as D
@@ -32,11 +33,7 @@ githubBaseUrl = "https://github.com/"
 
 newtype Dependencies = Dependencies {
   unDependencies :: Map String DependencyVersion
-#if !MIN_VERSION_base(4,11,0)
-} deriving (Eq, Show, Monoid)
-#else
 } deriving (Eq, Show, Semigroup, Monoid)
-#endif
 
 instance IsList Dependencies where
   type Item Dependencies = (String, DependencyVersion)

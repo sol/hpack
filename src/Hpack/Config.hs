@@ -80,7 +80,7 @@ import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
 import           Data.List (nub, (\\), sortBy, intercalate)
 import           Data.Maybe
-import           Data.Monoid hiding (Product)
+import           Data.Semigroup (Semigroup(..))
 import           Data.Ord
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -184,13 +184,10 @@ data LibrarySection = LibrarySection {
 
 instance Monoid LibrarySection where
   mempty = LibrarySection Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-#if !MIN_VERSION_base(4,11,0)
-  mappend a b =
-#else
+  mappend = (<>)
+
 instance Semigroup LibrarySection where
-  (<>)    a b =
-#endif
-    LibrarySection {
+  a <> b = LibrarySection {
       librarySectionExposed = librarySectionExposed b <|> librarySectionExposed a
     , librarySectionExposedModules = librarySectionExposedModules a <> librarySectionExposedModules b
     , librarySectionGeneratedExposedModules = librarySectionGeneratedExposedModules a <> librarySectionGeneratedExposedModules b
@@ -208,13 +205,10 @@ data ExecutableSection = ExecutableSection {
 
 instance Monoid ExecutableSection where
   mempty = ExecutableSection Nothing Nothing Nothing
-#if !MIN_VERSION_base(4,11,0)
-  mappend a b =
-#else
+  mappend = (<>)
+
 instance Semigroup ExecutableSection where
-  (<>)    a b =
-#endif
-    ExecutableSection {
+  a <> b = ExecutableSection {
       executableSectionMain = executableSectionMain b <|> executableSectionMain a
     , executableSectionOtherModules = executableSectionOtherModules a <> executableSectionOtherModules b
     , executableSectionGeneratedOtherModules = executableSectionGeneratedOtherModules a <> executableSectionGeneratedOtherModules b
@@ -278,7 +272,7 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 type ParseCommonOptions = CommonOptions ParseCSources ParseCxxSources ParseJsSources
 instance FromValue a => FromValue (ParseCommonOptions a)
 
-instance (Monoid cSources, Monoid cxxSources, Monoid jsSources) => Monoid (CommonOptions cSources cxxSources jsSources a) where
+instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid cSources, Monoid cxxSources, Monoid jsSources) => Monoid (CommonOptions cSources cxxSources jsSources a) where
   mempty = CommonOptions {
     commonOptionsSourceDirs = Nothing
   , commonOptionsDependencies = Nothing
@@ -306,13 +300,10 @@ instance (Monoid cSources, Monoid cxxSources, Monoid jsSources) => Monoid (Commo
   , commonOptionsBuildTools = Nothing
   , commonOptionsVerbatim = Nothing
   }
-#if !MIN_VERSION_base(4,11,0)
-  mappend a b =
-#else
-instance (Semigroup cSources, Semigroup jsSources) => Semigroup (CommonOptions cSources jsSources a) where
-  (<>)    a b =
-#endif
-    CommonOptions {
+  mappend = (<>)
+
+instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semigroup (CommonOptions cSources cxxSources jsSources a) where
+  a <> b = CommonOptions {
     commonOptionsSourceDirs = commonOptionsSourceDirs a <> commonOptionsSourceDirs b
   , commonOptionsDependencies = commonOptionsDependencies b <> commonOptionsDependencies a
   , commonOptionsPkgConfigDependencies = commonOptionsPkgConfigDependencies a <> commonOptionsPkgConfigDependencies b
@@ -446,12 +437,10 @@ data Empty = Empty
 
 instance Monoid Empty where
   mempty = Empty
-#if !MIN_VERSION_base(4,11,0)
-  mappend Empty Empty = Empty
-#else
+  mappend = (<>)
+
 instance Semigroup Empty where
-  (<>)    Empty Empty = Empty
-#endif
+  Empty <> Empty = Empty
 
 instance FromValue Empty where
   fromValue _ = return Empty
@@ -764,14 +753,14 @@ expandSectionDefaults userDataDir dir p@PackageConfig{..} = do
     }
 
 expandDefaults
-  :: (FromValue a, Monoid a)
+  :: (FromValue a, Semigroup a, Monoid a)
   => FilePath
   -> FilePath
   -> WithCommonOptionsWithDefaults a
   -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 expandDefaults userDataDir = expand []
   where
-    expand :: (FromValue a, Monoid a) =>
+    expand :: (FromValue a, Semigroup a, Monoid a) =>
          [FilePath]
       -> FilePath
       -> WithCommonOptionsWithDefaults a
@@ -780,7 +769,7 @@ expandDefaults userDataDir = expand []
       d <- mconcat <$> mapM (get seen dir) (fromMaybeList defaultsConfigDefaults)
       return (d <> c)
 
-    get :: forall a. (FromValue a, Monoid a) =>
+    get :: forall a. (FromValue a, Semigroup a, Monoid a) =>
          [FilePath]
       -> FilePath
       -> Defaults
