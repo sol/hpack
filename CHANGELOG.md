@@ -1,3 +1,7 @@
+## next
+  - Exit with `exitFailure` on `AlreadyGeneratedByNewerHpack` or
+    `ExistingCabalFileWasModifiedManually` in `Hpack.printResult`
+
 ## Changes in 0.28.1
   - GHC 8.4.1 compatibility
 

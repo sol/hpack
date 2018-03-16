@@ -139,6 +139,11 @@ printResult verbose r = do
       OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
       AlreadyGeneratedByNewerHpack -> resultCabalFile r ++ " was generated with a newer version of hpack, please upgrade and try again."
       ExistingCabalFileWasModifiedManually -> resultCabalFile r ++ " was modified manually, please use --force to overwrite."
+  case resultStatus r of
+      Generated -> return ()
+      OutputUnchanged -> return ()
+      AlreadyGeneratedByNewerHpack -> exitFailure
+      ExistingCabalFileWasModifiedManually -> exitFailure
 
 printWarnings :: [String] -> IO ()
 printWarnings = mapM_ $ Utf8.hPutStrLn stderr . ("WARNING: " ++)
