@@ -1,4 +1,4 @@
-## next
+## Changes in 0.28.2
   - Exit with `exitFailure` on `AlreadyGeneratedByNewerHpack` or
     `ExistingCabalFileWasModifiedManually` in `Hpack.printResult`
 
