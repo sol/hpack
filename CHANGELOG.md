@@ -1,3 +1,8 @@
+## next
+  - Put the `cabal-version` at the beginning of the generated file. This Is
+    required with `cabal-version: 2.1` and higher. (see #292)
+  - With `cabal-version: 2.1` or higher omit `>=` when rendering (see #292)
+
 ## Changes in 0.28.2
   - Exit with `exitFailure` on `AlreadyGeneratedByNewerHpack` or
     `ExistingCabalFileWasModifiedManually` in `Hpack.printResult`

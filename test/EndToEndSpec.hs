@@ -476,7 +476,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           cxx-options: -Wall
         |] `shouldRenderTo` (executable_ "foo" [i|
         cxx-options: -Wall
-        |]) {packageCabalVersion = ">= 2.2"}
+        |]) {packageCabalVersion = "2.2"}
 
     describe "cxx-sources" $ before_ (touch "foo.cc" >> touch "cxxbits/bar.cc") $ do
       it "accepts cxx-sources" $ do
@@ -489,7 +489,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         cxx-sources:
             cxxbits/bar.cc
             foo.cc
-        |]) {packageCabalVersion = ">= 2.2"}
+        |]) {packageCabalVersion = "2.2"}
 
     describe "extra-lib-dirs" $ do
       it "accepts extra-lib-dirs" $ do

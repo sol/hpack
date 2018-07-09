@@ -614,7 +614,9 @@ cabalVersion pkg@Package{..} = (
             Nothing -> Nothing
 
     inferredCabalVersion :: String
-    inferredCabalVersion = (">= " ++) . showVersion $ version
+    inferredCabalVersion
+      | version >= makeVersion [2,1] = showVersion version
+      | otherwise = (">= " ++) . showVersion $ version
       where
         version = fromMaybe (makeVersion [1,10]) $ maximum [
             packageCabalVersion
