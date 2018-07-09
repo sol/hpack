@@ -1240,12 +1240,12 @@ run_ :: FilePath -> FilePath -> String -> IO (Either String ([String], String))
 run_ userDataDir c old = do
   mPackage <- readPackageConfig defaultDecodeOptions {decodeOptionsTarget = c, decodeOptionsUserDataDir = Just userDataDir}
   return $ case mPackage of
-    Right (DecodeResult pkg _ warnings) ->
+    Right (DecodeResult pkg cabalVersion _ warnings) ->
       let
         FormattingHints{..} = sniffFormattingHints (lines old)
         alignment = fromMaybe 0 formattingHintsAlignment
         settings = formattingHintsRenderSettings
-        output = Hpack.renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder pkg
+        output = cabalVersion ++ Hpack.renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder pkg
       in
         Right (warnings, output)
     Left err -> Left err
@@ -1349,10 +1349,10 @@ data Package = Package {
 
 renderPackage :: Package -> String
 renderPackage Package{..} = unindent [i|
+cabal-version: #{packageCabalVersion}
 name: #{packageName}
 version: #{packageVersion}
 build-type: #{packageBuildType}
-cabal-version: #{packageCabalVersion}
 
 #{unindent packageContent}
 |]

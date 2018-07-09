@@ -38,13 +38,11 @@ import           Control.Monad
 import           Data.Char
 import           Data.Maybe
 import           Data.List
-import           Data.Version
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 
 import           Hpack.Util
 import           Hpack.Config
-import           Hpack.Syntax.Dependency (scientificToVersion)
 import           Hpack.Render.Hints
 import           Hpack.Render.Dsl
 
@@ -112,73 +110,12 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
           files  -> ("license-files", formatList files)
       , ("tested-with", packageTestedWith)
       , ("build-type", Just (show packageBuildType))
-      , ("cabal-version", cabalVersion)
       ]
 
     formatList :: [String] -> Maybe String
     formatList xs = guard (not $ null xs) >> (Just $ intercalate separator xs)
       where
         separator = let Alignment n = headerFieldsAlignment in ",\n" ++ replicate n ' '
-
-    cabalVersion :: Maybe String
-    cabalVersion = (">= " ++) . showVersion <$> maximum [
-        Just (makeVersion [1,10])
-      , packageCabalVersion
-      , packageLibrary >>= libraryCabalVersion
-      , internalLibsCabalVersion packageInternalLibraries
-      , executablesCabalVersion packageExecutables
-      , executablesCabalVersion packageTests
-      , executablesCabalVersion packageBenchmarks
-      ]
-     where
-      packageCabalVersion :: Maybe Version
-      packageCabalVersion = maximum [
-          Nothing
-        , makeVersion [1,24] <$ packageCustomSetup
-        , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
-        ]
-
-      libraryCabalVersion :: Section Library -> Maybe Version
-      libraryCabalVersion sect = maximum [
-          makeVersion [1,22] <$ guard hasReexportedModules
-        , makeVersion [2,0]  <$ guard hasSignatures
-        , makeVersion [2,0] <$ guard hasGeneratedModules
-        , makeVersion [2,2] <$ guard (hasCxxParams sect)
-        ]
-        where
-          hasReexportedModules = any (not . null . libraryReexportedModules) sect
-          hasSignatures = any (not . null . librarySignatures) sect
-          hasGeneratedModules = any (not . null . libraryGeneratedModules) sect
-
-      internalLibsCabalVersion :: Map String (Section Library) -> Maybe Version
-      internalLibsCabalVersion internalLibraries
-        | Map.null internalLibraries = Nothing
-        | otherwise = foldr max (Just $ makeVersion [2,0]) versions
-        where
-          versions = libraryCabalVersion <$> Map.elems internalLibraries
-
-      executablesCabalVersion :: Map String (Section Executable) -> Maybe Version
-      executablesCabalVersion = foldr max Nothing . map executableCabalVersion . Map.elems
-
-      executableCabalVersion :: Section Executable -> Maybe Version
-      executableCabalVersion sect = maximum [
-          makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
-        , makeVersion [2,2] <$ guard (hasCxxParams sect)
-        ]
-
-      executableHasGeneratedModules :: Section Executable -> Bool
-      executableHasGeneratedModules = any (not . null . executableGeneratedModules)
-
-      hasCxxParams :: Section a -> Bool
-      hasCxxParams sect = or [
-          check sect
-        , any (any check) (sectionConditionals sect)
-        ]
-        where
-          check s = or [
-              (not . null . sectionCxxOptions) s
-            , (not . null . sectionCxxSources) s
-            ]
 
 sortStanzaFields :: [(String, [String])] -> [Element] -> [Element]
 sortStanzaFields sectionsFieldOrder = go
@@ -336,13 +273,9 @@ renderVerbatim = concatMap $ \ case
 renderVerbatimObject :: Map String VerbatimValue -> [Element]
 renderVerbatimObject = map renderPair . Map.toList
   where
-    renderPair (key, value) = case value of
-      VerbatimString s -> case lines s of
-        [x] -> Field key (Literal x)
-        xs -> Field key (LineSeparatedList xs)
-      VerbatimNumber n -> Field key (Literal $ scientificToVersion n)
-      VerbatimBool b -> Field key (Literal $ show b)
-      VerbatimNull -> Field key (Literal "")
+    renderPair (key, value) = case lines (verbatimValueToString value) of
+      [x] -> Field key (Literal x)
+      xs -> Field key (LineSeparatedList xs)
 
 renderConditional :: (a -> [Element]) -> Conditional (Section a) -> Element
 renderConditional renderSectionData (Conditional condition sect mElse) = case mElse of

@@ -164,19 +164,21 @@ hpackResult = hpackResultWithVersion version
 
 hpackResultWithVersion :: Version -> Options -> IO Result
 hpackResultWithVersion v (Options options force toStdout) = do
-  DecodeResult pkg cabalFile warnings <- readPackageConfig options >>= either die return
+  DecodeResult pkg cabalVersion cabalFile warnings <- readPackageConfig options >>= either die return
   oldCabalFile <- readCabalFile cabalFile
-  let new = renderPackage (maybe [] cabalFileContents oldCabalFile) pkg
+  let
+    body = renderPackage (maybe [] cabalFileContents oldCabalFile) pkg
+    withoutHeader = cabalVersion ++ body
   let
     status = case force of
       Force -> Generated
-      NoForce -> maybe Generated (mkStatus (lines new) v) oldCabalFile
+      NoForce -> maybe Generated (mkStatus (lines withoutHeader) v) oldCabalFile
   case status of
     Generated -> do
-      let hash = sha256 new
+      let hash = sha256 withoutHeader
       if toStdout
-        then Utf8.putStr new
-        else Utf8.writeFile cabalFile (header (decodeOptionsTarget options) v hash ++ new)
+        then Utf8.putStr withoutHeader
+        else Utf8.writeFile cabalFile (cabalVersion ++ header (decodeOptionsTarget options) v hash ++ body)
     _ -> return ()
   return Result {
       resultWarnings = warnings

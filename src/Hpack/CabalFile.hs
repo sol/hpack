@@ -28,7 +28,12 @@ readCabalFile cabalFile = fmap parse <$> tryReadFile cabalFile
     parse (splitHeader -> (h, c)) = CabalFile (extractVersion h) (extractHash h) c
 
     splitHeader :: String -> ([String], [String])
-    splitHeader = fmap (dropWhile null) . span ("--" `isPrefixOf`) . removeGitConflictMarkers . lines
+    splitHeader (removeGitConflictMarkers . lines -> c) =
+      case span (not . isComment) c of
+        (cabalVersion, xs) -> case span isComment xs of
+          (header, body) -> (header, cabalVersion ++ dropWhile null body)
+
+    isComment = ("--" `isPrefixOf`)
 
 extractHash :: [String] -> Maybe Hash
 extractHash = extract "-- hash: " Just

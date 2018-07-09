@@ -44,6 +44,7 @@ module Hpack.Config (
 , GhcOption
 , Verbatim(..)
 , VerbatimValue(..)
+, verbatimValueToString
 , CustomSetup(..)
 , Section(..)
 , Library(..)
@@ -91,6 +92,7 @@ import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Writer
 import           Control.Monad.Trans.Except
 import           Control.Monad.IO.Class
+import           Data.Version
 
 import           Data.Aeson.Config.Types
 import           Data.Aeson.Config.FromValue hiding (decodeValue)
@@ -562,6 +564,7 @@ defaultDecodeOptions = DecodeOptions packageConfig Nothing Yaml.decodeYaml
 
 data DecodeResult = DecodeResult {
   decodeResultPackage :: Package
+, decodeResultCabalVersion :: String
 , decodeResultCabalFile :: FilePath
 , decodeResultWarnings :: [String]
 } deriving (Eq, Show)
@@ -575,12 +578,101 @@ readPackageConfig (DecodeOptions file mUserDataDir readValue) = runExceptT $ fma
   toPackage userDataDir dir config
   where
     addCabalFile :: (Package, [String]) -> DecodeResult
-    addCabalFile (pkg, warnings) = DecodeResult pkg (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
+    addCabalFile (pkg, warnings) = uncurry DecodeResult (cabalVersion pkg) (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
 
     takeDirectory_ :: FilePath -> FilePath
     takeDirectory_ p
       | takeFileName p == p = ""
       | otherwise = takeDirectory p
+
+deleteVerbatimField :: String -> [Verbatim] -> [Verbatim]
+deleteVerbatimField name = map $ \ case
+  literal@VerbatimLiteral {} -> literal
+  VerbatimObject o -> VerbatimObject (Map.delete name o)
+
+verbatimValueToString :: VerbatimValue -> String
+verbatimValueToString = \ case
+  VerbatimString s -> s
+  VerbatimNumber n -> scientificToVersion n
+  VerbatimBool b -> show b
+  VerbatimNull -> ""
+
+cabalVersion :: Package -> (Package, String)
+cabalVersion pkg@Package{..} = (
+    pkg {packageVerbatim = deleteVerbatimField "cabal-version" packageVerbatim}
+  , "cabal-version: " ++ fromMaybe inferredCabalVersion verbatimCabalVersion ++ "\n\n"
+  )
+  where
+    verbatimCabalVersion :: Maybe String
+    verbatimCabalVersion = listToMaybe (mapMaybe f packageVerbatim)
+      where
+        f :: Verbatim -> Maybe String
+        f = \ case
+          VerbatimLiteral _ -> Nothing
+          VerbatimObject o -> case Map.lookup "cabal-version" o of
+            Just v -> Just (verbatimValueToString v)
+            Nothing -> Nothing
+
+    inferredCabalVersion :: String
+    inferredCabalVersion = (">= " ++) . showVersion $ version
+      where
+        version = fromMaybe (makeVersion [1,10]) $ maximum [
+            packageCabalVersion
+          , packageLibrary >>= libraryCabalVersion
+          , internalLibsCabalVersion packageInternalLibraries
+          , executablesCabalVersion packageExecutables
+          , executablesCabalVersion packageTests
+          , executablesCabalVersion packageBenchmarks
+          ]
+
+    packageCabalVersion :: Maybe Version
+    packageCabalVersion = maximum [
+        Nothing
+      , makeVersion [1,24] <$ packageCustomSetup
+      , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
+      ]
+
+    libraryCabalVersion :: Section Library -> Maybe Version
+    libraryCabalVersion sect = maximum [
+        makeVersion [1,22] <$ guard hasReexportedModules
+      , makeVersion [2,0]  <$ guard hasSignatures
+      , makeVersion [2,0] <$ guard hasGeneratedModules
+      , makeVersion [2,2] <$ guard (hasCxxParams sect)
+      ]
+      where
+        hasReexportedModules = any (not . null . libraryReexportedModules) sect
+        hasSignatures = any (not . null . librarySignatures) sect
+        hasGeneratedModules = any (not . null . libraryGeneratedModules) sect
+
+    internalLibsCabalVersion :: Map String (Section Library) -> Maybe Version
+    internalLibsCabalVersion internalLibraries
+      | Map.null internalLibraries = Nothing
+      | otherwise = foldr max (Just $ makeVersion [2,0]) versions
+      where
+        versions = libraryCabalVersion <$> Map.elems internalLibraries
+
+    executablesCabalVersion :: Map String (Section Executable) -> Maybe Version
+    executablesCabalVersion = foldr max Nothing . map executableCabalVersion . Map.elems
+
+    executableCabalVersion :: Section Executable -> Maybe Version
+    executableCabalVersion sect = maximum [
+        makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
+      , makeVersion [2,2] <$ guard (hasCxxParams sect)
+      ]
+
+    executableHasGeneratedModules :: Section Executable -> Bool
+    executableHasGeneratedModules = any (not . null . executableGeneratedModules)
+
+    hasCxxParams :: Section a -> Bool
+    hasCxxParams sect = or [
+        check sect
+      , any (any check) (sectionConditionals sect)
+      ]
+      where
+        check s = or [
+            (not . null . sectionCxxOptions) s
+          , (not . null . sectionCxxSources) s
+          ]
 
 decodeValue :: FromValue a => FilePath -> Value -> Warnings (Errors IO) a
 decodeValue file value = do

@@ -28,7 +28,6 @@ spec = do
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
-        , "cabal-version: >= 1.10"
         ]
 
     it "aligns fields" $ do
@@ -36,7 +35,6 @@ spec = do
           "name:           foo"
         , "version:        0.0.0"
         , "build-type:     Simple"
-        , "cabal-version:  >= 1.10"
         ]
 
     it "includes description" $ do
@@ -47,7 +45,6 @@ spec = do
         , "             ."
         , "             bar"
         , "build-type: Simple"
-        , "cabal-version: >= 1.10"
         ]
 
     it "aligns description" $ do
@@ -58,7 +55,6 @@ spec = do
         , "                ."
         , "                bar"
         , "build-type:     Simple"
-        , "cabal-version:  >= 1.10"
         ]
 
     it "includes stability" $ do
@@ -67,7 +63,6 @@ spec = do
         , "version: 0.0.0"
         , "stability: experimental"
         , "build-type: Simple"
-        , "cabal-version: >= 1.10"
         ]
 
     it "includes license-file" $ do
@@ -76,7 +71,6 @@ spec = do
         , "version: 0.0.0"
         , "license-file: FOO"
         , "build-type: Simple"
-        , "cabal-version: >= 1.10"
         ]
 
     it "aligns license-files" $ do
@@ -86,7 +80,6 @@ spec = do
         , "license-files:  FOO,"
         , "                BAR"
         , "build-type:     Simple"
-        , "cabal-version:  >= 1.10"
         ]
 
     it "includes copyright holder" $ do
@@ -95,7 +88,6 @@ spec = do
         , "version: 0.0.0"
         , "copyright: (c) 2015 Simon Hengel"
         , "build-type: Simple"
-        , "cabal-version: >= 1.10"
         ]
 
     it "aligns copyright holders" $ do
@@ -105,7 +97,6 @@ spec = do
         , "copyright:      (c) 2015 Foo,"
         , "                (c) 2015 Bar"
         , "build-type:     Simple"
-        , "cabal-version:  >= 1.10"
         ]
 
     it "includes extra-source-files" $ do
@@ -113,7 +104,6 @@ spec = do
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
-        , "cabal-version: >= 1.10"
         , "extra-source-files:"
         , "    foo"
         , "    bar"
@@ -124,7 +114,6 @@ spec = do
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
-        , "cabal-version: >= 1.10"
         , ""
         , "library"
         , "  buildable: False"
@@ -137,7 +126,6 @@ spec = do
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
-          , "cabal-version: >= 1.10"
           , ""
           , "library"
           , "  default-language: Haskell2010"
@@ -145,19 +133,17 @@ spec = do
 
     context "when given list of existing fields" $ do
       it "retains field order" $ do
-        renderPackageWith defaultRenderSettings 16 ["cabal-version", "version", "name", "build-type"] [] package `shouldBe` unlines [
-            "cabal-version:  >= 1.10"
-          , "version:        0.0.0"
-          , "name:           foo"
+        renderPackageWith defaultRenderSettings 16 ["version", "build-type", "name"] [] package `shouldBe` unlines [
+            "version:        0.0.0"
           , "build-type:     Simple"
+          , "name:           foo"
           ]
 
       it "uses default field order for new fields" $ do
-        renderPackageWith defaultRenderSettings 16 ["name", "version", "cabal-version"] [] package `shouldBe` unlines [
+        renderPackageWith defaultRenderSettings 16 [] [] package `shouldBe` unlines [
             "name:           foo"
           , "version:        0.0.0"
           , "build-type:     Simple"
-          , "cabal-version:  >= 1.10"
           ]
 
       it "retains section field order" $ do
@@ -165,7 +151,6 @@ spec = do
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
-          , "cabal-version: >= 1.10"
           , ""
           , "executable foo"
           , "  default-language: Haskell2010"
@@ -180,7 +165,6 @@ spec = do
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
-          , "cabal-version: >= 1.10"
           , ""
           , "executable foo"
           , "  main-is: Main.hs"
@@ -195,7 +179,6 @@ spec = do
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
-          , "cabal-version: >= 1.10"
           , ""
           , "executable foo"
           , "  main-is: Main.hs"
@@ -208,7 +191,6 @@ spec = do
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
-          , "cabal-version: >= 1.10"
           , ""
           , "executable foo"
           , "  main-is: Main.hs"
@@ -223,7 +205,6 @@ spec = do
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
-          , "cabal-version: >= 1.10"
           , ""
           , "executable foo"
           , "  main-is: Main.hs"
@@ -238,7 +219,6 @@ spec = do
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
-          , "cabal-version: >= 1.10"
           , ""
           , "executable foo"
           , "  main-is: Main.hs"

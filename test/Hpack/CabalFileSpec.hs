@@ -17,12 +17,18 @@ spec :: Spec
 spec = do
   describe "readCabalFile" $ do
     let
-      file = "package.yaml"
+      file = "hello.cabal"
       hash = "some-hash"
+
     it "includes hash" $ do
       inTempDirectory $ do
-        writeFile file $ header file version hash
+        writeFile file $ header "package.yaml" version hash
         readCabalFile file `shouldReturn` Just (CabalFile (Just version) (Just hash) [])
+
+    it "accepts cabal-version at the beginning of the file" $ do
+      inTempDirectory $ do
+        writeFile file $ ("cabal-version: 2.2\n" ++ header "package.yaml" version hash)
+        readCabalFile file `shouldReturn` Just (CabalFile (Just version) (Just hash) ["cabal-version: 2.2"])
 
   describe "extractVersion" $ do
     it "extracts Hpack version from a cabal file" $ do
