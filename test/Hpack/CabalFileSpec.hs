@@ -4,7 +4,6 @@ module Hpack.CabalFileSpec (spec) where
 import           Helper
 import           Test.QuickCheck
 import           Data.Version (showVersion)
-import           Control.Monad
 import           Data.String.Interpolate
 import           Data.String.Interpolate.Util
 

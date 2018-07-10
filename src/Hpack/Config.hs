@@ -72,7 +72,7 @@ module Hpack.Config (
 ) where
 
 import           Control.Applicative
-import           Control.Arrow ((>>>))
+import           Control.Arrow ((>>>), (&&&))
 import           Control.Monad
 import           Data.Bifunctor
 import           Data.Bitraversable
@@ -94,6 +94,8 @@ import           Control.Monad.Trans.Except
 import           Control.Monad.IO.Class
 import           Data.Version
 
+import           Distribution.Pretty (prettyShow)
+
 import           Data.Aeson.Config.Types
 import           Data.Aeson.Config.FromValue hiding (decodeValue)
 import qualified Data.Aeson.Config.FromValue as Config
@@ -104,6 +106,7 @@ import qualified Hpack.Util as Util
 import           Hpack.Defaults
 import qualified Hpack.Yaml as Yaml
 import           Hpack.Syntax.Dependency
+import           Hpack.License
 
 package :: String -> String -> Package
 package name version = Package {
@@ -599,10 +602,29 @@ verbatimValueToString = \ case
 
 cabalVersion :: Package -> (Package, String)
 cabalVersion pkg@Package{..} = (
-    pkg {packageVerbatim = deleteVerbatimField "cabal-version" packageVerbatim}
+    pkg {
+        packageVerbatim = deleteVerbatimField "cabal-version" packageVerbatim
+      , packageLicense = formatLicense <$> parsedLicense
+      }
   , "cabal-version: " ++ fromMaybe inferredCabalVersion verbatimCabalVersion ++ "\n\n"
   )
   where
+    parsedLicense = (fmap prettyShow . parseLicense &&& id) <$> packageLicense
+
+    formatLicense = \ case
+      (MustSPDX spdx, _) -> spdx
+      (CanSPDX spdx, _) | version >= makeVersion [2,2] -> spdx
+      (CanSPDX _, original) -> original
+      (DontTouch, original) -> original
+
+    mustSPDX :: Bool
+    mustSPDX = maybe False (f . fst) parsedLicense
+      where
+        f = \case
+          DontTouch -> False
+          CanSPDX _ -> False
+          MustSPDX _ -> True
+
     verbatimCabalVersion :: Maybe String
     verbatimCabalVersion = listToMaybe (mapMaybe f packageVerbatim)
       where
@@ -617,19 +639,20 @@ cabalVersion pkg@Package{..} = (
     inferredCabalVersion
       | version >= makeVersion [2,1] = showVersion version
       | otherwise = (">= " ++) . showVersion $ version
-      where
-        version = fromMaybe (makeVersion [1,10]) $ maximum [
-            packageCabalVersion
-          , packageLibrary >>= libraryCabalVersion
-          , internalLibsCabalVersion packageInternalLibraries
-          , executablesCabalVersion packageExecutables
-          , executablesCabalVersion packageTests
-          , executablesCabalVersion packageBenchmarks
-          ]
+
+    version = fromMaybe (makeVersion [1,10]) $ maximum [
+        packageCabalVersion
+      , packageLibrary >>= libraryCabalVersion
+      , internalLibsCabalVersion packageInternalLibraries
+      , executablesCabalVersion packageExecutables
+      , executablesCabalVersion packageTests
+      , executablesCabalVersion packageBenchmarks
+      ]
 
     packageCabalVersion :: Maybe Version
     packageCabalVersion = maximum [
         Nothing
+      , makeVersion [2,2] <$ guard mustSPDX
       , makeVersion [1,24] <$ packageCustomSetup
       , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
       ]

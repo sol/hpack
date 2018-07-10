@@ -1,8 +1,8 @@
--- This file has been generated from package.yaml by hpack version 0.27.0.
+-- This file has been generated from package.yaml by hpack version 0.28.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5391105d37fea2b976290b95e847c0d2da5ea7e0ef9ae9e5cf8945911dd983a1
+-- hash: 427b1d12caa45205deece1616d5bd678ed778c3f04c8f5d56dde44d7ef58051f
 
 name:           hpack
 version:        0.28.2
@@ -16,7 +16,6 @@ license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 cabal-version:  >= 1.10
-
 extra-source-files:
     CHANGELOG.md
 
@@ -29,7 +28,7 @@ library
       src
   ghc-options: -Wall
   build-depends:
-      Cabal
+      Cabal >=2.2
     , Glob >=0.9.0
     , aeson >=1.2.1.0
     , base >=4.9 && <5
@@ -63,6 +62,7 @@ library
       Hpack.CabalFile
       Hpack.Defaults
       Hpack.Haskell
+      Hpack.License
       Hpack.Options
       Hpack.Render.Dsl
       Hpack.Render.Hints
@@ -80,7 +80,7 @@ executable hpack
       driver
   ghc-options: -Wall
   build-depends:
-      Cabal
+      Cabal >=2.2
     , Glob >=0.9.0
     , aeson >=1.2.1.0
     , base >=4.9 && <5
@@ -115,7 +115,7 @@ test-suite spec
   ghc-options: -Wall
   cpp-options: -DTEST
   build-depends:
-      Cabal
+      Cabal >=2.2
     , Glob >=0.9.0
     , HUnit >=1.6.0.0
     , QuickCheck
@@ -153,6 +153,7 @@ test-suite spec
       Hpack.ConfigSpec
       Hpack.DefaultsSpec
       Hpack.HaskellSpec
+      Hpack.LicenseSpec
       Hpack.OptionsSpec
       Hpack.Render.DslSpec
       Hpack.Render.HintsSpec
@@ -172,6 +173,7 @@ test-suite spec
       Hpack.Config
       Hpack.Defaults
       Hpack.Haskell
+      Hpack.License
       Hpack.Options
       Hpack.Render
       Hpack.Render.Dsl

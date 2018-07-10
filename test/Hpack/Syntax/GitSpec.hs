@@ -3,7 +3,6 @@ module Hpack.Syntax.GitSpec (spec) where
 
 import           Helper
 import           Data.String.Interpolate
-import           Control.Monad
 
 import           Hpack.Syntax.Git
 

@@ -299,6 +299,58 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         version: {}
         |] `shouldFailWith` "package.yaml: Error while parsing $.version - expected Number or String, encountered Object"
 
+    describe "license" $ do
+      it "accepts cabal-style licenses" $ do
+        [i|
+        license: BSD3
+        |] `shouldRenderTo` (package [i|
+        license: BSD3
+        |])
+
+      it "accepts SPDX licenses" $ do
+        [i|
+        license: BSD-3-Clause
+        |] `shouldRenderTo` (package [i|
+        license: BSD-3-Clause
+        |]) {packageCabalVersion = "2.2"}
+
+      context "with an ambiguous license" $ do
+        it "treats it as a cabal-style license" $ do
+          [i|
+          license: MIT
+          |] `shouldRenderTo` (package [i|
+          license: MIT
+          |])
+
+      context "when cabal-version >= 2.2" $ do
+        it "maps license to SPDX license identifier" $ do
+          [i|
+          license: BSD3
+          library:
+            cxx-options: -Wall
+          |] `shouldRenderTo` (package [i|
+          license: BSD-3-Clause
+          library
+            other-modules:
+                Paths_foo
+            cxx-options: -Wall
+            default-language: Haskell2010
+          |]) {packageCabalVersion = "2.2"}
+
+        it "doesn't touch unknown licenses" $ do
+          [i|
+          license: some-license
+          library:
+            cxx-options: -Wall
+          |] `shouldRenderTo` (package [i|
+          license: some-license
+          library
+            other-modules:
+                Paths_foo
+            cxx-options: -Wall
+            default-language: Haskell2010
+          |]) {packageCabalVersion = "2.2"}
+
     describe "build-type" $ do
       it "accept Simple" $ do
         [i|

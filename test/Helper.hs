@@ -3,6 +3,7 @@
 module Helper (
   module Test.Hspec
 , module Test.Mockery.Directory
+, module Control.Monad
 , module Control.Applicative
 , withTempDirectory
 , module System.FilePath
@@ -12,6 +13,7 @@ module Helper (
 
 import           Test.Hspec
 import           Test.Mockery.Directory
+import           Control.Monad
 import           Control.Applicative
 import           System.Directory (getCurrentDirectory, setCurrentDirectory, canonicalizePath)
 import           Control.Exception

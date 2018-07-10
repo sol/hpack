@@ -24,7 +24,7 @@ dependencies:
   - yaml
   - aeson >= 1.2.1.0
   - scientific
-  - Cabal
+  - Cabal >= 2.2
   - pretty
   - bifunctors
   - cryptonite
