@@ -72,7 +72,7 @@ module Hpack.Config (
 ) where
 
 import           Control.Applicative
-import           Control.Arrow ((>>>), (&&&))
+import           Control.Arrow ((>>>))
 import           Control.Monad
 import           Data.Bifunctor
 import           Data.Bitraversable
@@ -609,20 +609,20 @@ cabalVersion pkg@Package{..} = (
   , "cabal-version: " ++ fromMaybe inferredCabalVersion verbatimCabalVersion ++ "\n\n"
   )
   where
-    parsedLicense = (fmap prettyShow . parseLicense &&& id) <$> packageLicense
+    parsedLicense = fmap prettyShow . parseLicense <$> packageLicense
 
     formatLicense = \ case
-      (MustSPDX spdx, _) -> spdx
-      (CanSPDX spdx, _) | version >= makeVersion [2,2] -> spdx
-      (CanSPDX _, original) -> original
-      (DontTouch, original) -> original
+      MustSPDX spdx -> spdx
+      CanSPDX _ spdx | version >= makeVersion [2,2] -> spdx
+      CanSPDX cabal _ -> prettyShow cabal
+      DontTouch original -> original
 
     mustSPDX :: Bool
-    mustSPDX = maybe False (f . fst) parsedLicense
+    mustSPDX = maybe False f parsedLicense
       where
         f = \case
-          DontTouch -> False
-          CanSPDX _ -> False
+          DontTouch _ -> False
+          CanSPDX _ _ -> False
           MustSPDX _ -> True
 
     verbatimCabalVersion :: Maybe String
