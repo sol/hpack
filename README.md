@@ -79,9 +79,19 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 | `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | | |
 | `defaults` | | | See [Defaults](#defaults), may be a list | | |
 
-**Note:** Hpack does not require you to specify a `cabal-version` manually.  When
+#### cabal-version
+
+Hpack does not require you to specify a `cabal-version` manually.  When
 generating a `.cabal` file, Hpack sets the `cabal-version` automatically based
 on the features that are used.
+
+If you want to override this behavior you can use `verbatim` to set
+`cabal-version` manually, e.g.:
+
+```yaml
+verbatim:
+  cabal-version: 2.2
+```
 
 #### <a name="defaults"></a>Defaults
 

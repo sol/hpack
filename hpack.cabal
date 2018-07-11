@@ -1,8 +1,10 @@
--- This file has been generated from package.yaml by hpack version 0.28.2.
+cabal-version: >= 1.10
+
+-- This file has been generated from package.yaml by hpack version 0.29.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2fd062c6e67324c3fba9d4d20909de570759b9bfe8a92497d5d2318c3f35cd2f
+-- hash: cfd597be64fbc0242e6c338653cce17e853d1ce5843d07785f81ce0f208ee198
 
 name:           hpack
 version:        0.29.0
@@ -15,7 +17,6 @@ maintainer:     Simon Hengel <sol@typeful.net>
 license:        MIT
 license-file:   LICENSE
 build-type:     Simple
-cabal-version:  >= 1.10
 extra-source-files:
     CHANGELOG.md
 
