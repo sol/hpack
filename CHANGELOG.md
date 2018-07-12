@@ -1,3 +1,6 @@
+## Changes in next
+  - Infer `license` from `license-file`
+
 ## Changes in 0.29.0
   - Put the `cabal-version` at the beginning of the generated file. This Is
     required with `cabal-version: 2.1` and higher. (see #292)

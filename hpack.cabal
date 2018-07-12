@@ -4,7 +4,7 @@ cabal-version: >= 1.10
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: cfd597be64fbc0242e6c338653cce17e853d1ce5843d07785f81ce0f208ee198
+-- hash: 52521e0c9125c323c9fdaa2ef38926da5951af604045f54174992bc7f3cfb66b
 
 name:           hpack
 version:        0.29.0
@@ -46,6 +46,7 @@ library
     , pretty
     , scientific
     , text
+    , text-metrics
     , transformers
     , unordered-containers
     , vector
@@ -67,6 +68,7 @@ library
       Hpack.Options
       Hpack.Render.Dsl
       Hpack.Render.Hints
+      Hpack.SpdxLicenses
       Hpack.Syntax.Defaults
       Hpack.Syntax.Dependency
       Hpack.Syntax.Git
@@ -99,6 +101,7 @@ executable hpack
     , pretty
     , scientific
     , text
+    , text-metrics
     , transformers
     , unordered-containers
     , vector
@@ -140,6 +143,7 @@ test-suite spec
     , template-haskell
     , temporary
     , text
+    , text-metrics
     , transformers
     , unordered-containers
     , vector
@@ -179,6 +183,7 @@ test-suite spec
       Hpack.Render
       Hpack.Render.Dsl
       Hpack.Render.Hints
+      Hpack.SpdxLicenses
       Hpack.Syntax.Defaults
       Hpack.Syntax.Dependency
       Hpack.Syntax.Git

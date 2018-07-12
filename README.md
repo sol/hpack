@@ -59,7 +59,7 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 | `author` | · | | May be a list | | |
 | `maintainer` | · | | May be a list | | |
 | `copyright` | · | | May be a list | |
-| `license` | · | | Both [SPDX license expressions](https://spdx.org/licenses/) and traditional Cabal license identifiers are accepted. | `license: MIT` | SPDX: `0.29.0` |
+| `license` | · | Inferred from `license-file` | Both [SPDX license expressions](https://spdx.org/licenses/) and traditional Cabal license identifiers are accepted. | `license: MIT` | SPDX: `0.29.0` |
 | `license-file` | `license-file` or `license-files` | `LICENSE` if file exists | May be a list | | |
 | `tested-with` | · | | | | |
 | `build-type` | · | `Simple`, or `Custom` if `custom-setup` exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | | |

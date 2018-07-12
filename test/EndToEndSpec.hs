@@ -351,6 +351,30 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             default-language: Haskell2010
           |]) {packageCabalVersion = "2.2"}
 
+      context "with a LICENSE file" $ do
+        before_ (writeFile "LICENSE" license) $ do
+          it "infers license" $ do
+            [i|
+            |] `shouldRenderTo` (package [i|
+            license-file: LICENSE
+            license: MIT
+            |])
+
+          context "when license can not be inferred" $ do
+            it "warns" $ do
+              writeFile "LICENSE" "some-licenese"
+              [i|
+              name: foo
+              |] `shouldWarn` ["Inferring license from file LICENSE failed!"]
+
+          context "when license is null" $ do
+            it "does not infer license" $ do
+              [i|
+              license: null
+              |] `shouldRenderTo` (package [i|
+              license-file: LICENSE
+              |])
+
     describe "build-type" $ do
       it "accept Simple" $ do
         [i|
@@ -1411,3 +1435,26 @@ build-type: #{packageBuildType}
 
 indentBy :: Int -> String -> String
 indentBy n = unlines . map (replicate n ' ' ++) . lines
+
+license :: String
+license = [i|
+Copyright (c) 2014-2018 Simon Hengel <sol@typeful.net>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+|]

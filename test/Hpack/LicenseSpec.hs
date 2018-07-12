@@ -61,3 +61,19 @@ spec = do
     forM_ (cabalLicenses ++ spdxLicenses ++ unknownLicenses) $ \ (license, expected) -> do
       it [i|parses #{license}|] $ do
         prettyShow <$> parseLicense license `shouldBe` expected
+
+  describe "inferLicense" $ do
+    it "infers MIT" $ do
+      inferLicense <$> readFile "test/resources/mit" `shouldReturn` Just (CanSPDX Cabal.MIT "MIT")
+
+    it "infers BSD-2-Clause" $ do
+      inferLicense <$> readFile "test/resources/bsd2" `shouldReturn` Just (CanSPDX Cabal.BSD2 "BSD-2-Clause")
+
+    it "infers BSD-3-Clause" $ do
+      inferLicense <$> readFile "test/resources/bsd3" `shouldReturn` Just (CanSPDX Cabal.BSD3 "BSD-3-Clause")
+
+    it "infers BSD-4-Clause" $ do
+      inferLicense <$> readFile "test/resources/bsd4" `shouldReturn` Just (CanSPDX Cabal.BSD4 "BSD-4-Clause")
+
+    it "rejects unknown licenses" $ do
+      inferLicense "unknown" `shouldBe` Nothing

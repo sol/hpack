@@ -33,6 +33,7 @@ dependencies:
   - http-client
   - http-client-tls
   - vector
+  - text-metrics
 
 library:
   source-dirs: src

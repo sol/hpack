@@ -504,7 +504,7 @@ data PackageConfig_ library executable = PackageConfig {
 , packageConfigMaintainer :: Maybe (List String)
 , packageConfigCopyright :: Maybe (List String)
 , packageConfigBuildType :: Maybe BuildType
-, packageConfigLicense :: Maybe String
+, packageConfigLicense :: Maybe (Maybe String)
 , packageConfigLicenseFile :: Maybe (List String)
 , packageConfigTestedWith :: Maybe String
 , packageConfigFlags :: Maybe (Map String FlagSection)
@@ -580,8 +580,8 @@ readPackageConfig (DecodeOptions file mUserDataDir readValue) = runExceptT $ fma
   userDataDir <- liftIO $ maybe (getAppUserDataDirectory "hpack") return mUserDataDir
   toPackage userDataDir dir config
   where
-    addCabalFile :: (Package, [String]) -> DecodeResult
-    addCabalFile (pkg, warnings) = uncurry DecodeResult (cabalVersion pkg) (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
+    addCabalFile :: ((Package, String), [String]) -> DecodeResult
+    addCabalFile ((pkg, cabalVersion), warnings) = DecodeResult pkg cabalVersion (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
 
     takeDirectory_ :: FilePath -> FilePath
     takeDirectory_ p
@@ -600,15 +600,17 @@ verbatimValueToString = \ case
   VerbatimBool b -> show b
   VerbatimNull -> ""
 
-cabalVersion :: Package -> (Package, String)
-cabalVersion pkg@Package{..} = (
+determineCabalVersion :: Maybe (License String) -> Package -> (Package, String)
+determineCabalVersion inferredLicense pkg@Package{..} = (
     pkg {
         packageVerbatim = deleteVerbatimField "cabal-version" packageVerbatim
-      , packageLicense = formatLicense <$> parsedLicense
+      , packageLicense = formatLicense <$> license
       }
   , "cabal-version: " ++ fromMaybe inferredCabalVersion verbatimCabalVersion ++ "\n\n"
   )
   where
+    license = parsedLicense <|> inferredLicense
+
     parsedLicense = fmap prettyShow . parseLicense <$> packageLicense
 
     formatLicense = \ case
@@ -618,7 +620,7 @@ cabalVersion pkg@Package{..} = (
       DontTouch original -> original
 
     mustSPDX :: Bool
-    mustSPDX = maybe False f parsedLicense
+    mustSPDX = maybe False f license
       where
         f = \case
           DontTouch _ -> False
@@ -827,7 +829,7 @@ type ConfigWithDefaults = Product
 type CommonOptionsWithDefaults a = Product DefaultsConfig (CommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 type WithCommonOptionsWithDefaults a = Product DefaultsConfig (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 
-toPackage :: FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) Package
+toPackage :: FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) (Package, String)
 toPackage userDataDir dir =
       expandDefaultsInConfig userDataDir dir
   >=> traverseConfig (expandForeignSources dir)
@@ -916,7 +918,7 @@ toExecutableMap name executables mExecutable = do
 
 type GlobalOptions = CommonOptions CSources CxxSources JsSources Empty
 
-toPackage_ :: MonadIO m => FilePath -> Product GlobalOptions (PackageConfig CSources CxxSources JsSources) -> Warnings m Package
+toPackage_ :: MonadIO m => FilePath -> Product GlobalOptions (PackageConfig CSources CxxSources JsSources) -> Warnings m (Package, String)
 toPackage_ dir (Product g PackageConfig{..}) = do
   let
     globalVerbatim = commonOptionsVerbatim g
@@ -949,13 +951,24 @@ toPackage_ dir (Product g PackageConfig{..}) = do
 
   dataFiles <- expandGlobs "data-files" dataBaseDir (fromMaybeList packageConfigDataFiles)
 
+  let
+    licenseFiles :: [String]
+    licenseFiles = fromMaybeList $ packageConfigLicenseFile <|> do
+      guard licenseFileExists
+      Just (List ["LICENSE"])
+
+  inferredLicense <- case (packageConfigLicense, licenseFiles) of
+    (Nothing, [file]) -> do
+      input <- liftIO (tryReadFile (dir </> file))
+      case input >>= inferLicense of
+        Nothing -> do
+          tell ["Inferring license from file " ++ file ++ " failed!"]
+          return Nothing
+        license -> return license
+    _ -> return Nothing
+
   let defaultBuildType :: BuildType
       defaultBuildType = maybe Simple (const Custom) mCustomSetup
-
-      configLicenseFiles :: Maybe (List String)
-      configLicenseFiles = packageConfigLicenseFile <|> do
-        guard licenseFileExists
-        Just (List ["LICENSE"])
 
       pkg = Package {
         packageName = packageName_
@@ -970,8 +983,8 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       , packageMaintainer = fromMaybeList packageConfigMaintainer
       , packageCopyright = fromMaybeList packageConfigCopyright
       , packageBuildType = fromMaybe defaultBuildType packageConfigBuildType
-      , packageLicense = packageConfigLicense
-      , packageLicenseFile = fromMaybeList configLicenseFiles
+      , packageLicense = join packageConfigLicense
+      , packageLicenseFile = licenseFiles
       , packageTestedWith = packageConfigTestedWith
       , packageFlags = flags
       , packageExtraSourceFiles = extraSourceFiles
@@ -990,7 +1003,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
 
   tell nameWarnings
   tell (formatMissingSourceDirs missingSourceDirs)
-  return pkg
+  return (determineCabalVersion inferredLicense pkg)
   where
     nameWarnings :: [String]
     packageName_ :: String
