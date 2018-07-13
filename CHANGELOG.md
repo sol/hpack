@@ -1,4 +1,4 @@
-## Changes in next
+## Changes in 0.29.1
   - Infer `license` from `license-file`
 
 ## Changes in 0.29.0
