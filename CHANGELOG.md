@@ -1,3 +1,6 @@
+## Next
+  - Desugar `^>=` for compatibility with `Cabal < 2` (see #213)
+
 ## Changes in 0.29.2
   - Add missing `extra-source-files` (see #302)
 

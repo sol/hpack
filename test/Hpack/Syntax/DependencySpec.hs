@@ -147,6 +147,11 @@ spec = do
               hpack: 2.*
             |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange "==2.*")]
 
+          it "accepts ^>=" $ do
+            [yaml|
+              hpack: ^>= 1.2.3.4
+            |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange ">=1.2.3.4 && <1.3")]
+
           it "reports parse errors" $ do
             [yaml|
               hpack: foo

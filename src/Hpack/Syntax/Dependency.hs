@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE LambdaCase #-}
 module Hpack.Syntax.Dependency (
   Dependencies(..)
 , DependencyVersion(..)
@@ -16,6 +17,7 @@ import qualified Data.Text as T
 import           Data.Semigroup (Semigroup(..))
 import           Text.PrettyPrint (renderStyle, Style(..), Mode(..))
 import           Control.Monad
+import           Distribution.Version (VersionRangeF(..))
 import qualified Distribution.Compat.ReadP as D
 import qualified Distribution.Package as D
 import qualified Distribution.Text as D
@@ -163,9 +165,31 @@ parseVersionRange :: Monad m => String -> m DependencyVersion
 parseVersionRange = liftM dependencyVersionFromCabal . parseCabalVersionRange
 
 parseCabalVersionRange :: Monad m => String -> m D.VersionRange
-parseCabalVersionRange = cabalParse "constraint"
+parseCabalVersionRange = fmap toPreCabal2VersionRange . cabalParse "constraint"
 
 cabalParse :: (Monad m, D.Text a) => String -> String -> m a
 cabalParse subject s = case [d | (d, "") <- D.readP_to_S D.parse s] of
   [d] -> return d
   _ -> fail $ unwords ["invalid",  subject, show s]
+
+
+toPreCabal2VersionRange :: D.VersionRange -> D.VersionRange
+toPreCabal2VersionRange = D.embedVersionRange . D.cataVersionRange f
+  where
+    f :: VersionRangeF (VersionRangeF D.VersionRange) -> VersionRangeF D.VersionRange
+    f = \ case
+      MajorBoundVersionF v -> IntersectVersionRangesF (D.embedVersionRange lower) (D.embedVersionRange upper)
+        where
+          lower = OrLaterVersionF v
+          upper = EarlierVersionF (D.majorUpperBound v)
+
+      AnyVersionF -> AnyVersionF
+      ThisVersionF v -> ThisVersionF v
+      LaterVersionF v -> LaterVersionF v
+      OrLaterVersionF v -> OrLaterVersionF v
+      EarlierVersionF v -> EarlierVersionF v
+      OrEarlierVersionF v -> OrEarlierVersionF v
+      WildcardVersionF v -> WildcardVersionF v
+      UnionVersionRangesF a b -> UnionVersionRangesF (D.embedVersionRange a) (D.embedVersionRange b)
+      IntersectVersionRangesF a b -> IntersectVersionRangesF (D.embedVersionRange a) (D.embedVersionRange b)
+      VersionRangeParensF a -> VersionRangeParensF (D.embedVersionRange a)
