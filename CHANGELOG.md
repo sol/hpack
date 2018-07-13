@@ -1,3 +1,6 @@
+## Changes in 0.29.2
+  - Add missing `extra-source-files` (see #302)
+
 ## Changes in 0.29.1
   - Infer `license` from `license-file`
 

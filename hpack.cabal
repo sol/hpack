@@ -4,10 +4,10 @@ cabal-version: >= 1.10
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 708562cac33767420b742070fb9e5bb031688eb4b55688a47c9803455468d2ee
+-- hash: 5ec025015bbdf390002b760883f8fc63f4a45117a5cdf9356bf6ad0fef910cb0
 
 name:           hpack
-version:        0.29.1
+version:        0.29.2
 synopsis:       An alternative format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
@@ -19,6 +19,10 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     CHANGELOG.md
+    test/resources/bsd2
+    test/resources/bsd3
+    test/resources/bsd4
+    test/resources/mit
 
 source-repository head
   type: git
