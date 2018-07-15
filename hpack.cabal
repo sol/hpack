@@ -1,13 +1,13 @@
 cabal-version: >= 1.10
 
--- This file has been generated from package.yaml by hpack version 0.29.2.
+-- This file has been generated from package.yaml by hpack version 0.29.3.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4ff78568d9482ecc3542cb90e91e1939d6f65d510f414956757b0593cf11c15b
+-- hash: b74ce72f59395f87ee42933fe1146d9349b94fbb3be741ef85998ea2d37af660
 
 name:           hpack
-version:        0.29.3
+version:        0.29.4
 synopsis:       An alternative format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
@@ -43,7 +43,7 @@ library
     , http-client
     , http-client-tls
     , http-types
-    , infer-license >=0.1.0 && <0.2
+    , infer-license >=0.2.0 && <0.3
     , pretty
     , scientific
     , text
@@ -97,7 +97,7 @@ executable hpack
     , http-client
     , http-client-tls
     , http-types
-    , infer-license >=0.1.0 && <0.2
+    , infer-license >=0.2.0 && <0.3
     , pretty
     , scientific
     , text
@@ -135,7 +135,7 @@ test-suite spec
     , http-client
     , http-client-tls
     , http-types
-    , infer-license >=0.1.0 && <0.2
+    , infer-license >=0.2.0 && <0.3
     , interpolate
     , mockery >=0.3
     , pretty

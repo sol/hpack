@@ -1,5 +1,6 @@
-## next
+## Changes in 0.29.4
   - Desugar ^>= when dependency is a string (see #309)
+  - Add support for Apache, MPL and ISC when inferring `license` (see #305)
 
 ## Changes in 0.29.3
   - Desugar `^>=` for compatibility with `Cabal < 2` (see #213)

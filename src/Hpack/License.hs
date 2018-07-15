@@ -34,9 +34,12 @@ inferLicense = fmap (uncurry CanSPDX . (id &&& Cabal.licenseToSPDX) . toLicense)
   where
     toLicense = \ case
       Infer.MIT -> Cabal.MIT
+      Infer.ISC -> Cabal.ISC
       Infer.BSD2 -> Cabal.BSD2
       Infer.BSD3 -> Cabal.BSD3
       Infer.BSD4 -> Cabal.BSD4
+      Infer.Apache_2_0 -> Cabal.Apache (Just $ mkVersion [2,0])
+      Infer.MPL_2_0 -> Cabal.MPL (mkVersion [2,0])
       Infer.GPLv2 -> Cabal.GPL (Just $ mkVersion [2])
       Infer.GPLv3 -> Cabal.GPL (Just $ mkVersion [3])
       Infer.LGPLv2_1 -> Cabal.LGPL (Just $ mkVersion [2,1])
