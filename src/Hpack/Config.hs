@@ -95,6 +95,7 @@ import           Control.Monad.IO.Class
 import           Data.Version
 
 import           Distribution.Pretty (prettyShow)
+import qualified Distribution.SPDX.License as SPDX
 
 import           Data.Aeson.Config.Types
 import           Data.Aeson.Config.FromValue hiding (decodeValue)
@@ -600,7 +601,7 @@ verbatimValueToString = \ case
   VerbatimBool b -> show b
   VerbatimNull -> ""
 
-determineCabalVersion :: Maybe (License String) -> Package -> (Package, String)
+determineCabalVersion :: Maybe (License SPDX.License) -> Package -> (Package, String)
 determineCabalVersion inferredLicense pkg@Package{..} = (
     pkg {
         packageVerbatim = deleteVerbatimField "cabal-version" packageVerbatim
@@ -609,9 +610,9 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
   , "cabal-version: " ++ fromMaybe inferredCabalVersion verbatimCabalVersion ++ "\n\n"
   )
   where
-    license = parsedLicense <|> inferredLicense
+    license = fmap prettyShow <$> (parsedLicense <|> inferredLicense)
 
-    parsedLicense = fmap prettyShow . parseLicense <$> packageLicense
+    parsedLicense = parseLicense <$> packageLicense
 
     formatLicense = \ case
       MustSPDX spdx -> spdx
