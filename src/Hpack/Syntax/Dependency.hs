@@ -154,7 +154,7 @@ parseDependency = liftM fromCabal . parseCabalDependency
 dependencyVersionFromCabal :: D.VersionRange -> DependencyVersion
 dependencyVersionFromCabal versionRange
   | D.isAnyVersion versionRange = AnyVersion
-  | otherwise = VersionRange . renderStyle style . D.disp $ versionRange
+  | otherwise = VersionRange . renderStyle style . D.disp $ toPreCabal2VersionRange versionRange
   where
     style = Style OneLineMode 0 0
 
@@ -165,13 +165,12 @@ parseVersionRange :: Monad m => String -> m DependencyVersion
 parseVersionRange = liftM dependencyVersionFromCabal . parseCabalVersionRange
 
 parseCabalVersionRange :: Monad m => String -> m D.VersionRange
-parseCabalVersionRange = fmap toPreCabal2VersionRange . cabalParse "constraint"
+parseCabalVersionRange = cabalParse "constraint"
 
 cabalParse :: (Monad m, D.Text a) => String -> String -> m a
 cabalParse subject s = case [d | (d, "") <- D.readP_to_S D.parse s] of
   [d] -> return d
   _ -> fail $ unwords ["invalid",  subject, show s]
-
 
 toPreCabal2VersionRange :: D.VersionRange -> D.VersionRange
 toPreCabal2VersionRange = D.embedVersionRange . D.cataVersionRange f

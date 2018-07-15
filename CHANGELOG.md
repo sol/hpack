@@ -1,3 +1,6 @@
+## next
+  - Desugar ^>= when dependency is a string (see #309)
+
 ## Changes in 0.29.3
   - Desugar `^>=` for compatibility with `Cabal < 2` (see #213)
   - Add support for GPL, LGPL and AGPL when inferring `license` (see #305)

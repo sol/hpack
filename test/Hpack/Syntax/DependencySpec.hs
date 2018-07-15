@@ -46,6 +46,11 @@ spec = do
             - hpack >= 2 && < 3
           |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange ">=2 && <3")]
 
+        it "accepts ^>=" $ do
+          [yaml|
+            - hpack ^>= 1.2.3.4
+          |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange ">=1.2.3.4 && <1.3")]
+
         it "accepts git dependencies" $ do
           let source = GitRef "https://github.com/sol/hpack" "master" Nothing
           [yaml|
