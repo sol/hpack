@@ -460,7 +460,14 @@ To run `hpack` automatically on modifications to `package.yaml` add the
 following to your `~/.vimrc`:
 
 ```vim
-autocmd BufWritePost package.yaml silent !hpack --silent
+autocmd BufWritePost package.yaml call Hpack()
+
+function Hpack()
+  let err = system('hpack ' . expand('%'))
+  if v:shell_error
+    echo err
+  endif
+endfunction
 ```
 
 ## Stack support
