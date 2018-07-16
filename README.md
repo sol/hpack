@@ -1,4 +1,4 @@
-# hpack: An alternative format for Haskell packages
+# hpack: A modern format for Haskell packages
 
 Hpack is a format for Haskell packages.  It is a modern alternative to the
 Cabal package format and follows different design principles.
