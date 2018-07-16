@@ -15,7 +15,6 @@ spec = do
             , "license:"
             , "license-file: "
             , "build-type:     Simple"
-            , "cabal-version:  >= 1.10"
             ]
       extractFieldOrder input `shouldBe` [
               "name"
@@ -23,7 +22,6 @@ spec = do
             , "license"
             , "license-file"
             , "build-type"
-            , "cabal-version"
             ]
 
   describe "extractSectionsFieldOrder" $ do
@@ -60,6 +58,9 @@ spec = do
     it "removes trailing whitespace" $ do
       sanitize ["foo  ", "bar  "] `shouldBe` ["foo", "bar"]
 
+    it "removes cabal-version" $ do
+      sanitize ["cabal-version: 2.2", "bar  "] `shouldBe` ["bar"]
+
   describe "unindent" $ do
     it "unindents" $ do
       let input = [
@@ -81,7 +82,6 @@ spec = do
             , "license:        MIT"
             , "license-file:   LICENSE"
             , "build-type:     Simple"
-            , "cabal-version:  >= 1.10"
             ]
       sniffAlignment input `shouldBe` Just 16
 

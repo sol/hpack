@@ -1,3 +1,6 @@
+## Changes in 0.29.5
+  - Fix a regression related to indentation sniffing (close #310)
+
 ## Changes in 0.29.4
   - Desugar ^>= when dependency is a string (see #309)
   - Add support for Apache, MPL and ISC when inferring `license` (see #305)

@@ -38,7 +38,7 @@ sniffFormattingHints (sanitize -> input) = FormattingHints {
 }
 
 sanitize :: [String] -> [String]
-sanitize = filter (not . null) . map stripEnd
+sanitize = filter (not . isPrefixOf "cabal-version:") . filter (not . null) . map stripEnd
 
 stripEnd :: String -> String
 stripEnd = reverse . dropWhile isSpace . reverse
