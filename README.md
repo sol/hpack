@@ -12,13 +12,6 @@ The guiding design principles for Hpack are:
 * Give the user 100% control when needed
 * Don't require the user to repeat things, facilitate [DRY](https://en.wikipedia.org/wiki/Don't_repeat_yourself)ness
 
-## Surface syntax: YAML and Dhall
-
-By default Hpack uses [YAML](http://yaml.org/) as surface syntax.
-With [sol/hpack-dhall](https://github.com/sol/hpack-dhall) the [Dhall
-configuration language](https://github.com/dhall-lang/dhall-haskell) can be
-used instead of YAML.
-
 ## Tool integration
 
 Hpack packages are described in a file named `package.yaml`.  Both
