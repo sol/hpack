@@ -35,6 +35,30 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 
 ## Documentation
 
+### Build tools and compatibility with cabal new-build
+
+When using sandboxes, `cabal` makes all executables of all transitive
+dependencies available during the build so that they can be used as build
+tools.
+
+However, with `cabal new-build` build tools have to be specified explicitly via
+`build-tool-depends`.
+
+For compatibility of existing package specifications with `cabal new-build` we
+transparently add `build-tool-depends` when a package directly depends on
+certain packages.
+
+- When a package depends on `hspec` then `hpack` adds `hspec-discover` to `build-tool-depends`
+- When a package depends on `markdown-unlit` then `hpack` adds `markdown-unlit` to `build-tool-depends`
+
+You can opt out of this behavior by adding
+
+```yaml
+verbatim:
+  build-tool-depends: null
+```
+to `package.yaml`.
+
 ### Quick-reference
 
 #### Top-level fields

@@ -39,6 +39,8 @@ module Hpack.Config (
 , Dependencies(..)
 , DependencyVersion(..)
 , SourceDependency(..)
+, BuildTools
+, BuildTool(..)
 , GitRef
 , GitUrl
 , GhcOption
@@ -170,7 +172,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, version) | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty []
+section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -788,8 +790,16 @@ data Section a = Section {
 , sectionBuildable :: Maybe Bool
 , sectionConditionals :: [Conditional (Section a)]
 , sectionBuildTools :: Dependencies
+, sectionBuildToolDepends :: BuildTools
 , sectionVerbatim :: [Verbatim]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
+
+type BuildTools = Map BuildTool DependencyVersion
+
+data BuildTool = BuildTool {
+  buildToolPackage :: String
+, buildToolExecutable :: String
+} deriving (Eq, Ord, Show)
 
 data Conditional a = Conditional {
   conditionalCondition :: String
@@ -1228,13 +1238,15 @@ toSection_ (Product CommonOptions{..} a) = Section {
       , sectionInstallIncludes = fromMaybeList commonOptionsInstallIncludes
       , sectionLdOptions = fromMaybeList commonOptionsLdOptions
       , sectionBuildable = commonOptionsBuildable
-      , sectionDependencies = fromMaybe mempty commonOptionsDependencies
+      , sectionDependencies = dependencies
       , sectionPkgConfigDependencies = fromMaybeList commonOptionsPkgConfigDependencies
       , sectionConditionals = conditionals
       , sectionBuildTools = fromMaybe mempty commonOptionsBuildTools
+      , sectionBuildToolDepends = hardCodedBuildToolsFromDependencies dependencies
       , sectionVerbatim = fromMaybeList commonOptionsVerbatim
       }
   where
+    dependencies = fromMaybe mempty commonOptionsDependencies
     conditionals = map toConditional (fromMaybeList commonOptionsWhen)
 
     toConditional :: ConditionalSection CSources CxxSources JsSources a -> Conditional (Section a)
@@ -1243,6 +1255,15 @@ toSection_ (Product CommonOptions{..} a) = Section {
       FlatConditional (Product sect c) -> conditional c (toSection_ sect) Nothing
       where
         conditional (Condition (Cond c)) = Conditional c
+
+hardCodedBuildToolsFromDependencies :: Dependencies -> BuildTools
+hardCodedBuildToolsFromDependencies = Map.fromList . mapMaybe f . Map.toList . unDependencies
+  where
+    f (pkg, version) = (,) <$> lookup pkg known <*> pure version
+    known = [
+        ("hspec", BuildTool "hspec-discover" "hspec-discover")
+      , ("markdown-unlit", BuildTool "markdown-unlit" "markdown-unlit")
+      ]
 
 pathsModuleFromPackageName :: String -> String
 pathsModuleFromPackageName name = "Paths_" ++ map f name

@@ -468,17 +468,42 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           , transformers
         |]
 
+      context "when package depends on hspec" $ do
+        it "adds build-tool-depends on hspec-discover:hspec-discover" $ do
+          [i|
+          executable:
+            dependencies:
+              - hspec == 2.*
+          |] `shouldRenderTo` executable_ "foo" [i|
+          build-depends:
+              hspec ==2.*
+          build-tool-depends:
+              hspec-discover:hspec-discover ==2.*
+          |]
+
+        it "gives verbatim precedence" $ do
+          [i|
+          executable:
+            dependencies:
+              - hspec == 2.*
+            verbatim:
+              build-tool-depends: null
+          |] `shouldRenderTo` executable_ "foo" [i|
+          build-depends:
+              hspec ==2.*
+          |]
+
       context "with both global and section specific dependencies" $ do
         it "combines dependencies" $ do
           [i|
           dependencies:
             - base
           executable:
-            dependencies: hspec
+            dependencies: transformers
           |] `shouldRenderTo` executable_ "foo" [i|
           build-depends:
               base
-            , hspec
+            , transformers
           |]
 
         it "gives section specific dependencies precedence" $ do

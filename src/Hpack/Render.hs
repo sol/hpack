@@ -242,6 +242,7 @@ renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = ad
   , renderDependencies "build-depends" sectionDependencies
   , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigDependencies)
   , renderDependencies "build-tools" sectionBuildTools
+  , renderBuildToolDepends sectionBuildToolDepends
   ]
   ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ map (renderConditional renderSectionData) sectionConditionals
@@ -312,13 +313,20 @@ renderSignatures = Field "signatures" . CommaSeparatedList
 renderDependencies :: String -> Dependencies -> Element
 renderDependencies name = Field name . CommaSeparatedList . map renderDependency . Map.toList . unDependencies
 
+renderBuildToolDepends :: BuildTools -> Element
+renderBuildToolDepends = Field "build-tool-depends" . CommaSeparatedList . map renderBuildTool . Map.toList
+
+renderBuildTool :: (BuildTool,  DependencyVersion) -> String
+renderBuildTool (BuildTool pkg executable, version) = pkg ++ ":" ++ executable ++ renderVersion version
+
 renderDependency :: (String, DependencyVersion) -> String
-renderDependency (name, version) = name ++ v
-  where
-    v = case version of
-      AnyVersion -> ""
-      VersionRange x -> " " ++ x
-      SourceDependency _ -> ""
+renderDependency (name, version) = name ++ renderVersion version
+
+renderVersion :: DependencyVersion -> String
+renderVersion version = case version of
+  AnyVersion -> ""
+  VersionRange x -> " " ++ x
+  SourceDependency _ -> ""
 
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList
