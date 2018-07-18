@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -132,24 +131,13 @@ instance FromValue Dependency where
           name = o .: "name"
 
 depPkgName :: D.Dependency -> String
-#if MIN_VERSION_Cabal(2,0,0)
 depPkgName = D.unPackageName . D.depPkgName
-#else
-depPkgName (D.Dependency (D.PackageName name) _) = name
-#endif
-
-depVerRange :: D.Dependency -> D.VersionRange
-#if MIN_VERSION_Cabal(2,0,0)
-depVerRange = D.depVerRange
-#else
-depVerRange (D.Dependency _ versionRange) = versionRange
-#endif
 
 parseDependency :: Monad m => String -> m (String, DependencyVersion)
 parseDependency = liftM fromCabal . parseCabalDependency
   where
     fromCabal :: D.Dependency -> (String, DependencyVersion)
-    fromCabal d = (depPkgName d, dependencyVersionFromCabal $ depVerRange d)
+    fromCabal d = (depPkgName d, dependencyVersionFromCabal $ D.depVerRange d)
 
 dependencyVersionFromCabal :: D.VersionRange -> DependencyVersion
 dependencyVersionFromCabal versionRange
