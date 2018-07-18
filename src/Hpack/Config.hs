@@ -106,6 +106,7 @@ import           Hpack.Util hiding (expandGlobs)
 import qualified Hpack.Util as Util
 import           Hpack.Defaults
 import qualified Hpack.Yaml as Yaml
+import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.Dependency
 import           Hpack.License
 

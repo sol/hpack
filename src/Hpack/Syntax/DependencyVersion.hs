@@ -1,0 +1,126 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
+module Hpack.Syntax.DependencyVersion (
+  githubBaseUrl
+, GitRef
+, GitUrl
+, DependencyVersion(..)
+, SourceDependency(..)
+, dependencyVersionFromCabal
+
+, scientificToVersion
+, cabalParse
+) where
+
+import           Control.Applicative
+import           Data.Scientific
+import qualified Data.Text as T
+import           Text.PrettyPrint (renderStyle, Style(..), Mode(..))
+
+import           Distribution.Version (VersionRangeF(..))
+import qualified Distribution.Text as D
+import qualified Distribution.Version as D
+import qualified Distribution.Parsec.Class as D
+
+import           Data.Aeson.Config.FromValue
+
+githubBaseUrl :: String
+githubBaseUrl = "https://github.com/"
+
+type GitUrl = String
+type GitRef = String
+
+data DependencyVersion =
+    AnyVersion
+  | VersionRange String
+  | SourceDependency SourceDependency
+  deriving (Eq, Show)
+
+instance FromValue DependencyVersion where
+  fromValue v = case v of
+    Null -> return AnyVersion
+    Object _ -> SourceDependency <$> fromValue v
+    Number n -> return (scientificToDependencyVersion n)
+    String s -> parseVersionRange ("== " ++ input) <|> parseVersionRange input
+      where
+        input = T.unpack s
+
+    _ -> typeMismatch "Null, Object, Number, or String" v
+
+data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
+  deriving (Eq, Show)
+
+instance FromValue SourceDependency where
+  fromValue = withObject (\o -> let
+    local :: Parser SourceDependency
+    local = Local <$> o .: "path"
+
+    git :: Parser SourceDependency
+    git = GitRef <$> url <*> ref <*> subdir
+
+    url :: Parser String
+    url =
+          ((githubBaseUrl ++) <$> o .: "github")
+      <|> (o .: "git")
+      <|> fail "neither key \"git\" nor key \"github\" present"
+
+    ref :: Parser String
+    ref = o .: "ref"
+
+    subdir :: Parser (Maybe FilePath)
+    subdir = o .:? "subdir"
+
+    in local <|> git)
+
+scientificToDependencyVersion :: Scientific -> DependencyVersion
+scientificToDependencyVersion n = VersionRange ("==" ++ version)
+  where
+    version = scientificToVersion n
+
+scientificToVersion :: Scientific -> String
+scientificToVersion n = version
+  where
+    version = formatScientific Fixed (Just decimalPlaces) n
+    decimalPlaces
+      | e < 0 = abs e
+      | otherwise = 0
+    e = base10Exponent n
+
+parseVersionRange :: Monad m => String -> m DependencyVersion
+parseVersionRange = fmap dependencyVersionFromCabal . parseCabalVersionRange
+
+parseCabalVersionRange :: Monad m => String -> m D.VersionRange
+parseCabalVersionRange = cabalParse "constraint"
+
+cabalParse :: (Monad m, D.Parsec a) => String -> String -> m a
+cabalParse subject s = case D.eitherParsec s of
+  Right d -> return d
+  Left _ ->fail $ unwords ["invalid",  subject, show s]
+
+dependencyVersionFromCabal :: D.VersionRange -> DependencyVersion
+dependencyVersionFromCabal versionRange
+  | D.isAnyVersion versionRange = AnyVersion
+  | otherwise = VersionRange . renderStyle style . D.disp $ toPreCabal2VersionRange versionRange
+  where
+    style = Style OneLineMode 0 0
+
+    toPreCabal2VersionRange :: D.VersionRange -> D.VersionRange
+    toPreCabal2VersionRange = D.embedVersionRange . D.cataVersionRange f
+      where
+        f :: VersionRangeF (VersionRangeF D.VersionRange) -> VersionRangeF D.VersionRange
+        f = \ case
+          MajorBoundVersionF v -> IntersectVersionRangesF (D.embedVersionRange lower) (D.embedVersionRange upper)
+            where
+              lower = OrLaterVersionF v
+              upper = EarlierVersionF (D.majorUpperBound v)
+
+          AnyVersionF -> AnyVersionF
+          ThisVersionF v -> ThisVersionF v
+          LaterVersionF v -> LaterVersionF v
+          OrLaterVersionF v -> OrLaterVersionF v
+          EarlierVersionF v -> EarlierVersionF v
+          OrEarlierVersionF v -> OrEarlierVersionF v
+          WildcardVersionF v -> WildcardVersionF v
+          UnionVersionRangesF a b -> UnionVersionRangesF (D.embedVersionRange a) (D.embedVersionRange b)
+          IntersectVersionRangesF a b -> IntersectVersionRangesF (D.embedVersionRange a) (D.embedVersionRange b)
+          VersionRangeParensF a -> VersionRangeParensF (D.embedVersionRange a)

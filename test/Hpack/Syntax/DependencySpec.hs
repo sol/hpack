@@ -9,6 +9,7 @@ import           Helper
 import           Data.Aeson.Config.FromValueSpec (shouldDecodeTo, shouldDecodeTo_)
 
 import           Data.Aeson.Config.FromValue
+import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.Dependency
 
 left :: String -> Result Dependencies
