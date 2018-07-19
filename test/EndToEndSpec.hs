@@ -1413,7 +1413,7 @@ executable #{name}
 |]
 
 package :: String -> Package
-package = Package "foo" "0.0.0" "Simple" ">= 1.10"
+package = Package "foo" "0.0.0" "Simple" ">= 1.12"
 
 data Package = Package {
   packageName :: String
