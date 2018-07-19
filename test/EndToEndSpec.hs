@@ -435,6 +435,17 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - "*.markdown"
         |] `shouldWarn` ["Specified pattern \"*.markdown\" for extra-doc-files does not match any files"]
 
+    describe "build-tools" $ do
+      it "accepts known build tool" $ do
+        [i|
+        executable:
+          build-tools:
+            alex == 0.1.0
+        |] `shouldRenderTo` executable_ "foo" [i|
+        build-tools:
+            alex ==0.1.0
+        |]
+
     describe "dependencies" $ do
       it "accepts single dependency" $ do
         [i|
