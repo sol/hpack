@@ -1,7 +1,5 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ConstraintKinds #-}
 module Hpack.Syntax.DependencySpec (spec) where
 
 import           Helper

@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 module Hpack.Syntax.Dependency (
   Dependencies(..)
+, parseDependency
 ) where
 
 import           Data.Text (Text)
