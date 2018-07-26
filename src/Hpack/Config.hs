@@ -42,6 +42,7 @@ module Hpack.Config (
 , SourceDependency(..)
 , GitRef
 , GitUrl
+, BuildTool(..)
 , GhcOption
 , Verbatim(..)
 , VerbatimValue(..)
@@ -69,6 +70,8 @@ module Hpack.Config (
 , LibrarySection(..)
 , fromLibrarySectionInConditional
 , formatOrList
+
+, toBuildTool
 #endif
 ) where
 
@@ -110,6 +113,7 @@ import           Hpack.Defaults
 import qualified Hpack.Yaml as Yaml
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.Dependency
+import           Hpack.Syntax.BuildTools
 import           Hpack.License
 import           Hpack.CabalFile (parseVersion)
 
@@ -277,7 +281,7 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List (ConditionalSection cSources cxxSources jsSources a))
-, commonOptionsBuildTools :: Maybe Dependencies
+, commonOptionsBuildTools :: Maybe BuildTools
 , commonOptionsVerbatim :: Maybe (List Verbatim)
 } deriving (Functor, Generic)
 
@@ -339,7 +343,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semi
   , commonOptionsLdOptions = commonOptionsLdOptions a <> commonOptionsLdOptions b
   , commonOptionsBuildable = commonOptionsBuildable b <|> commonOptionsBuildable a
   , commonOptionsWhen = commonOptionsWhen a <> commonOptionsWhen b
-  , commonOptionsBuildTools = commonOptionsBuildTools b <> commonOptionsBuildTools a
+  , commonOptionsBuildTools = commonOptionsBuildTools a <> commonOptionsBuildTools b
   , commonOptionsVerbatim = commonOptionsVerbatim a <> commonOptionsVerbatim b
   }
 
@@ -800,6 +804,9 @@ data Executable = Executable {
 , executableGeneratedModules :: [String]
 } deriving (Eq, Show)
 
+data BuildTool = BuildTool String String | LocalBuildTool String
+  deriving (Show, Eq, Ord)
+
 data Section a = Section {
   sectionData :: a
 , sectionSourceDirs :: [FilePath]
@@ -825,7 +832,7 @@ data Section a = Section {
 , sectionLdOptions :: [LdOption]
 , sectionBuildable :: Maybe Bool
 , sectionConditionals :: [Conditional (Section a)]
-, sectionBuildTools :: Dependencies
+, sectionBuildTools :: Map BuildTool DependencyVersion
 , sectionVerbatim :: [Verbatim]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -964,12 +971,15 @@ type GlobalOptions = CommonOptions CSources CxxSources JsSources Empty
 
 toPackage_ :: MonadIO m => FilePath -> Product GlobalOptions (PackageConfig CSources CxxSources JsSources) -> Warnings m (Package, String)
 toPackage_ dir (Product g PackageConfig{..}) = do
+  executableMap <- toExecutableMap packageName_ packageConfigExecutables packageConfigExecutable
   let
     globalVerbatim = commonOptionsVerbatim g
     globalOptions = g {commonOptionsVerbatim = Nothing}
 
+    executableNames = maybe [] Map.keys executableMap
+
     toSect :: Monoid a => WithCommonOptions CSources CxxSources JsSources a -> Section a
-    toSect = toSection . first ((mempty <$ globalOptions) <>)
+    toSect = toSection packageName_ executableNames . first ((mempty <$ globalOptions) <>)
 
     toLib = toLibrary dir packageName_ . toSect
     toExecutables = liftIO . maybe mempty (traverse $ toExecutable dir packageName_ . toSect)
@@ -977,7 +987,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
   mLibrary <- liftIO $ traverse toLib packageConfigLibrary
   internalLibraries <- liftIO $ maybe mempty (traverse toLib) packageConfigInternalLibraries
 
-  executables <- toExecutableMap packageName_ packageConfigExecutables packageConfigExecutable >>= toExecutables
+  executables <- toExecutables executableMap
   tests <- toExecutables packageConfigTests
   benchmarks <- toExecutables packageConfigBenchmarks
 
@@ -1239,8 +1249,8 @@ expandMain = flatten . expand
       , sectionConditionals = map (fmap flatten) sectionConditionals
       }
 
-toSection :: WithCommonOptions CSources CxxSources JsSources a -> Section a
-toSection = go
+toSection :: String -> [String] -> WithCommonOptions CSources CxxSources JsSources a -> Section a
+toSection packageName_ executableNames = go
   where
     go (Product CommonOptions{..} a) = Section {
         sectionData = a
@@ -1267,9 +1277,11 @@ toSection = go
       , sectionDependencies = fromMaybe mempty commonOptionsDependencies
       , sectionPkgConfigDependencies = fromMaybeList commonOptionsPkgConfigDependencies
       , sectionConditionals = map toConditional (fromMaybeList commonOptionsWhen)
-      , sectionBuildTools = fromMaybe mempty commonOptionsBuildTools
+      , sectionBuildTools = maybe mempty toBuildToolMap commonOptionsBuildTools
       , sectionVerbatim = fromMaybeList commonOptionsVerbatim
       }
+    toBuildToolMap :: BuildTools -> Map BuildTool DependencyVersion
+    toBuildToolMap (unBuildTools -> xs) = Map.fromList $ map (first $ toBuildTool packageName_ executableNames) xs
 
     toConditional :: ConditionalSection CSources CxxSources JsSources a -> Conditional (Section a)
     toConditional x = case x of
@@ -1277,6 +1289,15 @@ toSection = go
       FlatConditional (Product sect c) -> conditional c (go sect) Nothing
       where
         conditional (Condition (Cond c)) = Conditional c
+
+toBuildTool :: String -> [String] -> ParseBuildTool -> BuildTool
+toBuildTool packageName_ executableNames = \ case
+  QualifiedBuildTool pkg executable
+    | pkg == packageName_ && executable `elem` executableNames -> LocalBuildTool executable
+    | otherwise -> BuildTool pkg executable
+  UnqualifiedBuildTool name
+    | name `elem` executableNames -> LocalBuildTool name
+    | otherwise -> BuildTool name name
 
 pathsModuleFromPackageName :: String -> String
 pathsModuleFromPackageName name = "Paths_" ++ map f name

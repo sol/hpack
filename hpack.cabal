@@ -4,10 +4,10 @@ cabal-version: >= 1.10
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1641525d1e2f9399f376458c17314e181f70af5118b3678ee5f717e8760f1e08
+-- hash: a1136b4a83bc50abf6e1fac6ef221b3df0c837b248aa357568449996e9d20078
 
 name:           hpack
-version:        0.29.7
+version:        0.30.0
 synopsis:       A modern format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
@@ -68,6 +68,7 @@ library
       Hpack.Options
       Hpack.Render.Dsl
       Hpack.Render.Hints
+      Hpack.Syntax.BuildTools
       Hpack.Syntax.Defaults
       Hpack.Syntax.Dependency
       Hpack.Syntax.DependencyVersion
@@ -163,6 +164,7 @@ test-suite spec
       Hpack.Render.DslSpec
       Hpack.Render.HintsSpec
       Hpack.RenderSpec
+      Hpack.Syntax.BuildToolsSpec
       Hpack.Syntax.DefaultsSpec
       Hpack.Syntax.DependencySpec
       Hpack.Syntax.GitSpec
@@ -183,6 +185,7 @@ test-suite spec
       Hpack.Render
       Hpack.Render.Dsl
       Hpack.Render.Hints
+      Hpack.Syntax.BuildTools
       Hpack.Syntax.Defaults
       Hpack.Syntax.Dependency
       Hpack.Syntax.DependencyVersion

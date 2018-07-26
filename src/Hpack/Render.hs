@@ -241,8 +241,8 @@ renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = ad
   , renderLdOptions sectionLdOptions
   , renderDependencies "build-depends" sectionDependencies
   , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigDependencies)
-  , renderDependencies "build-tools" sectionBuildTools
   ]
+  ++ renderBuildTools sectionBuildTools
   ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ map (renderConditional renderSectionData) sectionConditionals
   ++ extraFieldsEnd
@@ -313,12 +313,40 @@ renderDependencies :: String -> Dependencies -> Element
 renderDependencies name = Field name . CommaSeparatedList . map renderDependency . Map.toList . unDependencies
 
 renderDependency :: (String, DependencyVersion) -> String
-renderDependency (name, version) = name ++ v
+renderDependency (name, version) = name ++ renderVersion version
+
+renderVersion :: DependencyVersion -> String
+renderVersion version = case version of
+  AnyVersion -> ""
+  VersionRange x -> " " ++ x
+  SourceDependency _ -> ""
+
+renderBuildTools :: Map BuildTool DependencyVersion -> [Element]
+renderBuildTools (map renderBuildTool . Map.toList -> xs) = [
+    Field "build-tools" (CommaSeparatedList [x | BuildTools x <- xs])
+  , Field "build-tool-depends" (CommaSeparatedList [x | BuildToolDepends x <- xs])
+  ]
+
+data RenderBuildTool = BuildTools String | BuildToolDepends String
+
+renderBuildTool :: (BuildTool,  DependencyVersion) -> RenderBuildTool
+renderBuildTool (buildTool, renderVersion -> version) = case buildTool of
+  LocalBuildTool executable -> BuildTools (executable ++ version)
+  BuildTool pkg executable
+    | pkg == executable && executable `elem` knownBuildTools -> BuildTools (executable ++ version)
+    | otherwise -> BuildToolDepends (pkg ++ ":" ++ executable ++ version)
   where
-    v = case version of
-      AnyVersion -> ""
-      VersionRange x -> " " ++ x
-      SourceDependency _ -> ""
+    knownBuildTools :: [String]
+    knownBuildTools = [
+        "alex"
+      , "c2hs"
+      , "cpphs"
+      , "greencard"
+      , "haddock"
+      , "happy"
+      , "hsc2hs"
+      , "hscolour"
+      ]
 
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList

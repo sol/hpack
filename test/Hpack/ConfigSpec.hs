@@ -25,6 +25,7 @@ import           Data.Either
 import qualified Data.Map.Lazy as Map
 
 import           Hpack.Syntax.Dependency
+import           Hpack.Syntax.BuildTools
 import           Hpack.Config hiding (package)
 import qualified Hpack.Config as Config
 
@@ -157,6 +158,30 @@ spec = do
         touch (dir </> "Foo.hs")
         touch (dir </> "Setup.hs")
         getModules dir  "./." `shouldReturn` ["Foo"]
+
+  describe "toBuildTool" $ do
+    let toBuildTool_ = toBuildTool "my-package" ["foo"]
+    context "with an UnqualifiedBuildTool" $ do
+      context "when name does not match a local executable" $ do
+        it "returns a BuildTool" $ do
+          toBuildTool_ (UnqualifiedBuildTool "bar") `shouldBe` BuildTool "bar" "bar"
+
+      context "when name matches a local executable" $ do
+        it "returns a LocalBuildTool" $ do
+          toBuildTool_ (UnqualifiedBuildTool "foo") `shouldBe` LocalBuildTool "foo"
+
+    context "with a QualifiedBuildTool" $ do
+      context "when only package matches the current package" $ do
+        it "returns a BuildTool" $ do
+          toBuildTool_ (QualifiedBuildTool "my-package" "bar") `shouldBe` BuildTool "my-package" "bar"
+
+      context "when only executable matches a local executable" $ do
+        it "returns a BuildTool" $ do
+          toBuildTool_ (QualifiedBuildTool "other-package" "foo") `shouldBe` BuildTool "other-package" "foo"
+
+      context "when both package matches the current package and executable matches a local executable" $ do
+        it "returns a LocalBuildTool" $ do
+          toBuildTool_ (QualifiedBuildTool "my-package" "foo") `shouldBe` LocalBuildTool "foo"
 
   describe "readPackageConfig" $ do
     it "warns on missing name" $ do
@@ -401,15 +426,6 @@ spec = do
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
 
-      it "accepts build-tools" $ do
-        withPackageConfig_ [i|
-          library:
-            build-tools:
-              - alex
-              - happy
-          |]
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
-
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
           library:
@@ -436,15 +452,6 @@ spec = do
           library: {}
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
-
-      it "accepts global build-tools" $ do
-        withPackageConfig_ [i|
-          build-tools:
-            - alex
-            - happy
-          library: {}
-          |]
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
 
       it "allows to specify exposed" $ do
         withPackageConfig_ [i|
@@ -502,17 +509,6 @@ spec = do
           |]
           (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
 
-      it "accepts build-tools" $ do
-        withPackageConfig_ [i|
-          executables:
-            foo:
-              main: Main.hs
-              build-tools:
-                - alex
-                - happy
-          |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildTools = deps ["alex", "happy"]})]))
-
       it "accepts global source-dirs" $ do
         withPackageConfig_ [i|
           source-dirs:
@@ -523,17 +519,6 @@ spec = do
               main: Main.hs
           |]
           (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
-
-      it "accepts global build-tools" $ do
-        withPackageConfig_ [i|
-          build-tools:
-            - alex
-            - happy
-          executables:
-            foo:
-              main: Main.hs
-          |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildTools = deps ["alex", "happy"]})]))
 
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|

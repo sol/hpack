@@ -478,6 +478,69 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - "*.markdown"
         |] `shouldWarn` ["Specified pattern \"*.markdown\" for extra-doc-files does not match any files"]
 
+    describe "build-tools" $ do
+      it "adds known build tools to build-tools" $ do
+        [i|
+        executable:
+          build-tools:
+            alex == 0.1.0
+        |] `shouldRenderTo` executable_ "foo" [i|
+        build-tools:
+            alex ==0.1.0
+        |]
+
+      it "adds other build tools to build-tool-depends" $ do
+        [i|
+        executable:
+          build-tools:
+            hspec-discover: 0.1.0
+        |] `shouldRenderTo` (executable_ "foo" [i|
+        build-tool-depends:
+            hspec-discover:hspec-discover ==0.1.0
+        |]) {
+          -- NOTE: We do not set this to 2.0 on purpose, so that the .cabal
+          -- file is compatible with a wider range of Cabal versions!
+          packageCabalVersion = "1.12"
+        }
+
+      context "when the name of a build tool matches an executable from the same package" $ do
+        it "adds it to build-tools" $ do
+          [i|
+          executables:
+            bar:
+              build-tools:
+                - bar
+          |] `shouldRenderTo` executable_ "bar" [i|
+          build-tools:
+              bar
+          |]
+
+        it "gives per-section unqualified names precedence over global qualified names" $ do
+          [i|
+          build-tools:
+            - foo:bar == 0.1.0
+          executables:
+            bar:
+              build-tools:
+                - bar == 0.2.0
+          |] `shouldRenderTo` executable_ "bar" [i|
+          build-tools:
+              bar ==0.2.0
+          |]
+
+        it "gives per-section qualified names precedence over global unqualified names" $ do
+          [i|
+          build-tools:
+            - bar == 0.1.0
+          executables:
+            bar:
+              build-tools:
+                - foo:bar == 0.2.0
+          |] `shouldRenderTo` executable_ "bar" [i|
+          build-tools:
+              bar ==0.2.0
+          |]
+
     describe "dependencies" $ do
       it "accepts single dependency" $ do
         [i|
