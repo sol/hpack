@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE LambdaCase #-}
 module Hpack.Syntax.Dependency (
   Dependencies(..)
 ) where
 
+import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Semigroup (Semigroup(..))
 import           Control.Monad
@@ -47,23 +47,20 @@ data Dependency = Dependency {
 
 instance FromValue Dependency where
   fromValue v = case v of
-    String s -> uncurry Dependency <$> parseDependency (T.unpack s)
-    Object o -> addSourceDependency o
+    String s -> uncurry Dependency <$> parseDependency "dependency" s
+    Object o -> sourceDependency o
     _ -> typeMismatch "Object or String" v
     where
-      addSourceDependency o = Dependency <$> name <*> (SourceDependency <$> fromValue v)
+      sourceDependency o = Dependency <$> name <*> (SourceDependency <$> fromValue v)
         where
           name :: Parser String
           name = o .: "name"
 
-depPkgName :: D.Dependency -> String
-depPkgName = D.unPackageName . D.depPkgName
-
-parseDependency :: Monad m => String -> m (String, DependencyVersion)
-parseDependency = liftM fromCabal . parseCabalDependency
+parseDependency :: Monad m => String -> Text -> m (String, DependencyVersion)
+parseDependency subject = liftM fromCabal . parseCabalDependency subject . T.unpack
   where
     fromCabal :: D.Dependency -> (String, DependencyVersion)
-    fromCabal d = (depPkgName d, dependencyVersionFromCabal $ D.depVerRange d)
+    fromCabal d = (D.unPackageName $ D.depPkgName d, dependencyVersionFromCabal $ D.depVerRange d)
 
-parseCabalDependency :: Monad m => String -> m D.Dependency
-parseCabalDependency = cabalParse "dependency"
+parseCabalDependency :: Monad m => String -> String -> m D.Dependency
+parseCabalDependency = cabalParse
