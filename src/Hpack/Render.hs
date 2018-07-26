@@ -35,6 +35,7 @@ module Hpack.Render (
 
 import           Control.Monad
 import           Data.Char
+import           Data.Either
 import           Data.Maybe
 import           Data.List
 import           Data.Map.Lazy (Map)
@@ -241,8 +242,8 @@ renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = ad
   , renderLdOptions sectionLdOptions
   , renderDependencies "build-depends" sectionDependencies
   , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigDependencies)
-  , renderDependencies "build-tools" sectionBuildTools
   ]
+  ++ renderBuildTools sectionBuildTools
   ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ map (renderConditional renderSectionData) sectionConditionals
   ++ extraFieldsEnd
@@ -313,12 +314,38 @@ renderDependencies :: String -> Dependencies -> Element
 renderDependencies name = Field name . CommaSeparatedList . map renderDependency . Map.toList . unDependencies
 
 renderDependency :: (String, DependencyVersion) -> String
-renderDependency (name, version) = name ++ v
+renderDependency (name, version) = name ++ renderVersion version
+
+renderVersion :: DependencyVersion -> String
+renderVersion version = case version of
+  AnyVersion -> ""
+  VersionRange x -> " " ++ x
+  SourceDependency _ -> ""
+
+renderBuildTools :: BuildTools -> [Element]
+renderBuildTools (Map.toList . unBuildTools -> xs) = [
+    Field "build-tools" (CommaSeparatedList buildTools)
+  , Field "build-tool-depends" (CommaSeparatedList buildToolDepends)
+  ]
   where
-    v = case version of
-      AnyVersion -> ""
-      VersionRange x -> " " ++ x
-      SourceDependency _ -> ""
+    (buildTools, buildToolDepends) = partitionEithers (map renderBuildTool xs)
+
+    renderBuildTool :: (BuildTool,  DependencyVersion) -> Either String String
+    renderBuildTool (BuildTool pkg executable, version)
+      | pkg == executable && executable `elem` knownBuildTools = Left (executable ++ renderVersion version)
+      | otherwise = Right (pkg ++ ":" ++ executable ++ renderVersion version)
+
+    knownBuildTools :: [String]
+    knownBuildTools = [
+        "alex"
+      , "c2hs"
+      , "cpphs"
+      , "greencard"
+      , "haddock"
+      , "happy"
+      , "hsc2hs"
+      , "hscolour"
+      ]
 
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList

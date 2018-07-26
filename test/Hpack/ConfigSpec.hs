@@ -401,15 +401,6 @@ spec = do
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
 
-      it "accepts build-tools" $ do
-        withPackageConfig_ [i|
-          library:
-            build-tools:
-              - alex
-              - happy
-          |]
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
-
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
           library:
@@ -436,15 +427,6 @@ spec = do
           library: {}
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
-
-      it "accepts global build-tools" $ do
-        withPackageConfig_ [i|
-          build-tools:
-            - alex
-            - happy
-          library: {}
-          |]
-          (packageLibrary >>> (`shouldBe` Just (section library) {sectionBuildTools = deps ["alex", "happy"]}))
 
       it "allows to specify exposed" $ do
         withPackageConfig_ [i|
@@ -502,17 +484,6 @@ spec = do
           |]
           (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
 
-      it "accepts build-tools" $ do
-        withPackageConfig_ [i|
-          executables:
-            foo:
-              main: Main.hs
-              build-tools:
-                - alex
-                - happy
-          |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildTools = deps ["alex", "happy"]})]))
-
       it "accepts global source-dirs" $ do
         withPackageConfig_ [i|
           source-dirs:
@@ -523,17 +494,6 @@ spec = do
               main: Main.hs
           |]
           (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
-
-      it "accepts global build-tools" $ do
-        withPackageConfig_ [i|
-          build-tools:
-            - alex
-            - happy
-          executables:
-            foo:
-              main: Main.hs
-          |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildTools = deps ["alex", "happy"]})]))
 
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|

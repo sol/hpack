@@ -1,3 +1,7 @@
+## Changes in 0.30.0
+  - Extend `build-tools` so that it subsumes Cabal's `build-tools` and
+    `build-tool-depends` (see #254)
+
 ## Changes in 0.29.5
   - Fix a regression related to indentation sniffing (close #310)
 

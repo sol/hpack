@@ -149,7 +149,7 @@ this reason it is recommended to only use tags as Git references.
 | --- | --- | --- | --- | --- |
 | `dependencies` | `setup-depends` | | Implies `build-type: Custom` | |
 
-#### <a name="common-fields">Common fields
+#### <a name="common-fields"></a>Common fields
 
 These fields can be specified top-level or on a per section basis; top-level
 values are merged with per section values.
@@ -178,8 +178,49 @@ values are merged with per section values.
 | `ld-options` | · | | |
 | `dependencies` | `build-depends` | | |
 | `pkg-config-dependencies` | `pkgconfig-depends` | | |
-| `build-tools` | · | | |
+| `build-tools` | [`build-tools`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tools) and/or [`build-tool-depends`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tool-depends) | | |
 | `when` | | | Accepts a list of conditionals (see [Conditionals](#conditionals)) |
+
+**`build-tools`: A set of Haskell executables that are needed to build this component**
+
+Each element consists of a *name* and an optional *version constraint*.
+
+The name can be specified in two ways:
+
+1. Qualified: `<package>:<executable>`
+1. Unqualified: `<executable>`
+
+A qualified name refers to an executable named `<executable>` from a
+package named `<package>`.
+
+An unqualified name is syntactic sugar for `<executable>:<executable>`.
+
+`build-tools` can be specified as a list or a mapping.
+
+Examples:
+```yaml
+build-tools:
+  - alex
+  - happy:happy
+  - hspec-discover == 2.*
+```
+```
+build-tools:
+  alex: 3.2.*
+  happy:happy: 1.19.*
+  hspec-discover: 2.*
+```
+
+When generating a `.cabal` file each element of `build-tools` is either added
+to `build-tools` or `build-tool-depends`.
+
+If the name refers to one of `alex`, `c2hs`, `cpphs`, `greencard`, `haddock`,
+`happy`, `hsc2hs` or `hscolour` then the element is added to `build-tools`,
+otherwise it is added to `build-tool-depends`.
+
+This is done to allow compatibility with a wider range of `Cabal` versions.
+
+<package-name>
 
 #### <a name="library-fields"></a>Library fields
 

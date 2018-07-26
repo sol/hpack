@@ -41,6 +41,8 @@ module Hpack.Config (
 , SourceDependency(..)
 , GitRef
 , GitUrl
+, BuildTools(..)
+, BuildTool(..)
 , GhcOption
 , Verbatim(..)
 , VerbatimValue(..)
@@ -108,6 +110,7 @@ import           Hpack.Defaults
 import qualified Hpack.Yaml as Yaml
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.Dependency
+import           Hpack.Syntax.BuildTools
 import           Hpack.License
 
 package :: String -> String -> Package
@@ -272,7 +275,7 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List (ConditionalSection cSources cxxSources jsSources a))
-, commonOptionsBuildTools :: Maybe Dependencies
+, commonOptionsBuildTools :: Maybe BuildTools
 , commonOptionsVerbatim :: Maybe (List Verbatim)
 } deriving (Functor, Generic)
 
@@ -787,7 +790,7 @@ data Section a = Section {
 , sectionLdOptions :: [LdOption]
 , sectionBuildable :: Maybe Bool
 , sectionConditionals :: [Conditional (Section a)]
-, sectionBuildTools :: Dependencies
+, sectionBuildTools :: BuildTools
 , sectionVerbatim :: [Verbatim]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
