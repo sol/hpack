@@ -43,6 +43,7 @@ module Hpack.Config (
 , GitRef
 , GitUrl
 , BuildTool(..)
+, SystemBuildTools(..)
 , GhcOption
 , Verbatim(..)
 , VerbatimValue(..)
@@ -179,7 +180,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, version) | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty []
+section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -282,6 +283,7 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List (ConditionalSection cSources cxxSources jsSources a))
 , commonOptionsBuildTools :: Maybe BuildTools
+, commonOptionsSystemBuildTools :: Maybe SystemBuildTools
 , commonOptionsVerbatim :: Maybe (List Verbatim)
 } deriving (Functor, Generic)
 
@@ -314,6 +316,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid 
   , commonOptionsBuildable = Nothing
   , commonOptionsWhen = Nothing
   , commonOptionsBuildTools = Nothing
+  , commonOptionsSystemBuildTools = Nothing
   , commonOptionsVerbatim = Nothing
   }
   mappend = (<>)
@@ -344,6 +347,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semi
   , commonOptionsBuildable = commonOptionsBuildable b <|> commonOptionsBuildable a
   , commonOptionsWhen = commonOptionsWhen a <> commonOptionsWhen b
   , commonOptionsBuildTools = commonOptionsBuildTools a <> commonOptionsBuildTools b
+  , commonOptionsSystemBuildTools = commonOptionsSystemBuildTools b <> commonOptionsSystemBuildTools a
   , commonOptionsVerbatim = commonOptionsVerbatim a <> commonOptionsVerbatim b
   }
 
@@ -711,16 +715,64 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
     executableHasGeneratedModules = any (not . null . executableGeneratedModules)
 
     sectionCabalVersion :: Section a -> Maybe Version
-    sectionCabalVersion sect = maximum [
+    sectionCabalVersion sect = maximum $ [
         makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxSources) sect)
       , makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxOptions) sect)
-      ]
+      ] ++ map versionFromSystemBuildTool systemBuildTools
+      where
+        versionFromSystemBuildTool name
+          | name `elem` known_1_10 = Nothing
+          | name `elem` known_1_14 = Just (makeVersion [1,14])
+          | name `elem` known_1_22 = Just (makeVersion [1,22])
+          | otherwise = Just (makeVersion [2,0])
+
+        known_1_10 = [
+            "ghc"
+          , "ghc-pkg"
+          , "hugs"
+          , "ffihugs"
+          , "nhc98"
+          , "hmake"
+          , "jhc"
+          , "lhc"
+          , "lhc-pkg"
+          , "uhc"
+          , "gcc"
+          , "ranlib"
+          , "ar"
+          , "strip"
+          , "ld"
+          , "tar"
+          , "pkg-config"
+          ] \\ [
+          -- Support for these build tools has been removed from Cabal at some point
+            "hugs"
+          , "ffihugs"
+          , "nhc98"
+          , "ranlib"
+          , "lhc"
+          , "lhc-pkg"
+          ]
+        known_1_14 = [
+            "hpc"
+          ]
+        known_1_22 = [
+            "ghcjs"
+          , "ghcjs-pkg"
+          -- , "haskell-suite" // not a real build tool
+          -- , "haskell-suite-pkg" // not a real build tool
+          ]
+
+        systemBuildTools :: [String]
+        systemBuildTools = Map.keys $ unSystemBuildTools $ sectionAll sectionSystemBuildTools sect
 
     sectionSatisfies :: (Section a -> Bool) -> Section a -> Bool
     sectionSatisfies p sect = or [
         p sect
       , any (any (sectionSatisfies p)) (sectionConditionals sect)
       ]
+    sectionAll :: (Semigroup b, Monoid b) => (Section a -> b) -> Section a -> b
+    sectionAll f sect = f sect <> foldMap (foldMap $ sectionAll f) (sectionConditionals sect)
 
 decodeValue :: FromValue a => ProgramName -> FilePath -> Value -> Warnings (Errors IO) a
 decodeValue (ProgramName programName) file value = do
@@ -833,6 +885,7 @@ data Section a = Section {
 , sectionBuildable :: Maybe Bool
 , sectionConditionals :: [Conditional (Section a)]
 , sectionBuildTools :: Map BuildTool DependencyVersion
+, sectionSystemBuildTools :: SystemBuildTools
 , sectionVerbatim :: [Verbatim]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -1278,6 +1331,7 @@ toSection packageName_ executableNames = go
       , sectionPkgConfigDependencies = fromMaybeList commonOptionsPkgConfigDependencies
       , sectionConditionals = map toConditional (fromMaybeList commonOptionsWhen)
       , sectionBuildTools = maybe mempty toBuildToolMap commonOptionsBuildTools
+      , sectionSystemBuildTools = fromMaybe mempty commonOptionsSystemBuildTools
       , sectionVerbatim = fromMaybeList commonOptionsVerbatim
       }
     toBuildToolMap :: BuildTools -> Map BuildTool DependencyVersion

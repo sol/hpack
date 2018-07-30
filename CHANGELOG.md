@@ -4,6 +4,7 @@
     check` does not complain (see #322)
   - Extend `build-tools` so that it subsumes Cabal's `build-tools` and
     `build-tool-depends` (see #254)
+  - Add support for `system-build-tools`
 
 ## Changes in 0.29.7
   - Expose more stuff from `Hpack.Yaml` so that it can be used by third parties

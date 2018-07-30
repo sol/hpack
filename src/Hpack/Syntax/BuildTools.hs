@@ -4,6 +4,7 @@
 module Hpack.Syntax.BuildTools (
   BuildTools(..)
 , ParseBuildTool(..)
+, SystemBuildTools(..)
 ) where
 
 import           Data.Text (Text)
@@ -12,10 +13,12 @@ import           Data.Semigroup (Semigroup(..))
 import           Data.Bifunctor
 import           Control.Applicative
 import qualified Distribution.Package as D
+import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 
 import qualified Distribution.Types.ExeDependency as D
 import qualified Distribution.Types.UnqualComponentName as D
+import qualified Distribution.Types.LegacyExeDependency as D
 
 import           Data.Aeson.Config.FromValue
 
@@ -66,3 +69,26 @@ parseQualifiedBuildTool = fmap f . cabalParse "build tool" . T.unpack
 
 parseUnqualifiedBuildTool :: Monad m => Text -> m (ParseBuildTool, DependencyVersion)
 parseUnqualifiedBuildTool = fmap (first UnqualifiedBuildTool) . parseDependency "build tool"
+
+newtype SystemBuildTools = SystemBuildTools {
+  unSystemBuildTools :: Map String DependencyVersion
+} deriving (Show, Eq, Semigroup, Monoid)
+
+instance FromValue SystemBuildTools where
+  fromValue v = case v of
+    String s -> fromList . return <$> parseSystemBuildTool s
+    Array xs -> fromList <$> parseArray (withText parseSystemBuildTool) xs
+    Object _ -> SystemBuildTools <$> fromValue v
+    _ -> typeMismatch "Array, Object, or String" v
+    where
+      fromList :: [(String, DependencyVersion)] -> SystemBuildTools
+      fromList = SystemBuildTools . Map.fromList
+
+parseSystemBuildTool :: Monad m => Text -> m (String, DependencyVersion)
+parseSystemBuildTool = fmap fromCabal . parseCabalBuildTool . T.unpack
+  where
+    fromCabal :: D.LegacyExeDependency -> (String, DependencyVersion)
+    fromCabal (D.LegacyExeDependency name version) = (name, dependencyVersionFromCabal version)
+
+    parseCabalBuildTool :: Monad m => String -> m D.LegacyExeDependency
+    parseCabalBuildTool = cabalParse "system build tool"

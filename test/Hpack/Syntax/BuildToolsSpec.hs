@@ -72,3 +72,31 @@ spec = do
               github: sol/hpack
               ref: master
           |] `shouldDecodeTo_` BuildTools [(UnqualifiedBuildTool "hpack", SourceDependency source)]
+
+    context "when parsing SystemBuildTools" $ do
+      context "with a scalar" $ do
+        it "accepts system build tools" $ do
+          [yaml|
+            g++
+          |] `shouldDecodeTo_` SystemBuildTools [("g++", AnyVersion)]
+
+        it "accepts system build tools with a version" $ do
+          [yaml|
+            g++ >= 0.1.0
+          |] `shouldDecodeTo_` SystemBuildTools [("g++", VersionRange ">=0.1.0")]
+
+      context "with a mapping" $ do
+        it "accepts system build tools" $ do
+          [yaml|
+            g++: 0.1.0
+          |] `shouldDecodeTo_` SystemBuildTools [("g++", VersionRange "==0.1.0")]
+
+      context "with a list" $ do
+        it "accepts a list of system build tools" $ do
+          [yaml|
+            - foo
+            - bar >= 0.1.0
+          |] `shouldDecodeTo_` SystemBuildTools [
+              ("foo", AnyVersion)
+            , ("bar", VersionRange ">=0.1.0")
+            ]

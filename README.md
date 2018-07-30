@@ -180,6 +180,7 @@ values are merged with per section values.
 | `dependencies` | `build-depends` | | |
 | `pkg-config-dependencies` | `pkgconfig-depends` | | |
 | `build-tools` | [`build-tools`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tools) and/or [`build-tool-depends`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tool-depends) | | |
+| `system-build-tools` | `build-tools` | | A set of system executables that have to be on the `PATH` to build this component |
 | `when` | | | Accepts a list of conditionals (see [Conditionals](#conditionals)) |
 
 **`build-tools`: A set of Haskell executables that are needed to build this component**
@@ -221,6 +222,9 @@ If the name refers to one of `alex`, `c2hs`, `cpphs`, `greencard`, `haddock`,
 otherwise it is added to `build-tool-depends`.
 
 This is done to allow compatibility with a wider range of `Cabal` versions.
+
+**Note:** Unlike `Cabal`, Hpack does not accept system executables as
+`build-tools`.  Use `system-build-tools` if you need this.
 
 #### <a name="library-fields"></a>Library fields
 

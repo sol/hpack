@@ -242,7 +242,7 @@ renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = ad
   , renderDependencies "build-depends" sectionDependencies
   , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigDependencies)
   ]
-  ++ renderBuildTools sectionBuildTools
+  ++ renderBuildTools sectionBuildTools sectionSystemBuildTools
   ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ map (renderConditional renderSectionData) sectionConditionals
   ++ extraFieldsEnd
@@ -321,9 +321,9 @@ renderVersion version = case version of
   VersionRange x -> " " ++ x
   SourceDependency _ -> ""
 
-renderBuildTools :: Map BuildTool DependencyVersion -> [Element]
-renderBuildTools (map renderBuildTool . Map.toList -> xs) = [
-    Field "build-tools" (CommaSeparatedList [x | BuildTools x <- xs])
+renderBuildTools :: Map BuildTool DependencyVersion -> SystemBuildTools -> [Element]
+renderBuildTools (map renderBuildTool . Map.toList -> xs) systemBuildTools = [
+    Field "build-tools" (CommaSeparatedList $ [x | BuildTools x <- xs] ++ renderSystemBuildTools systemBuildTools)
   , Field "build-tool-depends" (CommaSeparatedList [x | BuildToolDepends x <- xs])
   ]
 
@@ -347,6 +347,9 @@ renderBuildTool (buildTool, renderVersion -> version) = case buildTool of
       , "hsc2hs"
       , "hscolour"
       ]
+
+renderSystemBuildTools :: SystemBuildTools -> [String]
+renderSystemBuildTools = map renderDependency . Map.toList . unSystemBuildTools
 
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList

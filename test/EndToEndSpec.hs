@@ -541,6 +541,50 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               bar ==0.2.0
           |]
 
+    describe "system-build-tools" $ do
+      it "adds system build tools to build-tools" $ do
+        [i|
+        executable:
+          system-build-tools:
+            ghc >= 7.10
+        |] `shouldRenderTo` executable_ "foo" [i|
+        build-tools:
+            ghc >=7.10
+        |]
+
+      context "with hpc" $ do
+        it "infers cabal-version 1.14" $ do
+          [i|
+          executable:
+            system-build-tools:
+              hpc
+          |] `shouldRenderTo` (executable_ "foo" [i|
+          build-tools:
+              hpc
+          |]) {packageCabalVersion = "1.14"}
+
+      context "with ghcjs" $ do
+        it "infers cabal-version 1.22" $ do
+          [i|
+          executable:
+            system-build-tools:
+              ghcjs
+          |] `shouldRenderTo` (executable_ "foo" [i|
+          build-tools:
+              ghcjs
+          |]) {packageCabalVersion = "1.22"}
+
+      context "with an unknown system build tool" $ do
+        it "infers cabal-version 2.0" $ do
+          [i|
+          executable:
+            system-build-tools:
+              g++ >= 5.4.0
+          |] `shouldRenderTo` (executable_ "foo" [i|
+          build-tools:
+              g++ >=5.4.0
+          |]) {packageCabalVersion = "2.0"}
+
     describe "dependencies" $ do
       it "accepts single dependency" $ do
         [i|
