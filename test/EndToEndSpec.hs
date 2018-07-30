@@ -554,6 +554,24 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         cxx-options: -Wall
         |]) {packageCabalVersion = "2.2"}
 
+      context "when used inside a nested conditional" $ do
+        it "infers correct cabal-version" $ do
+          [i|
+          executable:
+            when:
+              condition: True
+              when:
+                condition: True
+                when:
+                  condition: True
+                  cxx-options: -Wall
+          |] `shouldRenderTo` (executable_ "foo" [i|
+          if true
+            if true
+              if true
+                cxx-options: -Wall
+          |]) {packageCabalVersion = "2.2"}
+
     describe "cxx-sources" $ before_ (touch "foo.cc" >> touch "cxxbits/bar.cc") $ do
       it "accepts cxx-sources" $ do
         [i|

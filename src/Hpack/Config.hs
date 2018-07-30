@@ -666,7 +666,7 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
         makeVersion [1,22] <$ guard hasReexportedModules
       , makeVersion [2,0]  <$ guard hasSignatures
       , makeVersion [2,0] <$ guard hasGeneratedModules
-      , makeVersion [2,2] <$ guard (hasCxxParams sect)
+      , sectionCabalVersion sect
       ]
       where
         hasReexportedModules = any (not . null . libraryReexportedModules) sect
@@ -686,22 +686,23 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
     executableCabalVersion :: Section Executable -> Maybe Version
     executableCabalVersion sect = maximum [
         makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
-      , makeVersion [2,2] <$ guard (hasCxxParams sect)
+      , sectionCabalVersion sect
       ]
 
     executableHasGeneratedModules :: Section Executable -> Bool
     executableHasGeneratedModules = any (not . null . executableGeneratedModules)
 
-    hasCxxParams :: Section a -> Bool
-    hasCxxParams sect = or [
-        check sect
-      , any (any check) (sectionConditionals sect)
+    sectionCabalVersion :: Section a -> Maybe Version
+    sectionCabalVersion sect = maximum [
+        makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxSources) sect)
+      , makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxOptions) sect)
       ]
-      where
-        check s = or [
-            (not . null . sectionCxxOptions) s
-          , (not . null . sectionCxxSources) s
-          ]
+
+    sectionSatisfies :: (Section a -> Bool) -> Section a -> Bool
+    sectionSatisfies p sect = or [
+        p sect
+      , any (any (sectionSatisfies p)) (sectionConditionals sect)
+      ]
 
 decodeValue :: FromValue a => FilePath -> Value -> Warnings (Errors IO) a
 decodeValue file value = do
