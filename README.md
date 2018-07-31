@@ -1,3 +1,5 @@
+TODO: ConCon: A convention over configuration extension for Hpack
+
 # hpack: A modern format for Haskell packages
 
 Hpack is a format for Haskell packages.  It is a modern alternative to the
@@ -34,6 +36,30 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
  * Given this [package.yaml](https://github.com/haskell-compat/base-orphans/blob/master/package.yaml) running `hpack` will generate [base-orphans.cabal](https://github.com/haskell-compat/base-orphans/blob/master/base-orphans.cabal)
 
 ## Documentation
+
+### Build tools and compatibility with cabal new-build
+
+When using sandboxes, `cabal` makes all executables of all transitive
+dependencies available during the build so that they can be used as build
+tools.
+
+However, with `cabal new-build` build tools have to be specified explicitly via
+`build-tool-depends`.
+
+For compatibility of existing package specifications with `cabal new-build` we
+transparently add `build-tool-depends` when a package directly depends on
+certain packages.
+
+- When a package depends on `hspec` then `hpack` adds `hspec-discover` to `build-tool-depends`
+- When a package depends on `markdown-unlit` then `hpack` adds `markdown-unlit` to `build-tool-depends`
+
+You can opt out of this behavior by adding
+
+```yaml
+verbatim:
+  build-tool-depends: null
+```
+to `package.yaml`.
 
 ### Quick-reference
 
@@ -149,7 +175,7 @@ this reason it is recommended to only use tags as Git references.
 | --- | --- | --- | --- | --- |
 | `dependencies` | `setup-depends` | | Implies `build-type: Custom` | |
 
-#### <a name="common-fields">Common fields
+#### <a name="common-fields"></a>Common fields
 
 These fields can be specified top-level or on a per section basis; top-level
 values are merged with per section values.
@@ -178,8 +204,48 @@ values are merged with per section values.
 | `ld-options` | · | | |
 | `dependencies` | `build-depends` | | |
 | `pkg-config-dependencies` | `pkgconfig-depends` | | |
-| `build-tools` | · | | |
 | `when` | | | Accepts a list of conditionals (see [Conditionals](#conditionals)) |
+| `haskell-build-tools` | `build-tools` and/or `build-tool-depends` | | |
+| `system-build-tools` | `build-tools` | | | -- FIXME: separate PR
+
+**`build-tools`: A set of Haskell executables that are needed to build this component**
+
+Each entry consists of a *name* and an optional *version constraint*.
+
+The name can be specified in two ways:
+
+1. Qualified: `<package>:<executable>`
+1. Unqualified: `<executable>`
+
+A qualified name refers to an executable named `<executable>` in a
+package named `<package>`.
+
+An unqualified name refers to one of two things:
+
+1. Another executable from the same package named `<executable>`
+2. An executable from another package where the executable name and the package name are identical
+
+The first takes precedence over the second; if this is undesired then
+qualified names must be used instead.
+
+Examples:
+```yaml
+build-tools:
+  - alex
+  - happy:happy
+
+build-tools:
+  alex:alex: 0.1.0
+  alex: 0.1.0
+```
+
+
+`build-tools` field subsumes Cabal's `build-tools` and
+`build-tool-depends` fields.
+
+alex 
+
+<package-name>
 
 #### <a name="library-fields"></a>Library fields
 

@@ -1,13 +1,13 @@
 cabal-version: >= 1.10
 
--- This file has been generated from package.yaml by hpack version 0.29.5.
+-- This file has been generated from package.yaml by hpack version 0.30.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0ff0fec4e3939cb7b4ceee3340f6b006edeac6c8114cb165b6495e61a76c79c0
+-- hash: d081afc89b25afda429f687327eccfed9c8212f1f01f3ed42966c1706e518152
 
 name:           hpack
-version:        0.29.5
+version:        0.30.0
 synopsis:       A modern format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
@@ -148,6 +148,8 @@ test-suite spec
     , unordered-containers
     , vector
     , yaml >=0.8.28
+  build-tool-depends:
+      hspec-discover:hspec-discover ==2.*
   other-modules:
       Data.Aeson.Config.FromValueSpec
       Data.Aeson.Config.TypesSpec

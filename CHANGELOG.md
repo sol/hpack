@@ -1,3 +1,8 @@
+## Changes in 0.30.0
+  - Transparently add `build-tool-depends` on `hspec-discover`/`markdown-unlit`
+    when a packages depends on `hspec`/`markdown-unlit` for compatibility of
+    existing package specifications with `cabal new-build` (see #254)
+
 ## Changes in 0.29.5
   - Fix a regression related to indentation sniffing (close #310)
 
