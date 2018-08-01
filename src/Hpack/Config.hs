@@ -926,8 +926,12 @@ toPackage_ dir (Product g PackageConfig{..}) = do
   let
     globalVerbatim = commonOptionsVerbatim g
     globalOptions = g {commonOptionsVerbatim = Nothing}
-    toLib = toLibrary dir packageName_ . toSection globalOptions
-    toExecutables = liftIO . maybe mempty (traverse $ toExecutable dir packageName_ . toSection globalOptions)
+
+    toSect :: Monoid a => WithCommonOptions CSources CxxSources JsSources a -> Section a
+    toSect = toSection . first ((mempty <$ globalOptions) <>)
+
+    toLib = toLibrary dir packageName_ . toSect
+    toExecutables = liftIO . maybe mempty (traverse $ toExecutable dir packageName_ . toSect)
 
   mLibrary <- liftIO $ traverse toLib packageConfigLibrary
   internalLibraries <- liftIO $ maybe mempty (traverse toLib) packageConfigInternalLibraries
@@ -1194,11 +1198,8 @@ expandMain = flatten . expand
       , sectionConditionals = map (fmap flatten) sectionConditionals
       }
 
-toSection :: Monoid a => CommonOptions CSources CxxSources JsSources Empty -> WithCommonOptions CSources CxxSources JsSources a -> Section a
-toSection globalOptions (Product options a) = toSection_ (Product ((mempty <$ globalOptions) <> options) a)
-
-toSection_ :: WithCommonOptions CSources CxxSources JsSources a -> Section a
-toSection_ = go
+toSection :: WithCommonOptions CSources CxxSources JsSources a -> Section a
+toSection = go
   where
     go (Product CommonOptions{..} a) = Section {
         sectionData = a
