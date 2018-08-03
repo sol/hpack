@@ -26,6 +26,7 @@ module Hpack.Config (
 -- tool that supports Hpack (e.g. @stack@ or @cabal2nix@).
 
   DecodeOptions(..)
+, ProgramName(..)
 , defaultDecodeOptions
 , packageConfig
 , DecodeResult(..)
@@ -83,6 +84,7 @@ import           Data.List (nub, (\\), sortBy, intercalate)
 import           Data.Maybe
 import           Data.Semigroup (Semigroup(..))
 import           Data.Ord
+import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Scientific (Scientific)
@@ -92,7 +94,7 @@ import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Writer
 import           Control.Monad.Trans.Except
 import           Control.Monad.IO.Class
-import           Data.Version
+import           Data.Version (Version, makeVersion, showVersion)
 
 import           Distribution.Pretty (prettyShow)
 import qualified Distribution.SPDX.License as SPDX
@@ -109,6 +111,9 @@ import qualified Hpack.Yaml as Yaml
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.Dependency
 import           Hpack.License
+import           Hpack.CabalFile (parseVersion)
+
+import qualified Paths_hpack as Hpack (version)
 
 package :: String -> String -> Package
 package name version = Package {
@@ -555,17 +560,24 @@ instance FromValue ParsePackageConfig
 type Warnings m = WriterT [String] m
 type Errors = ExceptT String
 
-decodeYaml :: FromValue a => FilePath -> Warnings (Errors IO) a
-decodeYaml file = lift (ExceptT $ Yaml.decodeYaml file) >>= decodeValue file
+decodeYaml :: FromValue a => ProgramName -> FilePath -> Warnings (Errors IO) a
+decodeYaml programName file = lift (ExceptT $ Yaml.decodeYaml file) >>= decodeValue programName file
 
 data DecodeOptions = DecodeOptions {
-  decodeOptionsTarget :: FilePath
+  decodeOptionsProgramName :: ProgramName
+, decodeOptionsTarget :: FilePath
 , decodeOptionsUserDataDir :: Maybe FilePath
 , decodeOptionsDecode :: FilePath -> IO (Either String Value)
 }
 
+newtype ProgramName = ProgramName String
+  deriving (Eq, Show)
+
+instance IsString ProgramName where
+  fromString = ProgramName
+
 defaultDecodeOptions :: DecodeOptions
-defaultDecodeOptions = DecodeOptions packageConfig Nothing Yaml.decodeYaml
+defaultDecodeOptions = DecodeOptions "hpack" packageConfig Nothing Yaml.decodeYaml
 
 data DecodeResult = DecodeResult {
   decodeResultPackage :: Package
@@ -575,12 +587,12 @@ data DecodeResult = DecodeResult {
 } deriving (Eq, Show)
 
 readPackageConfig :: DecodeOptions -> IO (Either String DecodeResult)
-readPackageConfig (DecodeOptions file mUserDataDir readValue) = runExceptT $ fmap addCabalFile . runWriterT $ do
+readPackageConfig (DecodeOptions programName file mUserDataDir readValue) = runExceptT $ fmap addCabalFile . runWriterT $ do
   value <- lift . ExceptT $ readValue file
-  config <- decodeValue file value
+  config <- decodeValue programName file value
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
   userDataDir <- liftIO $ maybe (getAppUserDataDirectory "hpack") return mUserDataDir
-  toPackage userDataDir dir config
+  toPackage programName userDataDir dir config
   where
     addCabalFile :: ((Package, String), [String]) -> DecodeResult
     addCabalFile ((pkg, cabalVersion), warnings) = DecodeResult pkg cabalVersion (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
@@ -704,14 +716,37 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
       , any (any (sectionSatisfies p)) (sectionConditionals sect)
       ]
 
-decodeValue :: FromValue a => FilePath -> Value -> Warnings (Errors IO) a
-decodeValue file value = do
-  (a, unknown) <- lift . ExceptT . return $ first (prefix ++) (Config.decodeValue value)
-  tell (map formatUnknownField unknown)
-  return a
+decodeValue :: FromValue a => ProgramName -> FilePath -> Value -> Warnings (Errors IO) a
+decodeValue (ProgramName programName) file value = do
+  (r, unknown) <- lift . ExceptT . return $ first (prefix ++) (Config.decodeValue value)
+  case r of
+    UnsupportedSpecVersion v -> do
+      lift $ throwE ("The file " ++ file ++ " requires version " ++ showVersion v ++ " of the Hpack package specification, however this version of " ++ programName ++ " only supports versions up to " ++ showVersion Hpack.version ++ ". Upgrading to the latest version of " ++ programName ++ " may resolve this issue.")
+    SupportedSpecVersion a -> do
+      tell (map formatUnknownField unknown)
+      return a
   where
     prefix = file ++ ": "
     formatUnknownField name = prefix ++ "Ignoring unrecognized field " ++ name
+
+data CheckSpecVersion a = SupportedSpecVersion a | UnsupportedSpecVersion Version
+
+instance FromValue a => FromValue (CheckSpecVersion a) where
+  fromValue = withObject $ \ o -> o .:? "spec-version" >>= \ case
+    Just (ParseSpecVersion v) | Hpack.version < v -> return $ UnsupportedSpecVersion v
+    _ -> SupportedSpecVersion <$> fromValue (Object o)
+
+newtype ParseSpecVersion = ParseSpecVersion Version
+
+instance FromValue ParseSpecVersion where
+  fromValue value = do
+    s <- case value of
+      Number n -> return (scientificToVersion n)
+      String s -> return (T.unpack s)
+      _ -> typeMismatch "Number or String" value
+    case parseVersion s of
+      Just v -> return (ParseSpecVersion v)
+      Nothing -> fail ("invalid value " ++ show s)
 
 data Package = Package {
   packageName :: String
@@ -832,39 +867,42 @@ type ConfigWithDefaults = Product
 type CommonOptionsWithDefaults a = Product DefaultsConfig (CommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 type WithCommonOptionsWithDefaults a = Product DefaultsConfig (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 
-toPackage :: FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) (Package, String)
-toPackage userDataDir dir =
-      expandDefaultsInConfig userDataDir dir
+toPackage :: ProgramName -> FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) (Package, String)
+toPackage programName userDataDir dir =
+      expandDefaultsInConfig programName userDataDir dir
   >=> traverseConfig (expandForeignSources dir)
   >=> toPackage_ dir
 
 expandDefaultsInConfig
-  :: FilePath
+  :: ProgramName
+  -> FilePath
   -> FilePath
   -> ConfigWithDefaults
   -> Warnings (Errors IO) (Config ParseCSources ParseCxxSources ParseJsSources)
-expandDefaultsInConfig userDataDir dir = bitraverse (expandGlobalDefaults userDataDir dir) (expandSectionDefaults userDataDir dir)
+expandDefaultsInConfig programName userDataDir dir = bitraverse (expandGlobalDefaults programName userDataDir dir) (expandSectionDefaults programName userDataDir dir)
 
 expandGlobalDefaults
-  :: FilePath
+  :: ProgramName
+  -> FilePath
   -> FilePath
   -> CommonOptionsWithDefaults Empty
   -> Warnings (Errors IO) (CommonOptions ParseCSources ParseCxxSources ParseJsSources Empty)
-expandGlobalDefaults userDataDir dir = do
-  fmap (`Product` Empty) >>> expandDefaults userDataDir dir >=> \ (Product c Empty) -> return c
+expandGlobalDefaults programName userDataDir dir = do
+  fmap (`Product` Empty) >>> expandDefaults programName userDataDir dir >=> \ (Product c Empty) -> return c
 
 expandSectionDefaults
-  :: FilePath
+  :: ProgramName
+  -> FilePath
   -> FilePath
   -> PackageConfigWithDefaults ParseCSources ParseCxxSources ParseJsSources
   -> Warnings (Errors IO) (PackageConfig ParseCSources ParseCxxSources ParseJsSources)
-expandSectionDefaults userDataDir dir p@PackageConfig{..} = do
-  library <- traverse (expandDefaults userDataDir dir) packageConfigLibrary
-  internalLibraries <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigInternalLibraries
-  executable <- traverse (expandDefaults userDataDir dir) packageConfigExecutable
-  executables <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigExecutables
-  tests <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigTests
-  benchmarks <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigBenchmarks
+expandSectionDefaults programName userDataDir dir p@PackageConfig{..} = do
+  library <- traverse (expandDefaults programName userDataDir dir) packageConfigLibrary
+  internalLibraries <- traverse (traverse (expandDefaults programName userDataDir dir)) packageConfigInternalLibraries
+  executable <- traverse (expandDefaults programName userDataDir dir) packageConfigExecutable
+  executables <- traverse (traverse (expandDefaults programName userDataDir dir)) packageConfigExecutables
+  tests <- traverse (traverse (expandDefaults programName userDataDir dir)) packageConfigTests
+  benchmarks <- traverse (traverse (expandDefaults programName userDataDir dir)) packageConfigBenchmarks
   return p{
       packageConfigLibrary = library
     , packageConfigInternalLibraries = internalLibraries
@@ -876,11 +914,12 @@ expandSectionDefaults userDataDir dir p@PackageConfig{..} = do
 
 expandDefaults
   :: (FromValue a, Semigroup a, Monoid a)
-  => FilePath
+  => ProgramName
+  -> FilePath
   -> FilePath
   -> WithCommonOptionsWithDefaults a
   -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
-expandDefaults userDataDir = expand []
+expandDefaults programName userDataDir = expand []
   where
     expand :: (FromValue a, Semigroup a, Monoid a) =>
          [FilePath]
@@ -900,7 +939,7 @@ expandDefaults userDataDir = expand []
       file <- lift $ ExceptT (ensure userDataDir dir defaults)
       seen_ <- lift (checkCycle seen file)
       let dir_ = takeDirectory file
-      decodeYaml file >>= expand seen_ dir_
+      decodeYaml programName file >>= expand seen_ dir_
 
     checkCycle :: [FilePath] -> FilePath -> Errors IO [FilePath]
     checkCycle seen file = do

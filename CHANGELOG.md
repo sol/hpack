@@ -1,3 +1,6 @@
+## Changes in 0.29.6
+  - Add `spec-version` (see #300)
+
 ## Changes in 0.29.5
   - Fix a regression related to indentation sniffing (close #310)
 

@@ -25,6 +25,7 @@ module Hpack (
 
 -- * Options
 , defaultOptions
+, setProgramName
 , setTarget
 , setDecode
 , getOptions
@@ -112,6 +113,10 @@ defaultOptions = Options defaultDecodeOptions NoForce False
 setTarget :: FilePath -> Options -> Options
 setTarget target options@Options{..} =
   options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsTarget = target}}
+
+setProgramName :: ProgramName -> Options -> Options
+setProgramName name options@Options{..} =
+  options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsProgramName = name}}
 
 setDecode :: (FilePath -> IO (Either String Value)) -> Options -> Options
 setDecode decode options@Options{..} =

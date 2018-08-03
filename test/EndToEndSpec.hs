@@ -16,10 +16,13 @@ import           Data.Maybe
 import           Data.List
 import           Data.String.Interpolate
 import           Data.String.Interpolate.Util
+import           Data.Version (showVersion)
 
 import qualified Hpack.Render as Hpack
 import           Hpack.Config (packageConfig, readPackageConfig, DecodeOptions(..), DecodeResult(..), defaultDecodeOptions)
 import           Hpack.Render.Hints (FormattingHints(..), sniffFormattingHints)
+
+import qualified Paths_hpack as Hpack (version)
 
 writeFile :: FilePath -> String -> IO ()
 writeFile file c = touch file >> Prelude.writeFile file c
@@ -36,6 +39,37 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       other-modules:
           Paths_foo
       |]
+    describe "spec-version" $ do
+      it "accepts spec-version" $ do
+        [i|
+        spec-version: 0.29.5
+        |] `shouldRenderTo` package [i|
+        |]
+
+      it "fails on malformed spec-version" $ do
+        [i|
+        spec-version: foo
+        |] `shouldFailWith` "package.yaml: Error while parsing $.spec-version - invalid value \"foo\""
+
+      it "fails on unsupported spec-version" $ do
+        [i|
+        spec-version: 25.0
+        dependencies: foo == bar
+        |] `shouldFailWith` ("The file package.yaml requires version 25.0 of the Hpack package specification, however this version of hpack only supports versions up to " ++ showVersion Hpack.version ++ ". Upgrading to the latest version of hpack may resolve this issue.")
+
+      it "fails on unsupported spec-version from defaults" $ do
+        let file = joinPath ["defaults", "sol", "hpack-template", "2017", "defaults.yaml"]
+        writeFile file [i|
+        spec-version: 25.0
+        |]
+
+        [i|
+        defaults:
+          github: sol/hpack-template
+          path: defaults.yaml
+          ref: "2017"
+        library: {}
+        |] `shouldFailWith` ("The file " ++ file ++ " requires version 25.0 of the Hpack package specification, however this version of hpack only supports versions up to " ++ showVersion Hpack.version ++ ". Upgrading to the latest version of hpack may resolve this issue.")
 
     describe "data-files" $ do
       it "accepts data-files" $ do

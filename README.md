@@ -41,6 +41,7 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 
 | Hpack | Cabal | Default | Notes | Example | Since |
 | --- | --- | --- | --- | --- | --- |
+| `spec-version` |  | | The minimum version of `hpack` that is required to parse this package description.  | `spec-version: 0.30.0` | `0.30.0` |
 | `name` | · | | | | |
 | `version` | · | `0.0.0` | | | |
 | `synopsis` | · | | | | |
