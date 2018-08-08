@@ -77,8 +77,9 @@ module Hpack.Config (
 ) where
 
 import           Control.Applicative
-import           Control.Arrow ((>>>))
+import           Control.Arrow ((>>>), (&&&))
 import           Control.Monad
+import           Data.Either
 import           Data.Bifunctor
 import           Data.Bitraversable
 import           Data.Map.Lazy (Map)
@@ -1031,14 +1032,14 @@ toPackage_ dir (Product g PackageConfig{..}) = do
 
     executableNames = maybe [] Map.keys executableMap
 
-    toSect :: Monoid a => WithCommonOptions CSources CxxSources JsSources a -> Section a
+    toSect :: (Monad m, Monoid a) => WithCommonOptions CSources CxxSources JsSources a -> Warnings m (Section a)
     toSect = toSection packageName_ executableNames . first ((mempty <$ globalOptions) <>)
 
-    toLib = toLibrary dir packageName_ . toSect
-    toExecutables = liftIO . maybe mempty (traverse $ toExecutable dir packageName_ . toSect)
+    toLib = toSect >=> liftIO . toLibrary dir packageName_
+    toExecutables = maybe (return mempty) (traverse $ toSect >=> liftIO . toExecutable dir packageName_)
 
-  mLibrary <- liftIO $ traverse toLib packageConfigLibrary
-  internalLibraries <- liftIO $ maybe mempty (traverse toLib) packageConfigInternalLibraries
+  mLibrary <- traverse toLib packageConfigLibrary
+  internalLibraries <- maybe (return mempty) (traverse toLib) packageConfigInternalLibraries
 
   executables <- toExecutables executableMap
   tests <- toExecutables packageConfigTests
@@ -1302,10 +1303,14 @@ expandMain = flatten . expand
       , sectionConditionals = map (fmap flatten) sectionConditionals
       }
 
-toSection :: String -> [String] -> WithCommonOptions CSources CxxSources JsSources a -> Section a
+toSection :: Monad m => String -> [String] -> WithCommonOptions CSources CxxSources JsSources a -> Warnings m (Section a)
 toSection packageName_ executableNames = go
   where
-    go (Product CommonOptions{..} a) = Section {
+    go (Product CommonOptions{..} a) = do
+      (systemBuildTools, buildTools) <- maybe (return mempty) toBuildTools commonOptionsBuildTools
+
+      conditionals <- mapM toConditional (fromMaybeList commonOptionsWhen)
+      return Section {
         sectionData = a
       , sectionSourceDirs = fromMaybeList commonOptionsSourceDirs
       , sectionDefaultExtensions = fromMaybeList commonOptionsDefaultExtensions
@@ -1329,29 +1334,67 @@ toSection packageName_ executableNames = go
       , sectionBuildable = commonOptionsBuildable
       , sectionDependencies = fromMaybe mempty commonOptionsDependencies
       , sectionPkgConfigDependencies = fromMaybeList commonOptionsPkgConfigDependencies
-      , sectionConditionals = map toConditional (fromMaybeList commonOptionsWhen)
-      , sectionBuildTools = maybe mempty toBuildToolMap commonOptionsBuildTools
-      , sectionSystemBuildTools = fromMaybe mempty commonOptionsSystemBuildTools
+      , sectionConditionals = conditionals
+      , sectionBuildTools = buildTools
+      , sectionSystemBuildTools = systemBuildTools <> fromMaybe mempty commonOptionsSystemBuildTools
       , sectionVerbatim = fromMaybeList commonOptionsVerbatim
       }
-    toBuildToolMap :: BuildTools -> Map BuildTool DependencyVersion
-    toBuildToolMap (unBuildTools -> xs) = Map.fromList $ map (first $ toBuildTool packageName_ executableNames) xs
+    toBuildTools :: Monad m => BuildTools -> Warnings m (SystemBuildTools, Map BuildTool DependencyVersion)
+    toBuildTools = fmap (mkSystemBuildTools &&& mkBuildTools) . mapM toBuildTool_ . unBuildTools
+      where
+        mkSystemBuildTools = SystemBuildTools . Map.fromList . lefts
+        mkBuildTools = Map.fromList . rights
+        toBuildTool_ (t, v) = bimap addVersion addVersion <$> toBuildTool packageName_ executableNames t
+          where
+            addVersion = flip (,) v
 
-    toConditional :: ConditionalSection CSources CxxSources JsSources a -> Conditional (Section a)
+    toConditional :: Monad m => ConditionalSection CSources CxxSources JsSources a -> Warnings m (Conditional (Section a))
     toConditional x = case x of
-      ThenElseConditional (Product (ThenElse then_ else_) c) -> conditional c (go then_) (Just $ go else_)
-      FlatConditional (Product sect c) -> conditional c (go sect) Nothing
+      ThenElseConditional (Product (ThenElse then_ else_) c) -> conditional c <$> (go then_) <*> (Just <$> go else_)
+      FlatConditional (Product sect c) -> conditional c <$> (go sect) <*> pure Nothing
       where
         conditional (Condition (Cond c)) = Conditional c
 
-toBuildTool :: String -> [String] -> ParseBuildTool -> BuildTool
+toBuildTool :: Monad m => String -> [String] -> ParseBuildTool -> Warnings m (Either String BuildTool)
 toBuildTool packageName_ executableNames = \ case
   QualifiedBuildTool pkg executable
-    | pkg == packageName_ && executable `elem` executableNames -> LocalBuildTool executable
-    | otherwise -> BuildTool pkg executable
-  UnqualifiedBuildTool name
-    | name `elem` executableNames -> LocalBuildTool name
-    | otherwise -> BuildTool name name
+    | pkg == packageName_ && executable `elem` executableNames -> localBuildTool executable
+    | otherwise -> buildTool pkg executable
+  UnqualifiedBuildTool executable
+    | executable `elem` executableNames -> localBuildTool executable
+    | Just pkg <- lookup executable legacyTools -> legacyBuildTool pkg executable
+    | executable `elem` legacySystemTools -> legacySystemBuildTool executable
+    | otherwise -> buildTool executable executable
+  where
+    buildTool pkg = return . Right . BuildTool pkg
+    systemBuildTool = return . Left
+    localBuildTool = return . Right . LocalBuildTool
+    legacyBuildTool pkg executable = warnLegacyTool pkg executable >> buildTool pkg executable
+    legacySystemBuildTool executable = warnLegacySystemTool executable >> systemBuildTool executable
+    legacyTools = [
+        ("gtk2hsTypeGen", "gtk2hs-buildtools")
+      , ("gtk2hsHookGenerator", "gtk2hs-buildtools")
+      , ("gtk2hsC2hs", "gtk2hs-buildtools")
+      , ("cabal", "cabal-install")
+      , ("grgen", "cgen")
+      , ("cgen-hs", "cgen")
+      ]
+    legacySystemTools = [
+        "ghc"
+      , "git"
+      , "llvm-config"
+      , "gfortran"
+      , "gcc"
+      , "couchdb"
+      , "mcc"
+      , "nix-store"
+      , "nix-instantiate"
+      , "nix-hash"
+      , "nix-env"
+      , "nix-build"
+      ]
+    warnLegacyTool pkg name = tell ["Usage of the unqualified build-tool name " ++ show name ++ " is deprecated! Please use the qualified name \"" ++ pkg ++ ":" ++ name ++ "\" instead!"]
+    warnLegacySystemTool name = tell ["Listing " ++ show name ++ " under build-tools is deperecated! Please list system executables under system-build-tools instead!"]
 
 pathsModuleFromPackageName :: String -> String
 pathsModuleFromPackageName name = "Paths_" ++ map f name

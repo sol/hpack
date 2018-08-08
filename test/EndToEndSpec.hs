@@ -541,6 +541,17 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               bar ==0.2.0
           |]
 
+      context "when the name of a build tool matches a legacy system build tool" $ do
+        it "adds it to build-tools" $ do
+          [i|
+          executable:
+            build-tools:
+              ghc >= 7.10
+          |] `shouldRenderTo` (executable_ "foo" [i|
+          build-tools:
+              ghc >=7.10
+          |]) { packageWarnings = ["Listing \"ghc\" under build-tools is deperecated! Please list system executables under system-build-tools instead!"] }
+
     describe "system-build-tools" $ do
       it "adds system build tools to build-tools" $ do
         [i|
@@ -1498,7 +1509,7 @@ data RenderResult = RenderResult [String] String
   deriving Eq
 
 instance Show RenderResult where
-  show (RenderResult warnings output) = unlines (map ("WARNING in " ++) warnings) ++ output
+  show (RenderResult warnings output) = unlines (map ("WARNING: " ++) warnings) ++ output
 
 shouldRenderTo :: HasCallStack => String -> Package -> Expectation
 shouldRenderTo input p = do
@@ -1507,7 +1518,7 @@ shouldRenderTo input p = do
   createDirectory currentDirectory
   withCurrentDirectory currentDirectory $ do
     (warnings, output) <- run ".." (".." </> packageConfig) expected
-    RenderResult warnings (dropEmptyLines output) `shouldBe` RenderResult [] expected
+    RenderResult warnings (dropEmptyLines output) `shouldBe` RenderResult (packageWarnings p) expected
   where
     expected = dropEmptyLines (renderPackage p)
     dropEmptyLines = unlines . filter (not . null) . lines
@@ -1581,7 +1592,7 @@ executable #{name}
 |]
 
 package :: String -> Package
-package = Package "foo" "0.0.0" "Simple" "1.12"
+package c = Package "foo" "0.0.0" "Simple" "1.12" c []
 
 data Package = Package {
   packageName :: String
@@ -1589,6 +1600,7 @@ data Package = Package {
 , packageBuildType :: String
 , packageCabalVersion :: String
 , packageContent :: String
+, packageWarnings :: [String]
 }
 
 renderPackage :: Package -> String
