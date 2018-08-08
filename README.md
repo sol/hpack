@@ -150,7 +150,7 @@ this reason it is recommended to only use tags as Git references.
 | --- | --- | --- | --- | --- |
 | `dependencies` | `setup-depends` | | Implies `build-type: Custom` | |
 
-#### <a name="common-fields">Common fields
+#### <a name="common-fields"></a>Common fields
 
 These fields can be specified top-level or on a per section basis; top-level
 values are merged with per section values.
