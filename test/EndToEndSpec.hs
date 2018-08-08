@@ -1450,7 +1450,7 @@ executable_ name e = package content
     content = [i|
 executable #{name}
   other-modules:
-      Paths_#{name}
+      Paths_foo
 #{indentBy 2 $ unindent e}
   default-language: Haskell2010
 |]
