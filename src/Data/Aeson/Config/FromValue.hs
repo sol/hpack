@@ -28,6 +28,8 @@ module Data.Aeson.Config.FromValue (
 , withNumber
 , withBool
 
+, parseArray
+
 , (.:)
 , (.:?)
 
@@ -90,10 +92,13 @@ instance FromValue a => FromValue (Maybe a) where
   fromValue value = liftParser (parseJSON value) >>= traverse fromValue
 
 instance FromValue a => FromValue [a] where
-  fromValue = withArray $ zipWithM (parseIndexed fromValue) [0..] . V.toList
-    where
-      parseIndexed :: (Value -> Parser a) -> Int -> Value -> Parser a
-      parseIndexed p n value = p value <?> Index n
+  fromValue = withArray (parseArray fromValue)
+
+parseArray :: (Value -> Parser a) -> Array -> Parser [a]
+parseArray f = zipWithM (parseIndexed f) [0..] . V.toList
+  where
+    parseIndexed :: (Value -> Parser a) -> Int -> Value -> Parser a
+    parseIndexed p n value = p value <?> Index n
 
 instance FromValue a => FromValue (Map String a) where
   fromValue = withObject $ \ o -> do
