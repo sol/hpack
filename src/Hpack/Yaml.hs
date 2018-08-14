@@ -13,10 +13,12 @@ module Hpack.Yaml (
 -- tool that supports Hpack (e.g. @stack@ or @cabal2nix@).
 
   decodeYaml
+, module Data.Aeson.Config.FromValue
 ) where
 
 import           Data.Yaml hiding (decodeFile, decodeFileEither)
 import           Data.Yaml.Include
+import           Data.Aeson.Config.FromValue
 
 decodeYaml :: FilePath -> IO (Either String Value)
 decodeYaml file = do

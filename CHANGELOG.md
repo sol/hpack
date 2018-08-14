@@ -1,3 +1,6 @@
+## Changes in 0.29.7
+  - Expose more stuff from `Hpack.Yaml` so that it can be used by third parties
+
 ## Changes in 0.29.6
   - Add `spec-version` (see #300)
 
