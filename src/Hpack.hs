@@ -118,7 +118,7 @@ setProgramName :: ProgramName -> Options -> Options
 setProgramName name options@Options{..} =
   options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsProgramName = name}}
 
-setDecode :: (FilePath -> IO (Either String Value)) -> Options -> Options
+setDecode :: (FilePath -> IO (Either String ([String], Value))) -> Options -> Options
 setDecode decode options@Options{..} =
   options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsDecode = decode}}
 

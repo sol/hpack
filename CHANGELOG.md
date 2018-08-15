@@ -1,4 +1,5 @@
 ## Changes in 0.30.0
+  - Warn on duplicate fields (see #283)
   - Always render `cabal-version` as `x.y` instead of `>= x.y` so that `cabal
     check` does not complain (see #322)
 

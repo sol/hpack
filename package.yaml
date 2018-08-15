@@ -20,7 +20,7 @@ dependencies:
   - text
   - containers
   - unordered-containers
-  - yaml
+  - yaml >= 0.10.0
   - aeson >= 1.2.1.0
   - scientific
   - Cabal >= 2.2
@@ -63,4 +63,3 @@ tests:
       - interpolate
       - template-haskell
       - HUnit >= 1.6.0.0
-      - yaml >= 0.8.28

@@ -39,6 +39,15 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       other-modules:
           Paths_foo
       |]
+
+    it "warns on duplicate fields" $ do
+      [i|
+      name: foo
+      name: foo
+      |] `shouldWarn` [
+          "package.yaml: Duplicate field $.name"
+        ]
+
     describe "spec-version" $ do
       it "accepts spec-version" $ do
         [i|

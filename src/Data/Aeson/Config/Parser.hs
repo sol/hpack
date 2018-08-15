@@ -24,6 +24,9 @@ module Data.Aeson.Config.Parser (
 , Array
 
 , liftParser
+
+, fromAesonPath
+, formatPath
 ) where
 
 import           Control.Monad

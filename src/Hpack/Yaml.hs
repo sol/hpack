@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
 module Hpack.Yaml (
 -- | /__NOTE:__/ This module is exposed to allow integration of Hpack into
 -- other tools.  It is not meant for general use by end users.  The following
@@ -16,14 +17,21 @@ module Hpack.Yaml (
 , module Data.Aeson.Config.FromValue
 ) where
 
-import           Data.Yaml hiding (decodeFile, decodeFileEither)
+import           Data.Bifunctor
+import           Data.Yaml hiding (decodeFile, decodeFileWithWarnings)
 import           Data.Yaml.Include
+import           Data.Yaml.Internal (Warning(..))
 import           Data.Aeson.Config.FromValue
+import           Data.Aeson.Config.Parser (fromAesonPath, formatPath)
 
-decodeYaml :: FilePath -> IO (Either String Value)
+formatWarning :: FilePath -> Warning -> String
+formatWarning file = \ case
+  DuplicateKey path -> file ++ ": Duplicate field " ++ formatPath (fromAesonPath path)
+
+decodeYaml :: FilePath -> IO (Either String ([String], Value))
 decodeYaml file = do
-  result <- decodeFileEither file
-  return $ either (Left . errToString) Right result
+  result <- decodeFileWithWarnings file
+  return $ either (Left . errToString) (Right . first (map $ formatWarning file)) result
   where
     errToString err = file ++ case err of
       AesonException e -> ": " ++ e

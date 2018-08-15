@@ -561,13 +561,16 @@ type Warnings m = WriterT [String] m
 type Errors = ExceptT String
 
 decodeYaml :: FromValue a => ProgramName -> FilePath -> Warnings (Errors IO) a
-decodeYaml programName file = lift (ExceptT $ Yaml.decodeYaml file) >>= decodeValue programName file
+decodeYaml programName file = do
+  (warnings, a) <- lift (ExceptT $ Yaml.decodeYaml file)
+  tell warnings
+  decodeValue programName file a
 
 data DecodeOptions = DecodeOptions {
   decodeOptionsProgramName :: ProgramName
 , decodeOptionsTarget :: FilePath
 , decodeOptionsUserDataDir :: Maybe FilePath
-, decodeOptionsDecode :: FilePath -> IO (Either String Value)
+, decodeOptionsDecode :: FilePath -> IO (Either String ([String], Value))
 }
 
 newtype ProgramName = ProgramName String
@@ -588,7 +591,8 @@ data DecodeResult = DecodeResult {
 
 readPackageConfig :: DecodeOptions -> IO (Either String DecodeResult)
 readPackageConfig (DecodeOptions programName file mUserDataDir readValue) = runExceptT $ fmap addCabalFile . runWriterT $ do
-  value <- lift . ExceptT $ readValue file
+  (warnings, value) <- lift . ExceptT $ readValue file
+  tell warnings
   config <- decodeValue programName file value
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
   userDataDir <- liftIO $ maybe (getAppUserDataDirectory "hpack") return mUserDataDir

@@ -4,7 +4,7 @@ cabal-version: >= 1.10
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8d1eb0679326dc7c31be647812822700dc8277a27737239f5a704e45f367abdf
+-- hash: 1641525d1e2f9399f376458c17314e181f70af5118b3678ee5f717e8760f1e08
 
 name:           hpack
 version:        0.29.7
@@ -50,7 +50,7 @@ library
     , transformers
     , unordered-containers
     , vector
-    , yaml
+    , yaml >=0.10.0
   exposed-modules:
       Hpack
       Hpack.Config
@@ -105,7 +105,7 @@ executable hpack
     , transformers
     , unordered-containers
     , vector
-    , yaml
+    , yaml >=0.10.0
   other-modules:
       Paths_hpack
   default-language: Haskell2010
@@ -147,7 +147,7 @@ test-suite spec
     , transformers
     , unordered-containers
     , vector
-    , yaml >=0.8.28
+    , yaml >=0.10.0
   other-modules:
       Data.Aeson.Config.FromValueSpec
       Data.Aeson.Config.TypesSpec
