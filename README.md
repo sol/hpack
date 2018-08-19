@@ -304,6 +304,14 @@ It is recognized top-level, in sections, and in conditionals.
 
 `verbatim` accepts an object or a string (or a list of objects and strings).
 
+***Disclaimer:*** The content of `verbatim` fields are merged into the
+generated `.cabal` file as a final step, after Hpack is done with most of its
+work.  Before that final step Hpack does not look at any `verbatim` fields.
+Consequently, the content of a `verbatim` field does not affect any other
+fields that are populated by Hpack.  As an example, if you use `verbatim` to
+override `hs-source-dirs`, the overridden information will not be used when
+Hpack infers `exposed-modules` or `other-modules`.
+
 #### Objects
 
 When an object is used:
