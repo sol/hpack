@@ -1,3 +1,7 @@
+## Changes in 0.30.0
+  - Always render `cabal-version` as `x.y` instead of `>= x.y` so that `cabal
+    check` does not complain (see #322)
+
 ## Changes in 0.29.7
   - Expose more stuff from `Hpack.Yaml` so that it can be used by third parties
 

@@ -652,11 +652,9 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
             Nothing -> Nothing
 
     inferredCabalVersion :: String
-    inferredCabalVersion
-      | version >= makeVersion [2,1] = showVersion version
-      | otherwise = (">= " ++) . showVersion $ version
+    inferredCabalVersion = showVersion version
 
-    version = fromMaybe (makeVersion [1,10]) $ maximum [
+    version = fromMaybe (makeVersion [1,12]) $ maximum [
         packageCabalVersion
       , packageLibrary >>= libraryCabalVersion
       , internalLibsCabalVersion packageInternalLibraries

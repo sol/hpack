@@ -448,7 +448,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         extra-doc-files:
             CHANGES.markdown
             README.markdown
-        |]) {packageCabalVersion = ">= 1.18"}
+        |]) {packageCabalVersion = "1.18"}
 
       it "accepts glob patterns" $ do
         touch "CHANGES.markdown"
@@ -460,7 +460,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         extra-doc-files:
             CHANGES.markdown
             README.markdown
-        |]) {packageCabalVersion = ">= 1.18"}
+        |]) {packageCabalVersion = "1.18"}
 
       it "warns if a glob pattern does not match anything" $ do
         [i|
@@ -779,7 +779,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |] `shouldRenderTo` (library_ [i|
           reexported-modules:
               Baz
-        |]) {packageCabalVersion = ">= 1.22"}
+        |]) {packageCabalVersion = "1.22"}
 
       it "accepts signatures" $ do
         [i|
@@ -788,7 +788,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |] `shouldRenderTo` (library_ [i|
           signatures:
               Foo
-        |]) {packageCabalVersion = ">= 2.0"}
+        |]) {packageCabalVersion = "2.0"}
 
       context "when package.yaml contains duplicate modules" $ do
         it "generates a cabal file with duplicate modules" $ do
@@ -957,7 +957,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             autogen-modules:
                 Foo
                 Bar
-            |]) {packageCabalVersion = ">= 2.0"}
+            |]) {packageCabalVersion = "2.0"}
 
           it "does not infer any mentioned generated modules" $ do
             touch "src/Exposed.hs"
@@ -978,7 +978,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             autogen-modules:
                 Exposed
                 Other
-            |]) {packageCabalVersion = ">= 2.0"}
+            |]) {packageCabalVersion = "2.0"}
 
           it "does not infer any generated modules mentioned inside conditionals" $ do
             touch "src/Exposed.hs"
@@ -1003,7 +1003,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               autogen-modules:
                   Other
                   Exposed
-            |]) {packageCabalVersion = ">= 2.0"}
+            |]) {packageCabalVersion = "2.0"}
 
     describe "internal-libraries" $ do
       it "accepts internal-libraries" $ do
@@ -1108,7 +1108,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Foo
             autogen-modules:
                 Foo
-          |]) {packageCabalVersion = ">= 2.0"}
+          |]) {packageCabalVersion = "2.0"}
 
         context "with conditional" $ do
           it "doesn't infer any modules mentioned in that conditional" $ do
@@ -1320,8 +1320,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         it "overrides header fields" $ do
           [i|
           verbatim:
-            cabal-version: ">= 2.0"
-          |] `shouldRenderTo` (package "") {packageCabalVersion = ">= 2.0"}
+            cabal-version: foo
+          |] `shouldRenderTo` (package "") {packageCabalVersion = "foo"}
 
         it "overrides other fields" $ do
           touch "foo"
@@ -1408,7 +1408,7 @@ shouldFailWith input expected = do
   run_ "" packageConfig "" `shouldReturn` Left expected
 
 customSetup :: String -> Package
-customSetup a = (package content) {packageCabalVersion = ">= 1.24", packageBuildType = "Custom"}
+customSetup a = (package content) {packageCabalVersion = "1.24", packageBuildType = "Custom"}
   where
     content = [i|
 custom-setup
@@ -1436,7 +1436,7 @@ library
 |]
 
 internalLibrary :: String -> String -> Package
-internalLibrary name e = (package content) {packageCabalVersion = ">= 2.0"}
+internalLibrary name e = (package content) {packageCabalVersion = "2.0"}
   where
     content = [i|
 library #{name}
@@ -1465,7 +1465,7 @@ executable #{name}
 |]
 
 package :: String -> Package
-package = Package "foo" "0.0.0" "Simple" ">= 1.10"
+package = Package "foo" "0.0.0" "Simple" "1.12"
 
 data Package = Package {
   packageName :: String
