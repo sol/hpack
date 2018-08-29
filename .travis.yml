@@ -4,14 +4,21 @@ language: generic
 
 matrix:
   include:
-    - env: BUILD=tinc CABALVER=2.0 GHCVER=8.2.1 RELEASE=true HACKAGE=true
-      compiler: ": #tinc 8.2.1"
-      addons: {apt: {packages: [cabal-install-2.0,ghc-8.2.1,happy-1.19.5], sources: [hvr-ghc]}}
-    - env: BUILD=stack GHCVER=8.2.1 STACK_YAML=stack.yaml
-      compiler: ": #stack 8.2.1"
-      addons: {apt: {packages: [ghc-8.2.1,happy-1.19.5], sources: [hvr-ghc]}}
+
+    - env: BUILD=tinc CABALVER=2.0 GHCVER=8.2.2
+      compiler: ": #tinc 8.2.2"
+      addons: {apt: {packages: [cabal-install-2.0,ghc-8.2.2,happy-1.19.5], sources: [hvr-ghc]}}
+
+    - env: BUILD=tinc CABALVER=2.2 GHCVER=8.4.3 RELEASE=true
+      compiler: ": #tinc 8.4.3"
+      addons: {apt: {packages: [cabal-install-2.2,ghc-8.4.3,happy-1.19.5], sources: [hvr-ghc]}}
+
+    - env: BUILD=stack GHCVER=8.4.3 STACK_YAML=stack.yaml
+      compiler: ": #stack 8.4.3"
+      addons: {apt: {packages: [ghc-8.4.3,happy-1.19.5], sources: [hvr-ghc]}}
+
     - env: BUILD=stack STACK_YAML=stack.yaml RELEASE=true
-      compiler: ": #stack 8.2.1 osx"
+      compiler: ": #stack 8.4.3 osx"
       os: osx
 
 before_install:
