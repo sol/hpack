@@ -113,11 +113,11 @@ expandGlobs name dir patterns = do
   files <- globDir compiledPatterns dir >>= mapM removeDirectories
   let
     results :: [GlobResult]
-    results = map (uncurry $ uncurry GlobResult) $ zip (zip patterns compiledPatterns) files
+    results = map (uncurry $ uncurry GlobResult) $ zip (zip patterns compiledPatterns) (map sort files)
   return (combineResults results)
   where
     combineResults :: [GlobResult] -> ([String], [FilePath])
-    combineResults = bimap concat (nub . sort . concat) . unzip . map fromResult
+    combineResults = bimap concat (nub . concat) . unzip . map fromResult
 
     fromResult :: GlobResult -> ([String], [FilePath])
     fromResult (GlobResult pattern compiledPattern files) = case files of

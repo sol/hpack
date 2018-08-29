@@ -76,9 +76,14 @@ spec = do
         tryReadFile "foo" `shouldReturn` Nothing
 
   describe "expandGlobs" $ around withTempDirectory $ do
-    it "accepts simple files" $ \dir -> do
+    it "accepts literal files" $ \dir -> do
       touch (dir </> "foo.js")
       expandGlobs "field-name" dir ["foo.js"] `shouldReturn` ([], ["foo.js"])
+
+    it "keeps declaration order for literal files" $ \dir -> do
+      touch (dir </> "foo.js")
+      touch (dir </> "bar.js")
+      expandGlobs "field-name" dir ["foo.js", "bar.js"] `shouldReturn` ([], ["foo.js", "bar.js"])
 
     it "removes duplicates" $ \dir -> do
       touch (dir </> "foo.js")

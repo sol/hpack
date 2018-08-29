@@ -742,8 +742,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             - cxxbits/*.cc
         |] `shouldRenderTo` (executable_ "foo" [i|
         cxx-sources:
-            cxxbits/bar.cc
             foo.cc
+            cxxbits/bar.cc
         |]) {packageCabalVersion = "2.2"}
 
     describe "extra-lib-dirs" $ do
@@ -799,6 +799,19 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |]
 
     describe "c-sources" $ before_ (touch "cbits/foo.c" >> touch "cbits/bar.c") $ do
+      it "keeps declaration order" $ do
+        -- IMPORTANT: This is crucial as a workaround for https://ghc.haskell.org/trac/ghc/ticket/13786
+        [i|
+        c-sources:
+          - cbits/foo.c
+          - cbits/bar.c
+        library: {}
+        |] `shouldRenderTo` library_ [i|
+        c-sources:
+            cbits/foo.c
+            cbits/bar.c
+        |]
+
       context "with internal-libraries" $ do
         it "warns when a glob pattern does not match any files" $ do
           [i|
