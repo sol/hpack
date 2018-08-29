@@ -742,8 +742,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             - cxxbits/*.cc
         |] `shouldRenderTo` (executable_ "foo" [i|
         cxx-sources:
-            cxxbits/bar.cc
             foo.cc
+            cxxbits/bar.cc
         |]) {packageCabalVersion = "2.2"}
 
     describe "extra-lib-dirs" $ do
@@ -798,72 +798,39 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             bar
         |]
 
-    describe "c-sources" $ before_ (touch "cbits/foo.c" >> touch "cbits/bar.c") $ do
-      context "with internal-libraries" $ do
-        it "warns when a glob pattern does not match any files" $ do
-          [i|
-          name: foo
-          internal-libraries:
-            bar:
-              c-sources: foo/*.c
-          |] `shouldWarn` pure "Specified pattern \"foo/*.c\" for c-sources does not match any files"
+    describe "c-sources" $ before_ (touch "cbits/foo.c" >> touch "cbits/bar.c" >> touch "cbits/baz.c") $ do
+      it "keeps declaration order" $ do
+        -- IMPORTANT: This is crucial as a workaround for https://ghc.haskell.org/trac/ghc/ticket/13786
+        [i|
+        library:
+          c-sources:
+            - cbits/foo.c
+            - cbits/bar.c
+            - cbits/baz.c
+        |] `shouldRenderTo` library_ [i|
+        c-sources:
+            cbits/foo.c
+            cbits/bar.c
+            cbits/baz.c
+        |]
 
-      context "with library" $ do
-        it "accepts global c-sources" $ do
-          [i|
+      it "accepts glob patterns" $ do
+        [i|
+        library:
           c-sources: cbits/*.c
-          library: {}
-          |] `shouldRenderTo` library_ [i|
-          c-sources:
-              cbits/bar.c
-              cbits/foo.c
-          |]
+        |] `shouldRenderTo` library_ [i|
+        c-sources:
+            cbits/bar.c
+            cbits/baz.c
+            cbits/foo.c
+        |]
 
-        it "accepts c-sources" $ do
-          [i|
-          library:
-            c-sources: cbits/*.c
-          |] `shouldRenderTo` library_ [i|
-          c-sources:
-              cbits/bar.c
-              cbits/foo.c
-          |]
-
-        it "accepts c-sources in conditional" $ do
-          [i|
-          library:
-            when:
-              condition: os(windows)
-              c-sources: cbits/*.c
-          |] `shouldRenderTo` library_ [i|
-          if os(windows)
-            c-sources:
-                cbits/bar.c
-                cbits/foo.c
-          |]
-
-      context "with executables" $ do
-        it "accepts global c-sources" $ do
-          [i|
-          c-sources: cbits/*.c
-          executables:
-            foo: {}
-          |] `shouldRenderTo` executable_ "foo" [i|
-          c-sources:
-              cbits/bar.c
-              cbits/foo.c
-          |]
-
-        it "accepts c-sources" $ do
-          [i|
-          executables:
-            foo:
-              c-sources: cbits/*.c
-          |] `shouldRenderTo` executable_ "foo" [i|
-          c-sources:
-              cbits/bar.c
-              cbits/foo.c
-          |]
+      it "warns when a glob pattern does not match any files" $ do
+        [i|
+        name: foo
+        library:
+          c-sources: foo/*.c
+        |] `shouldWarn` pure "Specified pattern \"foo/*.c\" for c-sources does not match any files"
 
     describe "custom-setup" $ do
       it "warns on unknown fields" $ do

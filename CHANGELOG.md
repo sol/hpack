@@ -5,6 +5,9 @@
   - Extend `build-tools` so that it subsumes Cabal's `build-tools` and
     `build-tool-depends` (see #254)
   - Add support for `system-build-tools`
+  - Keep declaration order for literal files in c-sources (and other fields
+    that accept glob patterns).  This is crucial as a workaround for
+    https://ghc.haskell.org/trac/ghc/ticket/13786 (see #324)
 
 ## Changes in 0.29.7
   - Expose more stuff from `Hpack.Yaml` so that it can be used by third parties
