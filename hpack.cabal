@@ -1,10 +1,10 @@
-cabal-version: >= 1.10
+cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.29.6.
+-- This file has been generated from package.yaml by hpack version 0.30.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a1136b4a83bc50abf6e1fac6ef221b3df0c837b248aa357568449996e9d20078
+-- hash: bed08b7cc8f53a559486c8631b5e61c3be7e738c96425dc0cb9ff271847c21c2
 
 name:           hpack
 version:        0.30.0
@@ -149,6 +149,8 @@ test-suite spec
     , unordered-containers
     , vector
     , yaml >=0.10.0
+  build-tool-depends:
+      hspec-discover:hspec-discover
   other-modules:
       Data.Aeson.Config.FromValueSpec
       Data.Aeson.Config.TypesSpec
