@@ -94,3 +94,9 @@ spec = do
               old <- readFile file
               hpack `shouldReturn` outputUnchanged
               readFile file `shouldReturn` old
+
+            it "does not complain if it's newer" $ do
+              _ <- hpackWithVersion (makeVersion [999,999,0])
+              old <- readFile file
+              hpack `shouldReturn` outputUnchanged
+              readFile file `shouldReturn` old
