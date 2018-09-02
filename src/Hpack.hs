@@ -159,9 +159,9 @@ mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
   (Just oldVersion, _) | oldVersion < makeVersion [0, 20, 0] -> Generated
   (_, Nothing) -> ExistingCabalFileWasModifiedManually
   (Just oldVersion, Just hash)
+    | old == new -> OutputUnchanged
     | v < oldVersion -> AlreadyGeneratedByNewerHpack
     | sha256 (unlines old) /= hash -> ExistingCabalFileWasModifiedManually
-    | old == new -> OutputUnchanged
     | otherwise -> Generated
 
 hpackResult :: Options -> IO Result
