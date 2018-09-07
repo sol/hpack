@@ -38,6 +38,7 @@ module Hpack.Config (
 , section
 , Package(..)
 , Dependencies(..)
+, VersionConstraint(..)
 , DependencyVersion(..)
 , SourceDependency(..)
 , GitRef

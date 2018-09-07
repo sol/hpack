@@ -59,7 +59,7 @@ parseQualifiedBuildTool = fmap f . cabalParse "build tool" . T.unpack
     f :: D.ExeDependency -> (ParseBuildTool, DependencyVersion)
     f (D.ExeDependency package executable version) = (
         QualifiedBuildTool (D.unPackageName package) (D.unUnqualComponentName executable)
-      , dependencyVersionFromCabal version
+      , VersionConstraint $ versionConstraintFromCabal version
       )
 
 parseUnqualifiedBuildTool :: Monad m => Text -> m (ParseBuildTool, DependencyVersion)
@@ -83,7 +83,7 @@ parseSystemBuildTool :: Monad m => Text -> m (String, DependencyVersion)
 parseSystemBuildTool = fmap fromCabal . parseCabalBuildTool . T.unpack
   where
     fromCabal :: D.LegacyExeDependency -> (String, DependencyVersion)
-    fromCabal (D.LegacyExeDependency name version) = (name, dependencyVersionFromCabal version)
+    fromCabal (D.LegacyExeDependency name version) = (name, VersionConstraint $ versionConstraintFromCabal version)
 
     parseCabalBuildTool :: Monad m => String -> m D.LegacyExeDependency
     parseCabalBuildTool = cabalParse "system build tool"

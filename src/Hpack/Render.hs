@@ -317,8 +317,8 @@ renderDependency (name, version) = name ++ renderVersion version
 
 renderVersion :: DependencyVersion -> String
 renderVersion version = case version of
-  AnyVersion -> ""
-  VersionRange x -> " " ++ x
+  VersionConstraint AnyVersion -> ""
+  VersionConstraint (VersionRange x) -> " " ++ x
   SourceDependency _ -> ""
 
 renderBuildTools :: Map BuildTool DependencyVersion -> SystemBuildTools -> [Element]

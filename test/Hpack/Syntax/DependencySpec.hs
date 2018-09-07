@@ -21,12 +21,12 @@ spec = do
         it "accepts dependencies without constraints" $ do
           [yaml|
             hpack
-          |] `shouldDecodeTo_` Dependencies [("hpack", AnyVersion)]
+          |] `shouldDecodeTo_` Dependencies [("hpack", anyVersion)]
 
         it "accepts dependencies with constraints" $ do
           [yaml|
             hpack >= 2 && < 3
-          |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange ">=2 && <3")]
+          |] `shouldDecodeTo_` Dependencies [("hpack", versionRange ">=2 && <3")]
 
         context "with invalid constraint" $ do
           it "returns an error message" $ do
@@ -38,17 +38,17 @@ spec = do
         it "accepts dependencies without constraints" $ do
           [yaml|
             - hpack
-          |] `shouldDecodeTo_` Dependencies [("hpack", AnyVersion)]
+          |] `shouldDecodeTo_` Dependencies [("hpack", anyVersion)]
 
         it "accepts dependencies with constraints" $ do
           [yaml|
             - hpack >= 2 && < 3
-          |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange ">=2 && <3")]
+          |] `shouldDecodeTo_` Dependencies [("hpack", versionRange ">=2 && <3")]
 
         it "accepts ^>=" $ do
           [yaml|
             - hpack ^>= 1.2.3.4
-          |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange ">=1.2.3.4 && <1.3")]
+          |] `shouldDecodeTo_` Dependencies [("hpack", versionRange ">=1.2.3.4 && <1.3")]
 
         it "accepts git dependencies" $ do
           let source = GitRef "https://github.com/sol/hpack" "master" Nothing
@@ -102,7 +102,7 @@ spec = do
         it "accepts dependencies without constraints" $ do
           [yaml|
             array:
-          |] `shouldDecodeTo_` Dependencies [("array", AnyVersion)]
+          |] `shouldDecodeTo_` Dependencies [("array", anyVersion)]
 
         it "rejects invalid values" $ do
           [yaml|
@@ -113,48 +113,48 @@ spec = do
           it "accepts 1" $ do
             [yaml|
               hpack: 1
-            |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange "==1")]
+            |] `shouldDecodeTo_` Dependencies [("hpack", versionRange "==1")]
 
           it "accepts 1.0" $ do
             [yaml|
               hpack: 1.0
-            |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange "==1.0")]
+            |] `shouldDecodeTo_` Dependencies [("hpack", versionRange "==1.0")]
 
           it "accepts 0.11" $ do
             [yaml|
               hpack: 0.11
-            |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange "==0.11")]
+            |] `shouldDecodeTo_` Dependencies [("hpack", versionRange "==0.11")]
 
           it "accepts 0.110" $ do
             [yaml|
               hpack: 0.110
-            |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange "==0.110")]
+            |] `shouldDecodeTo_` Dependencies [("hpack", versionRange "==0.110")]
 
           it "accepts 1e2" $ do
             [yaml|
               hpack: 1e2
-            |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange "==100")]
+            |] `shouldDecodeTo_` Dependencies [("hpack", versionRange "==100")]
 
         context "when the constraint is a String" $ do
           it "accepts version ranges" $ do
             [yaml|
               hpack: '>=2'
-            |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange ">=2")]
+            |] `shouldDecodeTo_` Dependencies [("hpack", versionRange ">=2")]
 
           it "accepts specific versions" $ do
             [yaml|
               hpack: 0.10.8.2
-            |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange "==0.10.8.2")]
+            |] `shouldDecodeTo_` Dependencies [("hpack", versionRange "==0.10.8.2")]
 
           it "accepts wildcard versions" $ do
             [yaml|
               hpack: 2.*
-            |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange "==2.*")]
+            |] `shouldDecodeTo_` Dependencies [("hpack", versionRange "==2.*")]
 
           it "accepts ^>=" $ do
             [yaml|
               hpack: ^>= 1.2.3.4
-            |] `shouldDecodeTo_` Dependencies [("hpack", VersionRange ">=1.2.3.4 && <1.3")]
+            |] `shouldDecodeTo_` Dependencies [("hpack", versionRange ">=1.2.3.4 && <1.3")]
 
           it "reports parse errors" $ do
             [yaml|

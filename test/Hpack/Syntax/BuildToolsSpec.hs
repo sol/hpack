@@ -17,33 +17,33 @@ spec = do
         it "accepts qualified names" $ do
           [yaml|
             foo:bar
-          |] `shouldDecodeTo_` BuildTools [(QualifiedBuildTool "foo" "bar", AnyVersion)]
+          |] `shouldDecodeTo_` BuildTools [(QualifiedBuildTool "foo" "bar", anyVersion)]
 
         it "accepts qualified names with a version" $ do
           [yaml|
             foo:bar >= 0.1.0
-          |] `shouldDecodeTo_` BuildTools [(QualifiedBuildTool "foo" "bar", VersionRange ">=0.1.0")]
+          |] `shouldDecodeTo_` BuildTools [(QualifiedBuildTool "foo" "bar", versionRange ">=0.1.0")]
 
         it "accepts unqualified names" $ do
           [yaml|
             foo
-          |] `shouldDecodeTo_` BuildTools [(UnqualifiedBuildTool "foo", AnyVersion)]
+          |] `shouldDecodeTo_` BuildTools [(UnqualifiedBuildTool "foo", anyVersion)]
 
         it "accepts unqualified names with a version" $ do
           [yaml|
             foo >= 0.1.0
-          |] `shouldDecodeTo_` BuildTools [(UnqualifiedBuildTool "foo", VersionRange ">=0.1.0")]
+          |] `shouldDecodeTo_` BuildTools [(UnqualifiedBuildTool "foo", versionRange ">=0.1.0")]
 
       context "with a mapping" $ do
         it "accepts qualified names" $ do
           [yaml|
             foo:bar: 0.1.0
-          |] `shouldDecodeTo_` BuildTools [(QualifiedBuildTool "foo" "bar", VersionRange "==0.1.0")]
+          |] `shouldDecodeTo_` BuildTools [(QualifiedBuildTool "foo" "bar", versionRange "==0.1.0")]
 
         it "accepts unqualified names" $ do
           [yaml|
             foo: 0.1.0
-          |] `shouldDecodeTo_` BuildTools [(UnqualifiedBuildTool "foo", VersionRange "==0.1.0")]
+          |] `shouldDecodeTo_` BuildTools [(UnqualifiedBuildTool "foo", versionRange "==0.1.0")]
 
       context "with a list" $ do
         it "accepts a list of build tools" $ do
@@ -52,9 +52,9 @@ spec = do
             - bar:two >= 0.1.0
             - baz == 0.2.0
           |] `shouldDecodeTo_` BuildTools [
-              (QualifiedBuildTool "foo" "one", AnyVersion)
-            , (QualifiedBuildTool "bar" "two", VersionRange ">=0.1.0")
-            , (UnqualifiedBuildTool "baz", VersionRange "==0.2.0")
+              (QualifiedBuildTool "foo" "one", anyVersion)
+            , (QualifiedBuildTool "bar" "two", versionRange ">=0.1.0")
+            , (UnqualifiedBuildTool "baz", versionRange "==0.2.0")
             ]
 
         it "accepts source dependencies with a qualified name" $ do
@@ -78,18 +78,18 @@ spec = do
         it "accepts system build tools" $ do
           [yaml|
             g++
-          |] `shouldDecodeTo_` SystemBuildTools [("g++", AnyVersion)]
+          |] `shouldDecodeTo_` SystemBuildTools [("g++", anyVersion)]
 
         it "accepts system build tools with a version" $ do
           [yaml|
             g++ >= 0.1.0
-          |] `shouldDecodeTo_` SystemBuildTools [("g++", VersionRange ">=0.1.0")]
+          |] `shouldDecodeTo_` SystemBuildTools [("g++", versionRange ">=0.1.0")]
 
       context "with a mapping" $ do
         it "accepts system build tools" $ do
           [yaml|
             g++: 0.1.0
-          |] `shouldDecodeTo_` SystemBuildTools [("g++", VersionRange "==0.1.0")]
+          |] `shouldDecodeTo_` SystemBuildTools [("g++", versionRange "==0.1.0")]
 
       context "with a list" $ do
         it "accepts a list of system build tools" $ do
@@ -97,6 +97,6 @@ spec = do
             - foo
             - bar >= 0.1.0
           |] `shouldDecodeTo_` SystemBuildTools [
-              ("foo", AnyVersion)
-            , ("bar", VersionRange ">=0.1.0")
+              ("foo", anyVersion)
+            , ("bar", versionRange ">=0.1.0")
             ]

@@ -5,6 +5,7 @@ module Hpack.RenderSpec (spec) where
 import           Helper
 import           Data.List
 
+import           Hpack.Syntax.DependencyVersion
 import           Hpack.ConfigSpec hiding (spec)
 import           Hpack.Config hiding (package)
 import           Hpack.Render.Dsl
@@ -161,7 +162,7 @@ spec = do
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
         renderPackage_ package {packageExecutables = [("foo", executable {sectionDependencies = Dependencies
-        [("foo", VersionRange "== 0.1.0"), ("bar", AnyVersion)]})]} `shouldBe` unlines [
+        [("foo", versionRange "== 0.1.0"), ("bar", anyVersion)]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"

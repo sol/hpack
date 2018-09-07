@@ -5,13 +5,17 @@ module Hpack.Syntax.DependencyVersion (
 , GitRef
 , GitUrl
 
+, VersionConstraint(..)
+, anyVersion
+, versionRange
+
 , DependencyVersion(..)
 , dependencyVersion
 
 , SourceDependency(..)
 , sourceDependency
 
-, dependencyVersionFromCabal
+, versionConstraintFromCabal
 
 , scientificToVersion
 , cabalParse
@@ -19,6 +23,7 @@ module Hpack.Syntax.DependencyVersion (
 
 import           Control.Applicative
 import           Data.Scientific
+import           Data.Text (Text)
 import qualified Data.Text as T
 import           Text.PrettyPrint (renderStyle, Style(..), Mode(..))
 
@@ -35,9 +40,17 @@ githubBaseUrl = "https://github.com/"
 type GitUrl = String
 type GitRef = String
 
+data VersionConstraint = AnyVersion | VersionRange String
+  deriving (Eq, Show)
+
+anyVersion :: DependencyVersion
+anyVersion = VersionConstraint AnyVersion
+
+versionRange :: String -> DependencyVersion
+versionRange = VersionConstraint . VersionRange
+
 data DependencyVersion =
-    AnyVersion
-  | VersionRange String
+    VersionConstraint VersionConstraint
   | SourceDependency SourceDependency
   deriving (Eq, Show)
 
@@ -46,12 +59,10 @@ instance FromValue DependencyVersion where
 
 dependencyVersion :: Value -> Parser DependencyVersion
 dependencyVersion v = case v of
-  Null -> return AnyVersion
+  Null -> return anyVersion
   Object o -> SourceDependency <$> sourceDependency o
-  Number n -> return (scientificToDependencyVersion n)
-  String s -> parseVersionRange ("== " ++ input) <|> parseVersionRange input
-    where
-      input = T.unpack s
+  Number n -> return (VersionConstraint $ numericVersionConstraint n)
+  String s -> VersionConstraint <$> stringVersionConstraint s
   _ -> typeMismatch "Null, Object, Number, or String" v
 
 data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
@@ -79,10 +90,15 @@ sourceDependency o = let
 
     in local <|> git
 
-scientificToDependencyVersion :: Scientific -> DependencyVersion
-scientificToDependencyVersion n = VersionRange ("==" ++ version)
+numericVersionConstraint :: Scientific -> VersionConstraint
+numericVersionConstraint n = VersionRange ("==" ++ version)
   where
     version = scientificToVersion n
+
+stringVersionConstraint :: Text -> Parser VersionConstraint
+stringVersionConstraint s = parseVersionRange ("== " ++ input) <|> parseVersionRange input
+  where
+    input = T.unpack s
 
 scientificToVersion :: Scientific -> String
 scientificToVersion n = version
@@ -93,8 +109,8 @@ scientificToVersion n = version
       | otherwise = 0
     e = base10Exponent n
 
-parseVersionRange :: Monad m => String -> m DependencyVersion
-parseVersionRange = fmap dependencyVersionFromCabal . parseCabalVersionRange
+parseVersionRange :: Monad m => String -> m VersionConstraint
+parseVersionRange = fmap versionConstraintFromCabal . parseCabalVersionRange
 
 parseCabalVersionRange :: Monad m => String -> m D.VersionRange
 parseCabalVersionRange = cabalParse "constraint"
@@ -104,10 +120,10 @@ cabalParse subject s = case D.eitherParsec s of
   Right d -> return d
   Left _ ->fail $ unwords ["invalid",  subject, show s]
 
-dependencyVersionFromCabal :: D.VersionRange -> DependencyVersion
-dependencyVersionFromCabal versionRange
-  | D.isAnyVersion versionRange = AnyVersion
-  | otherwise = VersionRange . renderStyle style . D.disp $ toPreCabal2VersionRange versionRange
+versionConstraintFromCabal :: D.VersionRange -> VersionConstraint
+versionConstraintFromCabal range
+  | D.isAnyVersion range = AnyVersion
+  | otherwise = VersionRange . renderStyle style . D.disp $ toPreCabal2VersionRange range
   where
     style = Style OneLineMode 0 0
 
