@@ -29,6 +29,7 @@ module Data.Aeson.Config.FromValue (
 , withBool
 
 , parseArray
+, traverseObject
 
 , (.:)
 , (.:?)
@@ -43,6 +44,7 @@ import           GHC.Generics
 import           Control.Monad
 import           Control.Applicative
 
+import           Data.Bifunctor
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import           Data.Text (Text)
@@ -102,9 +104,13 @@ parseArray f = zipWithM (parseIndexed f) [0..] . V.toList
 
 instance FromValue a => FromValue (Map String a) where
   fromValue = withObject $ \ o -> do
-    xs <- forM (HashMap.toList o) $ \ (name, value) ->
-      (,) (T.unpack name) <$> fromValue value <?> Key name
-    return $ Map.fromList xs
+    xs <- traverseObject fromValue o
+    return $ Map.fromList (map (first T.unpack) xs)
+
+traverseObject :: (Value -> Parser a) -> Object -> Parser [(Text, a)]
+traverseObject f o = do
+  forM (HashMap.toList o) $ \ (name, value) ->
+    (,) name <$> f value <?> Key name
 
 instance (FromValue a, FromValue b) => FromValue (a, b) where
   fromValue v = (,) <$> fromValue v <*> fromValue v

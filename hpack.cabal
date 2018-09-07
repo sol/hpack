@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bed08b7cc8f53a559486c8631b5e61c3be7e738c96425dc0cb9ff271847c21c2
+-- hash: 721ac108b82598ff6f6fc5a1dd26498dd34614d1777c7af9fd812bec04cf858a
 
 name:           hpack
 version:        0.30.0
@@ -73,6 +73,7 @@ library
       Hpack.Syntax.Dependency
       Hpack.Syntax.DependencyVersion
       Hpack.Syntax.Git
+      Hpack.Syntax.ParseDependencies
       Hpack.Utf8
       Hpack.Util
       Paths_hpack
@@ -192,6 +193,7 @@ test-suite spec
       Hpack.Syntax.Dependency
       Hpack.Syntax.DependencyVersion
       Hpack.Syntax.Git
+      Hpack.Syntax.ParseDependencies
       Hpack.Utf8
       Hpack.Util
       Hpack.Yaml

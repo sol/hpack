@@ -4,8 +4,13 @@ module Hpack.Syntax.DependencyVersion (
   githubBaseUrl
 , GitRef
 , GitUrl
+
 , DependencyVersion(..)
+, dependencyVersion
+
 , SourceDependency(..)
+, sourceDependency
+
 , dependencyVersionFromCabal
 
 , scientificToVersion
@@ -37,21 +42,23 @@ data DependencyVersion =
   deriving (Eq, Show)
 
 instance FromValue DependencyVersion where
-  fromValue v = case v of
-    Null -> return AnyVersion
-    Object _ -> SourceDependency <$> fromValue v
-    Number n -> return (scientificToDependencyVersion n)
-    String s -> parseVersionRange ("== " ++ input) <|> parseVersionRange input
-      where
-        input = T.unpack s
+  fromValue = dependencyVersion
 
-    _ -> typeMismatch "Null, Object, Number, or String" v
+dependencyVersion :: Value -> Parser DependencyVersion
+dependencyVersion v = case v of
+  Null -> return AnyVersion
+  Object o -> SourceDependency <$> sourceDependency o
+  Number n -> return (scientificToDependencyVersion n)
+  String s -> parseVersionRange ("== " ++ input) <|> parseVersionRange input
+    where
+      input = T.unpack s
+  _ -> typeMismatch "Null, Object, Number, or String" v
 
 data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
   deriving (Eq, Show)
 
-instance FromValue SourceDependency where
-  fromValue = withObject (\o -> let
+sourceDependency :: Object -> Parser SourceDependency
+sourceDependency o = let
     local :: Parser SourceDependency
     local = Local <$> o .: "path"
 
@@ -70,7 +77,7 @@ instance FromValue SourceDependency where
     subdir :: Parser (Maybe FilePath)
     subdir = o .:? "subdir"
 
-    in local <|> git)
+    in local <|> git
 
 scientificToDependencyVersion :: Scientific -> DependencyVersion
 scientificToDependencyVersion n = VersionRange ("==" ++ version)

@@ -18,6 +18,7 @@ import           GHC.Exts
 import           Data.Aeson.Config.FromValue
 
 import           Hpack.Syntax.DependencyVersion
+import           Hpack.Syntax.ParseDependencies
 
 newtype Dependencies = Dependencies {
   unDependencies :: Map String DependencyVersion
@@ -29,33 +30,15 @@ instance IsList Dependencies where
   toList = Map.toList . unDependencies
 
 instance FromValue Dependencies where
-  fromValue v = case v of
-    String _ -> dependenciesFromList . return <$> fromValue v
-    Array _ -> dependenciesFromList <$> fromValue v
-    Object _ -> Dependencies <$> fromValue v
-    _ -> typeMismatch "Array, Object, or String" v
+  fromValue = fmap (Dependencies . Map.fromList) . parseDependencies parse
     where
-      fromDependency :: Dependency -> (String, DependencyVersion)
-      fromDependency (Dependency name version) = (name, version)
-
-      dependenciesFromList :: [Dependency] -> Dependencies
-      dependenciesFromList = Dependencies . Map.fromList . map fromDependency
-
-data Dependency = Dependency {
-  _dependencyName :: String
-, _dependencyVersion :: DependencyVersion
-} deriving (Eq, Show)
-
-instance FromValue Dependency where
-  fromValue v = case v of
-    String s -> uncurry Dependency <$> parseDependency "dependency" s
-    Object o -> sourceDependency o
-    _ -> typeMismatch "Object or String" v
-    where
-      sourceDependency o = Dependency <$> name <*> (SourceDependency <$> fromValue v)
-        where
-          name :: Parser String
-          name = o .: "name"
+      parse :: Parse String DependencyVersion
+      parse = Parse {
+        parseString = parseDependency "dependency"
+      , parseListItem = fmap SourceDependency . sourceDependency
+      , parseDictItem = dependencyVersion
+      , parseKey = T.unpack
+      }
 
 parseDependency :: Monad m => String -> Text -> m (String, DependencyVersion)
 parseDependency subject = liftM fromCabal . parseCabalDependency subject . T.unpack
