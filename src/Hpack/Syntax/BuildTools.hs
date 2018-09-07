@@ -45,25 +45,25 @@ instance FromValue BuildTools where
       , parseKey = nameToBuildTool
       }
 
-nameToBuildTool :: Text -> ParseBuildTool
-nameToBuildTool (T.unpack -> name) = case break (== ':') name of
-  (executable, "") -> UnqualifiedBuildTool executable
-  (package, executable) -> QualifiedBuildTool package (drop 1 executable)
+      nameToBuildTool :: Text -> ParseBuildTool
+      nameToBuildTool (T.unpack -> name) = case break (== ':') name of
+        (executable, "") -> UnqualifiedBuildTool executable
+        (package, executable) -> QualifiedBuildTool package (drop 1 executable)
 
-buildToolFromString :: Text -> Parser (ParseBuildTool, DependencyVersion)
-buildToolFromString s = parseQualifiedBuildTool s <|> parseUnqualifiedBuildTool s
+      buildToolFromString :: Text -> Parser (ParseBuildTool, DependencyVersion)
+      buildToolFromString s = parseQualifiedBuildTool s <|> parseUnqualifiedBuildTool s
 
-parseQualifiedBuildTool :: Monad m => Text -> m (ParseBuildTool, DependencyVersion)
-parseQualifiedBuildTool = fmap f . cabalParse "build tool" . T.unpack
-  where
-    f :: D.ExeDependency -> (ParseBuildTool, DependencyVersion)
-    f (D.ExeDependency package executable version) = (
-        QualifiedBuildTool (D.unPackageName package) (D.unUnqualComponentName executable)
-      , VersionConstraint $ versionConstraintFromCabal version
-      )
+      parseQualifiedBuildTool :: Monad m => Text -> m (ParseBuildTool, DependencyVersion)
+      parseQualifiedBuildTool = fmap f . cabalParse "build tool" . T.unpack
+        where
+          f :: D.ExeDependency -> (ParseBuildTool, DependencyVersion)
+          f (D.ExeDependency package executable version) = (
+              QualifiedBuildTool (D.unPackageName package) (D.unUnqualComponentName executable)
+            , VersionConstraint $ versionConstraintFromCabal version
+            )
 
-parseUnqualifiedBuildTool :: Monad m => Text -> m (ParseBuildTool, DependencyVersion)
-parseUnqualifiedBuildTool = fmap (first UnqualifiedBuildTool) . parseDependency "build tool"
+      parseUnqualifiedBuildTool :: Monad m => Text -> m (ParseBuildTool, DependencyVersion)
+      parseUnqualifiedBuildTool = fmap (first UnqualifiedBuildTool) . parseDependency "build tool"
 
 newtype SystemBuildTools = SystemBuildTools {
   unSystemBuildTools :: Map String DependencyVersion
@@ -80,11 +80,11 @@ instance FromValue SystemBuildTools where
       , parseKey = T.unpack
       }
 
-parseSystemBuildTool :: Monad m => Text -> m (String, DependencyVersion)
-parseSystemBuildTool = fmap fromCabal . parseCabalBuildTool . T.unpack
-  where
-    fromCabal :: D.LegacyExeDependency -> (String, DependencyVersion)
-    fromCabal (D.LegacyExeDependency name version) = (name, VersionConstraint $ versionConstraintFromCabal version)
+      parseSystemBuildTool :: Monad m => Text -> m (String, DependencyVersion)
+      parseSystemBuildTool = fmap fromCabal . parseCabalBuildTool . T.unpack
+        where
+          fromCabal :: D.LegacyExeDependency -> (String, DependencyVersion)
+          fromCabal (D.LegacyExeDependency name version) = (name, VersionConstraint $ versionConstraintFromCabal version)
 
-    parseCabalBuildTool :: Monad m => String -> m D.LegacyExeDependency
-    parseCabalBuildTool = cabalParse "system build tool"
+          parseCabalBuildTool :: Monad m => String -> m D.LegacyExeDependency
+          parseCabalBuildTool = cabalParse "system build tool"
