@@ -70,14 +70,15 @@ newtype SystemBuildTools = SystemBuildTools {
 } deriving (Show, Eq, Semigroup, Monoid)
 
 instance FromValue SystemBuildTools where
-  fromValue v = case v of
-    String s -> fromList . return <$> parseSystemBuildTool s
-    Array xs -> fromList <$> parseArray (withText parseSystemBuildTool) xs
-    Object _ -> SystemBuildTools <$> fromValue v
-    _ -> typeMismatch "Array, Object, or String" v
+  fromValue = fmap (SystemBuildTools . Map.fromList) . parseDependencies parse
     where
-      fromList :: [(String, DependencyVersion)] -> SystemBuildTools
-      fromList = SystemBuildTools . Map.fromList
+      parse :: Parse String DependencyVersion
+      parse = Parse {
+        parseString = parseSystemBuildTool
+      , parseListItem = fmap VersionConstraint . (.: "version")
+      , parseDictItem = dependencyVersion
+      , parseKey = T.unpack
+      }
 
 parseSystemBuildTool :: Monad m => Text -> m (String, DependencyVersion)
 parseSystemBuildTool = fmap fromCabal . parseCabalBuildTool . T.unpack

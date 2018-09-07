@@ -100,3 +100,11 @@ spec = do
               ("foo", anyVersion)
             , ("bar", versionRange ">=0.1.0")
             ]
+
+        it "accepts objects with name and version" $ do
+          [yaml|
+            - name: foo
+              version: 0.1.0
+          |] `shouldDecodeTo_` SystemBuildTools [
+              ("foo", versionRange "==0.1.0")
+            ]
