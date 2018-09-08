@@ -66,25 +66,25 @@ instance FromValue BuildTools where
       parseUnqualifiedBuildTool = fmap (first UnqualifiedBuildTool) . parseDependency "build tool"
 
 newtype SystemBuildTools = SystemBuildTools {
-  unSystemBuildTools :: Map String DependencyVersion
+  unSystemBuildTools :: Map String VersionConstraint
 } deriving (Show, Eq, Semigroup, Monoid)
 
 instance FromValue SystemBuildTools where
   fromValue = fmap (SystemBuildTools . Map.fromList) . parseDependencies parse
     where
-      parse :: Parse String DependencyVersion
+      parse :: Parse String VersionConstraint
       parse = Parse {
         parseString = parseSystemBuildTool
-      , parseListItem = fmap VersionConstraint . (.: "version")
-      , parseDictItem = dependencyVersion
+      , parseListItem = (.: "version")
+      , parseDictItem = versionConstraint
       , parseKey = T.unpack
       }
 
-      parseSystemBuildTool :: Monad m => Text -> m (String, DependencyVersion)
+      parseSystemBuildTool :: Monad m => Text -> m (String, VersionConstraint)
       parseSystemBuildTool = fmap fromCabal . parseCabalBuildTool . T.unpack
         where
-          fromCabal :: D.LegacyExeDependency -> (String, DependencyVersion)
-          fromCabal (D.LegacyExeDependency name version) = (name, VersionConstraint $ versionConstraintFromCabal version)
+          fromCabal :: D.LegacyExeDependency -> (String, VersionConstraint)
+          fromCabal (D.LegacyExeDependency name version) = (name, versionConstraintFromCabal version)
 
           parseCabalBuildTool :: Monad m => String -> m D.LegacyExeDependency
           parseCabalBuildTool = cabalParse "system build tool"

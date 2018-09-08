@@ -1341,13 +1341,12 @@ toSection packageName_ executableNames = go
       , sectionVerbatim = fromMaybeList commonOptionsVerbatim
       }
     toBuildTools :: Monad m => BuildTools -> Warnings m (SystemBuildTools, Map BuildTool DependencyVersion)
-    toBuildTools = fmap (mkSystemBuildTools &&& mkBuildTools) . mapM toBuildTool_ . unBuildTools
+    toBuildTools = fmap (mkSystemBuildTools &&& mkBuildTools) . mapM (toBuildTool packageName_ executableNames). unBuildTools
       where
+        mkSystemBuildTools :: [Either (String, VersionConstraint) b] -> SystemBuildTools
         mkSystemBuildTools = SystemBuildTools . Map.fromList . lefts
+
         mkBuildTools = Map.fromList . rights
-        toBuildTool_ (t, v) = bimap addVersion addVersion <$> toBuildTool packageName_ executableNames t
-          where
-            addVersion = flip (,) v
 
     toConditional :: Monad m => ConditionalSection CSources CxxSources JsSources a -> Warnings m (Conditional (Section a))
     toConditional x = case x of
@@ -1356,22 +1355,28 @@ toSection packageName_ executableNames = go
       where
         conditional (Condition (Cond c)) = Conditional c
 
-toBuildTool :: Monad m => String -> [String] -> ParseBuildTool -> Warnings m (Either String BuildTool)
+type SystemBuildTool = (String, VersionConstraint)
+
+toBuildTool :: Monad m => String -> [String] -> (ParseBuildTool, DependencyVersion)
+  -> Warnings m (Either SystemBuildTool (BuildTool, DependencyVersion))
 toBuildTool packageName_ executableNames = \ case
-  QualifiedBuildTool pkg executable
-    | pkg == packageName_ && executable `elem` executableNames -> localBuildTool executable
-    | otherwise -> buildTool pkg executable
-  UnqualifiedBuildTool executable
-    | executable `elem` executableNames -> localBuildTool executable
-    | Just pkg <- lookup executable legacyTools -> legacyBuildTool pkg executable
-    | executable `elem` legacySystemTools -> legacySystemBuildTool executable
-    | otherwise -> buildTool executable executable
+  (QualifiedBuildTool pkg executable, v)
+    | pkg == packageName_ && executable `elem` executableNames -> localBuildTool executable v
+    | otherwise -> buildTool pkg executable v
+  (UnqualifiedBuildTool executable, v)
+    | executable `elem` executableNames -> localBuildTool executable v
+    | Just pkg <- lookup executable legacyTools -> legacyBuildTool pkg executable v
+    | executable `elem` legacySystemTools, VersionConstraint c <- v -> legacySystemBuildTool executable c
+    | otherwise -> buildTool executable executable v
   where
-    buildTool pkg = return . Right . BuildTool pkg
+    buildTool pkg executable v = return . Right $ (BuildTool pkg executable, v)
+
     systemBuildTool = return . Left
-    localBuildTool = return . Right . LocalBuildTool
-    legacyBuildTool pkg executable = warnLegacyTool pkg executable >> buildTool pkg executable
-    legacySystemBuildTool executable = warnLegacySystemTool executable >> systemBuildTool executable
+
+    localBuildTool executable v = return . Right $ (LocalBuildTool executable, v)
+    legacyBuildTool pkg executable v = warnLegacyTool pkg executable >> buildTool pkg executable v
+    legacySystemBuildTool executable c = warnLegacySystemTool executable >> systemBuildTool (executable, c)
+
     legacyTools = [
         ("gtk2hsTypeGen", "gtk2hs-buildtools")
       , ("gtk2hsHookGenerator", "gtk2hs-buildtools")

@@ -317,9 +317,13 @@ renderDependency (name, version) = name ++ renderVersion version
 
 renderVersion :: DependencyVersion -> String
 renderVersion version = case version of
-  VersionConstraint AnyVersion -> ""
-  VersionConstraint (VersionRange x) -> " " ++ x
+  VersionConstraint c -> renderVersionConstraint c
   SourceDependency _ -> ""
+
+renderVersionConstraint :: VersionConstraint -> String
+renderVersionConstraint version = case version of
+  AnyVersion -> ""
+  VersionRange x -> " " ++ x
 
 renderBuildTools :: Map BuildTool DependencyVersion -> SystemBuildTools -> [Element]
 renderBuildTools (map renderBuildTool . Map.toList -> xs) systemBuildTools = [
@@ -349,7 +353,10 @@ renderBuildTool (buildTool, renderVersion -> version) = case buildTool of
       ]
 
 renderSystemBuildTools :: SystemBuildTools -> [String]
-renderSystemBuildTools = map renderDependency . Map.toList . unSystemBuildTools
+renderSystemBuildTools = map renderSystemBuildTool . Map.toList . unSystemBuildTools
+
+renderSystemBuildTool :: (String, VersionConstraint) -> String
+renderSystemBuildTool (name, constraint) = name ++ renderVersionConstraint constraint
 
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList

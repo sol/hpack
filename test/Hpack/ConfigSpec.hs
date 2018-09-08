@@ -162,36 +162,36 @@ spec = do
         getModules dir  "./." `shouldReturn` ["Foo"]
 
   describe "toBuildTool" $ do
-    let toBuildTool_ = runWriter . toBuildTool "my-package" ["foo"]
+    let toBuildTool_ name = runWriter $ toBuildTool "my-package" ["foo"] (name, anyVersion)
     context "with an UnqualifiedBuildTool" $ do
       context "when name does not match a local executable" $ do
         it "returns a BuildTool" $ do
-          toBuildTool_ (UnqualifiedBuildTool "bar") `shouldBe` (Right (BuildTool "bar" "bar"), [])
+          toBuildTool_ (UnqualifiedBuildTool "bar") `shouldBe` (Right (BuildTool "bar" "bar", anyVersion), [])
 
       context "when name matches a local executable" $ do
         it "returns a LocalBuildTool" $ do
-          toBuildTool_ (UnqualifiedBuildTool "foo") `shouldBe` (Right (LocalBuildTool "foo"), [])
+          toBuildTool_ (UnqualifiedBuildTool "foo") `shouldBe` (Right (LocalBuildTool "foo", anyVersion), [])
 
       context "when name matches a legacy executable" $ do
         it "warns" $ do
-          toBuildTool_ (UnqualifiedBuildTool "gtk2hsTypeGen") `shouldBe` (Right (BuildTool "gtk2hs-buildtools" "gtk2hsTypeGen"), ["Usage of the unqualified build-tool name \"gtk2hsTypeGen\" is deprecated! Please use the qualified name \"gtk2hs-buildtools:gtk2hsTypeGen\" instead!"])
+          toBuildTool_ (UnqualifiedBuildTool "gtk2hsTypeGen") `shouldBe` (Right (BuildTool "gtk2hs-buildtools" "gtk2hsTypeGen", anyVersion), ["Usage of the unqualified build-tool name \"gtk2hsTypeGen\" is deprecated! Please use the qualified name \"gtk2hs-buildtools:gtk2hsTypeGen\" instead!"])
 
       context "when name matches a legacy system build tool" $ do
         it "warns" $ do
-          toBuildTool_ (UnqualifiedBuildTool "ghc") `shouldBe` (Left "ghc", ["Listing \"ghc\" under build-tools is deperecated! Please list system executables under system-build-tools instead!"])
+          toBuildTool_ (UnqualifiedBuildTool "ghc") `shouldBe` (Left ("ghc", AnyVersion), ["Listing \"ghc\" under build-tools is deperecated! Please list system executables under system-build-tools instead!"])
 
     context "with a QualifiedBuildTool" $ do
       context "when only package matches the current package" $ do
         it "returns a BuildTool" $ do
-          toBuildTool_ (QualifiedBuildTool "my-package" "bar") `shouldBe` (Right (BuildTool "my-package" "bar"), [])
+          toBuildTool_ (QualifiedBuildTool "my-package" "bar") `shouldBe` (Right (BuildTool "my-package" "bar", anyVersion), [])
 
       context "when only executable matches a local executable" $ do
         it "returns a BuildTool" $ do
-          toBuildTool_ (QualifiedBuildTool "other-package" "foo") `shouldBe` (Right (BuildTool "other-package" "foo"), [])
+          toBuildTool_ (QualifiedBuildTool "other-package" "foo") `shouldBe` (Right (BuildTool "other-package" "foo", anyVersion), [])
 
       context "when both package matches the current package and executable matches a local executable" $ do
         it "returns a LocalBuildTool" $ do
-          toBuildTool_ (QualifiedBuildTool "my-package" "foo") `shouldBe` (Right (LocalBuildTool "foo"), [])
+          toBuildTool_ (QualifiedBuildTool "my-package" "foo") `shouldBe` (Right (LocalBuildTool "foo", anyVersion), [])
 
   describe "readPackageConfig" $ do
     it "warns on missing name" $ do

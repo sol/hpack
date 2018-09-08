@@ -6,6 +6,7 @@ module Hpack.Syntax.DependencyVersion (
 , GitUrl
 
 , VersionConstraint(..)
+, versionConstraint
 , anyVersion
 , versionRange
 
@@ -44,11 +45,14 @@ data VersionConstraint = AnyVersion | VersionRange String
   deriving (Eq, Show)
 
 instance FromValue VersionConstraint where
-  fromValue v = case v of
-    Null -> return AnyVersion
-    Number n -> return (numericVersionConstraint n)
-    String s -> stringVersionConstraint s
-    _ -> typeMismatch "Null, Number, or String" v
+  fromValue = versionConstraint
+
+versionConstraint :: Value -> Parser VersionConstraint
+versionConstraint v = case v of
+  Null -> return AnyVersion
+  Number n -> return (numericVersionConstraint n)
+  String s -> stringVersionConstraint s
+  _ -> typeMismatch "Null, Number, or String" v
 
 anyVersion :: DependencyVersion
 anyVersion = VersionConstraint AnyVersion

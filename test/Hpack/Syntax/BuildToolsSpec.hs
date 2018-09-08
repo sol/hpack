@@ -78,18 +78,18 @@ spec = do
         it "accepts system build tools" $ do
           [yaml|
             g++
-          |] `shouldDecodeTo_` SystemBuildTools [("g++", anyVersion)]
+          |] `shouldDecodeTo_` SystemBuildTools [("g++", AnyVersion)]
 
         it "accepts system build tools with a version" $ do
           [yaml|
             g++ >= 0.1.0
-          |] `shouldDecodeTo_` SystemBuildTools [("g++", versionRange ">=0.1.0")]
+          |] `shouldDecodeTo_` SystemBuildTools [("g++", VersionRange ">=0.1.0")]
 
       context "with a mapping" $ do
         it "accepts system build tools" $ do
           [yaml|
             g++: 0.1.0
-          |] `shouldDecodeTo_` SystemBuildTools [("g++", versionRange "==0.1.0")]
+          |] `shouldDecodeTo_` SystemBuildTools [("g++", VersionRange "==0.1.0")]
 
       context "with a list" $ do
         it "accepts a list of system build tools" $ do
@@ -97,8 +97,8 @@ spec = do
             - foo
             - bar >= 0.1.0
           |] `shouldDecodeTo_` SystemBuildTools [
-              ("foo", anyVersion)
-            , ("bar", versionRange ">=0.1.0")
+              ("foo", AnyVersion)
+            , ("bar", VersionRange ">=0.1.0")
             ]
 
         it "accepts objects with name and version" $ do
@@ -106,5 +106,5 @@ spec = do
             - name: foo
               version: 0.1.0
           |] `shouldDecodeTo_` SystemBuildTools [
-              ("foo", versionRange "==0.1.0")
+              ("foo", VersionRange "==0.1.0")
             ]
