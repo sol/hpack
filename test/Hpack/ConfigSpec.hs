@@ -25,7 +25,7 @@ import           Data.Either
 import qualified Data.Map.Lazy as Map
 import           Control.Monad.Trans.Writer (runWriter)
 
-import           Hpack.Syntax.Dependency
+import           Hpack.Syntax.Dependencies
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.BuildTools
 import           Hpack.Config hiding (package)

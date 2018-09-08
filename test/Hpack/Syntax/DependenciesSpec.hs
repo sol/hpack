@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedLists #-}
-module Hpack.Syntax.DependencySpec (spec) where
+module Hpack.Syntax.DependenciesSpec (spec) where
 
 import           Helper
 
@@ -8,7 +8,7 @@ import           Data.Aeson.Config.FromValueSpec (shouldDecodeTo, shouldDecodeTo
 
 import           Data.Aeson.Config.FromValue
 import           Hpack.Syntax.DependencyVersion
-import           Hpack.Syntax.Dependency
+import           Hpack.Syntax.Dependencies
 
 left :: String -> Result Dependencies
 left = Left

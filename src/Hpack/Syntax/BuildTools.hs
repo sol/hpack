@@ -23,7 +23,7 @@ import qualified Distribution.Types.LegacyExeDependency as D
 import           Data.Aeson.Config.FromValue
 
 import           Hpack.Syntax.DependencyVersion
-import           Hpack.Syntax.Dependency (parseDependency)
+import           Hpack.Syntax.Dependencies (parseDependency)
 
 import           Hpack.Syntax.ParseDependencies
 

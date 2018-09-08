@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
-module Hpack.Syntax.Dependency (
+module Hpack.Syntax.Dependencies (
   Dependencies(..)
 , parseDependency
 ) where

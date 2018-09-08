@@ -115,7 +115,7 @@ import qualified Hpack.Util as Util
 import           Hpack.Defaults
 import qualified Hpack.Yaml as Yaml
 import           Hpack.Syntax.DependencyVersion
-import           Hpack.Syntax.Dependency
+import           Hpack.Syntax.Dependencies
 import           Hpack.Syntax.BuildTools
 import           Hpack.License
 import           Hpack.CabalFile (parseVersion)
