@@ -58,20 +58,20 @@ spec = do
             ]
 
         it "accepts source dependencies with a qualified name" $ do
-          let source = GitRef "https://github.com/sol/hpack" "master" Nothing
+          let source = Just (GitRef "https://github.com/sol/hpack" "master" Nothing)
           [yaml|
             - name: hpack:foo
               github: sol/hpack
               ref: master
-          |] `shouldDecodeTo_` BuildTools [(QualifiedBuildTool "hpack" "foo", SourceDependency source)]
+          |] `shouldDecodeTo_` BuildTools [(QualifiedBuildTool "hpack" "foo", DependencyVersion source AnyVersion)]
 
         it "accepts source dependencies with an unqualified name" $ do
-          let source = GitRef "https://github.com/sol/hpack" "master" Nothing
+          let source = Just (GitRef "https://github.com/sol/hpack" "master" Nothing)
           [yaml|
             - name: hpack
               github: sol/hpack
               ref: master
-          |] `shouldDecodeTo_` BuildTools [(UnqualifiedBuildTool "hpack", SourceDependency source)]
+          |] `shouldDecodeTo_` BuildTools [(UnqualifiedBuildTool "hpack", DependencyVersion source AnyVersion)]
 
     context "when parsing SystemBuildTools" $ do
       context "with a scalar" $ do

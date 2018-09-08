@@ -59,7 +59,7 @@ instance FromValue BuildTools where
           fromCabal :: D.ExeDependency -> (ParseBuildTool, DependencyVersion)
           fromCabal (D.ExeDependency package executable version) = (
               QualifiedBuildTool (D.unPackageName package) (D.unUnqualComponentName executable)
-            , VersionConstraint $ versionConstraintFromCabal version
+            , DependencyVersion Nothing $ versionConstraintFromCabal version
             )
 
       parseUnqualifiedBuildTool :: Monad m => Text -> m (ParseBuildTool, DependencyVersion)

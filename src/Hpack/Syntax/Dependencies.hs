@@ -43,4 +43,4 @@ parseDependency :: Monad m => String -> Text -> m (String, DependencyVersion)
 parseDependency subject = fmap fromCabal . cabalParse subject . T.unpack
   where
     fromCabal :: D.Dependency -> (String, DependencyVersion)
-    fromCabal d = (D.unPackageName $ D.depPkgName d, VersionConstraint . versionConstraintFromCabal $ D.depVerRange d)
+    fromCabal d = (D.unPackageName $ D.depPkgName d, DependencyVersion Nothing . versionConstraintFromCabal $ D.depVerRange d)

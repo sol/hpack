@@ -1366,7 +1366,7 @@ toBuildTool packageName_ executableNames = \ case
   (UnqualifiedBuildTool executable, v)
     | executable `elem` executableNames -> localBuildTool executable v
     | Just pkg <- lookup executable legacyTools -> legacyBuildTool pkg executable v
-    | executable `elem` legacySystemTools, VersionConstraint c <- v -> legacySystemBuildTool executable c
+    | executable `elem` legacySystemTools, DependencyVersion Nothing c <- v -> legacySystemBuildTool executable c
     | otherwise -> buildTool executable executable v
   where
     buildTool pkg executable v = return . Right $ (BuildTool pkg executable, v)

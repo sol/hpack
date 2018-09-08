@@ -316,9 +316,7 @@ renderDependency :: (String, DependencyVersion) -> String
 renderDependency (name, version) = name ++ renderVersion version
 
 renderVersion :: DependencyVersion -> String
-renderVersion version = case version of
-  VersionConstraint c -> renderVersionConstraint c
-  SourceDependency _ -> ""
+renderVersion (DependencyVersion _ c) = renderVersionConstraint c
 
 renderVersionConstraint :: VersionConstraint -> String
 renderVersionConstraint version = case version of

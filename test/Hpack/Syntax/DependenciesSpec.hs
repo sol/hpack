@@ -51,36 +51,36 @@ spec = do
           |] `shouldDecodeTo_` Dependencies [("hpack", versionRange ">=1.2.3.4 && <1.3")]
 
         it "accepts git dependencies" $ do
-          let source = GitRef "https://github.com/sol/hpack" "master" Nothing
+          let source = Just (GitRef "https://github.com/sol/hpack" "master" Nothing)
           [yaml|
             - name: hpack
               git: https://github.com/sol/hpack
               ref: master
-          |] `shouldDecodeTo_` Dependencies [("hpack", SourceDependency source)]
+          |] `shouldDecodeTo_` Dependencies [("hpack", DependencyVersion source AnyVersion)]
 
         it "accepts github dependencies" $ do
-          let source = GitRef "https://github.com/sol/hpack" "master" Nothing
+          let source = Just (GitRef "https://github.com/sol/hpack" "master" Nothing)
           [yaml|
             - name: hpack
               github: sol/hpack
               ref: master
-          |] `shouldDecodeTo_` Dependencies [("hpack", SourceDependency source)]
+          |] `shouldDecodeTo_` Dependencies [("hpack", DependencyVersion source AnyVersion)]
 
         it "accepts an optional subdirectory for git dependencies" $ do
-          let source = GitRef "https://github.com/yesodweb/wai" "master" (Just "warp")
+          let source = Just (GitRef "https://github.com/yesodweb/wai" "master" (Just "warp"))
           [yaml|
             - name: warp
               github: yesodweb/wai
               ref: master
               subdir: warp
-          |] `shouldDecodeTo_` Dependencies [("warp", SourceDependency source)]
+          |] `shouldDecodeTo_` Dependencies [("warp", DependencyVersion source AnyVersion)]
 
         it "accepts local dependencies" $ do
-          let source = Local "../hpack"
+          let source = Just (Local "../hpack")
           [yaml|
             - name: hpack
               path: ../hpack
-          |] `shouldDecodeTo_` Dependencies [("hpack", SourceDependency source)]
+          |] `shouldDecodeTo_` Dependencies [("hpack", DependencyVersion source AnyVersion)]
 
         context "when ref is missing" $ do
           it "produces accurate error messages" $ do
@@ -163,16 +163,18 @@ spec = do
 
         context "when the constraint is an Object" $ do
           it "accepts github dependencies" $ do
+            let source = Just (GitRef "https://github.com/haskell/cabal" "d53b6e0d908dfedfdf4337b2935519fb1d689e76" (Just "Cabal"))
             [yaml|
               Cabal:
                 github: haskell/cabal
                 ref: d53b6e0d908dfedfdf4337b2935519fb1d689e76
                 subdir: Cabal
-            |] `shouldDecodeTo_` Dependencies [("Cabal", SourceDependency (GitRef "https://github.com/haskell/cabal" "d53b6e0d908dfedfdf4337b2935519fb1d689e76" (Just "Cabal")))]
+            |] `shouldDecodeTo_` Dependencies [("Cabal", DependencyVersion source AnyVersion)]
 
           it "ignores names in nested hashes" $ do
+            let source = Just (Local "somewhere")
             [yaml|
               outer-name:
                 name: inner-name
                 path: somewhere
-            |] `shouldDecodeTo` Right (Dependencies [("outer-name", SourceDependency (Local "somewhere"))], ["$.outer-name.name"])
+            |] `shouldDecodeTo` Right (Dependencies [("outer-name", DependencyVersion source AnyVersion)], ["$.outer-name.name"])
