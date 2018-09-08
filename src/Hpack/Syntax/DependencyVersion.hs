@@ -71,7 +71,7 @@ instance FromValue DependencyVersion where
 dependencyVersion :: Value -> Parser DependencyVersion
 dependencyVersion v = case v of
   Null -> return anyVersion
-  Object o -> SourceDependency <$> sourceDependency o
+  Object o -> sourceDependency o
   Number n -> return (VersionConstraint $ numericVersionConstraint n)
   String s -> VersionConstraint <$> stringVersionConstraint s
   _ -> typeMismatch "Null, Object, Number, or String" v
@@ -79,7 +79,7 @@ dependencyVersion v = case v of
 data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
   deriving (Eq, Show)
 
-sourceDependency :: Object -> Parser SourceDependency
+sourceDependency :: Object -> Parser DependencyVersion
 sourceDependency o = let
     local :: Parser SourceDependency
     local = Local <$> o .: "path"
@@ -99,7 +99,7 @@ sourceDependency o = let
     subdir :: Parser (Maybe FilePath)
     subdir = o .:? "subdir"
 
-    in local <|> git
+    in SourceDependency <$> (local <|> git)
 
 numericVersionConstraint :: Scientific -> VersionConstraint
 numericVersionConstraint n = VersionRange ("==" ++ version)

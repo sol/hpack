@@ -40,7 +40,7 @@ instance FromValue BuildTools where
       parse :: Parse ParseBuildTool DependencyVersion
       parse = Parse {
         parseString = buildToolFromString
-      , parseListItem = fmap SourceDependency . sourceDependency
+      , parseListItem = sourceDependency
       , parseDictItem = dependencyVersion
       , parseKey = nameToBuildTool
       }
@@ -54,10 +54,10 @@ instance FromValue BuildTools where
       buildToolFromString s = parseQualifiedBuildTool s <|> parseUnqualifiedBuildTool s
 
       parseQualifiedBuildTool :: Monad m => Text -> m (ParseBuildTool, DependencyVersion)
-      parseQualifiedBuildTool = fmap f . cabalParse "build tool" . T.unpack
+      parseQualifiedBuildTool = fmap fromCabal . cabalParse "build tool" . T.unpack
         where
-          f :: D.ExeDependency -> (ParseBuildTool, DependencyVersion)
-          f (D.ExeDependency package executable version) = (
+          fromCabal :: D.ExeDependency -> (ParseBuildTool, DependencyVersion)
+          fromCabal (D.ExeDependency package executable version) = (
               QualifiedBuildTool (D.unPackageName package) (D.unUnqualComponentName executable)
             , VersionConstraint $ versionConstraintFromCabal version
             )
@@ -81,10 +81,7 @@ instance FromValue SystemBuildTools where
       }
 
       parseSystemBuildTool :: Monad m => Text -> m (String, VersionConstraint)
-      parseSystemBuildTool = fmap fromCabal . parseCabalBuildTool . T.unpack
+      parseSystemBuildTool = fmap fromCabal . cabalParse "system build tool" . T.unpack
         where
           fromCabal :: D.LegacyExeDependency -> (String, VersionConstraint)
           fromCabal (D.LegacyExeDependency name version) = (name, versionConstraintFromCabal version)
-
-          parseCabalBuildTool :: Monad m => String -> m D.LegacyExeDependency
-          parseCabalBuildTool = cabalParse "system build tool"

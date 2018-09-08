@@ -9,7 +9,6 @@ module Hpack.Syntax.Dependencies (
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Semigroup (Semigroup(..))
-import           Control.Monad
 import qualified Distribution.Package as D
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
@@ -35,16 +34,13 @@ instance FromValue Dependencies where
       parse :: Parse String DependencyVersion
       parse = Parse {
         parseString = parseDependency "dependency"
-      , parseListItem = fmap SourceDependency . sourceDependency
+      , parseListItem = sourceDependency
       , parseDictItem = dependencyVersion
       , parseKey = T.unpack
       }
 
 parseDependency :: Monad m => String -> Text -> m (String, DependencyVersion)
-parseDependency subject = liftM fromCabal . parseCabalDependency subject . T.unpack
+parseDependency subject = fmap fromCabal . cabalParse subject . T.unpack
   where
     fromCabal :: D.Dependency -> (String, DependencyVersion)
     fromCabal d = (D.unPackageName $ D.depPkgName d, VersionConstraint . versionConstraintFromCabal $ D.depVerRange d)
-
-parseCabalDependency :: Monad m => String -> String -> m D.Dependency
-parseCabalDependency = cabalParse
