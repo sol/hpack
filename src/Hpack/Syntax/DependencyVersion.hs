@@ -65,9 +65,6 @@ versionRange = DependencyVersion Nothing . VersionRange
 data DependencyVersion = DependencyVersion (Maybe SourceDependency) VersionConstraint
   deriving (Eq, Show)
 
-instance FromValue DependencyVersion where
-  fromValue = dependencyVersion
-
 dependencyVersion :: Value -> Parser DependencyVersion
 dependencyVersion v = case v of
   Null -> return anyVersion

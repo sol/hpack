@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 module Hpack.Syntax.Dependencies (
@@ -36,7 +35,7 @@ instance FromValue Dependencies where
         parseString = parseDependency "dependency"
       , parseListItem = objectDependency
       , parseDictItem = dependencyVersion
-      , parseKey = T.unpack
+      , parseName = T.unpack
       }
 
 parseDependency :: Monad m => String -> Text -> m (String, DependencyVersion)

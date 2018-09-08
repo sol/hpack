@@ -42,7 +42,7 @@ instance FromValue BuildTools where
         parseString = buildToolFromString
       , parseListItem = objectDependency
       , parseDictItem = dependencyVersion
-      , parseKey = nameToBuildTool
+      , parseName = nameToBuildTool
       }
 
       nameToBuildTool :: Text -> ParseBuildTool
@@ -77,7 +77,7 @@ instance FromValue SystemBuildTools where
         parseString = parseSystemBuildTool
       , parseListItem = (.: "version")
       , parseDictItem = versionConstraint
-      , parseKey = T.unpack
+      , parseName = T.unpack
       }
 
       parseSystemBuildTool :: Monad m => Text -> m (String, VersionConstraint)
