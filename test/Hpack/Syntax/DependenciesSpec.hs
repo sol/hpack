@@ -50,6 +50,21 @@ spec = do
             - hpack ^>= 1.2.3.4
           |] `shouldDecodeTo_` Dependencies [("hpack", versionRange ">=1.2.3.4 && <1.3")]
 
+        it "accepts objects with name and version" $ do
+          [yaml|
+            - name: hpack
+              version: 0.1.0
+          |] `shouldDecodeTo_` Dependencies [("hpack", versionRange "==0.1.0")]
+
+        it "accepts git dependencies with version" $ do
+          let source = Just (GitRef "https://github.com/sol/hpack" "master" Nothing)
+          [yaml|
+            - name: hpack
+              version: 0.1.0
+              git: https://github.com/sol/hpack
+              ref: master
+          |] `shouldDecodeTo_` Dependencies [("hpack", DependencyVersion source (VersionRange "==0.1.0"))]
+
         it "accepts git dependencies" $ do
           let source = Just (GitRef "https://github.com/sol/hpack" "master" Nothing)
           [yaml|
@@ -162,6 +177,12 @@ spec = do
             |] `shouldDecodeTo` left "Error while parsing $.hpack - invalid constraint \"foo\""
 
         context "when the constraint is an Object" $ do
+          it "accepts explicit version field" $ do
+            [yaml|
+            hpack:
+              version: 0.1.0
+            |] `shouldDecodeTo_` Dependencies [("hpack", versionRange "==0.1.0")]
+
           it "accepts github dependencies" $ do
             let source = Just (GitRef "https://github.com/haskell/cabal" "d53b6e0d908dfedfdf4337b2935519fb1d689e76" (Just "Cabal"))
             [yaml|

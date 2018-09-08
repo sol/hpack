@@ -40,7 +40,7 @@ instance FromValue BuildTools where
       parse :: Parse ParseBuildTool DependencyVersion
       parse = Parse {
         parseString = buildToolFromString
-      , parseListItem = sourceDependency
+      , parseListItem = objectDependency
       , parseDictItem = dependencyVersion
       , parseKey = nameToBuildTool
       }

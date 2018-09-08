@@ -34,7 +34,7 @@ instance FromValue Dependencies where
       parse :: Parse String DependencyVersion
       parse = Parse {
         parseString = parseDependency "dependency"
-      , parseListItem = sourceDependency
+      , parseListItem = objectDependency
       , parseDictItem = dependencyVersion
       , parseKey = T.unpack
       }

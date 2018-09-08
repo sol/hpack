@@ -14,7 +14,7 @@ module Hpack.Syntax.DependencyVersion (
 , dependencyVersion
 
 , SourceDependency(..)
-, sourceDependency
+, objectDependency
 
 , versionConstraintFromCabal
 
@@ -23,9 +23,11 @@ module Hpack.Syntax.DependencyVersion (
 ) where
 
 import           Control.Applicative
+import           Data.Maybe
 import           Data.Scientific
 import           Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.HashMap.Strict as HashMap
 import           Text.PrettyPrint (renderStyle, Style(..), Mode(..))
 
 import           Distribution.Version (VersionRangeF(..))
@@ -69,7 +71,7 @@ instance FromValue DependencyVersion where
 dependencyVersion :: Value -> Parser DependencyVersion
 dependencyVersion v = case v of
   Null -> return anyVersion
-  Object o -> sourceDependency o
+  Object o -> objectDependency o
   Number n -> return (DependencyVersion Nothing $ numericVersionConstraint n)
   String s -> DependencyVersion Nothing <$> stringVersionConstraint s
   _ -> typeMismatch "Null, Object, Number, or String" v
@@ -77,8 +79,11 @@ dependencyVersion v = case v of
 data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
   deriving (Eq, Show)
 
-sourceDependency :: Object -> Parser DependencyVersion
-sourceDependency o = let
+objectDependency :: Object -> Parser DependencyVersion
+objectDependency o = let
+    version :: Parser VersionConstraint
+    version = fromMaybe AnyVersion <$> (o .:? "version")
+
     local :: Parser SourceDependency
     local = Local <$> o .: "path"
 
@@ -97,7 +102,12 @@ sourceDependency o = let
     subdir :: Parser (Maybe FilePath)
     subdir = o .:? "subdir"
 
-    in DependencyVersion . Just <$> (local <|> git) <*> pure AnyVersion
+    source :: Parser (Maybe SourceDependency)
+    source
+      | any (`HashMap.member` o) ["path", "git", "github", "ref", "subdir"] = Just <$> (local <|> git)
+      | otherwise = return Nothing
+
+    in DependencyVersion <$> source <*> version
 
 numericVersionConstraint :: Scientific -> VersionConstraint
 numericVersionConstraint n = VersionRange ("==" ++ version)
