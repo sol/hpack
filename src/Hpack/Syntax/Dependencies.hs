@@ -7,7 +7,6 @@ module Hpack.Syntax.Dependencies (
 , parseDependency
 ) where
 
-import           Data.Maybe (fromMaybe)
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Semigroup (Semigroup(..))
@@ -17,6 +16,7 @@ import qualified Data.Map.Lazy as Map
 import           GHC.Exts
 
 import           Data.Aeson.Config.FromValue
+import           Data.Aeson.Config.Types
 
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.ParseDependencies
@@ -51,7 +51,7 @@ data DependencyInfo = DependencyInfo {
 addMixins :: Object -> DependencyVersion -> Parser DependencyInfo
 addMixins o version = do
   mixinsMay <- o .:? "mixin"
-  return $ DependencyInfo (fromMaybe [] mixinsMay) version
+  return $ DependencyInfo (fromMaybeList mixinsMay) version
 
 objectDependencyInfo :: Object -> Parser DependencyInfo
 objectDependencyInfo o = objectDependency o >>= addMixins o

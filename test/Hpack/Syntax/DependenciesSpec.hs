@@ -233,10 +233,17 @@ spec = do
                   version: 3.0.2
               |] `shouldDecodeTo_` Dependencies [("foo", defaultInfo { dependencyInfoVersion = versionRange "==3.0.2" })]
 
-          it "accepts mixins" $ do
-            [yaml|
-              foo:
-                mixin:
-                  - (Foo as Bar)
-                  - hiding (Spam)
-            |] `shouldDecodeTo_` Dependencies [("foo", defaultInfo { dependencyInfoMixins = ["(Foo as Bar)", "hiding (Spam)"] })]
+          context "with mixin" $ do
+            it "accepts a single value" $ do
+              [yaml|
+                foo:
+                  mixin: (Foo as Bar)
+              |] `shouldDecodeTo_` Dependencies [("foo", defaultInfo { dependencyInfoMixins = ["(Foo as Bar)"] })]
+
+            it "accepts a list" $ do
+              [yaml|
+                foo:
+                  mixin:
+                    - (Foo as Bar)
+                    - hiding (Spam)
+              |] `shouldDecodeTo_` Dependencies [("foo", defaultInfo { dependencyInfoMixins = ["(Foo as Bar)", "hiding (Spam)"] })]
