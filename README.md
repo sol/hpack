@@ -302,6 +302,18 @@ The individual dependencies can also be specified as an object:
     - name: containers
 ```
 
+You can use objects at both levels, or have a mix of valid ways to
+specify the individual dependencies:
+
+```
+  dependencies:
+    base:
+      version: ">= 4.10.1.0"
+    # If you don't give a version, it defaults to 'any version'.
+    containers: {}
+    transformers: ">= 0.5.5.0 && < 5.6"
+```
+
 Individual dependencies as objects are only supported from version
 `0.31.0`.
 
