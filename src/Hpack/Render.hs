@@ -24,6 +24,7 @@ module Hpack.Render (
 , CommaStyle(..)
 #ifdef TEST
 , renderConditional
+, renderDependencies
 , renderLibraryFields
 , renderExecutableFields
 , renderFlag
@@ -44,6 +45,7 @@ import           Hpack.Util
 import           Hpack.Config
 import           Hpack.Render.Hints
 import           Hpack.Render.Dsl
+import           Hpack.Syntax.Dependencies
 
 renderPackage :: [String] -> Package -> String
 renderPackage oldCabalFile = renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder
@@ -195,7 +197,7 @@ renderExecutableFields Executable{..} = mainIs ++ [otherModules, generatedModule
 
 renderCustomSetup :: CustomSetup -> Element
 renderCustomSetup CustomSetup{..} =
-  Stanza "custom-setup" [renderDependencies "setup-depends" customSetupDependencies]
+  Stanza "custom-setup" $ renderDependencies "setup-depends" customSetupDependencies
 
 renderLibrary :: Section Library -> Element
 renderLibrary sect = Stanza "library" $ renderLibrarySection sect
@@ -239,10 +241,10 @@ renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = ad
   , renderDirectories "extra-frameworks-dirs" sectionExtraFrameworksDirs
   , Field "frameworks" (LineSeparatedList sectionFrameworks)
   , renderLdOptions sectionLdOptions
-  , renderDependencies "build-depends" sectionDependencies
   , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigDependencies)
   ]
   ++ renderBuildTools sectionBuildTools sectionSystemBuildTools
+  ++ renderDependencies "build-depends" sectionDependencies
   ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ map (renderConditional renderSectionData) sectionConditionals
   ++ extraFieldsEnd
@@ -309,11 +311,19 @@ renderReexportedModules = Field "reexported-modules" . LineSeparatedList
 renderSignatures :: [String] -> Element
 renderSignatures = Field "signatures" . CommaSeparatedList
 
-renderDependencies :: String -> Dependencies -> Element
-renderDependencies name = Field name . CommaSeparatedList . map renderDependency . Map.toList . unDependencies
+renderDependencies :: String -> Dependencies -> [Element]
+renderDependencies name deps = [
+    Field name (CommaSeparatedList renderedDeps)
+  , Field "mixins" (CommaSeparatedList $ concat mixins)
+  ]
+  where
+    (renderedDeps, mixins) = unzip . map renderDependency . Map.toList $ unDependencies deps
 
-renderDependency :: (String, DependencyVersion) -> String
-renderDependency (name, version) = name ++ renderVersion version
+renderDependency :: (String, DependencyInfo) -> (String, [String])
+renderDependency (name, DependencyInfo mixins version) = (
+      name ++ renderVersion version
+    , [ name ++ " " ++ mixin | mixin <- mixins ]
+    )
 
 renderVersion :: DependencyVersion -> String
 renderVersion (DependencyVersion _ c) = renderVersionConstraint c

@@ -177,7 +177,7 @@ values are merged with per section values.
 | `frameworks` | · | | |
 | `extra-frameworks-dirs` | · | | |
 | `ld-options` | · | | |
-| `dependencies` | `build-depends` | | |
+| `dependencies` | `build-depends` | | See [Dependencies](#dependencies) |
 | `pkg-config-dependencies` | `pkgconfig-depends` | | |
 | `build-tools` | [`build-tools`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tools) and/or [`build-tool-depends`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tool-depends) | | |
 | `system-build-tools` | `build-tools` | | A set of system executables that have to be on the `PATH` to build this component |
@@ -275,6 +275,69 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `description` | · | | Optional |
 | `manual` | · | | Required (unlike Cabal) |
 | `default` | · | | Required (unlike Cabal) |
+
+#### <a name="dependencies"></a> Dependencies
+
+Dependencies can be specified as either a list or an object. These are
+equivalent:
+
+```
+  dependencies:
+    - base >= 4.10.1.0
+    - containers >= 5.10
+```
+
+```
+  dependencies:
+    base: ">= 4.10.1.0"
+    containers: ">= 5.10"
+```
+
+The individual dependencies can also be specified as an object:
+
+```
+  dependencies:
+    - name: base
+      version: ">= 4.10.1.0"
+    - name: containers
+```
+
+Individual dependencies as objects are only supported from version
+`0.31.0`.
+
+When a dependency is specified as an object, you can use the `mixin`
+field to control what modules from the dependency your program will
+see and how its signatures are filled in:
+
+```
+  dependencies:
+    # This gives you a shorter name to import from, and hides the other modules.
+    - name: containers
+      mixin:
+        - (Data.Map.Lazy as Map)
+    # This hides the System.IO.Unsafe module, and leaves the other modules unchanged.
+    - name: base
+      mixin:
+        - hiding (System.IO.Unsafe)
+    # This exposes only the listed modules - you won't be able to import the others!
+    - name: lens
+      mixin:
+        - (Control.Lens, Data.Set.Lens, Data.Map.Lens as MapL)
+    # This will rename the module, and expose the others.
+    - name: transformers
+      mixin:
+        - hiding (Control.Monad.Trans.State.Lazy)
+        - (Control.Monad.Trans.State.Lazy as State)
+```
+
+For more information, see the
+[Cabal documentation](https://cabal.readthedocs.io/en/latest/developing-packages.html#pkg-field-mixins).
+
+Hint: you can hide the `Prelude` module from `base`, and then rename
+an alternative prelude to `Prelude` so that it doesn't need to be
+imported!
+
+`mixin` was added in version `0.31.0`.
 
 #### <a name="conditionals"></a> Conditionals
 

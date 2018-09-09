@@ -10,6 +10,7 @@ import           Hpack.ConfigSpec hiding (spec)
 import           Hpack.Config hiding (package)
 import           Hpack.Render.Dsl
 import           Hpack.Render
+import           Hpack.Syntax.Dependencies
 
 library :: Library
 library = Library Nothing [] [] [] [] []
@@ -161,8 +162,11 @@ spec = do
 
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage_ package {packageExecutables = [("foo", executable {sectionDependencies = Dependencies
-        [("foo", versionRange "== 0.1.0"), ("bar", anyVersion)]})]} `shouldBe` unlines [
+        let dependencies = Dependencies
+              [ ("foo", defaultInfo { dependencyInfoVersion = versionRange "== 0.1.0" })
+              , ("bar", defaultInfo)
+              ]
+        renderPackage_ package {packageExecutables = [("foo", executable {sectionDependencies = dependencies})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -256,6 +260,17 @@ spec = do
         , "  if os(windows)"
         , "    build-depends:"
         , "        Win32"
+        ]
+
+    it "conditionalises both build-depends and mixins" $ do
+      let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = [("Win32", depInfo)]} Nothing
+          depInfo = defaultInfo { dependencyInfoMixins = ["hiding (Blah)"] }
+      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
+          "if os(windows)"
+        , "  build-depends:"
+        , "      Win32"
+        , "  mixins:"
+        , "      Win32 hiding (Blah)"
         ]
 
   describe "renderFlag" $ do

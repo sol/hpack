@@ -12,6 +12,7 @@ module Hpack.ConfigSpec (
 
 , package
 , deps
+, defaultInfo
 ) where
 
 import           Helper
@@ -40,8 +41,11 @@ instance Exts.IsList (Maybe (List a)) where
   fromList = Just . List
   toList = undefined
 
+defaultInfo :: DependencyInfo
+defaultInfo = DependencyInfo [] anyVersion
+
 deps :: [String] -> Dependencies
-deps = Dependencies . Map.fromList . map (flip (,) anyVersion)
+deps = Dependencies . Map.fromList . map (flip (,) defaultInfo)
 
 package :: Package
 package = Config.package "foo" "0.0.0"

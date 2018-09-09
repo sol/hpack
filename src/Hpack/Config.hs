@@ -172,14 +172,14 @@ renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Depen
     renameConditional :: Conditional (Section a) -> Conditional (Section a)
     renameConditional (Conditional condition then_ else_) = Conditional condition (renameDependencies old new then_) (renameDependencies old new <$> else_)
 
-packageDependencies :: Package -> [(String, DependencyVersion)]
+packageDependencies :: Package -> [(String, DependencyInfo)]
 packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . fst)) $
      (concatMap deps packageExecutables)
   ++ (concatMap deps packageTests)
   ++ (concatMap deps packageBenchmarks)
   ++ maybe [] deps packageLibrary
   where
-    deps xs = [(name, version) | (name, version) <- (Map.toList . unDependencies . sectionDependencies) xs]
+    deps xs = [(name, info) | (name, info) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
 section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
@@ -720,6 +720,7 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
     sectionCabalVersion sect = maximum $ [
         makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxSources) sect)
       , makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxOptions) sect)
+      , makeVersion [2,0] <$ guard (sectionSatisfies (any hasMixins . unDependencies . sectionDependencies) sect)
       ] ++ map versionFromSystemBuildTool systemBuildTools
       where
         versionFromSystemBuildTool name
@@ -775,6 +776,9 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
       ]
     sectionAll :: (Semigroup b, Monoid b) => (Section a -> b) -> Section a -> b
     sectionAll f sect = f sect <> foldMap (foldMap $ sectionAll f) (sectionConditionals sect)
+
+    hasMixins :: DependencyInfo -> Bool
+    hasMixins (DependencyInfo mixins _) = not (null mixins)
 
 decodeValue :: FromValue a => ProgramName -> FilePath -> Value -> Warnings (Errors IO) a
 decodeValue (ProgramName programName) file value = do
