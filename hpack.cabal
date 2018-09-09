@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d54d78d25b136d94451fae1d1d792c02ee183adeb4966dfd7d2ce77b18e3b8df
+-- hash: 0cbf3a0ac1530c89a2d08e73fdac28c231c675b9e11e339db23af9a6062b20be
 
 name:           hpack
 version:        0.30.0
@@ -164,7 +164,6 @@ test-suite spec
       Hpack.HaskellSpec
       Hpack.LicenseSpec
       Hpack.OptionsSpec
-      Hpack.Render.DependencySpec
       Hpack.Render.DslSpec
       Hpack.Render.HintsSpec
       Hpack.RenderSpec
