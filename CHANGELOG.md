@@ -1,4 +1,4 @@
-## next
+## Changes in 0.31.0
   - Add `mixin` to the fields read by dependencies when they are
     objects (see #318)
   - `hpack` now returns with a successful exit code if the `.cabal`
