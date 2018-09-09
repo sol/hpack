@@ -11,6 +11,7 @@ module Hpack.Syntax.DependencyVersion (
 , versionRange
 
 , DependencyVersion(..)
+, withDependencyVersion
 , dependencyVersion
 
 , SourceDependency(..)
@@ -65,13 +66,20 @@ versionRange = DependencyVersion Nothing . VersionRange
 data DependencyVersion = DependencyVersion (Maybe SourceDependency) VersionConstraint
   deriving (Eq, Show)
 
-dependencyVersion :: Value -> Parser DependencyVersion
-dependencyVersion v = case v of
-  Null -> return anyVersion
-  Object o -> objectDependency o
-  Number n -> return (DependencyVersion Nothing $ numericVersionConstraint n)
-  String s -> DependencyVersion Nothing <$> stringVersionConstraint s
+withDependencyVersion
+  :: (DependencyVersion -> a)
+  -> (Object -> DependencyVersion -> Parser a)
+  -> Value
+  -> Parser a
+withDependencyVersion k obj v = case v of
+  Null -> return $ k anyVersion
+  Object o -> objectDependency o >>= obj o
+  Number n -> return $ k (DependencyVersion Nothing $ numericVersionConstraint n)
+  String s -> k . DependencyVersion Nothing <$> stringVersionConstraint s
   _ -> typeMismatch "Null, Object, Number, or String" v
+
+dependencyVersion :: Value -> Parser DependencyVersion
+dependencyVersion = withDependencyVersion id (const return)
 
 data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
   deriving (Eq, Show)

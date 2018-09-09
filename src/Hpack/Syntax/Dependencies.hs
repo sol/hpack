@@ -1,10 +1,13 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 module Hpack.Syntax.Dependencies (
   Dependencies(..)
+, DependencyInfo(..)
 , parseDependency
 ) where
 
+import           Data.Maybe (fromMaybe)
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Semigroup (Semigroup(..))
@@ -19,24 +22,42 @@ import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.ParseDependencies
 
 newtype Dependencies = Dependencies {
-  unDependencies :: Map String DependencyVersion
+  unDependencies :: Map String DependencyInfo
 } deriving (Eq, Show, Semigroup, Monoid)
 
 instance IsList Dependencies where
-  type Item Dependencies = (String, DependencyVersion)
+  type Item Dependencies = (String, DependencyInfo)
   fromList = Dependencies . Map.fromList
   toList = Map.toList . unDependencies
 
 instance FromValue Dependencies where
   fromValue = fmap (Dependencies . Map.fromList) . parseDependencies parse
     where
-      parse :: Parse String DependencyVersion
+      parse :: Parse String DependencyInfo
       parse = Parse {
-        parseString = parseDependency "dependency"
-      , parseListItem = objectDependency
-      , parseDictItem = dependencyVersion
+        parseString = \ input -> do
+          (name, version) <- parseDependency "dependency" input
+          return (name, DependencyInfo [] version)
+      , parseListItem = objectDependencyInfo
+      , parseDictItem = dependencyInfo
       , parseName = T.unpack
       }
+
+data DependencyInfo = DependencyInfo {
+  dependencyInfoMixins :: [String]
+, dependencyInfoVersion :: DependencyVersion
+} deriving (Eq, Show)
+
+addMixins :: Object -> DependencyVersion -> Parser DependencyInfo
+addMixins o version = do
+  mixinsMay <- o .:? "mixin"
+  return $ DependencyInfo (fromMaybe [] mixinsMay) version
+
+objectDependencyInfo :: Object -> Parser DependencyInfo
+objectDependencyInfo o = objectDependency o >>= addMixins o
+
+dependencyInfo :: Value -> Parser DependencyInfo
+dependencyInfo = withDependencyVersion (DependencyInfo []) addMixins
 
 parseDependency :: Monad m => String -> Text -> m (String, DependencyVersion)
 parseDependency subject = fmap fromCabal . cabalParse subject . T.unpack

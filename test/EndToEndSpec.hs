@@ -1099,6 +1099,23 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                   Exposed
             |]) {packageCabalVersion = "2.0"}
 
+      context "mixins" $ do
+        it "sets cabal-version to 2.0 if mixins are used" $ do
+          [i|
+          library:
+            dependencies:
+              foo:
+                mixin:
+                  - (Blah as Etc)
+          |] `shouldRenderTo` (library [i|
+          other-modules:
+              Paths_foo
+          build-depends:
+              foo
+          mixins:
+              foo (Blah as Etc)
+          |]) {packageCabalVersion = "2.0"}
+
     describe "internal-libraries" $ do
       it "accepts internal-libraries" $ do
         touch "src/Foo.hs"

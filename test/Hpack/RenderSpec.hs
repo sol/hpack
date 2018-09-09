@@ -10,6 +10,7 @@ import           Hpack.ConfigSpec hiding (spec)
 import           Hpack.Config hiding (package)
 import           Hpack.Render.Dsl
 import           Hpack.Render
+import           Hpack.Syntax.Dependencies
 
 library :: Library
 library = Library Nothing [] [] [] [] []
@@ -161,8 +162,11 @@ spec = do
 
     context "when rendering executable section" $ do
       it "includes dependencies" $ do
-        renderPackage_ package {packageExecutables = [("foo", executable {sectionDependencies = Dependencies
-        [("foo", versionRange "== 0.1.0"), ("bar", anyVersion)]})]} `shouldBe` unlines [
+        let dependencies = Dependencies
+              [ ("foo", defaultInfo { dependencyInfoVersion = versionRange "== 0.1.0" })
+              , ("bar", defaultInfo)
+              ]
+        renderPackage_ package {packageExecutables = [("foo", executable {sectionDependencies = dependencies})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -258,6 +262,17 @@ spec = do
         , "        Win32"
         ]
 
+    it "conditionalises both build-depends and mixins" $ do
+      let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = [("Win32", depInfo)]} Nothing
+          depInfo = defaultInfo { dependencyInfoMixins = ["hiding (Blah)"] }
+      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
+          "if os(windows)"
+        , "  build-depends:"
+        , "      Win32"
+        , "  mixins:"
+        , "      Win32 hiding (Blah)"
+        ]
+
   describe "renderFlag" $ do
     it "renders flags" $ do
       let flag = (Flag "foo" (Just "some flag") True False)
@@ -330,3 +345,43 @@ spec = do
             "name:"
           , "    ./."
           ]
+
+  describe "renderDependencies" $ do
+    it "renders build-depends" $ do
+      let deps_ =
+            [ ("foo", DependencyInfo [] anyVersion)
+            ]
+      renderDependencies "build-depends" deps_ `shouldBe`
+        [ Field "build-depends" $ CommaSeparatedList
+            [ "foo"
+            ]
+        , Field "mixins" $ CommaSeparatedList []
+        ]
+
+    it "renders build-depends with versions" $ do
+      let deps_ =
+            [ ("foo", DependencyInfo [] (versionRange ">= 2 && < 3"))
+            ]
+      renderDependencies "build-depends" deps_ `shouldBe`
+        [ Field "build-depends" $ CommaSeparatedList
+            [ "foo >= 2 && < 3"
+            ]
+        , Field "mixins" $ CommaSeparatedList []
+        ]
+
+    it "renders mixins and build-depends for multiple modules" $ do
+      let deps_ =
+            [ ("foo", DependencyInfo ["(Foo as Foo1)"] anyVersion)
+            , ("bar", DependencyInfo ["hiding (Spam)", "(Spam as Spam1) requires (Mod as Sig)"] anyVersion)
+            ]
+      renderDependencies "build-depends" deps_ `shouldBe`
+        [ Field "build-depends" $ CommaSeparatedList
+           [ "bar"
+           , "foo"
+           ]
+        , Field "mixins" $ CommaSeparatedList
+            [ "bar hiding (Spam)"
+            , "bar (Spam as Spam1) requires (Mod as Sig)"
+            , "foo (Foo as Foo1)"
+            ]
+        ]
