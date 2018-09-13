@@ -182,9 +182,10 @@ hpackResultWithVersion v (Options options force toStdout) = do
   case status of
     Generated -> do
       let hash = sha256 withoutHeader
+          out  = cabalVersion ++ header (decodeOptionsTarget options) v hash ++ body
       if toStdout
-        then Utf8.putStr withoutHeader
-        else Utf8.writeFile cabalFile (cabalVersion ++ header (decodeOptionsTarget options) v hash ++ body)
+        then Utf8.putStr out
+        else Utf8.writeFile cabalFile out
     _ -> return ()
   return Result {
       resultWarnings = warnings
