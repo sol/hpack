@@ -101,6 +101,7 @@ printHelp = do
   Utf8.hPutStrLn stderr $ unlines [
       "Usage: " ++ name ++ " [ --silent ] [ --force | -f ] [ PATH ] [ - ]"
     , "       " ++ name ++ " --version"
+    , "       " ++ name ++ " --numeric-version"
     , "       " ++ name ++ " --help"
     ]
 
