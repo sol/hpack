@@ -247,7 +247,8 @@ spec = do
       withPackageConfig_ [i|
         author: John Doe
         |]
-        (`shouldBe` package {packageAuthor = ["John Doe"]})
+        (`shouldBe` package {packageAuthor = ["John Doe"]
+                            ,packageMaintainer = ["John Doe"]})
 
     it "accepts maintainer" $ do
       withPackageConfig_ [i|
