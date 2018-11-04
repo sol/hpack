@@ -1471,6 +1471,30 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
             default-language: Haskell2010
           |]
+    describe "default value of maintainer" $ do
+      it "gives maintainer precedence" $ do
+        [i|
+          author: John Doe
+          maintainer: Jane Doe
+          |] `shouldRenderTo` package [i|
+          author: John Doe
+          maintainer: Jane Doe
+          |]
+      context "with author" $ do
+        it "uses author if it is not specified" $ do
+          [i|
+            author: John Doe
+            |] `shouldRenderTo` package [i|
+            author: John Doe
+            maintainer: John Doe
+            |]
+        it "omits maintainer if it is null" $ do
+          [i|
+            author: John Doe
+            maintainer: null
+            |] `shouldRenderTo` package [i|
+            author: John Doe
+            |]
 
 run :: HasCallStack => FilePath -> FilePath -> String -> IO ([String], String)
 run userDataDir c old = run_ userDataDir c old >>= either assertFailure return
