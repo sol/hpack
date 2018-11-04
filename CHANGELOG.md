@@ -1,3 +1,6 @@
+## Next
+  - Add default value for maintainer (see #339)
+
 ## Changes in 0.31.1
   - Show the header when printing to stdout (see #331)
   - Add help for `--numeric-version`(see #337)
