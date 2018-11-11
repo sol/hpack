@@ -51,7 +51,7 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 | `homepage` | · | If `github` given, `<repo>#readme` | | | |
 | `bug-reports` | · | If `github` given, `<repo>/issues` | | | |
 | `author` | · | | May be a list | | |
-| `maintainer` | · | If `author` given, `author` | May be a list | | |
+| `maintainer` | · | `author` | May be a list | | |
 | `copyright` | · | | May be a list | |
 | `license` | · | Inferred from `license-file` | Both [SPDX license expressions](https://spdx.org/licenses/) and traditional Cabal license identifiers are accepted. | `license: MIT` | SPDX: `0.29.0` |
 | `license-file` | `license-file` or `license-files` | `LICENSE` if file exists | May be a list | | |
