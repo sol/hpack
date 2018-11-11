@@ -1168,9 +1168,9 @@ toPackage_ dir (Product g PackageConfig{..}) = do
 
     maintainer :: Maybe (List String)
     maintainer = case (packageConfigAuthor, packageConfigMaintainer) of
-                   (Just _, Nothing) -> packageConfigAuthor
-                   (_, Just m) -> m
-                   _            -> Nothing
+      (Just _, Nothing) -> packageConfigAuthor
+      (_, Just m) -> m
+      _            -> Nothing
 
 expandForeignSources
   :: MonadIO m
