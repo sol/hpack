@@ -1481,7 +1481,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           maintainer: Jane Doe
           |]
       context "with author" $ do
-        it "uses author if it is not specified" $ do
+        it "uses author if maintainer is not specified" $ do
           [i|
             author: John Doe
             |] `shouldRenderTo` package [i|
