@@ -1,5 +1,8 @@
 ## Next
   - Add default value for maintainer (see #339)
+  - New `--check-only` option, which doesn't write any files but makes
+    sure that the `.cabal` file is up to date. If it is not, the
+    command exits with a non-zero status.
 
 ## Changes in 0.31.1
   - Show the header when printing to stdout (see #331)

@@ -18,10 +18,10 @@ spec = do
 
     context "by default" $ do
       it "returns Run" $ do
-        parseOptions defaultTarget [] `shouldReturn` Run (ParseOptions Verbose NoForce False defaultTarget)
+        parseOptions defaultTarget [] `shouldReturn` Run (ParseOptions Verbose (Generate NoForce) False defaultTarget)
 
       it "includes target" $ do
-        parseOptions defaultTarget ["foo.yaml"] `shouldReturn` Run (ParseOptions Verbose NoForce False "foo.yaml")
+        parseOptions defaultTarget ["foo.yaml"] `shouldReturn` Run (ParseOptions Verbose (Generate NoForce) False "foo.yaml")
 
       context "with superfluous arguments" $ do
         it "returns ParseError" $ do
@@ -29,19 +29,29 @@ spec = do
 
       context "with --silent" $ do
         it "sets optionsVerbose to NoVerbose" $ do
-          parseOptions defaultTarget ["--silent"] `shouldReturn` Run (ParseOptions NoVerbose NoForce False defaultTarget)
+          parseOptions defaultTarget ["--silent"] `shouldReturn` Run (ParseOptions NoVerbose (Generate NoForce) False defaultTarget)
 
       context "with --force" $ do
-        it "sets optionsForce to Force" $ do
-          parseOptions defaultTarget ["--force"] `shouldReturn` Run (ParseOptions Verbose Force False defaultTarget)
+        it "sets optionsMode to GenerateForce" $ do
+          parseOptions defaultTarget ["--force"] `shouldReturn` Run (ParseOptions Verbose (Generate Force) False defaultTarget)
 
       context "with -f" $ do
-        it "sets optionsForce to Force" $ do
-          parseOptions defaultTarget ["-f"] `shouldReturn` Run (ParseOptions Verbose Force False defaultTarget)
+        it "sets optionsMode to GenerateForce" $ do
+          parseOptions defaultTarget ["-f"] `shouldReturn` Run (ParseOptions Verbose (Generate Force) False defaultTarget)
+
+      context "with --check-only" $ do
+        it "sets optionsMode to CheckOnly" $ do
+          parseOptions defaultTarget ["--check-only"] `shouldReturn` Run (ParseOptions Verbose CheckOnly False defaultTarget)
+
+        it "overrides --force if it comes after" $ do
+          parseOptions defaultTarget ["--force", "--check-only"] `shouldReturn` Run (ParseOptions Verbose CheckOnly False defaultTarget)
+
+        it "overrides --force if it comes before" $ do
+          parseOptions defaultTarget ["--check-only", "--force"] `shouldReturn` Run (ParseOptions Verbose CheckOnly False defaultTarget)
 
       context "with -" $ do
         it "sets optionsToStdout to True, implies Force and NoVerbose" $ do
-          parseOptions defaultTarget ["-"] `shouldReturn` Run (ParseOptions NoVerbose Force True defaultTarget)
+          parseOptions defaultTarget ["-"] `shouldReturn` Run (ParseOptions NoVerbose (Generate Force) True defaultTarget)
 
         it "rejects - for target" $ do
           parseOptions defaultTarget ["-", "-"] `shouldReturn` ParseError
