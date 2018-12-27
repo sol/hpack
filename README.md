@@ -159,8 +159,8 @@ values are merged with per section values.
 | --- | --- | --- | --- |
 | `buildable` | · | | Per section takes precedence over top-level |
 | `source-dirs` | `hs-source-dirs` | | |
-| `default-extensions` | · | | |
-| `other-extensions` | · | | |
+| `default-extensions` | · | | extensions that will be enabled in every source file |
+| `other-extensions` | · | | indicates that these extensions will be used in at least one source file |
 | `ghc-options` | · | | |
 | `ghc-prof-options` | · | | |
 | `ghcjs-options` | · | | |
