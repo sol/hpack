@@ -145,3 +145,22 @@ spec = do
     context "when a literal file does not exist" $ do
       it "warns and keeps the file" $ \dir -> do
         expandGlobs "field-name" dir ["foo.js"] `shouldReturn` (["Specified file \"foo.js\" for field-name does not exist"], ["foo.js"])
+
+    context "when a glob matches filenames with spaces in them" $ do
+      it "quotes the filenames which have spaces in them" $ \dir -> do
+        touch (dir </> "foo bar baz qux.agda")
+        touch (dir </> "quux quuz .agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["\"foo bar baz qux.agda\"", "\"quux quuz .agda\""])
+
+      it "doesn't modify filenames with no spaces in them" $ \dir -> do
+        touch (dir </> "foo-bar-baz-qux.agda")
+        touch (dir </> "quux-quuz.agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["foo-bar-baz-qux.agda", "quux-quuz.agda"])
+
+      it "only modifies the filenames with spaces in them" $ \dir -> do
+        touch (dir </> "foo-bar-baz-qux.agda")
+        touch (dir </> "quux quuz .agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["foo-bar-baz-qux.agda", "\"quux quuz .agda\""])
