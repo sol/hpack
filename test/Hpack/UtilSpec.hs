@@ -146,7 +146,7 @@ spec = do
       it "warns and keeps the file" $ \dir -> do
         expandGlobs "field-name" dir ["foo.js"] `shouldReturn` (["Specified file \"foo.js\" for field-name does not exist"], ["foo.js"])
 
-    context "when a glob matches filenames with spaces in them" $ do
+    context "when a glob matches filenames with whitespace in them" $ do
       it "quotes the filenames which have spaces in them" $ \dir -> do
         touch (dir </> "foo bar baz qux.agda")
         touch (dir </> "quux quuz .agda")
@@ -164,3 +164,15 @@ spec = do
         touch (dir </> "quux quuz .agda")
         expandGlobs "file-name" dir ["*"] `shouldReturn`
           ([],["foo-bar-baz-qux.agda", "\"quux quuz .agda\""])
+
+      it "quotes filenames which have spaces in them" $ \dir -> do
+        touch (dir </> "foo bar baz qux.agda")
+        touch (dir </> "quux quuz .agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["\"foo bar baz qux.agda\"", "\"quux quuz .agda\""])
+
+      it "quotes filenames which have leading and trailing whitespace" $ \dir -> do
+        touch (dir </> "  foo bar baz qux.agda")
+        touch (dir </> "quux quuz .agda    ")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["\"  foo bar baz qux.agda\"", "\"quux quuz .agda    \""])
