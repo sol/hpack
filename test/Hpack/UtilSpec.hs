@@ -172,7 +172,15 @@ spec = do
           ([],["\"foo bar baz qux.agda\"", "\"quux quuz .agda\""])
 
       it "quotes filenames which have leading and trailing whitespace" $ \dir -> do
+        touch (dir </> "\nasdfqwerty.agda")
         touch (dir </> "  foo bar baz qux.agda")
         touch (dir </> "quux quuz .agda    ")
         expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["\"  foo bar baz qux.agda\"", "\"quux quuz .agda    \""])
+          ([],["\"\\nasdfqwerty.agda\"", "\"  foo bar baz qux.agda\"", "\"quux quuz .agda    \""])
+
+      it "quotes filenames which have newlines in them" $ \dir -> do
+        touch (dir </> "asdf\nqwerty.agda")
+        touch (dir </> "foo bar\n baz qux.agda")
+        touch (dir </> "quux quuz .ag\nda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["\"asdf\\nqwerty.agda\"", "\"foo bar\\n baz qux.agda\"", "\"quux quuz .ag\\nda\""])

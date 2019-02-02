@@ -130,9 +130,12 @@ expandGlobs name dir patterns = do
           | otherwise = []
 
     quoteSpaces :: FilePath -> FilePath
-    quoteSpaces fp = if any isSpace fp
-                     then "\"" ++ fp ++ "\""
-                     else fp
+    quoteSpaces fp
+      | any isSpace fp = let escapeNewline :: Char -> String
+                             escapeNewline '\n' = "\\n"
+                             escapeNewline x    = [x]
+                         in "\"" ++ concatMap escapeNewline fp ++ "\""
+      | otherwise      = fp
 
     normalize :: FilePath -> FilePath
     normalize = toPosixFilePath . makeRelative dir
