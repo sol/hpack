@@ -147,17 +147,11 @@ spec = do
         expandGlobs "field-name" dir ["foo.js"] `shouldReturn` (["Specified file \"foo.js\" for field-name does not exist"], ["foo.js"])
 
     context "when a glob matches filenames with whitespace in them" $ do
-      it "quotes the filenames which have spaces in them" $ \dir -> do
+      it "quotes filenames which have spaces in them" $ \dir -> do
         touch (dir </> "foo bar baz qux.agda")
         touch (dir </> "quux quuz .agda")
         expandGlobs "file-name" dir ["*"] `shouldReturn`
           ([],["\"foo bar baz qux.agda\"", "\"quux quuz .agda\""])
-
-      it "doesn't modify filenames with no spaces in them" $ \dir -> do
-        touch (dir </> "foo-bar-baz-qux.agda")
-        touch (dir </> "quux-quuz.agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["foo-bar-baz-qux.agda", "quux-quuz.agda"])
 
       it "only modifies the filenames with spaces in them" $ \dir -> do
         touch (dir </> "foo-bar-baz-qux.agda")
@@ -184,3 +178,21 @@ spec = do
         touch (dir </> "quux quuz .ag\nda")
         expandGlobs "file-name" dir ["*"] `shouldReturn`
           ([],["\"asdf\\nqwerty.agda\"", "\"foo bar\\n baz qux.agda\"", "\"quux quuz .ag\\nda\""])
+
+      it "quotes filenames which have double quotes and whitespace in them" $ \dir -> do
+        touch (dir </> "foo\"bar\" baz\"qux.agda")
+        touch (dir </> "quux\"quuz \".agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["\"foo\\\"bar\\\" baz\\\"qux.agda\"", "\"quux\\\"quuz \\\".agda\""])
+
+      it "doesn't modify filenames with no spaces in them" $ \dir -> do
+        touch (dir </> "foo-bar-baz-qux.agda")
+        touch (dir </> "quux-quuz.agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["foo-bar-baz-qux.agda", "quux-quuz.agda"])
+
+      it "doesn't quote filenames which have double quotes but no whitespace in them" $ \dir -> do
+        touch (dir </> "foo\"bar\"baz\"qux.agda")
+        touch (dir </> "quux\"quuz\".agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["foo\"bar\"baz\"qux.agda", "quux\"quuz\".agda"])

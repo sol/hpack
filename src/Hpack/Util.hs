@@ -131,10 +131,12 @@ expandGlobs name dir patterns = do
 
     quoteSpaces :: FilePath -> FilePath
     quoteSpaces fp
-      | any isSpace fp = let escapeNewline :: Char -> String
-                             escapeNewline '\n' = "\\n"
-                             escapeNewline x    = [x]
-                         in "\"" ++ concatMap escapeNewline fp ++ "\""
+      | any isSpace fp
+        = let escapeSpecial :: Char -> String
+              escapeSpecial '\n' = "\\n"
+              escapeSpecial '"'  = "\\\""
+              escapeSpecial x    = [x]
+          in "\"" ++ concatMap escapeSpecial fp ++ "\""
       | otherwise      = fp
 
     normalize :: FilePath -> FilePath
