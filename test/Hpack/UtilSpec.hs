@@ -148,10 +148,11 @@ spec = do
 
     context "when a glob matches filenames with whitespace in them" $ do
       it "quotes filenames which have spaces in them" $ \dir -> do
+        touch (dir </> "asdf' qwerty .agda")
         touch (dir </> "foo bar baz qux.agda")
         touch (dir </> "quux quuz .agda")
         expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["\"foo bar baz qux.agda\"", "\"quux quuz .agda\""])
+          ([],["\"asdf' qwerty .agda\"", "\"foo bar baz qux.agda\"", "\"quux quuz .agda\""])
 
       it "only modifies the filenames with spaces in them" $ \dir -> do
         touch (dir </> "foo-bar-baz-qux.agda")
