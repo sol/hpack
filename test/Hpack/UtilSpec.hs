@@ -186,6 +186,12 @@ spec = do
         expandGlobs "file-name" dir ["*"] `shouldReturn`
           ([],["\"foo\\\"bar\\\" baz\\\"qux.agda\"", "\"quux\\\"quuz \\\".agda\""])
 
+      it "quotes filenames which have backslashes and whitespace in them" $ \dir -> do
+        touch (dir </> "foo\\bar\\ baz\\qux.agda")
+        touch (dir </> "quux\\quuz \\.agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["\"foo\\\\bar\\\\ baz\\\\qux.agda\"", "\"quux\\\\quuz \\\\.agda\""])
+
       it "doesn't modify filenames with no spaces in them" $ \dir -> do
         touch (dir </> "foo-bar-baz-qux.agda")
         touch (dir </> "quux-quuz.agda")
@@ -197,3 +203,9 @@ spec = do
         touch (dir </> "quux\"quuz\".agda")
         expandGlobs "file-name" dir ["*"] `shouldReturn`
           ([],["foo\"bar\"baz\"qux.agda", "quux\"quuz\".agda"])
+
+      it "doesn't quote filenames which have backslashes but no whitespace in them" $ \dir -> do
+        touch (dir </> "foo\\bar\\baz\\qux.agda")
+        touch (dir </> "quux\\quuz\\.agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["foo\\bar\\baz\\qux.agda", "quux\\quuz\\.agda"])

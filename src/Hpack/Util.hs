@@ -135,6 +135,7 @@ expandGlobs name dir patterns = do
         = let escapeSpecial :: Char -> String
               escapeSpecial '\n' = "\\n"
               escapeSpecial '"'  = "\\\""
+              escapeSpecial '\\'  = "\\\\"
               escapeSpecial x    = [x]
           in "\"" ++ concatMap escapeSpecial fp ++ "\""
       | otherwise      = fp
