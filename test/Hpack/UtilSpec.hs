@@ -148,6 +148,12 @@ spec = do
 
     context "when a glob matches filenames with whitespace in them" $ do
       it "quotes filenames which have spaces in them" $ \dir -> do
+        touch (dir </> "foo bar baz qux.agda")
+        touch (dir </> "quux quuz .agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["\"foo bar baz qux.agda\"", "\"quux quuz .agda\""])
+
+      it "quotes filenames which have spaces and a single quote in them" $ \dir -> do
         touch (dir </> "asdf' qwerty .agda")
         touch (dir </> "foo bar baz qux.agda")
         touch (dir </> "quux quuz .agda")
@@ -159,12 +165,6 @@ spec = do
         touch (dir </> "quux quuz .agda")
         expandGlobs "file-name" dir ["*"] `shouldReturn`
           ([],["foo-bar-baz-qux.agda", "\"quux quuz .agda\""])
-
-      it "quotes filenames which have spaces in them" $ \dir -> do
-        touch (dir </> "foo bar baz qux.agda")
-        touch (dir </> "quux quuz .agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["\"foo bar baz qux.agda\"", "\"quux quuz .agda\""])
 
       it "quotes filenames which have leading and trailing whitespace" $ \dir -> do
         touch (dir </> "\nasdfqwerty.agda")
