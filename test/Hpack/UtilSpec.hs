@@ -98,7 +98,7 @@ spec = do
       touch (dir </> "foo1")
       touch (dir </> "foo2")
       touch (dir </> "foo[1,2]")
-      expandGlobs "field-name" dir ["foo[1,2]"] `shouldReturn` ([], ["foo[1,2]"])
+      expandGlobs "field-name" dir ["foo[1,2]"] `shouldReturn` ([], ["\"foo[1,2]\""])
 
     context "when expanding *" $ do
       it "expands by extension" $ \dir -> do
@@ -209,3 +209,23 @@ spec = do
         touch (dir </> "quux\\quuz\\.agda")
         expandGlobs "file-name" dir ["*"] `shouldReturn`
           ([],["foo\\bar\\baz\\qux.agda", "quux\\quuz\\.agda"])
+
+    context "when a glob matches filenames with commas in them" $ do
+      it "quotes filenames which have commas in them" $ \dir -> do
+        touch (dir </> "foo,bar,baz,qux.agda")
+        touch (dir </> "quux,quuz,.agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["\"foo,bar,baz,qux.agda\"", "\"quux,quuz,.agda\""])
+
+      it "only modifies the filenames with commas in them" $ \dir -> do
+        touch (dir </> "foo-bar-baz-qux.agda")
+        touch (dir </> "quux,quuz,.agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["foo-bar-baz-qux.agda", "\"quux,quuz,.agda\""])
+
+      it "quotes filenames which have leading and trailing commas" $ \dir -> do
+        touch (dir </> ",asdfqwerty.agda")
+        touch (dir </> ",foo,bar,baz,qux.agda,,,,")
+        touch (dir </> "quuxquuz.agda,")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([],["\",asdfqwerty.agda\"", "\",foo,bar,baz,qux.agda,,,,\"", "\"quuxquuz.agda,\""])

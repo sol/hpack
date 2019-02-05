@@ -122,16 +122,16 @@ expandGlobs name dir patterns = do
     fromResult :: GlobResult -> ([String], [FilePath])
     fromResult (GlobResult pattern compiledPattern files) = case files of
       [] -> (warning, literalFile)
-      xs -> ([], map (quoteSpaces . normalize) xs)
+      xs -> ([], map (quoteSpecial . normalize) xs)
       where
         warning = [warn pattern compiledPattern]
         literalFile
           | isLiteral compiledPattern = [pattern]
           | otherwise = []
 
-    quoteSpaces :: FilePath -> FilePath
-    quoteSpaces fp
-      | any isSpace fp
+    quoteSpecial :: FilePath -> FilePath
+    quoteSpecial fp
+      | any (\x -> isSpace x || x == ',') fp
         = let escapeSpecial :: Char -> String
               escapeSpecial '\n' = "\\n"
               escapeSpecial '"'  = "\\\""
