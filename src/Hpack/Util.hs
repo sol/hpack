@@ -132,12 +132,7 @@ expandGlobs name dir patterns = do
     quoteSpecial :: FilePath -> FilePath
     quoteSpecial fp
       | any (\x -> isSpace x || x == ',') fp
-        = let escapeSpecial :: Char -> String
-              escapeSpecial '\n' = "\\n"
-              escapeSpecial '"'  = "\\\""
-              escapeSpecial '\\'  = "\\\\"
-              escapeSpecial x    = [x]
-          in "\"" ++ concatMap escapeSpecial fp ++ "\""
+        = show fp
       | otherwise      = fp
 
     normalize :: FilePath -> FilePath
