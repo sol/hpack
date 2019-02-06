@@ -229,3 +229,15 @@ spec = do
         touch (dir </> "quuxquuz.agda,")
         expandGlobs "file-name" dir ["*"] `shouldReturn`
           ([],["\",asdfqwerty.agda\"", "\",foo,bar,baz,qux.agda,,,,\"", "\"quuxquuz.agda,\""])
+
+    context "when a globbing unicode files" $ do
+      it "correctly escapes unicode when quotation has to be done" $ \dir -> do
+        touch (dir </> ",λλλλ.agda")
+        touch (dir </> "λ .agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([], ["\",\\955\\955\\955\\955.agda\"", "\"\\955 .agda\""])
+      it "doesn't escape unicode when no quotation has to be done" $ \dir -> do
+        touch (dir </> "λλλλ.agda")
+        touch (dir </> "λ.agda")
+        expandGlobs "file-name" dir ["*"] `shouldReturn`
+          ([], ["λ.agda", "λλλλ.agda"])
