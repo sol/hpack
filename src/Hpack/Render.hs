@@ -306,7 +306,7 @@ renderGeneratedModules :: [String] -> Element
 renderGeneratedModules = Field "autogen-modules" . LineSeparatedList
 
 renderReexportedModules :: [String] -> Element
-renderReexportedModules = Field "reexported-modules" . LineSeparatedList
+renderReexportedModules = Field "reexported-modules" . CommaSeparatedList
 
 renderSignatures :: [String] -> Element
 renderSignatures = Field "signatures" . CommaSeparatedList
