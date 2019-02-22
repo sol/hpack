@@ -397,7 +397,7 @@ becomes
 ### <a name="file-globbing"></a>File globbing
 
 At place where you can specify a list of files you can also use glob patterns.
-Glob patters and ordinary file names can be freely mixed, e.g.:
+Glob patterns and ordinary file names can be freely mixed, e.g.:
 
 ```yaml
 extra-source-files:
