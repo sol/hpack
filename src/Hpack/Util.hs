@@ -122,18 +122,12 @@ expandGlobs name dir patterns = do
     fromResult :: GlobResult -> ([String], [FilePath])
     fromResult (GlobResult pattern compiledPattern files) = case files of
       [] -> (warning, literalFile)
-      xs -> ([], map (quoteSpecial . normalize) xs)
+      xs -> ([], map normalize xs)
       where
         warning = [warn pattern compiledPattern]
         literalFile
           | isLiteral compiledPattern = [pattern]
           | otherwise = []
-
-    quoteSpecial :: FilePath -> FilePath
-    quoteSpecial fp
-      | any (\x -> isSpace x || x == ',') fp
-        = show fp
-      | otherwise      = fp
 
     normalize :: FilePath -> FilePath
     normalize = toPosixFilePath . makeRelative dir

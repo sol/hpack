@@ -1,5 +1,6 @@
 ## Next
   - Add default value for maintainer (see #339)
+  - Escape commas and spaces in filenames when generating cabal files
 
 ## Changes in 0.31.1
   - Show the header when printing to stdout (see #331)

@@ -66,9 +66,9 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
     packageFields :: [Element]
     packageFields = addVerbatim packageVerbatim . sortFieldsBy existingFieldOrder $
       headerFields ++ [
-        Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
-      , Field "extra-doc-files" (LineSeparatedList packageExtraDocFiles)
-      , Field "data-files" (LineSeparatedList packageDataFiles)
+        Field "extra-source-files" (renderPaths packageExtraSourceFiles)
+      , Field "extra-doc-files" (renderPaths packageExtraDocFiles)
+      , Field "data-files" (renderPaths packageDataFiles)
       ] ++ maybe [] (return . Field "data-dir" . Literal) packageDataDir
 
     sourceRepository :: [Element]
@@ -233,9 +233,9 @@ renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = ad
   , renderCxxOptions sectionCxxOptions
   , renderDirectories "include-dirs" sectionIncludeDirs
   , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
-  , Field "c-sources" (LineSeparatedList sectionCSources)
-  , Field "cxx-sources" (LineSeparatedList sectionCxxSources)
-  , Field "js-sources" (LineSeparatedList sectionJsSources)
+  , Field "c-sources" (renderPaths sectionCSources)
+  , Field "cxx-sources" (renderPaths sectionCxxSources)
+  , Field "js-sources" (renderPaths sectionJsSources)
   , renderDirectories "extra-lib-dirs" sectionExtraLibDirs
   , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
   , renderDirectories "extra-frameworks-dirs" sectionExtraFrameworksDirs
@@ -395,3 +395,14 @@ renderDefaultExtensions = Field "default-extensions" . WordList
 
 renderOtherExtensions :: [String] -> Element
 renderOtherExtensions = Field "other-extensions" . WordList
+
+renderPaths :: [Path] -> Value
+renderPaths = LineSeparatedList . map renderPath
+  where
+    renderPath :: Path -> FilePath
+    renderPath (Path path)
+      | needsQuoting path = show path
+      | otherwise = path
+
+    needsQuoting :: FilePath -> Bool
+    needsQuoting = any (\x -> isSpace x || x == ',')

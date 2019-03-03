@@ -62,6 +62,7 @@ module Hpack.Config (
 , CppOption
 , CcOption
 , LdOption
+, Path(..)
 #ifdef TEST
 , renameDependencies
 , Empty(..)
@@ -357,9 +358,9 @@ type ParseCSources = Maybe (List FilePath)
 type ParseCxxSources = Maybe (List FilePath)
 type ParseJsSources = Maybe (List FilePath)
 
-type CSources = [FilePath]
-type CxxSources = [FilePath]
-type JsSources = [FilePath]
+type CSources = [Path]
+type CxxSources = [Path]
+type JsSources = [Path]
 
 type WithCommonOptions cSources cxxSources jsSources a = Product (CommonOptions cSources cxxSources jsSources a) a
 
@@ -829,9 +830,9 @@ data Package = Package {
 , packageLicenseFile :: [FilePath]
 , packageTestedWith :: Maybe String
 , packageFlags :: [Flag]
-, packageExtraSourceFiles :: [FilePath]
-, packageExtraDocFiles :: [FilePath]
-, packageDataFiles :: [FilePath]
+, packageExtraSourceFiles :: [Path]
+, packageExtraDocFiles :: [Path]
+, packageDataFiles :: [Path]
 , packageDataDir :: Maybe FilePath
 , packageSourceRepository :: Maybe SourceRepository
 , packageCustomSetup :: Maybe CustomSetup
@@ -877,10 +878,10 @@ data Section a = Section {
 , sectionGhcjsOptions :: [GhcjsOption]
 , sectionCppOptions :: [CppOption]
 , sectionCcOptions :: [CcOption]
-, sectionCSources :: [FilePath]
+, sectionCSources :: [Path]
 , sectionCxxOptions :: [CxxOption]
-, sectionCxxSources :: [FilePath]
-, sectionJsSources :: [FilePath]
+, sectionCxxSources :: [Path]
+, sectionJsSources :: [Path]
 , sectionExtraLibDirs :: [FilePath]
 , sectionExtraLibraries :: [FilePath]
 , sectionExtraFrameworksDirs :: [FilePath]
@@ -1185,8 +1186,14 @@ expandForeignSources dir = Traverse {
     expand fieldName xs = do
       expandGlobs fieldName dir (fromMaybeList xs)
 
-expandGlobs :: MonadIO m => String -> FilePath -> [String] -> Warnings m [FilePath]
-expandGlobs name dir patterns = do
+newtype Path = Path { unPath :: FilePath }
+  deriving (Eq, Show, Ord)
+
+instance IsString Path where
+  fromString = Path
+
+expandGlobs :: MonadIO m => String -> FilePath -> [String] -> Warnings m [Path]
+expandGlobs name dir patterns = map Path <$> do
   (warnings, files) <- liftIO $ Util.expandGlobs name dir patterns
   tell warnings
   return files

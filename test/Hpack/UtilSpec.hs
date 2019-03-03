@@ -98,7 +98,7 @@ spec = do
       touch (dir </> "foo1")
       touch (dir </> "foo2")
       touch (dir </> "foo[1,2]")
-      expandGlobs "field-name" dir ["foo[1,2]"] `shouldReturn` ([], ["\"foo[1,2]\""])
+      expandGlobs "field-name" dir ["foo[1,2]"] `shouldReturn` ([], ["foo[1,2]"])
 
     context "when expanding *" $ do
       it "expands by extension" $ \dir -> do
@@ -145,99 +145,3 @@ spec = do
     context "when a literal file does not exist" $ do
       it "warns and keeps the file" $ \dir -> do
         expandGlobs "field-name" dir ["foo.js"] `shouldReturn` (["Specified file \"foo.js\" for field-name does not exist"], ["foo.js"])
-
-    context "when a glob matches filenames with whitespace in them" $ do
-      it "quotes filenames which have spaces in them" $ \dir -> do
-        touch (dir </> "foo bar baz qux.agda")
-        touch (dir </> "quux quuz .agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["\"foo bar baz qux.agda\"", "\"quux quuz .agda\""])
-
-      it "quotes filenames which have spaces and a single quote in them" $ \dir -> do
-        touch (dir </> "asdf' qwerty .agda")
-        touch (dir </> "foo bar baz qux.agda")
-        touch (dir </> "quux quuz .agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["\"asdf' qwerty .agda\"", "\"foo bar baz qux.agda\"", "\"quux quuz .agda\""])
-
-      it "only modifies the filenames with spaces in them" $ \dir -> do
-        touch (dir </> "foo-bar-baz-qux.agda")
-        touch (dir </> "quux quuz .agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["foo-bar-baz-qux.agda", "\"quux quuz .agda\""])
-
-      it "quotes filenames which have leading and trailing whitespace" $ \dir -> do
-        touch (dir </> "\nasdfqwerty.agda")
-        touch (dir </> "  foo bar baz qux.agda")
-        touch (dir </> "quux quuz .agda    ")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["\"\\nasdfqwerty.agda\"", "\"  foo bar baz qux.agda\"", "\"quux quuz .agda    \""])
-
-      it "quotes filenames which have newlines in them" $ \dir -> do
-        touch (dir </> "asdf\nqwerty.agda")
-        touch (dir </> "foo bar\n baz qux.agda")
-        touch (dir </> "quux quuz .ag\nda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["\"asdf\\nqwerty.agda\"", "\"foo bar\\n baz qux.agda\"", "\"quux quuz .ag\\nda\""])
-
-      it "quotes filenames which have double quotes and whitespace in them" $ \dir -> do
-        touch (dir </> "foo\"bar\" baz\"qux.agda")
-        touch (dir </> "quux\"quuz \".agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["\"foo\\\"bar\\\" baz\\\"qux.agda\"", "\"quux\\\"quuz \\\".agda\""])
-
-      it "quotes filenames which have backslashes and whitespace in them" $ \dir -> do
-        touch (dir </> "foo\\bar\\ baz\\qux.agda")
-        touch (dir </> "quux\\quuz \\.agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["\"foo\\\\bar\\\\ baz\\\\qux.agda\"", "\"quux\\\\quuz \\\\.agda\""])
-
-      it "doesn't modify filenames with no spaces in them" $ \dir -> do
-        touch (dir </> "foo-bar-baz-qux.agda")
-        touch (dir </> "quux-quuz.agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["foo-bar-baz-qux.agda", "quux-quuz.agda"])
-
-      it "doesn't quote filenames which have double quotes but no whitespace in them" $ \dir -> do
-        touch (dir </> "foo\"bar\"baz\"qux.agda")
-        touch (dir </> "quux\"quuz\".agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["foo\"bar\"baz\"qux.agda", "quux\"quuz\".agda"])
-
-      it "doesn't quote filenames which have backslashes but no whitespace in them" $ \dir -> do
-        touch (dir </> "foo\\bar\\baz\\qux.agda")
-        touch (dir </> "quux\\quuz\\.agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["foo\\bar\\baz\\qux.agda", "quux\\quuz\\.agda"])
-
-    context "when a glob matches filenames with commas in them" $ do
-      it "quotes filenames which have commas in them" $ \dir -> do
-        touch (dir </> "foo,bar,baz,qux.agda")
-        touch (dir </> "quux,quuz,.agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["\"foo,bar,baz,qux.agda\"", "\"quux,quuz,.agda\""])
-
-      it "only modifies the filenames with commas in them" $ \dir -> do
-        touch (dir </> "foo-bar-baz-qux.agda")
-        touch (dir </> "quux,quuz,.agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["foo-bar-baz-qux.agda", "\"quux,quuz,.agda\""])
-
-      it "quotes filenames which have leading and trailing commas" $ \dir -> do
-        touch (dir </> ",asdfqwerty.agda")
-        touch (dir </> ",foo,bar,baz,qux.agda,,,,")
-        touch (dir </> "quuxquuz.agda,")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([],["\",asdfqwerty.agda\"", "\",foo,bar,baz,qux.agda,,,,\"", "\"quuxquuz.agda,\""])
-
-    context "when a globbing unicode files" $ do
-      it "correctly escapes unicode when quotation has to be done" $ \dir -> do
-        touch (dir </> ",λλλλ.agda")
-        touch (dir </> "λ .agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([], ["\",\\955\\955\\955\\955.agda\"", "\"\\955 .agda\""])
-      it "doesn't escape unicode when no quotation has to be done" $ \dir -> do
-        touch (dir </> "λλλλ.agda")
-        touch (dir </> "λ.agda")
-        expandGlobs "file-name" dir ["*"] `shouldReturn`
-          ([], ["λ.agda", "λλλλ.agda"])

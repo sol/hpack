@@ -832,6 +832,17 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           c-sources: foo/*.c
         |] `shouldWarn` pure "Specified pattern \"foo/*.c\" for c-sources does not match any files"
 
+      it "quotes filenames with special characters" $ do
+        touch "cbits/foo bar.c"
+        [i|
+        library:
+          c-sources:
+            - cbits/foo bar.c
+        |] `shouldRenderTo` library_ [i|
+        c-sources:
+            "cbits/foo bar.c"
+        |]
+
     describe "custom-setup" $ do
       it "warns on unknown fields" $ do
         [i|
