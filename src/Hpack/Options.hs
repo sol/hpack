@@ -10,12 +10,15 @@ data ParseResult = Help | PrintVersion | PrintNumericVersion | Run ParseOptions 
 data Verbose = Verbose | NoVerbose
   deriving (Eq, Show)
 
+data Mode = CheckOnly | Generate Force
+  deriving (Eq, Show)
+
 data Force = Force | NoForce
   deriving (Eq, Show)
 
 data ParseOptions = ParseOptions {
   parseOptionsVerbose :: Verbose
-, parseOptionsForce :: Force
+, parseOptionsForce :: Mode
 , parseOptionsToStdout :: Bool
 , parseOptionsTarget :: FilePath
 } deriving (Eq, Show)
@@ -30,18 +33,24 @@ parseOptions defaultTarget = \ case
       file <- expandTarget defaultTarget target
       let
         options
-          | toStdout = ParseOptions NoVerbose Force toStdout file
-          | otherwise = ParseOptions verbose force toStdout file
+          | toStdout = ParseOptions NoVerbose (Generate Force) toStdout file
+          | otherwise = ParseOptions verbose mode toStdout file
       return (Run options)
     Left err -> return err
     where
       silentFlag = "--silent"
       forceFlags = ["--force", "-f"]
+      checkFlag =  "--check-only"
 
-      flags = silentFlag : forceFlags
+      flags = checkFlag : silentFlag : forceFlags
 
       verbose = if silentFlag `elem` args then NoVerbose else Verbose
-      force = if any (`elem` args) forceFlags then Force else NoForce
+      force = any (`elem` args) forceFlags
+      check = checkFlag `elem` args
+      mode
+        | check = CheckOnly
+        | force = Generate Force
+        | otherwise = Generate NoForce
       ys = filter (`notElem` flags) args
 
       targets :: Either ParseResult (Maybe FilePath, Bool)

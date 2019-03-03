@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 module Hpack (
 -- | /__NOTE:__/ This module is exposed to allow integration of Hpack into
@@ -22,6 +23,7 @@ module Hpack (
 , printResult
 , Result(..)
 , Status(..)
+, HpackCommandStatus(..)
 
 -- * Options
 , defaultOptions
@@ -32,6 +34,7 @@ module Hpack (
 , Verbose(..)
 , Options(..)
 , Force(..)
+, Mode(..)
 
 #ifdef TEST
 , hpackResultWithVersion
@@ -71,7 +74,7 @@ header p v hash = unlines [
 
 data Options = Options {
   optionsDecodeOptions :: DecodeOptions
-, optionsForce :: Force
+, optionsMode :: Mode
 , optionsToStdout :: Bool
 }
 
@@ -89,8 +92,8 @@ getOptions defaultPackageConfig args = do
       printHelp
       return Nothing
     Run options -> case options of
-      ParseOptions verbose force toStdout file -> do
-        return $ Just (verbose, Options defaultDecodeOptions {decodeOptionsTarget = file} force toStdout)
+      ParseOptions verbose mode toStdout file -> do
+        return $ Just (verbose, Options defaultDecodeOptions {decodeOptionsTarget = file} mode toStdout)
     ParseError -> do
       printHelp
       exitFailure
@@ -99,17 +102,17 @@ printHelp :: IO ()
 printHelp = do
   name <- getProgName
   Utf8.hPutStrLn stderr $ unlines [
-      "Usage: " ++ name ++ " [ --silent ] [ --force | -f ] [ PATH ] [ - ]"
+      "Usage: " ++ name ++ " [ --silent ] [ --force | -f | --check-only ] [ PATH ] [ - ]"
     , "       " ++ name ++ " --version"
     , "       " ++ name ++ " --numeric-version"
     , "       " ++ name ++ " --help"
     ]
 
 hpack :: Verbose -> Options -> IO ()
-hpack verbose options = hpackResult options >>= printResult verbose
+hpack verbose options = hpackResult options >>= printResult verbose (optionsMode options) >>= exitWithHpackStatus
 
 defaultOptions :: Options
-defaultOptions = Options defaultDecodeOptions NoForce False
+defaultOptions = Options defaultDecodeOptions (Generate NoForce) False
 
 setTarget :: FilePath -> Options -> Options
 setTarget target options@Options{..} =
@@ -136,8 +139,35 @@ data Status =
   | OutputUnchanged
   deriving (Eq, Show)
 
-printResult :: Verbose -> Result -> IO ()
-printResult verbose r = do
+data HpackCommandStatus = HpackSuccess | HpackFailure
+  deriving (Eq, Show)
+
+exitWithHpackStatus :: HpackCommandStatus -> IO ()
+exitWithHpackStatus HpackSuccess = return ()
+exitWithHpackStatus HpackFailure = exitFailure
+
+printResult :: Verbose -> Mode -> Result -> IO HpackCommandStatus
+printResult verbose = \case
+  CheckOnly -> printCheckResult verbose
+  Generate _force -> printGenerateResult verbose
+
+printCheckResult :: Verbose -> Result -> IO HpackCommandStatus
+printCheckResult verbose r = do
+  printWarnings (resultWarnings r)
+  when (verbose == Verbose) $ putStrLn $
+    case resultStatus r of
+      Generated -> resultCabalFile r ++ " requires regeneration"
+      OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
+      AlreadyGeneratedByNewerHpack -> resultCabalFile r ++ " was generated with a newer version of hpack, please upgrade and try again."
+      ExistingCabalFileWasModifiedManually -> resultCabalFile r ++ " was modified manually, please use --force to overwrite."
+  return $ case resultStatus r of
+      Generated -> HpackFailure
+      OutputUnchanged -> HpackSuccess
+      AlreadyGeneratedByNewerHpack -> HpackFailure
+      ExistingCabalFileWasModifiedManually -> HpackFailure
+
+printGenerateResult :: Verbose -> Result -> IO HpackCommandStatus
+printGenerateResult verbose r = do
   printWarnings (resultWarnings r)
   when (verbose == Verbose) $ putStrLn $
     case resultStatus r of
@@ -145,11 +175,11 @@ printResult verbose r = do
       OutputUnchanged -> resultCabalFile r ++ " is up-to-date"
       AlreadyGeneratedByNewerHpack -> resultCabalFile r ++ " was generated with a newer version of hpack, please upgrade and try again."
       ExistingCabalFileWasModifiedManually -> resultCabalFile r ++ " was modified manually, please use --force to overwrite."
-  case resultStatus r of
-      Generated -> return ()
-      OutputUnchanged -> return ()
-      AlreadyGeneratedByNewerHpack -> exitFailure
-      ExistingCabalFileWasModifiedManually -> exitFailure
+  return $ case resultStatus r of
+      Generated -> HpackSuccess
+      OutputUnchanged -> HpackSuccess
+      AlreadyGeneratedByNewerHpack -> HpackFailure
+      ExistingCabalFileWasModifiedManually -> HpackFailure
 
 printWarnings :: [String] -> IO ()
 printWarnings = mapM_ $ Utf8.hPutStrLn stderr . ("WARNING: " ++)
@@ -169,26 +199,26 @@ hpackResult :: Options -> IO Result
 hpackResult = hpackResultWithVersion version
 
 hpackResultWithVersion :: Version -> Options -> IO Result
-hpackResultWithVersion v (Options options force toStdout) = do
+hpackResultWithVersion v (Options options mode toStdout) = do
   DecodeResult pkg cabalVersion cabalFile warnings <- readPackageConfig options >>= either die return
   oldCabalFile <- readCabalFile cabalFile
   let
     body = renderPackage (maybe [] cabalFileContents oldCabalFile) pkg
     withoutHeader = cabalVersion ++ body
-  let
-    status = case force of
-      Force -> Generated
-      NoForce -> maybe Generated (mkStatus (lines withoutHeader) v) oldCabalFile
-  case status of
-    Generated -> do
-      let hash = sha256 withoutHeader
-          out  = cabalVersion ++ header (decodeOptionsTarget options) v hash ++ body
-      if toStdout
-        then Utf8.putStr out
-        else Utf8.writeFile cabalFile out
-    _ -> return ()
-  return Result {
-      resultWarnings = warnings
-    , resultCabalFile = cabalFile
-    , resultStatus = status
-    }
+    status = maybe Generated (mkStatus (lines withoutHeader) v) oldCabalFile
+  case mode of
+    CheckOnly -> return (Result warnings cabalFile status)
+    Generate force -> do
+      let
+        forcedStatus = case force of
+          Force -> Generated
+          NoForce -> status
+      case forcedStatus of
+        Generated -> do
+          let hash = sha256 withoutHeader
+              out  = cabalVersion ++ header (decodeOptionsTarget options) v hash ++ body
+          if toStdout
+            then Utf8.putStr out
+            else Utf8.writeFile cabalFile out
+        _ -> return ()
+      return (Result warnings cabalFile forcedStatus)
