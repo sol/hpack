@@ -1,4 +1,4 @@
-## Next
+## Changes in 0.31.2
   - Add default value for maintainer (see #339)
   - Escape commas and spaces in filenames when generating cabal files
 
