@@ -13,7 +13,7 @@ spec = do
     context "List" $ do
       let
         parseError :: String -> Result (List Int)
-        parseError prefix = Left (prefix ++ " - expected Int, encountered String")
+        parseError prefix = Left (prefix ++ " - parsing Int failed, expected Number, but encountered String")
 
       context "when parsing single values" $ do
         it "returns the value in a singleton list" $ do

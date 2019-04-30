@@ -125,7 +125,7 @@ spec = do
         it "rejects invalid values" $ do
           [yaml|
             hpack: []
-          |] `shouldDecodeTo` left "Error while parsing $.hpack - expected Null, Object, Number, or String, encountered Array"
+          |] `shouldDecodeTo` left "Error while parsing $.hpack - expected Null, Object, Number, or String, but encountered Array"
 
         context "when the constraint is a Number" $ do
           it "accepts 1" $ do
@@ -213,7 +213,7 @@ spec = do
               [yaml|
                 foo:
                   version: {}
-              |] `shouldDecodeTo` left "Error while parsing $.foo.version - expected Null, Number, or String, encountered Object"
+              |] `shouldDecodeTo` left "Error while parsing $.foo.version - expected Null, Number, or String, but encountered Object"
 
             it "accepts a string" $ do
               [yaml|
