@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.0.
+-- This file has been generated from package.yaml by hpack version 0.31.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3d060180293c32b8d0c25b710d0f419e96a6cc6ec3f95ac5e70bb77f44cbafc3
+-- hash: bd5dd178c7e9f7f7a3456d79b592ea336c41ef43c9892354c001f06659e8b901
 
 name:           hpack
 version:        0.31.2
@@ -31,7 +31,7 @@ library
   build-depends:
       Cabal >=2.2
     , Glob >=0.9.0
-    , aeson >=1.2.1.0
+    , aeson >=1.4.3.0
     , base >=4.9 && <5
     , bifunctors
     , bytestring
@@ -87,7 +87,7 @@ executable hpack
   build-depends:
       Cabal >=2.2
     , Glob >=0.9.0
-    , aeson >=1.2.1.0
+    , aeson >=1.4.3.0
     , base >=4.9 && <5
     , bifunctors
     , bytestring
@@ -125,7 +125,7 @@ test-suite spec
     , Glob >=0.9.0
     , HUnit >=1.6.0.0
     , QuickCheck
-    , aeson >=1.2.1.0
+    , aeson >=1.4.3.0
     , base >=4.9 && <5
     , bifunctors
     , bytestring

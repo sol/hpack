@@ -21,7 +21,7 @@ dependencies:
   - containers
   - unordered-containers
   - yaml >= 0.10.0
-  - aeson >= 1.2.1.0
+  - aeson >= 1.4.3.0
   - scientific
   - Cabal >= 2.2
   - pretty

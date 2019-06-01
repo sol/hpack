@@ -85,7 +85,7 @@ spec = do
         [yaml|
         name: "Joe"
         age: "23"
-        |] `shouldDecodeTo` left "Error while parsing $.age - expected Int, encountered String"
+        |] `shouldDecodeTo` left "Error while parsing $.age - parsing Int failed, expected Number, but encountered String"
 
     context "with (,)" $ do
       it "captures unrecognized fields" $ do

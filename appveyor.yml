@@ -13,6 +13,9 @@ environment:
   global:
     STACK_ROOT: "c:\\sr"
 
+    # workaround for https://github.com/haskell/cabal/issues/5386
+    TMP: "c:\\tmp"
+
 test_script:
 - stack setup > nul
 # The ugly echo "" hack is to avoid complaints about 0 being an invalid file
