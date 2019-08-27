@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE QuasiQuotes #-}
 module Hpack.LicenseSpec (spec) where
 
@@ -6,7 +7,11 @@ import           Data.Maybe
 import           Data.String.Interpolate
 
 import           Distribution.Pretty (prettyShow)
+#if MIN_VERSION_Cabal(3,0,0)
+import           Distribution.Parsec (simpleParsec)
+#else
 import           Distribution.Parsec.Class (simpleParsec)
+#endif
 import qualified Distribution.License as Cabal
 
 import           Hpack.License

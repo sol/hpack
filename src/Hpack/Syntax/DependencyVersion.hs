@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 module Hpack.Syntax.DependencyVersion (
@@ -32,9 +33,15 @@ import qualified Data.HashMap.Strict as HashMap
 import           Text.PrettyPrint (renderStyle, Style(..), Mode(..))
 
 import           Distribution.Version (VersionRangeF(..))
-import qualified Distribution.Text as D
 import qualified Distribution.Version as D
+
+#if MIN_VERSION_Cabal(3,0,0)
+import qualified Distribution.Parsec as D
+import qualified Distribution.Pretty as D
+#else
 import qualified Distribution.Parsec.Class as D
+import qualified Distribution.Text as D
+#endif
 
 import           Data.Aeson.Config.FromValue
 
@@ -147,7 +154,13 @@ cabalParse subject s = case D.eitherParsec s of
 versionConstraintFromCabal :: D.VersionRange -> VersionConstraint
 versionConstraintFromCabal range
   | D.isAnyVersion range = AnyVersion
-  | otherwise = VersionRange . renderStyle style . D.disp $ toPreCabal2VersionRange range
+  | otherwise = VersionRange . renderStyle style .
+#if MIN_VERSION_Cabal(3,0,0)
+      D.pretty
+#else
+      D.disp
+#endif
+      $ toPreCabal2VersionRange range
   where
     style = Style OneLineMode 0 0
 
