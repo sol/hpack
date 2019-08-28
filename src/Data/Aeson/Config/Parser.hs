@@ -61,7 +61,7 @@ fromAesonPathElement e = case e of
   Aeson.Index n -> Index n
 
 newtype Parser a = Parser {unParser :: WriterT (Set JSONPath) Aeson.Parser a}
-  deriving (Functor, Applicative, Alternative, Monad)
+  deriving (Functor, Applicative, Alternative, Monad, MonadFail)
 
 liftParser :: Aeson.Parser a -> Parser a
 liftParser = Parser . lift
