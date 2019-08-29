@@ -1,3 +1,7 @@
+## Changes in 0.32.0
+  - Support Cabal 3.0
+  - Switch reexported-modules to comma-separated list
+
 ## Changes in 0.31.2
   - Add default value for maintainer (see #339)
   - Escape commas and spaces in filenames when generating cabal files
