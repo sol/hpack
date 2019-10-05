@@ -1,4 +1,1 @@
-resolver: nightly-2018-12-12
-extra-deps:
-  - clock-0.8
-  - aeson-1.4.3.0
+resolver: nightly-2019-10-05
