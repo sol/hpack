@@ -17,12 +17,12 @@ matrix:
       compiler: ": #tinc 8.6.5"
       addons: {apt: {packages: [cabal-install-2.4,ghc-8.6.5,happy-1.19.5], sources: [hvr-ghc]}}
 
-    - env: BUILD=stack GHCVER=8.4.3 STACK_YAML=stack.yaml
-      compiler: ": #stack 8.4.3"
-      addons: {apt: {packages: [ghc-8.4.3,happy-1.19.5], sources: [hvr-ghc]}}
+    - env: BUILD=stack GHCVER=8.8.1 STACK_YAML=stack.yaml
+      compiler: ": #stack 8.8.1"
+      addons: {apt: {packages: [ghc-8.8.1,happy-1.19.5], sources: [hvr-ghc]}}
 
     - env: BUILD=stack STACK_YAML=stack.yaml RELEASE=true
-      compiler: ": #stack 8.4.3 osx"
+      compiler: ": #stack 8.8.1 osx"
       os: osx
 
 before_install:
