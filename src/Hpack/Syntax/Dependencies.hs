@@ -7,6 +7,7 @@ module Hpack.Syntax.Dependencies (
 , parseDependency
 ) where
 
+import qualified Control.Monad.Fail as Fail
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Semigroup (Semigroup(..))
@@ -59,7 +60,7 @@ objectDependencyInfo o = objectDependency o >>= addMixins o
 dependencyInfo :: Value -> Parser DependencyInfo
 dependencyInfo = withDependencyVersion (DependencyInfo []) addMixins
 
-parseDependency :: Monad m => String -> Text -> m (String, DependencyVersion)
+parseDependency :: Fail.MonadFail m => String -> Text -> m (String, DependencyVersion)
 parseDependency subject = fmap fromCabal . cabalParse subject . T.unpack
   where
     fromCabal :: D.Dependency -> (String, DependencyVersion)

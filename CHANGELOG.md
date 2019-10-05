@@ -1,3 +1,9 @@
+## Changes in 0.33.0
+  - Support GHC 8.8.1: `fail` is no longer a part of `Monad`. Instead, it lives
+    in the `MonadFail` class. Adapting our code to this change meant changing
+    the types of exporting functions, unfortunately, hence the major version
+    bump.
+
 ## Changes in 0.32.0
   - Support Cabal 3.0
   - Switch reexported-modules to comma-separated list
