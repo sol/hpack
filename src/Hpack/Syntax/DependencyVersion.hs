@@ -25,6 +25,7 @@ module Hpack.Syntax.DependencyVersion (
 ) where
 
 import           Control.Applicative
+import qualified Control.Monad.Fail as Fail
 import           Data.Maybe
 import           Data.Scientific
 import           Data.Text (Text)
@@ -140,13 +141,13 @@ scientificToVersion n = version
       | otherwise = 0
     e = base10Exponent n
 
-parseVersionRange :: Monad m => String -> m VersionConstraint
+parseVersionRange :: Fail.MonadFail m => String -> m VersionConstraint
 parseVersionRange = fmap versionConstraintFromCabal . parseCabalVersionRange
 
-parseCabalVersionRange :: Monad m => String -> m D.VersionRange
+parseCabalVersionRange :: Fail.MonadFail m => String -> m D.VersionRange
 parseCabalVersionRange = cabalParse "constraint"
 
-cabalParse :: (Monad m, D.Parsec a) => String -> String -> m a
+cabalParse :: (Fail.MonadFail m, D.Parsec a) => String -> String -> m a
 cabalParse subject s = case D.eitherParsec s of
   Right d -> return d
   Left _ ->fail $ unwords ["invalid",  subject, show s]

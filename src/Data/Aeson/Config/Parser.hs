@@ -31,6 +31,7 @@ module Data.Aeson.Config.Parser (
 
 import           Control.Monad
 import           Control.Applicative
+import qualified Control.Monad.Fail as Fail
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Writer
 import           Data.Monoid ((<>))
@@ -61,7 +62,7 @@ fromAesonPathElement e = case e of
   Aeson.Index n -> Index n
 
 newtype Parser a = Parser {unParser :: WriterT (Set JSONPath) Aeson.Parser a}
-  deriving (Functor, Applicative, Alternative, Monad)
+  deriving (Functor, Applicative, Alternative, Monad, Fail.MonadFail)
 
 liftParser :: Aeson.Parser a -> Parser a
 liftParser = Parser . lift
