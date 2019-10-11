@@ -9,8 +9,8 @@ matrix:
       compiler: ": #tinc 8.2.2"
       addons: {apt: {packages: [cabal-install-2.0,ghc-8.2.2,happy-1.19.5], sources: [hvr-ghc]}}
 
-    - env: BUILD=tinc CABALVER=2.2 GHCVER=8.4.3 RELEASE=true
-      compiler: ": #tinc 8.4.3"
+    - env: BUILD=tinc CABALVER=2.2 GHCVER=8.4.3
+      compiler: ": #tinc 8.4.4"
       addons: {apt: {packages: [cabal-install-2.2,ghc-8.4.3,happy-1.19.5], sources: [hvr-ghc]}}
 
     - env: BUILD=tinc CABALVER=2.4 GHCVER=8.6.5 RELEASE=true
