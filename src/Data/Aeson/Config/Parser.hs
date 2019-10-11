@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 module Data.Aeson.Config.Parser (
   Parser
 , runParser
@@ -44,7 +45,9 @@ import qualified Data.HashMap.Strict as HashMap
 import           Data.Aeson.Types (Value(..), Object, Array)
 import qualified Data.Aeson.Types as Aeson
 import           Data.Aeson.Internal (IResult(..), iparse)
+#if !MIN_VERSION_aeson(1,4,5)
 import qualified Data.Aeson.Internal as Aeson
+#endif
 
 -- This is needed so that we have an Ord instance for aeson < 1.2.4.
 data JSONPathElement = Key Text | Index Int
