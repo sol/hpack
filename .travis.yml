@@ -15,7 +15,7 @@ matrix:
 
     - env: BUILD=tinc CABALVER=2.4 GHCVER=8.6.5 RELEASE=true
       compiler: ": #tinc 8.6.5"
-      addons: {apt: {packages: [cabal-install-2.4,ghc-8.6.5,happy-1.19.12], sources: [hvr-ghc]}}
+      addons: {apt: {packages: [cabal-install-2.4,ghc-8.6.5,happy-1.19.5], sources: [hvr-ghc]}}
 
     - env: BUILD=stack GHCVER=8.4.3 STACK_YAML=stack.yaml
       compiler: ": #stack 8.4.3"
