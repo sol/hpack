@@ -148,6 +148,7 @@ package name version = Package {
   , packageDataDir = Nothing
   , packageSourceRepository = Nothing
   , packageCustomSetup = Nothing
+  , packageHpackHash = Nothing
   , packageLibrary = Nothing
   , packageInternalLibraries = mempty
   , packageExecutables = mempty
@@ -534,6 +535,7 @@ data PackageConfig_ library executable = PackageConfig {
 , packageConfigGithub :: Maybe Text
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe CustomSetupSection
+, packageConfigHpackHash :: Maybe Bool
 , packageConfigLibrary :: Maybe library
 , packageConfigInternalLibraries :: Maybe (Map String library)
 , packageConfigExecutable :: Maybe executable
@@ -837,6 +839,7 @@ data Package = Package {
 , packageDataDir :: Maybe FilePath
 , packageSourceRepository :: Maybe SourceRepository
 , packageCustomSetup :: Maybe CustomSetup
+, packageHpackHash :: Maybe Bool
 , packageLibrary :: Maybe (Section Library)
 , packageInternalLibraries :: Map String (Section Library)
 , packageExecutables :: Map String (Section Executable)
@@ -1111,6 +1114,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       , packageDataDir = packageConfigDataDir
       , packageSourceRepository = sourceRepository
       , packageCustomSetup = mCustomSetup
+      , packageHpackHash = packageConfigHpackHash
       , packageLibrary = mLibrary
       , packageInternalLibraries = internalLibraries
       , packageExecutables = executables
