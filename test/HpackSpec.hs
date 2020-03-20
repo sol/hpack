@@ -100,3 +100,12 @@ spec = do
               old <- readFile file
               hpack `shouldReturn` outputUnchanged
               readFile file `shouldReturn` old
+
+        context "hpack-hash: false" $ do
+          it "always generates file" $ do
+            writeFile packageConfig $ unlines [
+                "name: foo"
+              , "hpack-hash: false"
+              ]
+            hpack `shouldReturn` generated
+            hpack `shouldReturn` generated

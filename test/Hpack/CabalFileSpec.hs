@@ -24,6 +24,11 @@ spec = do
         writeFile file $ header "package.yaml" version (Just hash)
         readCabalFile file `shouldReturn` Just (CabalFile (Just version) (Just hash) [])
 
+    it "hpack-hash:false omits hash" $ do
+      inTempDirectory $ do
+        writeFile file $ header "package.yaml" version Nothing
+        readCabalFile file `shouldReturn` Just (CabalFile (Just version) Nothing [])
+
     it "accepts cabal-version at the beginning of the file" $ do
       inTempDirectory $ do
         writeFile file $ ("cabal-version: 2.2\n" ++ header "package.yaml" version (Just hash))
