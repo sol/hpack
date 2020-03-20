@@ -59,15 +59,21 @@ import           Hpack.CabalFile
 programVersion :: Version -> String
 programVersion v = "hpack version " ++ Version.showVersion v
 
-header :: FilePath -> Version -> Hash -> String
-header p v hash = unlines [
+header :: FilePath -> Version -> Maybe Hash -> String
+header p v mHash = unlines ([
     "-- This file has been generated from " ++ takeFileName p ++ " by " ++ programVersion v ++ "."
   , "--"
   , "-- see: https://github.com/sol/hpack"
-  , "--"
-  , "-- hash: " ++ hash
-  , ""
   ]
+  ++ case mHash of
+      Nothing -> []
+      Just hash ->
+        [ "--"
+        , "-- hash: " ++ hash
+        ]
+  ++ [
+    ""
+  ])
 
 data Options = Options {
   optionsDecodeOptions :: DecodeOptions
@@ -176,13 +182,21 @@ hpackResultWithVersion v (Options options force toStdout) = do
     body = renderPackage (maybe [] cabalFileContents oldCabalFile) pkg
     withoutHeader = cabalVersion ++ body
   let
+    useHash = case packageHpackHash pkg of
+      Just False -> False
+      Just True -> True
+      Nothing -> True
     status = case force of
       Force -> Generated
-      NoForce -> maybe Generated (mkStatus (lines withoutHeader) v) oldCabalFile
+      NoForce -> if useHash
+        then maybe Generated (mkStatus (lines withoutHeader) v) oldCabalFile
+        else Generated -- always rebuild cabal file if omitting hash
   case status of
     Generated -> do
-      let hash = sha256 withoutHeader
-          out  = cabalVersion ++ header (decodeOptionsTarget options) v hash ++ body
+      let mHash = if useHash
+            then Just (sha256 withoutHeader)
+            else Nothing
+          out  = cabalVersion ++ header (decodeOptionsTarget options) v mHash ++ body
       if toStdout
         then Utf8.putStr out
         else Utf8.writeFile cabalFile out
