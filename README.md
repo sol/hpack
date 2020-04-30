@@ -231,6 +231,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | `exposed` | · | | |
+| `visibility` | · | | |
 | `exposed-modules` | · | All modules in `source-dirs` less `other-modules` less any modules mentioned in `when` | |
 | `generated-exposed-modules` | | | Added to `exposed-modules` and `autogen-modules`. Since `0.23.0`.
 | `other-modules` | · | Outside conditionals: All modules in `source-dirs` less `exposed-modules` less any modules mentioned in `when`. Inside conditionals, and only if `exposed-modules` is not specified inside the conditional: All modules in `source-dirs` of the conditional less any modules mentioned in `when` of the conditional | |

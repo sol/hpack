@@ -13,7 +13,7 @@ import           Hpack.Render
 import           Hpack.Syntax.Dependencies
 
 library :: Library
-library = Library Nothing [] [] [] [] []
+library = Library Nothing Nothing [] [] [] [] []
 
 executable :: Section Executable
 executable = section (Executable (Just "Main.hs") [] [])
