@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: dc706425edd9fa60b9662cefde8da5d890fb9cf19c8f0f9e01733b763bfcd06a
+-- hash: 12b7d6619eff1d32190bac55f5a9d29fc4732f7475eb5e450effd690c9f53964
 
 name:           hpack
-version:        0.33.0
+version:        0.34.0
 synopsis:       A modern format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
