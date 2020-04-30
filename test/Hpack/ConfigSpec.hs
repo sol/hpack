@@ -54,7 +54,7 @@ executable :: String -> Executable
 executable main_ = Executable (Just main_) ["Paths_foo"] []
 
 library :: Library
-library = Library Nothing [] ["Paths_foo"] [] [] []
+library = Library Nothing Nothing [] ["Paths_foo"] [] [] []
 
 testDecodeOptions :: FilePath -> DecodeOptions
 testDecodeOptions file = defaultDecodeOptions {decodeOptionsTarget = file, decodeOptionsUserDataDir = Just undefined}
@@ -90,6 +90,7 @@ spec = do
     let
       sect = LibrarySection {
         librarySectionExposed = Nothing
+      , librarySectionVisibility = Nothing
       , librarySectionExposedModules = Nothing
       , librarySectionGeneratedExposedModules = Nothing
       , librarySectionOtherModules = Nothing
@@ -99,6 +100,7 @@ spec = do
       }
       lib = Library {
         libraryExposed = Nothing
+      , libraryVisibility = Nothing
       , libraryExposedModules = []
       , libraryOtherModules = []
       , libraryGeneratedModules = []

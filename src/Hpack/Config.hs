@@ -196,6 +196,7 @@ data CustomSetupSection = CustomSetupSection {
 
 data LibrarySection = LibrarySection {
   librarySectionExposed :: Maybe Bool
+, librarySectionVisibility :: Maybe String
 , librarySectionExposedModules :: Maybe (List String)
 , librarySectionGeneratedExposedModules :: Maybe (List String)
 , librarySectionOtherModules :: Maybe (List String)
@@ -205,12 +206,13 @@ data LibrarySection = LibrarySection {
 } deriving (Eq, Show, Generic, FromValue)
 
 instance Monoid LibrarySection where
-  mempty = LibrarySection Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+  mempty = LibrarySection Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
   mappend = (<>)
 
 instance Semigroup LibrarySection where
   a <> b = LibrarySection {
       librarySectionExposed = librarySectionExposed b <|> librarySectionExposed a
+    , librarySectionVisibility = librarySectionVisibility b <|> librarySectionVisibility a
     , librarySectionExposedModules = librarySectionExposedModules a <> librarySectionExposedModules b
     , librarySectionGeneratedExposedModules = librarySectionGeneratedExposedModules a <> librarySectionGeneratedExposedModules b
     , librarySectionOtherModules = librarySectionOtherModules a <> librarySectionOtherModules b
@@ -690,15 +692,14 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
 
     libraryCabalVersion :: Section Library -> Maybe Version
     libraryCabalVersion sect = maximum [
-        makeVersion [1,22] <$ guard hasReexportedModules
-      , makeVersion [2,0]  <$ guard hasSignatures
-      , makeVersion [2,0] <$ guard hasGeneratedModules
+        makeVersion [1,22] <$ guard (has libraryReexportedModules)
+      , makeVersion [2,0]  <$ guard (has librarySignatures)
+      , makeVersion [2,0] <$ guard (has libraryGeneratedModules)
+      , makeVersion [3,0] <$ guard (has libraryVisibility)
       , sectionCabalVersion sect
       ]
       where
-        hasReexportedModules = any (not . null . libraryReexportedModules) sect
-        hasSignatures = any (not . null . librarySignatures) sect
-        hasGeneratedModules = any (not . null . libraryGeneratedModules) sect
+        has field = any (not . null . field) sect
 
     internalLibsCabalVersion :: Map String (Section Library) -> Maybe Version
     internalLibsCabalVersion internalLibraries
@@ -852,6 +853,7 @@ data CustomSetup = CustomSetup {
 
 data Library = Library {
   libraryExposed :: Maybe Bool
+, libraryVisibility :: Maybe String
 , libraryExposedModules :: [String]
 , libraryOtherModules :: [String]
 , libraryGeneratedModules :: [String]
@@ -1218,7 +1220,7 @@ traverseSectionAndConditionals fData fConditionals acc0 sect@Section{..} = do
     traverseConditionals = traverse . traverse . traverseSectionAndConditionals fConditionals fConditionals
 
 getMentionedLibraryModules :: LibrarySection -> [String]
-getMentionedLibraryModules (LibrarySection _ exposedModules generatedExposedModules otherModules generatedOtherModules _ _)
+getMentionedLibraryModules (LibrarySection _ _ exposedModules generatedExposedModules otherModules generatedOtherModules _ _)
   = fromMaybeList (exposedModules <> generatedExposedModules <> otherModules <> generatedOtherModules)
 
 listModules :: FilePath -> Section a -> IO [String]
@@ -1255,7 +1257,7 @@ toLibrary dir name =
     getLibraryModules Library{..} = libraryExposedModules ++ libraryOtherModules
 
     fromLibrarySectionTopLevel pathsModule inferableModules LibrarySection{..} =
-      Library librarySectionExposed exposedModules otherModules generatedModules reexportedModules signatures
+      Library librarySectionExposed librarySectionVisibility exposedModules otherModules generatedModules reexportedModules signatures
       where
         (exposedModules, otherModules, generatedModules) =
           determineModules pathsModule inferableModules librarySectionExposedModules librarySectionGeneratedExposedModules librarySectionOtherModules librarySectionGeneratedOtherModules
@@ -1271,7 +1273,7 @@ determineModules pathsModule inferable mExposed mGeneratedExposed mOther mGenera
     others = maybe ((inferable \\ exposed) ++ pathsModule) fromList mOther ++ fromMaybeList mGeneratedOther
 
 fromLibrarySectionInConditional :: [String] -> LibrarySection -> Library
-fromLibrarySectionInConditional inferableModules lib@(LibrarySection _ exposedModules _ otherModules _ _ _) =
+fromLibrarySectionInConditional inferableModules lib@(LibrarySection _ _ exposedModules _ otherModules _ _ _) =
   case (exposedModules, otherModules) of
     (Nothing, Nothing) -> addToOtherModules inferableModules (fromLibrarySectionPlain lib)
     _ -> fromLibrarySectionPlain lib
@@ -1281,6 +1283,7 @@ fromLibrarySectionInConditional inferableModules lib@(LibrarySection _ exposedMo
 fromLibrarySectionPlain :: LibrarySection -> Library
 fromLibrarySectionPlain LibrarySection{..} = Library {
     libraryExposed = librarySectionExposed
+  , libraryVisibility = librarySectionVisibility
   , libraryExposedModules = fromMaybeList (librarySectionExposedModules <> librarySectionGeneratedExposedModules)
   , libraryOtherModules = fromMaybeList (librarySectionOtherModules <> librarySectionGeneratedOtherModules)
   , libraryGeneratedModules = fromMaybeList (librarySectionGeneratedOtherModules <> librarySectionGeneratedExposedModules)

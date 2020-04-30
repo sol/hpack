@@ -12,7 +12,7 @@ import           Hpack.Render.Dsl
 import           Hpack.Render
 
 library :: Library
-library = Library Nothing [] [] [] [] []
+library = Library Nothing Nothing [] [] [] [] []
 
 executable :: Section Executable
 executable = section (Executable (Just "Main.hs") [] [])

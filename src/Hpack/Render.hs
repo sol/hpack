@@ -206,7 +206,8 @@ renderLibrarySection = renderSection renderLibraryFields [] [defaultLanguage]
 
 renderLibraryFields :: Library -> [Element]
 renderLibraryFields Library{..} =
-  maybe [] (return . renderExposed) libraryExposed ++ [
+  maybe [] (return . renderExposed) libraryExposed ++
+  maybe [] (return . renderVisibility) libraryVisibility ++ [
     renderExposedModules libraryExposedModules
   , renderOtherModules libraryOtherModules
   , renderGeneratedModules libraryGeneratedModules
@@ -216,6 +217,9 @@ renderLibraryFields Library{..} =
 
 renderExposed :: Bool -> Element
 renderExposed = Field "exposed" . Literal . show
+
+renderVisibility :: String -> Element
+renderVisibility = Field "visibility" . Literal
 
 renderSection :: (a -> [Element]) -> [Element] -> [Element] -> Section a -> [Element]
 renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = addVerbatim sectionVerbatim $

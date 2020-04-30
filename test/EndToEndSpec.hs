@@ -1134,14 +1134,14 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         internal-libraries:
           bar:
             source-dirs: src
-          |] `shouldRenderTo` internalLibrary "bar" [i|
-          exposed-modules:
-              Foo
-          other-modules:
-              Paths_foo
-          hs-source-dirs:
-              src
-          |]
+        |] `shouldRenderTo` internalLibrary "bar" [i|
+        exposed-modules:
+            Foo
+        other-modules:
+            Paths_foo
+        hs-source-dirs:
+            src
+        |]
 
       it "warns on unknown fields" $ do
         [i|
@@ -1158,6 +1158,17 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           bar:
             source-dirs: src
         |] `shouldWarn` pure "Specified source-dir \"src\" does not exist"
+
+      it "accepts visibility" $ do
+        [i|
+        internal-libraries:
+          bar:
+            visibility: public
+        |] `shouldRenderTo` (internalLibrary "bar" [i|
+        visibility: public
+        other-modules:
+            Paths_foo
+        |]) {packageCabalVersion = "3.0"}
 
     describe "executables" $ do
       it "accepts arbitrary entry points as main" $ do

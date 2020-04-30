@@ -1,3 +1,6 @@
+## Changes in 0.34.0 (upcoming)
+  - Add support for library `visibility` (see #382)
+
 ## Changes in 0.33.0
   - Support GHC 8.8.1: `fail` is no longer a part of `Monad`. Instead, it lives
     in the `MonadFail` class. Adapting our code to this change meant changing
