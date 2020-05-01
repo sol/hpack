@@ -45,7 +45,6 @@ import           Hpack.Util
 import           Hpack.Config
 import           Hpack.Render.Hints
 import           Hpack.Render.Dsl
-import           Hpack.Syntax.Dependencies
 
 renderPackage :: [String] -> Package -> String
 renderPackage oldCabalFile = renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder

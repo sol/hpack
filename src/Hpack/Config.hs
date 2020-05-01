@@ -39,6 +39,7 @@ module Hpack.Config (
 , section
 , Package(..)
 , Dependencies(..)
+, DependencyInfo(..)
 , VersionConstraint(..)
 , DependencyVersion(..)
 , SourceDependency(..)
