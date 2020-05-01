@@ -27,7 +27,7 @@ matrix:
 
 before_install:
   - unset CC
-  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:/opt/happy/1.19.5/bin:$PATH
+  - export PATH=$HOME/.tinc/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:/opt/happy/1.19.5/bin:$PATH
   - ./.travis-setup.sh
   - ghc --version || stack exec -- ghc --version
   - happy --version || true

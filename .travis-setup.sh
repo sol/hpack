@@ -15,10 +15,6 @@ fetch_stack_linux() {
   curl -sL https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack';
 }
 
-fetch_tinc() {
-  curl -sL https://zalora-public.s3.amazonaws.com/tinc > $HOME/.local/bin/tinc
-}
-
 mkdir -p $HOME/.local/bin
 
 case "$BUILD" in
@@ -32,8 +28,7 @@ case "$BUILD" in
     travis_retry stack --no-terminal setup;
     ;;
   tinc)
-    travis_retry fetch_tinc
-    chmod +x $HOME/.local/bin/tinc
+    curl -sSL https://github.com/sol/tinc/raw/master/get-tinc.sh | bash
     travis_retry cabal update
     sed -i 's/^jobs:/-- jobs:/' $HOME/.cabal/config
     ;;
