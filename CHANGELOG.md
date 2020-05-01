@@ -1,5 +1,6 @@
 ## Changes in 0.34.0 (upcoming)
   - Add support for library `visibility` (see #382)
+  - Reject URLs for `github`
 
 ## Changes in 0.33.0
   - Support GHC 8.8.1: `fail` is no longer a part of `Monad`. Instead, it lives

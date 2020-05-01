@@ -132,6 +132,11 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           subdir: hspec-core
         |]
 
+      it "rejects URLs" $ do
+        [i|
+        github: https://github.com/sol/hpack/issues/365
+        |] `shouldFailWith` "package.yaml: Error while parsing $.github - expected owner/repo or owner/repo/subdir, but encountered \"https://github.com/sol/hpack/issues/365\""
+
     describe "homepage" $ do
       it "accepts homepage URL" $ do
         [i|

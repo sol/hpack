@@ -534,7 +534,7 @@ data PackageConfig_ library executable = PackageConfig {
 , packageConfigExtraDocFiles :: Maybe (List FilePath)
 , packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigDataDir :: Maybe FilePath
-, packageConfigGithub :: Maybe Text
+, packageConfigGithub :: Maybe GitHub
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe CustomSetupSection
 , packageConfigLibrary :: Maybe library
@@ -544,6 +544,20 @@ data PackageConfig_ library executable = PackageConfig {
 , packageConfigTests :: Maybe (Map String executable)
 , packageConfigBenchmarks :: Maybe (Map String executable)
 } deriving Generic
+
+data GitHub = GitHub {
+  _gitHubOwner :: String
+, _gitHubRepo :: String
+, _gitHubSubdir :: Maybe String
+}
+
+instance FromValue GitHub where
+  fromValue v = do
+    input <- fromValue v
+    case map T.unpack $ T.splitOn "/" input of
+      [owner, repo, subdir] -> return $ GitHub owner repo (Just subdir)
+      [owner, repo] -> return $ GitHub owner repo Nothing
+      _ -> fail $ "expected owner/repo or owner/repo/subdir, but encountered " ++ show input
 
 data DefaultsConfig = DefaultsConfig {
   defaultsConfigDefaults :: Maybe (List Defaults)
@@ -1149,13 +1163,10 @@ toPackage_ dir (Product g PackageConfig{..}) = do
     sourceRepository = github <|> (`SourceRepository` Nothing) <$> packageConfigGit
 
     github :: Maybe SourceRepository
-    github = parseGithub <$> packageConfigGithub
+    github = toSourceRepository <$> packageConfigGithub
       where
-        parseGithub :: Text -> SourceRepository
-        parseGithub input = case map T.unpack $ T.splitOn "/" input of
-          [owner, repo, subdir] ->
-            SourceRepository (githubBaseUrl ++ owner ++ "/" ++ repo) (Just subdir)
-          _ -> SourceRepository (githubBaseUrl ++ T.unpack input) Nothing
+        toSourceRepository :: GitHub -> SourceRepository
+        toSourceRepository (GitHub repo owner subdir) = SourceRepository (githubBaseUrl ++ owner ++ "/" ++ repo) subdir
 
     homepage :: Maybe String
     homepage = case packageConfigHomepage of
