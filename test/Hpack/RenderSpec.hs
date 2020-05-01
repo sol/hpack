@@ -10,7 +10,6 @@ import           Hpack.ConfigSpec hiding (spec)
 import           Hpack.Config hiding (package)
 import           Hpack.Render.Dsl
 import           Hpack.Render
-import           Hpack.Syntax.Dependencies
 
 library :: Library
 library = Library Nothing [] [] [] [] []
