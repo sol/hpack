@@ -16,7 +16,8 @@ makeVersion :: [Int] -> Version
 makeVersion v = Version v []
 
 data CabalFile = CabalFile {
-  cabalFileHpackVersion :: Maybe Version
+  cabalFileCabalVersion :: [String]
+, cabalFileHpackVersion :: Maybe Version
 , cabalFileHash :: Maybe Hash
 , cabalFileContents :: [String]
 } deriving (Eq, Show)
@@ -25,13 +26,13 @@ readCabalFile :: FilePath -> IO (Maybe CabalFile)
 readCabalFile cabalFile = fmap parse <$> tryReadFile cabalFile
   where
     parse :: String -> CabalFile
-    parse (splitHeader -> (h, c)) = CabalFile (extractVersion h) (extractHash h) c
+    parse (splitHeader -> (cabalVersion, h, c)) = CabalFile cabalVersion (extractVersion h) (extractHash h) c
 
-    splitHeader :: String -> ([String], [String])
+    splitHeader :: String -> ([String], [String], [String])
     splitHeader (removeGitConflictMarkers . lines -> c) =
       case span (not . isComment) c of
         (cabalVersion, xs) -> case span isComment xs of
-          (header, body) -> (header, cabalVersion ++ dropWhile null body)
+          (header, body) -> (cabalVersion, header, dropWhile null body)
 
     isComment = ("--" `isPrefixOf`)
 

@@ -18,10 +18,10 @@ spec = do
 
     context "by default" $ do
       it "returns Run" $ do
-        parseOptions defaultTarget [] `shouldReturn` Run (ParseOptions Verbose NoForce False defaultTarget)
+        parseOptions defaultTarget [] `shouldReturn` Run (ParseOptions Verbose NoForce Nothing False defaultTarget)
 
       it "includes target" $ do
-        parseOptions defaultTarget ["foo.yaml"] `shouldReturn` Run (ParseOptions Verbose NoForce False "foo.yaml")
+        parseOptions defaultTarget ["foo.yaml"] `shouldReturn` Run (ParseOptions Verbose NoForce Nothing False "foo.yaml")
 
       context "with superfluous arguments" $ do
         it "returns ParseError" $ do
@@ -29,19 +29,31 @@ spec = do
 
       context "with --silent" $ do
         it "sets optionsVerbose to NoVerbose" $ do
-          parseOptions defaultTarget ["--silent"] `shouldReturn` Run (ParseOptions NoVerbose NoForce False defaultTarget)
+          parseOptions defaultTarget ["--silent"] `shouldReturn` Run (ParseOptions NoVerbose NoForce Nothing False defaultTarget)
 
       context "with --force" $ do
         it "sets optionsForce to Force" $ do
-          parseOptions defaultTarget ["--force"] `shouldReturn` Run (ParseOptions Verbose Force False defaultTarget)
+          parseOptions defaultTarget ["--force"] `shouldReturn` Run (ParseOptions Verbose Force Nothing False defaultTarget)
 
       context "with -f" $ do
         it "sets optionsForce to Force" $ do
-          parseOptions defaultTarget ["-f"] `shouldReturn` Run (ParseOptions Verbose Force False defaultTarget)
+          parseOptions defaultTarget ["-f"] `shouldReturn` Run (ParseOptions Verbose Force Nothing False defaultTarget)
+
+      context "when determining parseOptionsHash" $ do
+
+        it "assumes True on --hash" $ do
+          parseOptions defaultTarget ["--hash"] `shouldReturn` Run (ParseOptions Verbose NoForce (Just True) False defaultTarget)
+
+        it "assumes False on --no-hash" $ do
+          parseOptions defaultTarget ["--no-hash"] `shouldReturn` Run (ParseOptions Verbose NoForce (Just False) False defaultTarget)
+
+        it "gives last occurrence precedence" $ do
+          parseOptions defaultTarget ["--no-hash", "--hash"] `shouldReturn` Run (ParseOptions Verbose NoForce (Just True) False defaultTarget)
+          parseOptions defaultTarget ["--hash", "--no-hash"] `shouldReturn` Run (ParseOptions Verbose NoForce (Just False) False defaultTarget)
 
       context "with -" $ do
         it "sets optionsToStdout to True, implies Force and NoVerbose" $ do
-          parseOptions defaultTarget ["-"] `shouldReturn` Run (ParseOptions NoVerbose Force True defaultTarget)
+          parseOptions defaultTarget ["-"] `shouldReturn` Run (ParseOptions NoVerbose Force Nothing True defaultTarget)
 
         it "rejects - for target" $ do
           parseOptions defaultTarget ["-", "-"] `shouldReturn` ParseError

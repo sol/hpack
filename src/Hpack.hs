@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE RecordWildCards #-}
 module Hpack (
 -- | /__NOTE:__/ This module is exposed to allow integration of Hpack into
@@ -32,10 +33,12 @@ module Hpack (
 , Verbose(..)
 , Options(..)
 , Force(..)
+, GenerateHashStrategy(..)
 
 #ifdef TEST
 , hpackResultWithVersion
 , header
+, renderCabalFile
 #endif
 ) where
 
@@ -47,6 +50,7 @@ import           System.Environment
 import           System.Exit
 import           System.IO (stderr)
 import           Data.Aeson (Value)
+import           Data.Maybe
 
 import           Paths_hpack (version)
 import           Hpack.Options
@@ -56,31 +60,35 @@ import           Hpack.Util
 import           Hpack.Utf8 as Utf8
 import           Hpack.CabalFile
 
-programVersion :: Version -> String
-programVersion v = "hpack version " ++ Version.showVersion v
+programVersion :: Maybe Version -> String
+programVersion Nothing = "hpack"
+programVersion (Just v) = "hpack version " ++ Version.showVersion v
 
-header :: FilePath -> Version -> Hash -> String
-header p v hash = unlines [
+header :: FilePath -> Maybe Version -> (Maybe Hash) -> [String]
+header p v hash = [
     "-- This file has been generated from " ++ takeFileName p ++ " by " ++ programVersion v ++ "."
   , "--"
   , "-- see: https://github.com/sol/hpack"
-  , "--"
-  , "-- hash: " ++ hash
-  , ""
-  ]
+  ] ++ case hash of
+    Just h -> ["--" , "-- hash: " ++ h, ""]
+    Nothing -> [""]
 
 data Options = Options {
   optionsDecodeOptions :: DecodeOptions
 , optionsForce :: Force
+, optionsGenerateHashStrategy :: GenerateHashStrategy
 , optionsToStdout :: Bool
 }
+
+data GenerateHashStrategy = ForceHash | ForceNoHash | PreferHash | PreferNoHash
+  deriving (Eq, Show)
 
 getOptions :: FilePath -> [String] -> IO (Maybe (Verbose, Options))
 getOptions defaultPackageConfig args = do
   result <- parseOptions defaultPackageConfig args
   case result of
     PrintVersion -> do
-      putStrLn (programVersion version)
+      putStrLn (programVersion $ Just version)
       return Nothing
     PrintNumericVersion -> do
       putStrLn (Version.showVersion version)
@@ -88,9 +96,12 @@ getOptions defaultPackageConfig args = do
     Help -> do
       printHelp
       return Nothing
-    Run options -> case options of
-      ParseOptions verbose force toStdout file -> do
-        return $ Just (verbose, Options defaultDecodeOptions {decodeOptionsTarget = file} force toStdout)
+    Run (ParseOptions verbose force hash toStdout file) -> do
+      let generateHash = case hash of
+            Just True -> ForceHash
+            Just False -> ForceNoHash
+            Nothing -> PreferNoHash
+      return $ Just (verbose, Options defaultDecodeOptions {decodeOptionsTarget = file} force generateHash toStdout)
     ParseError -> do
       printHelp
       exitFailure
@@ -99,7 +110,7 @@ printHelp :: IO ()
 printHelp = do
   name <- getProgName
   Utf8.hPutStrLn stderr $ unlines [
-      "Usage: " ++ name ++ " [ --silent ] [ --force | -f ] [ PATH ] [ - ]"
+      "Usage: " ++ name ++ " [ --silent ] [ --force | -f ] [ --[no-]hash ] [ PATH ] [ - ]"
     , "       " ++ name ++ " --version"
     , "       " ++ name ++ " --numeric-version"
     , "       " ++ name ++ " --help"
@@ -109,7 +120,7 @@ hpack :: Verbose -> Options -> IO ()
 hpack verbose options = hpackResult options >>= printResult verbose
 
 defaultOptions :: Options
-defaultOptions = Options defaultDecodeOptions NoForce False
+defaultOptions = Options defaultDecodeOptions NoForce PreferNoHash False
 
 setTarget :: FilePath -> Options -> Options
 setTarget target options@Options{..} =
@@ -154,41 +165,76 @@ printResult verbose r = do
 printWarnings :: [String] -> IO ()
 printWarnings = mapM_ $ Utf8.hPutStrLn stderr . ("WARNING: " ++)
 
-mkStatus :: [String] -> Version -> CabalFile -> Status
-mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
-  (_, _) | old == new -> OutputUnchanged
-  (Nothing, _) -> ExistingCabalFileWasModifiedManually
-  (Just oldVersion, _) | oldVersion < makeVersion [0, 20, 0] -> Generated
-  (_, Nothing) -> ExistingCabalFileWasModifiedManually
-  (Just oldVersion, Just hash)
-    | v < oldVersion -> AlreadyGeneratedByNewerHpack
-    | sha256 (unlines old) /= hash -> ExistingCabalFileWasModifiedManually
-    | otherwise -> Generated
+mkStatus :: CabalFile -> CabalFile -> Status
+mkStatus new@(CabalFile _ mNewVersion mNewHash _) existing@(CabalFile _ mExistingVersion _ _)
+  | new `hasSameContent` existing = OutputUnchanged
+  | otherwise = case mExistingVersion of
+      Nothing -> ExistingCabalFileWasModifiedManually
+      Just _
+        | mNewVersion < mExistingVersion -> AlreadyGeneratedByNewerHpack
+        | isJust mNewHash && hashMismatch existing -> ExistingCabalFileWasModifiedManually
+        | otherwise -> Generated
+
+hasSameContent :: CabalFile -> CabalFile -> Bool
+hasSameContent (CabalFile cabalVersionA _ _ a) (CabalFile cabalVersionB _ _ b) = cabalVersionA == cabalVersionB && a == b
+
+hashMismatch :: CabalFile -> Bool
+hashMismatch cabalFile = case cabalFileHash cabalFile of
+  Nothing -> False
+  Just hash -> hash /= calculateHash cabalFile
+
+calculateHash :: CabalFile -> Hash
+calculateHash (CabalFile cabalVersion _ _ body) = sha256 (unlines $ cabalVersion ++ body)
 
 hpackResult :: Options -> IO Result
 hpackResult = hpackResultWithVersion version
 
 hpackResultWithVersion :: Version -> Options -> IO Result
-hpackResultWithVersion v (Options options force toStdout) = do
-  DecodeResult pkg cabalVersion cabalFile warnings <- readPackageConfig options >>= either die return
-  oldCabalFile <- readCabalFile cabalFile
+hpackResultWithVersion v (Options options force generateHashStrategy toStdout) = do
+  DecodeResult pkg (lines -> cabalVersion) cabalFileName warnings <- readPackageConfig options >>= either die return
+  mExistingCabalFile <- readCabalFile cabalFileName
   let
-    body = renderPackage (maybe [] cabalFileContents oldCabalFile) pkg
-    withoutHeader = cabalVersion ++ body
-  let
+    newCabalFile = makeCabalFile generateHashStrategy mExistingCabalFile cabalVersion v pkg
+
     status = case force of
       Force -> Generated
-      NoForce -> maybe Generated (mkStatus (lines withoutHeader) v) oldCabalFile
+      NoForce -> maybe Generated (mkStatus newCabalFile) mExistingCabalFile
+
   case status of
-    Generated -> do
-      let hash = sha256 withoutHeader
-          out  = cabalVersion ++ header (decodeOptionsTarget options) v hash ++ body
-      if toStdout
-        then Utf8.putStr out
-        else Utf8.writeFile cabalFile out
+    Generated -> writeCabalFile options toStdout cabalFileName newCabalFile
     _ -> return ()
+
   return Result {
-      resultWarnings = warnings
-    , resultCabalFile = cabalFile
-    , resultStatus = status
-    }
+    resultWarnings = warnings
+  , resultCabalFile = cabalFileName
+  , resultStatus = status
+  }
+
+writeCabalFile :: DecodeOptions -> Bool -> FilePath -> CabalFile -> IO ()
+writeCabalFile options toStdout name cabalFile = do
+  write . unlines $ renderCabalFile (decodeOptionsTarget options) cabalFile
+  where
+    write = if toStdout then Utf8.putStr else Utf8.writeFile name
+
+makeCabalFile :: GenerateHashStrategy -> Maybe CabalFile -> [String] -> Version -> Package -> CabalFile
+makeCabalFile strategy mExistingCabalFile cabalVersion v pkg = cabalFile
+  where
+    cabalFile = CabalFile cabalVersion (Just v) hash body
+
+    hash
+      | shouldGenerateHash mExistingCabalFile strategy = Just $ calculateHash cabalFile
+      | otherwise = Nothing
+
+    body = lines $ renderPackage (maybe [] cabalFileContents mExistingCabalFile) pkg
+
+shouldGenerateHash :: Maybe CabalFile -> GenerateHashStrategy -> Bool
+shouldGenerateHash mExistingCabalFile strategy = case (strategy, mExistingCabalFile) of
+  (ForceHash, _) -> True
+  (ForceNoHash, _) -> False
+  (PreferHash, Nothing) -> True
+  (PreferNoHash, Nothing) -> False
+  (_, Just CabalFile {cabalFileHash = Nothing}) -> False
+  (_, Just CabalFile {cabalFileHash = Just _}) -> True
+
+renderCabalFile :: FilePath -> CabalFile -> [String]
+renderCabalFile file (CabalFile cabalVersion hpackVersion hash body) = cabalVersion ++ header file hpackVersion hash ++ body

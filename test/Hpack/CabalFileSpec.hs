@@ -9,8 +9,14 @@ import           Data.String.Interpolate.Util
 
 import           Paths_hpack (version)
 
+import           Hpack.Util (Hash)
+import           Data.Version (Version)
 import           Hpack (header)
+
 import           Hpack.CabalFile
+
+mkHeader :: FilePath -> Version -> Hash -> String
+mkHeader p v hash = unlines $ header p (Just v) (Just hash)
 
 spec :: Spec
 spec = do
@@ -21,13 +27,13 @@ spec = do
 
     it "includes hash" $ do
       inTempDirectory $ do
-        writeFile file $ header "package.yaml" version hash
-        readCabalFile file `shouldReturn` Just (CabalFile (Just version) (Just hash) [])
+        writeFile file $ mkHeader "package.yaml" version hash
+        readCabalFile file `shouldReturn` Just (CabalFile [] (Just version) (Just hash) [])
 
     it "accepts cabal-version at the beginning of the file" $ do
       inTempDirectory $ do
-        writeFile file $ ("cabal-version: 2.2\n" ++ header "package.yaml" version hash)
-        readCabalFile file `shouldReturn` Just (CabalFile (Just version) (Just hash) ["cabal-version: 2.2"])
+        writeFile file $ ("cabal-version: 2.2\n" ++ mkHeader "package.yaml" version hash)
+        readCabalFile file `shouldReturn` Just (CabalFile ["cabal-version: 2.2"] (Just version) (Just hash) [])
 
   describe "extractVersion" $ do
     it "extracts Hpack version from a cabal file" $ do
