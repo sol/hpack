@@ -1,6 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
 module Hpack.Options where
 
+import           Control.Applicative
+import           Control.Monad
+import           Data.Maybe
 import           System.FilePath
 import           System.Directory
 
@@ -16,6 +19,7 @@ data Force = Force | NoForce
 data ParseOptions = ParseOptions {
   parseOptionsVerbose :: Verbose
 , parseOptionsForce :: Force
+, parseOptionsHash :: Maybe Bool
 , parseOptionsToStdout :: Bool
 , parseOptionsTarget :: FilePath
 } deriving (Eq, Show)
@@ -30,18 +34,30 @@ parseOptions defaultTarget = \ case
       file <- expandTarget defaultTarget target
       let
         options
-          | toStdout = ParseOptions NoVerbose Force toStdout file
-          | otherwise = ParseOptions verbose force toStdout file
+          | toStdout = ParseOptions NoVerbose Force hash toStdout file
+          | otherwise = ParseOptions verbose force hash toStdout file
       return (Run options)
     Left err -> return err
     where
       silentFlag = "--silent"
       forceFlags = ["--force", "-f"]
+      hashFlag = "--hash"
+      noHashFlag = "--no-hash"
 
-      flags = silentFlag : forceFlags
+      flags = hashFlag : noHashFlag : silentFlag : forceFlags
 
+      verbose :: Verbose
       verbose = if silentFlag `elem` args then NoVerbose else Verbose
+
+      force :: Force
       force = if any (`elem` args) forceFlags then Force else NoForce
+
+      hash :: Maybe Bool
+      hash = listToMaybe . reverse $ mapMaybe parse args
+        where
+          parse :: String -> Maybe Bool
+          parse t = True <$ guard (t == hashFlag) <|> False <$ guard (t == noHashFlag)
+
       ys = filter (`notElem` flags) args
 
       targets :: Either ParseResult (Maybe FilePath, Bool)
