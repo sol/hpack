@@ -3,4 +3,4 @@ cache: "c:\\sr -> appveyor.yml"
 
 test_script:
 # - ps: Invoke-Expression (Invoke-WebRequest 'https://raw.githubusercontent.com/ndmitchell/neil/master/appveyor.ps1')
-- ps: Invoke-Command -FilePath appveyor.ps1
+- ps: Invoke-Expression (Invoke-WebRequest 'https://raw.githubusercontent.com/sol/hpack/03358d00b8e87a4f5c7f3f8077f453294fdc6f5d/appveyor.ps1')
