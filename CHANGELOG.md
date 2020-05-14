@@ -1,6 +1,18 @@
-## Changes in 0.34.0 (upcoming)
+## Changes in 0.34.0
+  - Use `PreferNoHash` as default `GenerateHashStrategy`
   - Add support for library `visibility` (see #382)
   - Reject URLs for `github`
+
+## Changes in 0.33.1
+  - Add `GenerateHashStrategy`.  The default is `PreferHash` for `0.33.0` and
+    will change to `PreferNoHash` with `0.34.0`. See
+    https://github.com/sol/hpack/pull/390) for details.
+
+  - Add command-line options `--hash` and `--no-hash`
+
+## Changes in 0.33.0.1
+  - Silently ignore missing hash when the cabal file content didn't change at
+    all (for forward compatibility with #390)
 
 ## Changes in 0.33.0
   - Support GHC 8.8.1: `fail` is no longer a part of `Monad`. Instead, it lives
