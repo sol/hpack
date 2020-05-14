@@ -100,7 +100,7 @@ getOptions defaultPackageConfig args = do
       let generateHash = case hash of
             Just True -> ForceHash
             Just False -> ForceNoHash
-            Nothing -> PreferNoHash
+            Nothing -> PreferHash
       return $ Just (verbose, Options defaultDecodeOptions {decodeOptionsTarget = file} force generateHash toStdout)
     ParseError -> do
       printHelp
@@ -120,7 +120,7 @@ hpack :: Verbose -> Options -> IO ()
 hpack verbose options = hpackResult options >>= printResult verbose
 
 defaultOptions :: Options
-defaultOptions = Options defaultDecodeOptions NoForce PreferNoHash False
+defaultOptions = Options defaultDecodeOptions NoForce PreferHash False
 
 setTarget :: FilePath -> Options -> Options
 setTarget target options@Options{..} =
