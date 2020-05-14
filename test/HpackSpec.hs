@@ -6,6 +6,7 @@ import           Prelude hiding (readFile)
 import qualified Prelude as Prelude
 
 import           Control.DeepSeq
+import           Data.List
 
 import           Hpack.Config
 import           Hpack.CabalFile
@@ -60,6 +61,13 @@ spec = do
             writeFile file existing
             hpack `shouldReturn` modifiedManually
             readFile file `shouldReturn` existing
+
+          context "when only the the cabal file header changed" $ do
+            it "does not complain if it's newer" $ do
+              hpack `shouldReturn` generated
+              let removeHash = unlines . filter (not . isInfixOf "hash") . lines
+              readFile file >>= writeFile file . removeHash
+              hpack `shouldReturn` outputUnchanged
 
         context "when hash is present" $ do
           context "when exsting cabal file was generated with a newer version of hpack" $ do
