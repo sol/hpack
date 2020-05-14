@@ -156,11 +156,11 @@ printWarnings = mapM_ $ Utf8.hPutStrLn stderr . ("WARNING: " ++)
 
 mkStatus :: [String] -> Version -> CabalFile -> Status
 mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
+  (_, _) | old == new -> OutputUnchanged
   (Nothing, _) -> ExistingCabalFileWasModifiedManually
   (Just oldVersion, _) | oldVersion < makeVersion [0, 20, 0] -> Generated
   (_, Nothing) -> ExistingCabalFileWasModifiedManually
   (Just oldVersion, Just hash)
-    | old == new -> OutputUnchanged
     | v < oldVersion -> AlreadyGeneratedByNewerHpack
     | sha256 (unlines old) /= hash -> ExistingCabalFileWasModifiedManually
     | otherwise -> Generated
