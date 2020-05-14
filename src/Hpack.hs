@@ -48,13 +48,16 @@ import           System.Exit
 import           System.IO (stderr)
 import           Data.Aeson (Value)
 
-import           Paths_hpack (version)
+import           Paths_hpack ()
 import           Hpack.Options
 import           Hpack.Config
 import           Hpack.Render
 import           Hpack.Util
 import           Hpack.Utf8 as Utf8
 import           Hpack.CabalFile
+
+version :: Version
+version = makeVersion [0,33,0]
 
 programVersion :: Version -> String
 programVersion v = "hpack version " ++ Version.showVersion v
@@ -156,11 +159,11 @@ printWarnings = mapM_ $ Utf8.hPutStrLn stderr . ("WARNING: " ++)
 
 mkStatus :: [String] -> Version -> CabalFile -> Status
 mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
+  (_, _) | old == new -> OutputUnchanged
   (Nothing, _) -> ExistingCabalFileWasModifiedManually
   (Just oldVersion, _) | oldVersion < makeVersion [0, 20, 0] -> Generated
   (_, Nothing) -> ExistingCabalFileWasModifiedManually
   (Just oldVersion, Just hash)
-    | old == new -> OutputUnchanged
     | v < oldVersion -> AlreadyGeneratedByNewerHpack
     | sha256 (unlines old) /= hash -> ExistingCabalFileWasModifiedManually
     | otherwise -> Generated
