@@ -111,13 +111,13 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
     describe "github" $ do
       it "accepts owner/repo" $ do
         [i|
-        github: hspec/hspec
+        github: sol/hpack
         |] `shouldRenderTo` package [i|
-        homepage: https://github.com/hspec/hspec#readme
-        bug-reports: https://github.com/hspec/hspec/issues
+        homepage: https://github.com/sol/hpack#readme
+        bug-reports: https://github.com/sol/hpack/issues
         source-repository head
           type: git
-          location: https://github.com/hspec/hspec
+          location: https://github.com/sol/hpack
         |]
 
       it "accepts owner/repo/path" $ do

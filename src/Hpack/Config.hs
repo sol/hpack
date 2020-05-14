@@ -1166,7 +1166,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
     github = toSourceRepository <$> packageConfigGithub
       where
         toSourceRepository :: GitHub -> SourceRepository
-        toSourceRepository (GitHub repo owner subdir) = SourceRepository (githubBaseUrl ++ owner ++ "/" ++ repo) subdir
+        toSourceRepository (GitHub owner repo subdir) = SourceRepository (githubBaseUrl ++ owner ++ "/" ++ repo) subdir
 
     homepage :: Maybe String
     homepage = case packageConfigHomepage of

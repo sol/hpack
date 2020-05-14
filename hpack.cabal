@@ -1,13 +1,11 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.33.1.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: 12b7d6619eff1d32190bac55f5a9d29fc4732f7475eb5e450effd690c9f53964
 
 name:           hpack
-version:        0.34.0
+version:        0.34.1
 synopsis:       A modern format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
