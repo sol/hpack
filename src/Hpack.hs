@@ -48,16 +48,13 @@ import           System.Exit
 import           System.IO (stderr)
 import           Data.Aeson (Value)
 
-import           Paths_hpack ()
+import           Paths_hpack (version)
 import           Hpack.Options
 import           Hpack.Config
 import           Hpack.Render
 import           Hpack.Util
 import           Hpack.Utf8 as Utf8
 import           Hpack.CabalFile
-
-version :: Version
-version = makeVersion [0,33,0]
 
 programVersion :: Version -> String
 programVersion v = "hpack version " ++ Version.showVersion v
