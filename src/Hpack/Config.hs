@@ -96,6 +96,7 @@ import           Data.Ord
 import           Data.String
 import           Data.Text (Text)
 import qualified Data.Text as T
+import           Data.Text.Encoding (decodeUtf8)
 import           Data.Scientific (Scientific)
 import           System.Directory
 import           System.FilePath
@@ -108,6 +109,8 @@ import           Data.Version (Version, makeVersion, showVersion)
 import           Distribution.Pretty (prettyShow)
 import qualified Distribution.SPDX.License as SPDX
 
+import qualified Data.Yaml.Pretty as Yaml
+import           Data.Aeson (object, (.=))
 import           Data.Aeson.Config.Types
 import           Data.Aeson.Config.FromValue hiding (decodeValue)
 import qualified Data.Aeson.Config.FromValue as Config
@@ -424,8 +427,38 @@ type ParseConditionalSection = ConditionalSection ParseCSources ParseCxxSources 
 
 instance FromValue a => FromValue (ParseConditionalSection a) where
   fromValue v
-    | hasKey "then" v || hasKey "else" v = ThenElseConditional <$> fromValue v
+    | hasKey "then" v || hasKey "else" v = ThenElseConditional <$> fromValue v <* giveHint
     | otherwise = FlatConditional <$> fromValue v
+    where
+      giveHint = case v of
+        Object o -> case (,,) <$> HashMap.lookup "then" o <*> HashMap.lookup "else" o <*> HashMap.lookup "condition" o of
+          Just (Object then_, Object else_, String condition) -> do
+            when (HashMap.null then_) $ "then" `emptyTryInstead` flatElse
+            when (HashMap.null else_) $ "else" `emptyTryInstead` flatThen
+            where
+              flatThen = flatConditional condition then_
+              flatElse = flatConditional (negate_ condition) else_
+          _ -> return ()
+        _ -> return ()
+
+      negate_ condition = "!(" <> condition <> ")"
+
+      flatConditional condition sect = object [("when" .= HashMap.insert "condition" (String condition) sect)]
+
+      emptyTryInstead :: String -> Value -> Parser ()
+      emptyTryInstead name sect = do
+        fail $ "an empty " <> show name <> " section is not allowed, try the following instead:\n\n" ++ encodePretty sect
+
+      encodePretty = T.unpack . decodeUtf8 . Yaml.encodePretty c
+        where
+          c :: Yaml.Config
+          c = Yaml.setConfCompare f Yaml.defConfig
+            where
+              f a b = case (a, b) of
+                ("condition", "condition") -> EQ
+                ("condition", _) -> LT
+                (_, "condition") -> GT
+                _ -> compare a b
 
 hasKey :: Text -> Value -> Bool
 hasKey key (Object o) = HashMap.member key o

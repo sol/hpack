@@ -1380,6 +1380,40 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 unix
           |]
 
+        context "with empty then-branch" $ do
+          it "provides a hint" $ do
+            [i|
+            when:
+              condition: os(windows)
+              then: {}
+              else:
+                dependencies: unix
+            executable: {}
+            |] `shouldFailWith` unlines [
+                "package.yaml: Error while parsing $.when - an empty \"then\" section is not allowed, try the following instead:"
+              , ""
+              , "when:"
+              , "  condition: '!(os(windows))'"
+              , "  dependencies: unix"
+              ]
+
+        context "with empty else-branch" $ do
+          it "provides a hint" $ do
+            [i|
+            when:
+              condition: os(windows)
+              then:
+                dependencies: Win32
+              else: {}
+            executable: {}
+            |] `shouldFailWith` unlines [
+                "package.yaml: Error while parsing $.when - an empty \"else\" section is not allowed, try the following instead:"
+              , ""
+              , "when:"
+              , "  condition: os(windows)"
+              , "  dependencies: Win32"
+              ]
+
         it "rejects invalid conditionals" $ do
           [i|
           when:
@@ -1407,7 +1441,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             else:
               when:
                 condition: os(windows)
-                then: {}
+                then:
+                  dependencies: foo
                 else:
                   baz: null
           |] `shouldWarn` [
