@@ -63,7 +63,6 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       it "fails on unsupported spec-version" $ do
         [i|
         spec-version: 25.0
-        dependencies: foo == bar
         |] `shouldFailWith` ("The file package.yaml requires version 25.0 of the Hpack package specification, however this version of hpack only supports versions up to " ++ showVersion Hpack.version ++ ". Upgrading to the latest version of hpack may resolve this issue.")
 
       it "fails on unsupported spec-version from defaults" $ do
@@ -610,6 +609,15 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         build-depends:
             base
         |]
+
+      it "accepts dependencies with subcomponents" $ do
+        [i|
+        executable:
+          dependencies: foo:bar
+        |] `shouldRenderTo` (executable_ "foo" [i|
+        build-depends:
+            foo:bar
+        |]) {packageCabalVersion = "3.0"}
 
       it "accepts list of dependencies" $ do
         [i|

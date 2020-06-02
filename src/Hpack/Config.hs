@@ -739,6 +739,7 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
         makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxSources) sect)
       , makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxOptions) sect)
       , makeVersion [2,0] <$ guard (sectionSatisfies (any hasMixins . unDependencies . sectionDependencies) sect)
+      , makeVersion [3,0] <$ guard (sectionSatisfies (any hasSubcomponents . Map.keys . unDependencies . sectionDependencies) sect)
       ] ++ map versionFromSystemBuildTool systemBuildTools
       where
         versionFromSystemBuildTool name
@@ -797,6 +798,9 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
 
     hasMixins :: DependencyInfo -> Bool
     hasMixins (DependencyInfo mixins _) = not (null mixins)
+
+    hasSubcomponents :: String -> Bool
+    hasSubcomponents = elem ':'
 
 decodeValue :: FromValue a => ProgramName -> FilePath -> Value -> Warnings (Errors IO) a
 decodeValue (ProgramName programName) file value = do
