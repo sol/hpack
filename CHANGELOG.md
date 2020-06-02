@@ -1,4 +1,4 @@
-## next
+## Changes in 0.34.2
   - Accept subcomponents as dependencies (close #382)
 
 ## Changes in 0.34.1
