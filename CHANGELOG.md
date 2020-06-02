@@ -1,3 +1,6 @@
+## next
+  - Accept subcomponents as dependencies (close #382)
+
 ## Changes in 0.34.1
   - Fix a bug in `github: ...` introduced with `0.34.0`
     (f63eb19b956517b4dd8e28dc5785be5889a99298)

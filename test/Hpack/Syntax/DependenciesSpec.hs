@@ -1,5 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Hpack.Syntax.DependenciesSpec (spec) where
 
 import           Helper
@@ -18,6 +19,16 @@ defaultInfo = DependencyInfo [] anyVersion
 
 spec :: Spec
 spec = do
+  describe "parseDependency" $ do
+    it "accepts dependencies" $ do
+      parseDependency "dependency" "foo" `shouldReturn` ("foo", DependencyVersion Nothing AnyVersion)
+
+    it "accepts dependencies with a subcomponent" $ do
+      parseDependency "dependency" "foo:bar" `shouldReturn` ("foo:bar", DependencyVersion Nothing AnyVersion)
+
+    it "accepts dependencies with multiple subcomponents" $ do
+      parseDependency "dependency" "foo:{bar,baz}" `shouldReturn` ("foo:{bar,baz}", DependencyVersion Nothing AnyVersion)
+
   describe "fromValue" $ do
     context "when parsing Dependencies" $ do
       context "with a scalar" $ do

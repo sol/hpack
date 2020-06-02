@@ -27,7 +27,7 @@ library
       src
   ghc-options: -Wall
   build-depends:
-      Cabal >=2.2
+      Cabal >=3.0.0.0
     , Glob >=0.9.0
     , aeson >=1.4.3.0
     , base >=4.9 && <5
@@ -83,7 +83,7 @@ executable hpack
       driver
   ghc-options: -Wall
   build-depends:
-      Cabal >=2.2
+      Cabal >=3.0.0.0
     , Glob >=0.9.0
     , aeson >=1.4.3.0
     , base >=4.9 && <5
@@ -119,7 +119,7 @@ test-suite spec
   ghc-options: -Wall
   cpp-options: -DTEST
   build-depends:
-      Cabal >=2.2
+      Cabal >=3.0.0.0
     , Glob >=0.9.0
     , HUnit >=1.6.0.0
     , QuickCheck

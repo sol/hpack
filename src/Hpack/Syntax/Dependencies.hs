@@ -9,9 +9,12 @@ module Hpack.Syntax.Dependencies (
 
 import qualified Control.Monad.Fail as Fail
 import           Data.Text (Text)
+import           Data.List
 import qualified Data.Text as T
 import           Data.Semigroup (Semigroup(..))
 import qualified Distribution.Package as D
+import qualified Distribution.Types.LibraryName as D
+import           Distribution.Pretty (prettyShow)
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import           GHC.Exts
@@ -64,4 +67,10 @@ parseDependency :: Fail.MonadFail m => String -> Text -> m (String, DependencyVe
 parseDependency subject = fmap fromCabal . cabalParse subject . T.unpack
   where
     fromCabal :: D.Dependency -> (String, DependencyVersion)
-    fromCabal d = (D.unPackageName $ D.depPkgName d, DependencyVersion Nothing . versionConstraintFromCabal $ D.depVerRange d)
+    fromCabal d = (toName (D.depPkgName d) (toList $ D.depLibraries d), DependencyVersion Nothing . versionConstraintFromCabal $ D.depVerRange d)
+
+    toName :: D.PackageName -> [D.LibraryName] -> String
+    toName package components = prettyShow package <> case components of
+      [D.LMainLibName] -> ""
+      [D.LSubLibName lib] -> ":" <> prettyShow lib
+      xs -> ":{" <> (intercalate "," $ map prettyShow [name | D.LSubLibName name <- xs]) <> "}"
