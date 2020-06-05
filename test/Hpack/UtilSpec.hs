@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Hpack.UtilSpec (main, spec) where
 
 import           Helper
@@ -30,41 +29,6 @@ spec = do
 
     it "accepts qualified identifier" $ do
       parseMain "Foo.bar" `shouldBe` ("Foo.hs", ["-main-is Foo.bar"])
-
-  describe "toModule" $ do
-    it "maps .hs paths to module names" $ do
-      toModule ["Foo", "Bar", "Baz.hs"]  `shouldBe` Just "Foo.Bar.Baz"
-
-    it "maps .lhs paths to module names" $ do
-      toModule ["Foo", "Bar", "Baz.lhs"] `shouldBe` Just "Foo.Bar.Baz"
-
-    it "maps .hsc paths to module names" $ do
-      toModule ["Foo", "Bar", "Baz.hsc"] `shouldBe` Just "Foo.Bar.Baz"
-
-    it "rejects invalid module names" $ do
-      toModule ["resources", "hello.hs"] `shouldBe` Nothing
-
-  describe "getModuleFilesRecursive" $ do
-    it "gets all files from given directory" $ do
-      inTempDirectory $ do
-        touch "foo/bar"
-        touch "foo/baz"
-        actual <- getModuleFilesRecursive "foo"
-        actual `shouldMatchList` [
-            ["bar"]
-          , ["baz"]
-          ]
-
-    it "descends into subdirectories" $ do
-      inTempDirectory $ do
-        touch "foo/Bar/baz"
-        getModuleFilesRecursive "foo" `shouldReturn` [["Bar", "baz"]]
-
-    context "when a subdirectory is not a valid module name" $ do
-      it "does not descend" $ do
-        inTempDirectory $ do
-          touch "foo/bar/baz"
-          getModuleFilesRecursive "foo" `shouldReturn` empty
 
   describe "tryReadFile" $ do
     it "reads file" $ do

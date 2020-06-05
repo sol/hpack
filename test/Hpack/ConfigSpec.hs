@@ -148,25 +148,6 @@ spec = do
             }
       renameDependencies "bar" "baz" (sectionWithConditional ["foo", "bar"]) `shouldBe` sectionWithConditional ["foo", "baz"]
 
-  describe "getModules" $ around withTempDirectory $ do
-    it "returns Haskell modules in specified source directory" $ \dir -> do
-      touch (dir </> "src/Foo.hs")
-      touch (dir </> "src/Bar/Baz.hs")
-      touch (dir </> "src/Setup.hs")
-      getModules dir "src" >>= (`shouldMatchList` ["Foo", "Bar.Baz", "Setup"])
-
-    context "when source directory is '.'" $ do
-      it "ignores Setup" $ \dir -> do
-        touch (dir </> "Foo.hs")
-        touch (dir </> "Setup.hs")
-        getModules dir  "." `shouldReturn` ["Foo"]
-
-    context "when source directory is './.'" $ do
-      it "ignores Setup" $ \dir -> do
-        touch (dir </> "Foo.hs")
-        touch (dir </> "Setup.hs")
-        getModules dir  "./." `shouldReturn` ["Foo"]
-
   describe "toBuildTool" $ do
     let toBuildTool_ name = runWriter $ toBuildTool "my-package" ["foo"] (name, anyVersion)
     context "with an UnqualifiedBuildTool" $ do

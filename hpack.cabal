@@ -63,6 +63,7 @@ library
       Hpack.Defaults
       Hpack.Haskell
       Hpack.License
+      Hpack.Module
       Hpack.Options
       Hpack.Render.Dsl
       Hpack.Render.Hints
@@ -161,6 +162,7 @@ test-suite spec
       Hpack.DefaultsSpec
       Hpack.HaskellSpec
       Hpack.LicenseSpec
+      Hpack.ModuleSpec
       Hpack.OptionsSpec
       Hpack.Render.DslSpec
       Hpack.Render.HintsSpec
@@ -182,6 +184,7 @@ test-suite spec
       Hpack.Defaults
       Hpack.Haskell
       Hpack.License
+      Hpack.Module
       Hpack.Options
       Hpack.Render
       Hpack.Render.Dsl

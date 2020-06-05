@@ -8,14 +8,9 @@ module Hpack.Util (
 , LdOption
 , parseMain
 
-, Module(..)
-, toModule
-, getModuleFilesRecursive
-
 , tryReadFile
 , expandGlobs
 , sort
-, sortModules
 , lexicographically
 , Hash
 , sha256
@@ -33,18 +28,12 @@ import           System.FilePath
 import qualified System.FilePath.Posix as Posix
 import           System.FilePath.Glob
 import           Crypto.Hash
-import           Data.String
 
 import           Hpack.Haskell
 import           Hpack.Utf8 as Utf8
 
-import           Data.Aeson.Config.FromValue
-
 sort :: [String] -> [String]
 sort = sortBy (comparing lexicographically)
-
-sortModules :: [Module] -> [Module]
-sortModules = map Module . sort . map unModule
 
 lexicographically :: String -> (String, String)
 lexicographically x = (map toLower x, x)
@@ -71,53 +60,6 @@ splitOn c = go
     go xs = case break (== c) xs of
       (ys, "") -> [ys]
       (ys, _:zs) -> ys : go zs
-
-newtype Module = Module {unModule :: String}
-  deriving Eq
-
-instance Show Module where
-  show (Module m) = show m
-
-instance FromValue Module where
-  fromValue = fmap Module . fromValue
-
-instance IsString Module where
-  fromString = Module
-
-toModule :: [FilePath] -> Maybe Module
-toModule path = case reverse path of
-  [] -> Nothing
-  x : xs -> do
-    m <- msum $ map (`stripSuffix` x) sourceFileExtensions
-    let name = reverse (m : xs)
-    guard (isModule name) >> return (Module $ intercalate "." name)
-  where
-    stripSuffix :: String -> String -> Maybe String
-    stripSuffix suffix x = reverse <$> stripPrefix (reverse suffix) (reverse x)
-
-sourceFileExtensions :: [String]
-sourceFileExtensions = [
-    ".hs"
-  , ".lhs"
-  , ".chs"
-  , ".hsc"
-  , ".y"
-  , ".ly"
-  , ".x"
-  ]
-
-getModuleFilesRecursive :: FilePath -> IO [[String]]
-getModuleFilesRecursive baseDir = go []
-  where
-    go :: [FilePath] -> IO [[FilePath]]
-    go dir = do
-      c <- map ((dir ++) . return) . filter (`notElem` [".", ".."]) <$> getDirectoryContents (pathTo dir)
-      subdirsFiles  <- filterM (doesDirectoryExist . pathTo) c >>= mapM go . filter isModule
-      files <- filterM (doesFileExist . pathTo) c
-      return (files ++ concat subdirsFiles)
-      where
-        pathTo :: [FilePath] -> FilePath
-        pathTo p = baseDir </> joinPath p
 
 tryReadFile :: FilePath -> IO (Maybe String)
 tryReadFile file = do

@@ -69,7 +69,6 @@ module Hpack.Config (
 #ifdef TEST
 , renameDependencies
 , Empty(..)
-, getModules
 , pathsModuleFromPackageName
 , Cond(..)
 
@@ -126,6 +125,7 @@ import           Hpack.Syntax.Dependencies
 import           Hpack.Syntax.BuildTools
 import           Hpack.License
 import           Hpack.CabalFile (parseVersion)
+import           Hpack.Module
 
 import qualified Paths_hpack as Hpack (version)
 
@@ -1479,20 +1479,3 @@ pathsModuleFromPackageName name = Module ("Paths_" ++ map f name)
   where
     f '-' = '_'
     f x = x
-
-getModules :: FilePath -> FilePath -> IO [Module]
-getModules dir src_ = sortModules <$> do
-  exists <- doesDirectoryExist (dir </> src_)
-  if exists
-    then do
-      src <- canonicalizePath (dir </> src_)
-      removeSetup src . toModules <$> getModuleFilesRecursive src
-    else return []
-  where
-    toModules :: [[FilePath]] -> [Module]
-    toModules = catMaybes . map toModule
-
-    removeSetup :: FilePath -> [Module] -> [Module]
-    removeSetup src
-      | src == dir = filter (/= "Setup")
-      | otherwise = id
