@@ -14,7 +14,7 @@ dependencies:
   - base >= 4.9 && < 5
   - bytestring
   - deepseq
-  - directory
+  - directory >= 1.2.5.0
   - filepath
   - Glob >= 0.9.0
   - text

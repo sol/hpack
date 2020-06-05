@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE CPP #-}
 module Hpack.Module (
   Module(..)
@@ -11,27 +12,43 @@ module Hpack.Module (
 
 import           Data.String
 import           System.FilePath
-import           System.Directory
+import qualified System.Directory as Directory
 import           Control.Monad
 import           Data.List hiding (sort)
-import           Data.Maybe
 
 import           Data.Aeson.Config.FromValue
 import           Hpack.Util
 import           Hpack.Haskell
 
+import           Path (Path(..), PathComponent(..))
+import qualified Path
+
+newtype Module = Module {unModule :: String}
+  deriving Eq
+
+instance Show Module where
+  show = show . unModule
+
+instance IsString Module where
+  fromString = Module
+
+instance FromValue Module where
+  fromValue = fmap Module . fromValue
+
+toModule :: Path -> Module
+toModule path = case reverse $ Path.components path of
+  [] -> Module ""
+  file : dirs -> Module . intercalate "." . reverse $ dropExtension file : dirs
+
 getModules :: FilePath -> FilePath -> IO [Module]
 getModules dir src_ = sortModules <$> do
-  exists <- doesDirectoryExist (dir </> src_)
+  exists <- Directory.doesDirectoryExist (dir </> src_)
   if exists
     then do
-      src <- canonicalizePath (dir </> src_)
-      removeSetup src . toModules <$> getModuleFilesRecursive src
+      src <- Directory.canonicalizePath (dir </> src_)
+      removeSetup src . map toModule <$> getModuleFilesRecursive src
     else return []
   where
-    toModules :: [[FilePath]] -> [Module]
-    toModules = catMaybes . map toModule
-
     removeSetup :: FilePath -> [Module] -> [Module]
     removeSetup src
       | src == dir = filter (/= "Setup")
@@ -40,49 +57,50 @@ getModules dir src_ = sortModules <$> do
 sortModules :: [Module] -> [Module]
 sortModules = map Module . sort . map unModule
 
-newtype Module = Module {unModule :: String}
-  deriving Eq
-
-instance Show Module where
-  show (Module m) = show m
-
-instance FromValue Module where
-  fromValue = fmap Module . fromValue
-
-instance IsString Module where
-  fromString = Module
-
-toModule :: [FilePath] -> Maybe Module
-toModule path = case reverse path of
-  [] -> Nothing
-  x : xs -> do
-    m <- msum $ map (`stripSuffix` x) sourceFileExtensions
-    let name = reverse (m : xs)
-    guard (isModule name) >> return (Module $ intercalate "." name)
+isSourceFile :: PathComponent -> Bool
+isSourceFile (splitExtension . unPathComponent -> (name, ext)) = ext `elem` extensions && isModuleNameComponent name
   where
-    stripSuffix :: String -> String -> Maybe String
-    stripSuffix suffix x = reverse <$> stripPrefix (reverse suffix) (reverse x)
+    extensions :: [String]
+    extensions = [
+        ".hs"
+      , ".lhs"
+      , ".chs"
+      , ".hsc"
+      , ".y"
+      , ".ly"
+      , ".x"
+      ]
 
-sourceFileExtensions :: [String]
-sourceFileExtensions = [
-    ".hs"
-  , ".lhs"
-  , ".chs"
-  , ".hsc"
-  , ".y"
-  , ".ly"
-  , ".x"
-  ]
+isModuleComponent :: PathComponent -> Bool
+isModuleComponent = isModuleNameComponent . unPathComponent
 
-getModuleFilesRecursive :: FilePath -> IO [[String]]
-getModuleFilesRecursive baseDir = go []
+getModuleFilesRecursive :: FilePath -> IO [Path]
+getModuleFilesRecursive baseDir = go (Path [])
   where
-    go :: [FilePath] -> IO [[FilePath]]
+    addBaseDir :: Path -> FilePath
+    addBaseDir = (baseDir </>) . Path.toFilePath
+
+    listDirectory :: Path -> IO [PathComponent]
+    listDirectory = fmap (map PathComponent) . Directory.listDirectory . addBaseDir
+
+    doesFileExist :: Path -> IO Bool
+    doesFileExist = Directory.doesFileExist . addBaseDir
+
+    doesDirectoryExist :: Path -> IO Bool
+    doesDirectoryExist = Directory.doesDirectoryExist . addBaseDir
+
+    go :: Path -> IO [Path]
     go dir = do
-      c <- map ((dir ++) . return) . filter (`notElem` [".", ".."]) <$> getDirectoryContents (pathTo dir)
-      subdirsFiles  <- filterM (doesDirectoryExist . pathTo) c >>= mapM go . filter isModule
-      files <- filterM (doesFileExist . pathTo) c
-      return (files ++ concat subdirsFiles)
+      entries <- listDirectory dir
+
+      files       <- filterWith doesFileExist      (filter isSourceFile      entries)
+      directories <- filterWith doesDirectoryExist (filter isModuleComponent entries)
+
+      subdirsFiles  <- concat <$> mapM go directories
+      return (files ++ subdirsFiles)
       where
-        pathTo :: [FilePath] -> FilePath
-        pathTo p = baseDir </> joinPath p
+        filterWith :: (Path -> IO Bool) -> [PathComponent] -> IO [Path]
+        filterWith p = filterM p . map addDir
+
+        addDir :: PathComponent -> Path
+        addDir entry = Path (unPath dir ++ [entry])

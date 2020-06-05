@@ -36,7 +36,7 @@ library
     , containers
     , cryptonite
     , deepseq
-    , directory
+    , directory >=1.2.5.0
     , filepath
     , http-client
     , http-client-tls
@@ -75,6 +75,7 @@ library
       Hpack.Syntax.ParseDependencies
       Hpack.Utf8
       Hpack.Util
+      Path
       Paths_hpack
   default-language: Haskell2010
 
@@ -93,7 +94,7 @@ executable hpack
     , containers
     , cryptonite
     , deepseq
-    , directory
+    , directory >=1.2.5.0
     , filepath
     , hpack
     , http-client
@@ -131,7 +132,7 @@ test-suite spec
     , containers
     , cryptonite
     , deepseq
-    , directory
+    , directory >=1.2.5.0
     , filepath
     , hspec ==2.*
     , http-client
@@ -198,5 +199,6 @@ test-suite spec
       Hpack.Utf8
       Hpack.Util
       Hpack.Yaml
+      Path
       Paths_hpack
   default-language: Haskell2010

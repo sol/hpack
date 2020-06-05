@@ -27,36 +27,32 @@ spec = do
         getModules dir  "./." `shouldReturn` ["Foo"]
 
   describe "toModule" $ do
-    it "maps .hs paths to module names" $ do
-      toModule ["Foo", "Bar", "Baz.hs"]  `shouldBe` Just "Foo.Bar.Baz"
-
-    it "maps .lhs paths to module names" $ do
-      toModule ["Foo", "Bar", "Baz.lhs"] `shouldBe` Just "Foo.Bar.Baz"
-
-    it "maps .hsc paths to module names" $ do
-      toModule ["Foo", "Bar", "Baz.hsc"] `shouldBe` Just "Foo.Bar.Baz"
-
-    it "rejects invalid module names" $ do
-      toModule ["resources", "hello.hs"] `shouldBe` Nothing
+    it "maps a Path to a Module" $ do
+      toModule "Foo/Bar/Baz.hs" `shouldBe` "Foo.Bar.Baz"
 
   describe "getModuleFilesRecursive" $ do
-    it "gets all files from given directory" $ do
+    it "gets all Haskell source files from given directory" $ do
       inTempDirectory $ do
-        touch "foo/bar"
-        touch "foo/baz"
+        touch "foo/Bar.hs"
+        touch "foo/Baz.chs"
         actual <- getModuleFilesRecursive "foo"
         actual `shouldMatchList` [
-            ["bar"]
-          , ["baz"]
+            "Bar.hs"
+          , "Baz.chs"
           ]
+
+    it "ignores other files" $ do
+      inTempDirectory $ do
+        touch "foo/Bar.js"
+        getModuleFilesRecursive "foo" `shouldReturn` []
 
     it "descends into subdirectories" $ do
       inTempDirectory $ do
-        touch "foo/Bar/baz"
-        getModuleFilesRecursive "foo" `shouldReturn` [["Bar", "baz"]]
+        touch "foo/Bar/Baz.hs"
+        getModuleFilesRecursive "foo" `shouldReturn` ["Bar/Baz.hs"]
 
     context "when a subdirectory is not a valid module name" $ do
       it "does not descend" $ do
         inTempDirectory $ do
-          touch "foo/bar/baz"
+          touch "foo/bar/Baz.hs"
           getModuleFilesRecursive "foo" `shouldReturn` empty

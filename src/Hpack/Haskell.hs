@@ -1,5 +1,6 @@
 module Hpack.Haskell (
   isModule
+, isModuleNameComponent
 , isQualifiedIdentifier
 , isIdentifier
 ) where
@@ -7,10 +8,10 @@ module Hpack.Haskell (
 import           Data.Char
 
 isModule :: [String] -> Bool
-isModule name = (not . null) name && all isModuleName name
+isModule name = (not . null) name && all isModuleNameComponent name
 
-isModuleName :: String -> Bool
-isModuleName name = case name of
+isModuleNameComponent :: String -> Bool
+isModuleNameComponent name = case name of
   x : xs -> isUpper x && all isIdChar xs
   _ -> False
 

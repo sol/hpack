@@ -127,6 +127,8 @@ import           Hpack.License
 import           Hpack.CabalFile (parseVersion)
 import           Hpack.Module
 
+import qualified Path
+
 import qualified Paths_hpack as Hpack (version)
 
 package :: String -> String -> Package
@@ -1343,7 +1345,7 @@ fromLibrarySectionPlain LibrarySection{..} = Library {
 
 getMentionedExecutableModules :: ExecutableSection -> [Module]
 getMentionedExecutableModules (ExecutableSection main otherModules generatedModules)=
-  maybe id (:) (main >>= toModule . splitDirectories) $ fromMaybeList (otherModules <> generatedModules)
+  maybe id (:) (toModule . Path.fromFilePath <$> main) $ fromMaybeList (otherModules <> generatedModules)
 
 toExecutable :: FilePath -> String -> Section ExecutableSection -> IO (Section Executable)
 toExecutable dir packageName_ =
