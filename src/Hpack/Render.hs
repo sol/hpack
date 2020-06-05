@@ -299,14 +299,14 @@ renderDirectories name = Field name . LineSeparatedList . replaceDots
       "." -> "./."
       _ -> xs
 
-renderExposedModules :: [String] -> Element
-renderExposedModules = Field "exposed-modules" . LineSeparatedList
+renderExposedModules :: [Module] -> Element
+renderExposedModules = Field "exposed-modules" . LineSeparatedList . map unModule
 
-renderOtherModules :: [String] -> Element
-renderOtherModules = Field "other-modules" . LineSeparatedList
+renderOtherModules :: [Module] -> Element
+renderOtherModules = Field "other-modules" . LineSeparatedList . map unModule
 
-renderGeneratedModules :: [String] -> Element
-renderGeneratedModules = Field "autogen-modules" . LineSeparatedList
+renderGeneratedModules :: [Module] -> Element
+renderGeneratedModules = Field "autogen-modules" . LineSeparatedList . map unModule
 
 renderReexportedModules :: [String] -> Element
 renderReexportedModules = Field "reexported-modules" . CommaSeparatedList
