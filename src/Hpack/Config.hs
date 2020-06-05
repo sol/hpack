@@ -1383,7 +1383,7 @@ toSection packageName_ executableNames = go
       conditionals <- mapM toConditional (fromMaybeList commonOptionsWhen)
       return Section {
         sectionData = a
-      , sectionSourceDirs = fromMaybeList commonOptionsSourceDirs
+      , sectionSourceDirs = nub $ fromMaybeList commonOptionsSourceDirs
       , sectionDefaultExtensions = fromMaybeList commonOptionsDefaultExtensions
       , sectionOtherExtensions = fromMaybeList commonOptionsOtherExtensions
       , sectionGhcOptions = fromMaybeList commonOptionsGhcOptions

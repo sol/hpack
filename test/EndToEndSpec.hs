@@ -923,6 +923,21 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           |]
 
       context "when inferring modules" $ do
+        it "ignores duplicate source directories" $ do
+          touch "src/Foo.hs"
+          [i|
+          source-dirs: src
+          library:
+            source-dirs: src
+          |] `shouldRenderTo` library [i|
+          hs-source-dirs:
+              src
+          exposed-modules:
+              Foo
+          other-modules:
+              Paths_foo
+          |]
+
         context "with exposed-modules" $ do
           it "infers other-modules" $ do
             touch "src/Foo.hs"
