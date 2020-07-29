@@ -119,7 +119,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           location: https://github.com/sol/hpack
         |]
 
-      it "accepts owner/repo/path" $ do
+      it "accepts owner/repo" $ do
         [i|
         github: hspec/hspec/hspec-core
         |] `shouldRenderTo` package [i|
@@ -131,10 +131,22 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           subdir: hspec-core
         |]
 
+      it "accepts owner/repo/path" $ do
+        [i|
+        github: hspec/hspec/hspec-core/a/b/c/d/e
+        |] `shouldRenderTo` package [i|
+        homepage: https://github.com/hspec/hspec#readme
+        bug-reports: https://github.com/hspec/hspec/issues
+        source-repository head
+          type: git
+          location: https://github.com/hspec/hspec
+          subdir: hspec-core/a/b/c/d/e
+        |]
+
       it "rejects URLs" $ do
         [i|
         github: https://github.com/sol/hpack/issues/365
-        |] `shouldFailWith` "package.yaml: Error while parsing $.github - expected owner/repo or owner/repo/subdir, but encountered \"https://github.com/sol/hpack/issues/365\""
+        |] `shouldFailWith` "package.yaml: Error while parsing $.github - expected owner/repo or owner/repo/subdir, but encountered url instead: \"https://github.com/sol/hpack/issues/365\""
 
     describe "homepage" $ do
       it "accepts homepage URL" $ do

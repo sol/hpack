@@ -90,6 +90,7 @@ import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
 import           Data.List (nub, (\\), sortBy, intercalate)
+import qualified Data.List.NonEmpty as NE
 import           Data.Maybe
 import           Data.Semigroup (Semigroup(..))
 import           Data.Ord
@@ -588,8 +589,8 @@ instance FromValue GitHub where
   fromValue v = do
     input <- fromValue v
     case map T.unpack $ T.splitOn "/" input of
-      [owner, repo, subdir] -> return $ GitHub owner repo (Just subdir)
-      [owner, repo] -> return $ GitHub owner repo Nothing
+      (owner: _) | owner `elem` ["http:", "https:"] -> fail $ "expected owner/repo or owner/repo/subdir, but encountered url instead: " ++ show input
+      (owner: repo: subdir) -> return $ GitHub owner repo $ intercalate "/" . NE.toList <$> NE.nonEmpty subdir
       _ -> fail $ "expected owner/repo or owner/repo/subdir, but encountered " ++ show input
 
 data DefaultsConfig = DefaultsConfig {
