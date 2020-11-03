@@ -88,20 +88,23 @@ toModule :: [FilePath] -> Maybe Module
 toModule path = case reverse path of
   [] -> Nothing
   x : xs -> do
-    m <- msum $ map (`stripSuffix` x) [
-        ".hs"
-      , ".lhs"
-      , ".chs"
-      , ".hsc"
-      , ".y"
-      , ".ly"
-      , ".x"
-      ]
+    m <- msum $ map (`stripSuffix` x) sourceFileExtensions
     let name = reverse (m : xs)
     guard (isModule name) >> return (Module $ intercalate "." name)
   where
     stripSuffix :: String -> String -> Maybe String
     stripSuffix suffix x = reverse <$> stripPrefix (reverse suffix) (reverse x)
+
+sourceFileExtensions :: [String]
+sourceFileExtensions = [
+    ".hs"
+  , ".lhs"
+  , ".chs"
+  , ".hsc"
+  , ".y"
+  , ".ly"
+  , ".x"
+  ]
 
 getModuleFilesRecursive :: FilePath -> IO [[String]]
 getModuleFilesRecursive baseDir = go []
