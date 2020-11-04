@@ -643,17 +643,17 @@ spec = do
       it "accepts Strings" $ do
         [yaml|
         os(windows)
-        |] `shouldDecodeTo_` Cond "os(windows)"
+        |] `shouldDecodeTo_` CondExpression "os(windows)"
 
       it "accepts True" $ do
         [yaml|
         yes
-        |] `shouldDecodeTo_` Cond "true"
+        |] `shouldDecodeTo_` CondBool True
 
       it "accepts False" $ do
         [yaml|
         no
-        |] `shouldDecodeTo_` Cond "false"
+        |] `shouldDecodeTo_` CondBool False
 
       it "rejects other values" $ do
         [yaml|

@@ -56,6 +56,7 @@ module Hpack.Config (
 , Library(..)
 , Executable(..)
 , Conditional(..)
+, Cond(..)
 , Flag(..)
 , SourceRepository(..)
 , BuildType(..)
@@ -70,7 +71,6 @@ module Hpack.Config (
 , renameDependencies
 , Empty(..)
 , pathsModuleFromPackageName
-, Cond(..)
 
 , LibrarySection(..)
 , fromLibrarySectionInConditional
@@ -468,17 +468,16 @@ hasKey key (Object o) = HashMap.member key o
 hasKey _ _ = False
 
 newtype Condition = Condition {
-  _conditionCondition :: Cond
+  conditionCondition :: Cond
 } deriving (Eq, Show, Generic, FromValue)
 
-newtype Cond = Cond String
+data Cond = CondBool Bool | CondExpression String
   deriving (Eq, Show)
 
 instance FromValue Cond where
   fromValue v = case v of
-    String s -> return (Cond $ T.unpack s)
-    Bool True -> return (Cond "true")
-    Bool False -> return (Cond "false")
+    String c -> return (CondExpression $ T.unpack c)
+    Bool c -> return (CondBool c)
     _ -> typeMismatch "Boolean or String" v
 
 data ThenElse cSources cxxSources jsSources a = ThenElse {
@@ -955,7 +954,7 @@ data Section a = Section {
 } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Conditional a = Conditional {
-  conditionalCondition :: String
+  conditionalCondition :: Cond
 , conditionalThen :: a
 , conditionalElse :: Maybe a
 } deriving (Eq, Show, Functor, Foldable, Traversable)
@@ -1277,6 +1276,13 @@ getMentionedLibraryModules (LibrarySection _ _ exposedModules generatedExposedMo
 listModules :: FilePath -> Section a -> IO [Module]
 listModules dir Section{..} = concat <$> mapM (getModules dir) sectionSourceDirs
 
+removeConditionalsThatAreAlwaysFalse :: Section a -> Section a
+removeConditionalsThatAreAlwaysFalse sect = sect {
+    sectionConditionals = filter p $ sectionConditionals sect
+  }
+  where
+    p = (/= CondBool False) . conditionalCondition
+
 inferModules ::
      FilePath
   -> String
@@ -1286,7 +1292,7 @@ inferModules ::
   -> ([Module] -> a -> b)
   -> Section a
   -> IO (Section b)
-inferModules dir packageName_ getMentionedModules getInferredModules fromData fromConditionals = traverseSectionAndConditionals
+inferModules dir packageName_ getMentionedModules getInferredModules fromData fromConditionals = fmap removeConditionalsThatAreAlwaysFalse . traverseSectionAndConditionals
   (fromConfigSection fromData [pathsModuleFromPackageName packageName_])
   (fromConfigSection (\ [] -> fromConditionals) [])
   []
@@ -1427,7 +1433,7 @@ toSection packageName_ executableNames = go
       ThenElseConditional (Product (ThenElse then_ else_) c) -> conditional c <$> (go then_) <*> (Just <$> go else_)
       FlatConditional (Product sect c) -> conditional c <$> (go sect) <*> pure Nothing
       where
-        conditional (Condition (Cond c)) = Conditional c
+        conditional = Conditional . conditionCondition
 
 type SystemBuildTool = (String, VersionConstraint)
 

@@ -48,6 +48,25 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           "package.yaml: Duplicate field $.name"
         ]
 
+    describe "handling of Paths_ module" $ do
+      it "adds Paths_ to other-modules" $ do
+        [i|
+        library: {}
+        |] `shouldRenderTo` library [i|
+        other-modules:
+            Paths_foo
+        |]
+
+      context "when Paths_ is mentioned in a conditional that is always false" $ do
+        it "does not add Paths_" $ do
+          [i|
+          library:
+            when:
+            - condition: false
+              other-modules: Paths_foo
+          |] `shouldRenderTo` library [i|
+          |]
+
     describe "spec-version" $ do
       it "accepts spec-version" $ do
         [i|

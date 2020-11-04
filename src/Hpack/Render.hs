@@ -286,7 +286,13 @@ renderConditional renderSectionData (Conditional condition sect mElse) = case mE
   Nothing -> if_
   Just else_ -> Group if_ (Stanza "else" $ renderSection renderSectionData [] [] else_)
   where
-    if_ = Stanza ("if " ++ condition) (renderSection renderSectionData [] [] sect)
+    if_ = Stanza ("if " ++ renderCond condition) (renderSection renderSectionData [] [] sect)
+
+renderCond :: Cond -> String
+renderCond = \ case
+  CondExpression c -> c
+  CondBool True -> "true"
+  CondBool False -> "false"
 
 defaultLanguage :: Element
 defaultLanguage = Field "default-language" "Haskell2010"

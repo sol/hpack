@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Helper (
   module Test.Hspec
 , module Test.Mockery.Directory
@@ -13,6 +14,7 @@ module Helper (
 
 import           Test.Hspec
 import           Test.Mockery.Directory
+import           Data.String
 import           Control.Monad
 import           Control.Applicative
 import           System.Directory (getCurrentDirectory, setCurrentDirectory, canonicalizePath)
@@ -22,6 +24,11 @@ import           System.FilePath
 
 import           Data.Yaml.TH (yamlQQ)
 import           Language.Haskell.TH.Quote (QuasiQuoter)
+
+import           Hpack.Config
+
+instance IsString Cond where
+  fromString = CondExpression
 
 withCurrentDirectory :: FilePath -> IO a -> IO a
 withCurrentDirectory dir action = do
