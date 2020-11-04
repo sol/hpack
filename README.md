@@ -35,6 +35,25 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 
 ## Documentation
 
+### Handling of `Paths_` modules
+
+Cabal generates a `Paths_` module for every package.  By default Hpack adds
+that module to `other-modules` when generating a `.cabal` file.  This is
+sometimes useful and most of the time not harmful.
+
+However, there are situations when this can lead to compilation errors (e.g
+when using a custom `Prelude`).
+
+To prevent Hpack from adding the `Paths_` module to `other-modules` add the
+following to `package.yaml`:
+
+```yaml
+library:
+  when:
+  - condition: false
+    other-modules: Paths_name # substitute name with the package name
+```
+
 ### Quick-reference
 
 #### Top-level fields
@@ -376,7 +395,6 @@ Conditionals with an else branch:
 - Must have a `condition` field
 - Must have a `then` field, itself an object containing any number of other fields
 - Must have a `else` field, itself an object containing any number of other fields
-- All other top-level fields are ignored
 
 For example,
 
@@ -394,6 +412,8 @@ becomes
     else
       ghc-options: -O0
 
+**Note:** Conditionals with `condition: false` are omitted from the generated
+`.cabal` file.
 
 ### <a name="file-globbing"></a>File globbing
 
