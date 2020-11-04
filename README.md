@@ -376,7 +376,6 @@ Conditionals with an else branch:
 - Must have a `condition` field
 - Must have a `then` field, itself an object containing any number of other fields
 - Must have a `else` field, itself an object containing any number of other fields
-- All other top-level fields are ignored
 
 For example,
 
@@ -394,6 +393,8 @@ becomes
     else
       ghc-options: -O0
 
+**Note:** Conditionals with a `condition: false` are omitted from the generated
+`.cabal` file.
 
 ### <a name="file-globbing"></a>File globbing
 
