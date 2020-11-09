@@ -745,7 +745,7 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
       , makeVersion [2,0]  <$ guard (has librarySignatures)
       , makeVersion [2,0] <$ guard (has libraryGeneratedModules)
       , makeVersion [3,0] <$ guard (has libraryVisibility)
-      , sectionCabalVersion sect
+      , sectionCabalVersion (concatMap getLibraryModules) sect
       ]
       where
         has field = any (not . null . field) sect
@@ -763,20 +763,29 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
     executableCabalVersion :: Section Executable -> Maybe Version
     executableCabalVersion sect = maximum [
         makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
-      , sectionCabalVersion sect
+      , sectionCabalVersion (concatMap getExecutableModules) sect
       ]
 
     executableHasGeneratedModules :: Section Executable -> Bool
     executableHasGeneratedModules = any (not . null . executableGeneratedModules)
 
-    sectionCabalVersion :: Section a -> Maybe Version
-    sectionCabalVersion sect = maximum $ [
+    sectionCabalVersion :: (Section a -> [Module]) -> Section a -> Maybe Version
+    sectionCabalVersion getMentionedModules sect = maximum $ [
         makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxSources) sect)
       , makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxOptions) sect)
       , makeVersion [2,0] <$ guard (sectionSatisfies (any hasMixins . unDependencies . sectionDependencies) sect)
       , makeVersion [3,0] <$ guard (sectionSatisfies (any hasSubcomponents . Map.keys . unDependencies . sectionDependencies) sect)
+      , makeVersion [2,2] <$ guard (
+              uses "RebindableSyntax"
+          && (uses "OverloadedStrings" || uses "OverloadedLists")
+          && pathsModule `elem` getMentionedModules sect)
       ] ++ map versionFromSystemBuildTool systemBuildTools
       where
+        defaultExtensions = sectionAll sectionDefaultExtensions sect
+        uses = (`elem` defaultExtensions)
+
+        pathsModule = pathsModuleFromPackageName packageName
+
         versionFromSystemBuildTool name
           | name `elem` known_1_10 = Nothing
           | name `elem` known_1_14 = Just (makeVersion [1,14])
@@ -1273,6 +1282,12 @@ getMentionedLibraryModules :: LibrarySection -> [Module]
 getMentionedLibraryModules (LibrarySection _ _ exposedModules generatedExposedModules otherModules generatedOtherModules _ _)
   = fromMaybeList (exposedModules <> generatedExposedModules <> otherModules <> generatedOtherModules)
 
+getLibraryModules :: Library -> [Module]
+getLibraryModules Library{..} = libraryExposedModules ++ libraryOtherModules
+
+getExecutableModules :: Executable -> [Module]
+getExecutableModules Executable{..} = executableOtherModules
+
 listModules :: FilePath -> Section a -> IO [Module]
 listModules dir Section{..} = concat <$> mapM (getModules dir) sectionSourceDirs
 
@@ -1310,9 +1325,6 @@ toLibrary :: FilePath -> String -> Section LibrarySection -> IO (Section Library
 toLibrary dir name =
     inferModules dir name getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel fromLibrarySectionInConditional
   where
-    getLibraryModules :: Library -> [Module]
-    getLibraryModules Library{..} = libraryExposedModules ++ libraryOtherModules
-
     fromLibrarySectionTopLevel :: [Module] -> [Module] -> LibrarySection -> Library
     fromLibrarySectionTopLevel pathsModule inferableModules LibrarySection{..} =
       Library librarySectionExposed librarySectionVisibility exposedModules otherModules generatedModules reexportedModules signatures
@@ -1355,7 +1367,7 @@ getMentionedExecutableModules (ExecutableSection main otherModules generatedModu
 
 toExecutable :: FilePath -> String -> Section ExecutableSection -> IO (Section Executable)
 toExecutable dir packageName_ =
-    inferModules dir packageName_ getMentionedExecutableModules executableOtherModules fromExecutableSection (fromExecutableSection [])
+    inferModules dir packageName_ getMentionedExecutableModules getExecutableModules fromExecutableSection (fromExecutableSection [])
   . expandMain
   where
     fromExecutableSection :: [Module] -> [Module] -> ExecutableSection -> Executable

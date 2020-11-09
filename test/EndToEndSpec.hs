@@ -67,6 +67,29 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           |] `shouldRenderTo` library [i|
           |]
 
+      context "with RebindableSyntax and OverloadedStrings or OverloadedStrings" $ do
+        it "infers cabal-version 2.2" $ do
+          [i|
+          default-extensions: [RebindableSyntax, OverloadedStrings]
+          library: {}
+          |] `shouldRenderTo` (library [i|
+          default-extensions: RebindableSyntax OverloadedStrings
+          other-modules:
+              Paths_foo
+          |]) {packageCabalVersion = "2.2"}
+
+        context "when Paths_ is mentioned in a conditional that is always false" $ do
+          it "does not infer cabal-version 2.2" $ do
+            [i|
+            default-extensions: [RebindableSyntax, OverloadedStrings]
+            library:
+              when:
+              - condition: false
+                other-modules: Paths_foo
+            |] `shouldRenderTo` (library [i|
+            default-extensions: RebindableSyntax OverloadedStrings
+            |])
+
     describe "spec-version" $ do
       it "accepts spec-version" $ do
         [i|
