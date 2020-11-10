@@ -6,6 +6,8 @@
     (see #404)
   - Infer correct `cabal-version` when `Path_` is used with `RebindableSyntax`
     and `OverloadedStrings` or `OverloadedLists` (see #400)
+  - Do not use indentation from existing any `.cabal` file if it is invalid
+    (e.g. `0`) (fixes #252)
 
 ## Changes in 0.34.2
   - Accept subcomponents as dependencies (close #382)

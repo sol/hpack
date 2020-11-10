@@ -4,6 +4,7 @@ module Hpack.Render.Hints (
   FormattingHints (..)
 , sniffFormattingHints
 #ifdef TEST
+, sniffRenderSettings
 , extractFieldOrder
 , extractSectionsFieldOrder
 , sanitize
@@ -109,6 +110,8 @@ sniffCommaStyle input
 sniffRenderSettings :: [String] -> RenderSettings
 sniffRenderSettings input = RenderSettings indentation fieldAlignment commaStyle
   where
-    indentation = fromMaybe (renderSettingsIndentation defaultRenderSettings) (sniffIndentation input)
+    indentation = max def $ fromMaybe def (sniffIndentation input)
+      where def = renderSettingsIndentation defaultRenderSettings
+
     fieldAlignment = renderSettingsFieldAlignment defaultRenderSettings
     commaStyle = fromMaybe (renderSettingsCommaStyle defaultRenderSettings) (sniffCommaStyle input)
