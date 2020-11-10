@@ -14,7 +14,7 @@ import           Data.String
 import           System.FilePath
 import qualified System.Directory as Directory
 import           Control.Monad
-import           Data.List hiding (sort)
+import           Data.List hiding (nub, sort)
 
 import           Data.Aeson.Config.FromValue
 import           Hpack.Util
@@ -24,7 +24,7 @@ import           Path (Path(..), PathComponent(..))
 import qualified Path
 
 newtype Module = Module {unModule :: String}
-  deriving Eq
+  deriving (Eq, Ord)
 
 instance Show Module where
   show = show . unModule

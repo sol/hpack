@@ -50,7 +50,7 @@ instance FromValue Dependencies where
 data DependencyInfo = DependencyInfo {
   dependencyInfoMixins :: [String]
 , dependencyInfoVersion :: DependencyVersion
-} deriving (Eq, Show)
+} deriving (Eq, Ord, Show)
 
 addMixins :: Object -> DependencyVersion -> Parser DependencyInfo
 addMixins o version = do

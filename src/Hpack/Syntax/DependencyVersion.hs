@@ -48,7 +48,7 @@ type GitUrl = String
 type GitRef = String
 
 data VersionConstraint = AnyVersion | VersionRange String
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 instance FromValue VersionConstraint where
   fromValue = versionConstraint
@@ -67,7 +67,7 @@ versionRange :: String -> DependencyVersion
 versionRange = DependencyVersion Nothing . VersionRange
 
 data DependencyVersion = DependencyVersion (Maybe SourceDependency) VersionConstraint
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 withDependencyVersion
   :: (DependencyVersion -> a)
@@ -85,7 +85,7 @@ dependencyVersion :: Value -> Parser DependencyVersion
 dependencyVersion = withDependencyVersion id (const return)
 
 data SourceDependency = GitRef GitUrl GitRef (Maybe FilePath) | Local FilePath
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 objectDependency :: Object -> Parser DependencyVersion
 objectDependency o = let
