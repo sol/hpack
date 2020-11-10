@@ -17,10 +17,11 @@ module Hpack.Render.Hints (
 
 import           Data.Char
 import           Data.Maybe
-import           Data.List
+import           Data.List hiding (nub)
 import           Control.Applicative
 
 import           Hpack.Render.Dsl
+import           Hpack.Util
 
 data FormattingHints = FormattingHints {
   formattingHintsFieldOrder :: [String]

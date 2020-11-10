@@ -89,7 +89,7 @@ import           Data.Bitraversable
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
-import           Data.List (nub, (\\), sortBy, intercalate)
+import           Data.List ((\\), sortBy, intercalate)
 import           Data.Maybe
 import           Data.Semigroup (Semigroup(..))
 import           Data.Ord

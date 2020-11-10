@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Hpack.Util (
   GhcOption
 , GhcProfOption
@@ -14,14 +15,18 @@ module Hpack.Util (
 , lexicographically
 , Hash
 , sha256
+
+, nub
+, nubOn
 ) where
 
 import           Control.Exception
 import           Control.Monad
 import           Data.Char
 import           Data.Bifunctor
-import           Data.List hiding (sort)
+import           Data.List hiding (nub, sort)
 import           Data.Ord
+import qualified Data.Set as Set
 import           System.IO.Error
 import           System.Directory
 import           System.FilePath
@@ -125,3 +130,17 @@ type Hash = String
 
 sha256 :: String -> Hash
 sha256 c = show (hash (Utf8.encodeUtf8 c) :: Digest SHA256)
+
+nub :: Ord a => [a] -> [a]
+nub = nubOn id
+
+nubOn :: Ord b => (a -> b) -> [a] -> [a]
+nubOn f = go mempty
+  where
+    go seen = \ case
+        [] -> []
+        a : as
+          | b `Set.member` seen -> go seen as
+          | otherwise -> a : go (Set.insert b seen) as
+          where
+            b = f a
