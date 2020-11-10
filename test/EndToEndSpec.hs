@@ -1180,8 +1180,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                   Exposed
             |]) {packageCabalVersion = "2.0"}
 
-      context "mixins" $ do
-        it "sets cabal-version to 2.0 if mixins are used" $ do
+      context "with mixins" $ do
+        it "infers cabal-version 2.0" $ do
           [i|
           library:
             dependencies:
