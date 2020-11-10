@@ -41,18 +41,21 @@ toModule path = case reverse $ Path.components path of
   file : dirs -> Module . intercalate "." . reverse $ dropExtension file : dirs
 
 getModules :: FilePath -> FilePath -> IO [Module]
-getModules dir src_ = sortModules <$> do
+getModules dir src_ = uniq . sortModules <$> do
   exists <- Directory.doesDirectoryExist (dir </> src_)
   if exists
     then do
       src <- Directory.canonicalizePath (dir </> src_)
-      removeSetup src . nub . map toModule <$> getModuleFilesRecursive src
+      removeSetup src . map toModule <$> getModuleFilesRecursive src
     else return []
   where
     removeSetup :: FilePath -> [Module] -> [Module]
     removeSetup src
       | src == dir = filter (/= "Setup")
       | otherwise = id
+    -- Remove consecutive duplicates (equivalent to @nub@ for sorted lists).
+    uniq :: Eq a => [a] -> [a]
+    uniq = map head . group
 
 sortModules :: [Module] -> [Module]
 sortModules = map Module . sort . map unModule
