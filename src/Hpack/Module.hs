@@ -46,7 +46,7 @@ getModules dir src_ = sortModules <$> do
   if exists
     then do
       src <- Directory.canonicalizePath (dir </> src_)
-      removeSetup src . map toModule <$> getModuleFilesRecursive src
+      removeSetup src . nub . map toModule <$> getModuleFilesRecursive src
     else return []
   where
     removeSetup :: FilePath -> [Module] -> [Module]
