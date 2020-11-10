@@ -7,6 +7,17 @@ import           Hpack.Render.Dsl
 
 spec :: Spec
 spec = do
+  describe "sniffRenderSettings" $ do
+    context "when sniffed indentation is < default" $ do
+      it "uses default instead" $ do
+        let input = [
+                "library"
+              , "exposed-modules:"
+              , "    Foo"
+              ]
+        sniffIndentation input `shouldBe` Just 0
+        renderSettingsIndentation (sniffRenderSettings input) `shouldBe` 2
+
   describe "extractFieldOrder" $ do
     it "extracts field order hints" $ do
       let input = [
@@ -109,7 +120,7 @@ spec = do
       splitField "foo bar" `shouldBe` Nothing
 
   describe "sniffIndentation" $ do
-    it "sniff alignment from executable section" $ do
+    it "sniffs indentation from executable section" $ do
       let input = [
               "name: foo"
             , "version: 0.0.0"
@@ -119,7 +130,7 @@ spec = do
             ]
       sniffIndentation input `shouldBe` Just 4
 
-    it "sniff alignment from library section" $ do
+    it "sniffs indentation from library section" $ do
       let input = [
               "name: foo"
             , "version: 0.0.0"
