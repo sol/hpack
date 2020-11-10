@@ -1,3 +1,12 @@
+## Changes in 0.34.3 (unreleased)
+  - Ignore duplicate source directories (see #356)
+  - Do not infer duplicate modules (see  #408, #406, #353)
+  - Reject empty `then` / `else` sections (see #362)
+  - Omit conditionals that are always `false` from generated `.cabal` file
+    (see #404)
+  - Infer correct `cabal-version` when `Path_` is used with `RebindableSyntax`
+    and `OverloadedStrings` or `OverloadedLists` (see #400)
+
 ## Changes in 0.34.2
   - Accept subcomponents as dependencies (close #382)
 
