@@ -147,7 +147,7 @@ package name version = Package {
   , packageBuildType = Simple
   , packageLicense = Nothing
   , packageLicenseFile = []
-  , packageTestedWith = Nothing
+  , packageTestedWith = []
   , packageFlags = []
   , packageExtraSourceFiles = []
   , packageExtraDocFiles = []
@@ -563,7 +563,7 @@ data PackageConfig_ library executable = PackageConfig {
 , packageConfigBuildType :: Maybe BuildType
 , packageConfigLicense :: Maybe (Maybe String)
 , packageConfigLicenseFile :: Maybe (List String)
-, packageConfigTestedWith :: Maybe String
+, packageConfigTestedWith :: Maybe (List String)
 , packageConfigFlags :: Maybe (Map String FlagSection)
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigExtraDocFiles :: Maybe (List FilePath)
@@ -893,7 +893,7 @@ data Package = Package {
 , packageBuildType :: BuildType
 , packageLicense :: Maybe String
 , packageLicenseFile :: [FilePath]
-, packageTestedWith :: Maybe String
+, packageTestedWith :: [String]
 , packageFlags :: [Flag]
 , packageExtraSourceFiles :: [Path]
 , packageExtraDocFiles :: [Path]
@@ -1168,7 +1168,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       , packageBuildType = fromMaybe defaultBuildType packageConfigBuildType
       , packageLicense = join packageConfigLicense
       , packageLicenseFile = licenseFiles
-      , packageTestedWith = packageConfigTestedWith
+      , packageTestedWith = fromMaybeList packageConfigTestedWith
       , packageFlags = flags
       , packageExtraSourceFiles = extraSourceFiles
       , packageExtraDocFiles = extraDocFiles

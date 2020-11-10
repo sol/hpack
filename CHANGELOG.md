@@ -8,6 +8,7 @@
     and `OverloadedStrings` or `OverloadedLists` (see #400)
   - Do not use indentation from any existing `.cabal` file if it is invalid
     (e.g. `0`) (fixes #252)
+  - Accept lists for `tested-with` (see #407)
 
 ## Changes in 0.34.2
   - Accept subcomponents as dependencies (close #382)

@@ -65,7 +65,8 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
     packageFields :: [Element]
     packageFields = addVerbatim packageVerbatim . sortFieldsBy existingFieldOrder $
       headerFields ++ [
-        Field "extra-source-files" (renderPaths packageExtraSourceFiles)
+        Field "tested-with" $ CommaSeparatedList packageTestedWith
+      , Field "extra-source-files" (renderPaths packageExtraSourceFiles)
       , Field "extra-doc-files" (renderPaths packageExtraDocFiles)
       , Field "data-files" (renderPaths packageDataFiles)
       ] ++ maybe [] (return . Field "data-dir" . Literal) packageDataDir
@@ -108,7 +109,6 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
       , case packageLicenseFile of
           [file] -> ("license-file", Just file)
           files  -> ("license-files", formatList files)
-      , ("tested-with", packageTestedWith)
       , ("build-type", Just (show packageBuildType))
       ]
 

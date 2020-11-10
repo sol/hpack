@@ -40,6 +40,28 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           Paths_foo
       |]
 
+    describe "tested-with" $ do
+      it "accepts a string" $ do
+        [i|
+        tested-with: GHC == 7.0.4
+        |] `shouldRenderTo` package [i|
+        tested-with:
+            GHC == 7.0.4
+        |]
+
+      it "accepts a list" $ do
+        [i|
+        tested-with:
+        - GHC == 7.0.4
+        - GHC == 7.2.2
+        - GHC == 7.4.2
+        |] `shouldRenderTo` package [i|
+        tested-with:
+            GHC == 7.0.4
+          , GHC == 7.2.2
+          , GHC == 7.4.2
+        |]
+
     it "warns on duplicate fields" $ do
       [i|
       name: foo
