@@ -12,19 +12,32 @@ spec = do
       touch (dir </> "src/Foo.hs")
       touch (dir </> "src/Bar/Baz.hs")
       touch (dir </> "src/Setup.hs")
-      getModules dir "src" >>= (`shouldMatchList` ["Foo", "Bar.Baz", "Setup"])
+      getModules dir [] "src" >>= (`shouldMatchList` ["Foo", "Bar.Baz", "Setup"])
 
     context "when source directory is '.'" $ do
       it "ignores Setup" $ \dir -> do
         touch (dir </> "Foo.hs")
         touch (dir </> "Setup.hs")
-        getModules dir  "." `shouldReturn` ["Foo"]
+        getModules dir  [] "." `shouldReturn` ["Foo"]
 
     context "when source directory is './.'" $ do
       it "ignores Setup" $ \dir -> do
         touch (dir </> "Foo.hs")
         touch (dir </> "Setup.hs")
-        getModules dir  "./." `shouldReturn` ["Foo"]
+        getModules dir  [] "./." `shouldReturn` ["Foo"]
+
+    context "with a list of paths to exclude" $ do
+      it "does not return files in that list" $ \dir -> do
+        touch (dir </> "src/Foo.hs")
+        touch (dir </> "src/Bar.hs")
+        let exclude = ["src/Foo.hs"]
+        getModules dir exclude "src" >>= (`shouldMatchList` ["Bar"])
+
+      it "works for '.'" $ \dir -> do
+        touch (dir </> "Foo.hs")
+        touch (dir </> "Bar.hs")
+        let exclude = ["Foo.hs"]
+        getModules dir exclude "." >>= (`shouldMatchList` ["Bar"])
 
   describe "toModule" $ do
     it "maps a Path to a Module" $ do

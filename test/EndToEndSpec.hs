@@ -1047,6 +1047,144 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |]) {packageCabalVersion = "3.0"}
 
     context "when inferring modules" $ do
+      context "with source files that are used as `main`" $ do
+        let rendersTo :: HasCallStack => String -> Package -> Expectation
+            rendersTo = shouldRenderTo_ (removeDefaultLanguage . removePathsModule)
+
+        it "ignores these source files" $ do
+          touch "src/Main.hs"
+          touch "src/A.hs"
+          touch "src/B.hs"
+          [i|
+          library:
+            source-dirs: src
+          executable:
+            main: src/Main.hs
+          |] `rendersTo` package [i|
+          library
+            exposed-modules:
+                A
+                B
+            hs-source-dirs:
+                src
+          executable foo
+            main-is: src/Main.hs
+          |]
+
+        context "with source-dirs" $ do
+          it "takes these source-dirs into account when ignoring source files" $ do
+            touch "test/Doctest.hs"
+            touch "test/Spec.hs"
+            touch "test/Spec/FooSpec.hs"
+            [i|
+            source-dirs: test
+            tests:
+              doctest:
+                main: Doctest.hs
+              spec:
+                main: Spec.hs
+            |] `rendersTo` package [i|
+            test-suite doctest
+              type: exitcode-stdio-1.0
+              main-is: Doctest.hs
+              hs-source-dirs:
+                  test
+              other-modules:
+                  Spec.FooSpec
+                  Paths_foo
+            test-suite spec
+              type: exitcode-stdio-1.0
+              main-is: Spec.hs
+              hs-source-dirs:
+                  test
+              other-modules:
+                  Spec.FooSpec
+                  Paths_foo
+            |]
+
+        context "with `main` inside conditionals" $ do
+          it "ignores these source files" $ do
+            touch "src/Foo.hs"
+            touch "src/Windows.hs"
+            touch "src/Linux.hs"
+            [i|
+            library:
+              source-dirs: src
+            executable:
+              when:
+                condition: os(windows)
+                then:
+                  main: src/Windows.hs
+                else:
+                  main: src/Linux.hs
+            |] `rendersTo` package [i|
+            library
+              hs-source-dirs:
+                  src
+              exposed-modules:
+                  Foo
+            executable foo
+              if os(windows)
+                main-is: src/Windows.hs
+              else
+                main-is: src/Linux.hs
+            |]
+
+        context "with source-dirs inside conditionals" $ do
+          it "takes these source-dirs into account when ignoring source files" $ do
+            touch "src/Foo.hs"
+            touch "src/windows/Foo.hs"
+            touch "src/linux/Foo.hs"
+            [i|
+            library:
+              source-dirs: src
+
+            executable:
+              main: src/Foo.hs
+              when:
+                condition: os(windows)
+                then:
+                  source-dirs: windows
+                else:
+                  source-dirs: linux
+            |] `rendersTo` package [i|
+            library
+              hs-source-dirs:
+                  src
+              exposed-modules:
+                  Foo
+            executable foo
+              main-is: src/Foo.hs
+              if os(windows)
+                hs-source-dirs:
+                    windows
+              else
+                hs-source-dirs:
+                    linux
+            |]
+
+        context "when `main` is a custom entry point" $ do
+          it "does not ignore these source files" $ do
+            touch "src/Foo.x"
+            touch "src/Foo.hs"
+            [i|
+            source-dirs: src
+            library: {}
+            executable:
+              main: Foo.x
+            |] `rendersTo` package [i|
+            library
+              exposed-modules:
+                  Foo
+              hs-source-dirs:
+                  src
+            executable foo
+              hs-source-dirs:
+                  src
+              main-is: Foo.hs
+              ghc-options: -main-is Foo.x
+            |]
+
       context "with a library" $ do
         it "ignores duplicate source directories" $ do
           touch "src/Foo.hs"
@@ -1685,16 +1823,29 @@ instance Show RenderResult where
   show (RenderResult warnings output) = unlines (map ("WARNING: " ++) warnings) ++ output
 
 shouldRenderTo :: HasCallStack => String -> Package -> Expectation
-shouldRenderTo input p = do
+shouldRenderTo = shouldRenderTo_ id
+
+shouldRenderTo_ :: HasCallStack => ([String] -> [String]) -> String -> Package -> Expectation
+shouldRenderTo_ modifyOutput input p = do
   writeFile packageConfig ("name: foo\n" ++ unindent input)
   let currentDirectory = ".working-directory"
   createDirectory currentDirectory
   withCurrentDirectory currentDirectory $ do
     (warnings, output) <- run ".." (".." </> packageConfig) expected
-    RenderResult warnings (dropEmptyLines output) `shouldBe` RenderResult (packageWarnings p) expected
+    RenderResult warnings (mapLines (modifyOutput . dropEmptyLines) output) `shouldBe` RenderResult (packageWarnings p) expected
   where
-    expected = dropEmptyLines (renderPackage p)
-    dropEmptyLines = unlines . filter (not . null) . lines
+    expected = mapLines dropEmptyLines (renderPackage p)
+    dropEmptyLines = filter (not . null)
+    mapLines f = unlines . f . lines
+
+removeDefaultLanguage :: [String] -> [String]
+removeDefaultLanguage = filter (/= "  default-language: Haskell2010")
+
+removePathsModule :: [String] -> [String]
+removePathsModule = \ case
+  "  other-modules:" : "      Paths_foo" : xs -> removePathsModule xs
+  x : xs -> x : removePathsModule xs
+  [] -> []
 
 shouldWarn :: HasCallStack => String -> [String] -> Expectation
 shouldWarn input expected = do
