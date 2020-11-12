@@ -837,14 +837,15 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
         p sect
       , any (any (sectionSatisfies p)) (sectionConditionals sect)
       ]
-    sectionAll :: (Semigroup b, Monoid b) => (Section a -> b) -> Section a -> b
-    sectionAll f sect = f sect <> foldMap (foldMap $ sectionAll f) (sectionConditionals sect)
 
     hasMixins :: DependencyInfo -> Bool
     hasMixins (DependencyInfo mixins _) = not (null mixins)
 
     hasSubcomponents :: String -> Bool
     hasSubcomponents = elem ':'
+
+sectionAll :: (Semigroup b, Monoid b) => (Section a -> b) -> Section a -> b
+sectionAll f sect = f sect <> foldMap (foldMap $ sectionAll f) (sectionConditionals sect)
 
 decodeValue :: FromValue a => ProgramName -> FilePath -> Value -> Warnings (Errors IO) a
 decodeValue (ProgramName programName) file value = do
@@ -1107,11 +1108,14 @@ toPackage_ dir (Product g PackageConfig{..}) = do
     toSect :: (Monad m, Monoid a) => WithCommonOptions CSources CxxSources JsSources a -> Warnings m (Section a)
     toSect = toSection packageName_ executableNames . first ((mempty <$ globalOptions) <>)
 
-    toLib = toSect >=> liftIO . toLibrary dir packageName_
-    toExecutables = maybe (return mempty) (traverse $ toSect >=> liftIO . toExecutable dir packageName_)
+    toSections :: (Monad m, Monoid a) => Maybe (Map String (WithCommonOptions CSources CxxSources JsSources a)) -> Warnings m (Map String (Section a))
+    toSections = maybe (return mempty) (traverse toSect)
 
-  mLibrary <- traverse toLib packageConfigLibrary
-  internalLibraries <- maybe (return mempty) (traverse toLib) packageConfigInternalLibraries
+    toLib = liftIO . toLibrary dir packageName_
+    toExecutables = toSections >=> traverse (liftIO . toExecutable dir packageName_)
+
+  mLibrary <- traverse (toSect >=> toLib) packageConfigLibrary
+  internalLibraries <- toSections packageConfigInternalLibraries >>= traverse toLib
 
   executables <- toExecutables executableMap
   tests <- toExecutables packageConfigTests

@@ -41,18 +41,26 @@ toModule path = case reverse $ Path.components path of
   file : dirs -> Module . intercalate "." . reverse $ dropExtension file : dirs
 
 getModules :: FilePath -> FilePath -> IO [Module]
-getModules dir src_ = sortModules <$> do
-  exists <- Directory.doesDirectoryExist (dir </> src_)
+getModules dir literalSrc = sortModules <$> do
+  exists <- Directory.doesDirectoryExist (dir </> literalSrc)
   if exists
     then do
-      src <- Directory.canonicalizePath (dir </> src_)
-      removeSetup src . nub . map toModule <$> getModuleFilesRecursive src
+      canonicalSrc <- Directory.canonicalizePath (dir </> literalSrc)
+
+      let
+        srcIsProjectRoot :: Bool
+        srcIsProjectRoot = canonicalSrc == dir
+
+        toModules :: [Path] -> [Module]
+        toModules = removeSetup . nub . map toModule
+
+        removeSetup :: [Module] -> [Module]
+        removeSetup
+          | srcIsProjectRoot = filter (/= "Setup")
+          | otherwise = id
+
+      toModules <$> getModuleFilesRecursive canonicalSrc
     else return []
-  where
-    removeSetup :: FilePath -> [Module] -> [Module]
-    removeSetup src
-      | src == dir = filter (/= "Setup")
-      | otherwise = id
 
 sortModules :: [Module] -> [Module]
 sortModules = map Module . sort . map unModule
