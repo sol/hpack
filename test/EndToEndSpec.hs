@@ -986,7 +986,68 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               Foo
           |]
 
-      context "when inferring modules" $ do
+      context "with mixins" $ do
+        it "infers cabal-version 2.0" $ do
+          [i|
+          library:
+            dependencies:
+              foo:
+                mixin:
+                  - (Blah as Etc)
+          |] `shouldRenderTo` (library [i|
+          other-modules:
+              Paths_foo
+          build-depends:
+              foo
+          mixins:
+              foo (Blah as Etc)
+          |]) {packageCabalVersion = "2.0"}
+
+    describe "internal-libraries" $ do
+      it "accepts internal-libraries" $ do
+        touch "src/Foo.hs"
+        [i|
+        internal-libraries:
+          bar:
+            source-dirs: src
+        |] `shouldRenderTo` internalLibrary "bar" [i|
+        exposed-modules:
+            Foo
+        other-modules:
+            Paths_foo
+        hs-source-dirs:
+            src
+        |]
+
+      it "warns on unknown fields" $ do
+        [i|
+        name: foo
+        internal-libraries:
+          bar:
+            baz: 42
+        |] `shouldWarn` pure "package.yaml: Ignoring unrecognized field $.internal-libraries.bar.baz"
+
+      it "warns on missing source-dirs" $ do
+        [i|
+        name: foo
+        internal-libraries:
+          bar:
+            source-dirs: src
+        |] `shouldWarn` pure "Specified source-dir \"src\" does not exist"
+
+      it "accepts visibility" $ do
+        [i|
+        internal-libraries:
+          bar:
+            visibility: public
+        |] `shouldRenderTo` (internalLibrary "bar" [i|
+        visibility: public
+        other-modules:
+            Paths_foo
+        |]) {packageCabalVersion = "3.0"}
+
+    context "when inferring modules" $ do
+      context "with a library" $ do
         it "ignores duplicate source directories" $ do
           touch "src/Foo.hs"
           [i|
@@ -1217,86 +1278,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                   Exposed
             |]) {packageCabalVersion = "2.0"}
 
-      context "with mixins" $ do
-        it "infers cabal-version 2.0" $ do
-          [i|
-          library:
-            dependencies:
-              foo:
-                mixin:
-                  - (Blah as Etc)
-          |] `shouldRenderTo` (library [i|
-          other-modules:
-              Paths_foo
-          build-depends:
-              foo
-          mixins:
-              foo (Blah as Etc)
-          |]) {packageCabalVersion = "2.0"}
-
-    describe "internal-libraries" $ do
-      it "accepts internal-libraries" $ do
-        touch "src/Foo.hs"
-        [i|
-        internal-libraries:
-          bar:
-            source-dirs: src
-        |] `shouldRenderTo` internalLibrary "bar" [i|
-        exposed-modules:
-            Foo
-        other-modules:
-            Paths_foo
-        hs-source-dirs:
-            src
-        |]
-
-      it "warns on unknown fields" $ do
-        [i|
-        name: foo
-        internal-libraries:
-          bar:
-            baz: 42
-        |] `shouldWarn` pure "package.yaml: Ignoring unrecognized field $.internal-libraries.bar.baz"
-
-      it "warns on missing source-dirs" $ do
-        [i|
-        name: foo
-        internal-libraries:
-          bar:
-            source-dirs: src
-        |] `shouldWarn` pure "Specified source-dir \"src\" does not exist"
-
-      it "accepts visibility" $ do
-        [i|
-        internal-libraries:
-          bar:
-            visibility: public
-        |] `shouldRenderTo` (internalLibrary "bar" [i|
-        visibility: public
-        other-modules:
-            Paths_foo
-        |]) {packageCabalVersion = "3.0"}
-
-    describe "executables" $ do
-      it "accepts arbitrary entry points as main" $ do
-        touch "src/Foo.hs"
-        touch "src/Bar.hs"
-        [i|
-        executables:
-          foo:
-            source-dirs: src
-            main: Foo
-        |] `shouldRenderTo` executable "foo" [i|
-        main-is: Foo.hs
-        ghc-options: -main-is Foo
-        hs-source-dirs:
-            src
-        other-modules:
-            Bar
-            Paths_foo
-        |]
-
-      context "when inferring modules" $ do
+      context "with an executable" $ do
         it "infers other-modules" $ do
           touch "src/Main.hs"
           touch "src/Foo.hs"
@@ -1350,7 +1332,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Foo
           |]) {packageCabalVersion = "2.0"}
 
-        context "with conditional" $ do
+        context "with a conditional" $ do
           it "doesn't infer any modules mentioned in that conditional" $ do
             touch "src/Foo.hs"
             touch "src/Bar.hs"
@@ -1395,7 +1377,26 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                   windows
             |]
 
-      context "with conditional" $ do
+    describe "executables" $ do
+      it "accepts arbitrary entry points as main" $ do
+        touch "src/Foo.hs"
+        touch "src/Bar.hs"
+        [i|
+        executables:
+          foo:
+            source-dirs: src
+            main: Foo
+        |] `shouldRenderTo` executable "foo" [i|
+        main-is: Foo.hs
+        ghc-options: -main-is Foo
+        hs-source-dirs:
+            src
+        other-modules:
+            Bar
+            Paths_foo
+        |]
+
+      context "with a conditional" $ do
         it "does not apply global options" $ do
           -- related bug: https://github.com/sol/hpack/issues/214
           [i|
