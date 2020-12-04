@@ -302,7 +302,7 @@ renderDirectories name = Field name . LineSeparatedList . replaceDots
   where
     replaceDots = map replaceDot
     replaceDot xs = case xs of
-      "." -> "./."
+      "." -> "./"
       _ -> xs
 
 renderExposedModules :: [Module] -> Element
