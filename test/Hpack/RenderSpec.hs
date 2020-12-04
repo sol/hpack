@@ -342,7 +342,7 @@ spec = do
       (render defaultRenderSettings 0 $ renderDirectories "name" ["."])
         `shouldBe` [
             "name:"
-          , "    ./."
+          , "    ./"
           ]
 
   describe "renderDependencies" $ do
