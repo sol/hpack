@@ -1,4 +1,4 @@
-## Changes in 0.34.3 (unreleased)
+## Changes in 0.34.3
   - Ignore duplicate source directories (see #356)
   - Do not infer duplicate modules (see  #408, #406, #353)
   - Reject empty `then` / `else` sections (see #362)
@@ -9,6 +9,8 @@
   - Do not use indentation from any existing `.cabal` file if it is invalid
     (e.g. `0`) (fixes #252)
   - Accept lists for `tested-with` (see #407)
+  - Render current directory as `./` instead of `./.` for forward compatibility
+    with future version of Cabal
 
 ## Changes in 0.34.2
   - Accept subcomponents as dependencies (close #382)
