@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.2.
+-- This file has been generated from package.yaml by hpack version 0.34.3.
 --
 -- see: https://github.com/sol/hpack
 
@@ -15,6 +15,13 @@ maintainer:     Simon Hengel <sol@typeful.net>
 license:        MIT
 license-file:   LICENSE
 build-type:     Simple
+tested-with:
+    GHC == 8.10.3
+  , GHC == 8.8.4
+  , GHC == 8.6.5
+  , GHC == 8.4.4
+  , GHC == 8.2.2
+  , GHC == 8.0.2
 extra-source-files:
     CHANGELOG.md
 

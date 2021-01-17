@@ -1,10 +1,20 @@
 name: hpack
 version: 0.34.3
+spec-version: 0.34.3
 synopsis: A modern format for Haskell packages
 description: See README at <https://github.com/sol/hpack#readme>
 maintainer: Simon Hengel <sol@typeful.net>
 github: sol/hpack
 category: Development
+
+tested-with:
+  - GHC == 8.10.3
+  - GHC == 8.8.4
+  - GHC == 8.6.5
+  - GHC == 8.4.4
+  - GHC == 8.2.2
+  - GHC == 8.0.2
+
 extra-source-files:
   - CHANGELOG.md
 

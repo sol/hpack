@@ -1,3 +1,5 @@
+[![Cabal build](https://github.com/sol/hpack/workflows/Haskell-CI/badge.svg)](https://github.com/sol/hpack/actions)
+
 # hpack: A modern format for Haskell packages
 
 Hpack is a format for Haskell packages.  It is a modern alternative to the
