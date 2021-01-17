@@ -74,7 +74,7 @@ library:
 | `copyright` | · | | May be a list | |
 | `license` | · | Inferred from `license-file` | Both [SPDX license expressions](https://spdx.org/licenses/) and traditional Cabal license identifiers are accepted. | `license: MIT` | SPDX: `0.29.0` |
 | `license-file` | `license-file` or `license-files` | `LICENSE` if file exists | May be a list | | |
-| `tested-with` | · | | | | |
+| `tested-with` | · | | May be a list (since `0.34.3`) | | |
 | `build-type` | · | `Simple`, or `Custom` if `custom-setup` exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | | |
 | `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | | |
 | `extra-doc-files` | · | | Accepts [glob patterns](#file-globbing) | | `0.21.2` |
