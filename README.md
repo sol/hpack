@@ -1,3 +1,9 @@
+[![Hackage version](https://img.shields.io/hackage/v/hpack.svg?label=Hackage&color=informational)](http://hackage.haskell.org/package/hpack)
+[![Stackage LTS version](https://www.stackage.org/package/hpack/badge/lts?label=Stackage)](https://www.stackage.org/package/hpack)
+[![hpack on Stackage Nightly](https://stackage.org/package/hpack/badge/nightly)](https://stackage.org/nightly/package/hpack)
+[![Cabal build](https://github.com/sol/hpack/workflows/build/badge.svg)](https://github.com/sol/hpack/actions)
+
+
 # hpack: A modern format for Haskell packages
 
 Hpack is a format for Haskell packages.  It is a modern alternative to the
