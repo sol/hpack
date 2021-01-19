@@ -20,6 +20,7 @@ jobs:
         os:
           - ubuntu-latest
         ghc:
+          - '8.2'
           - '8.4'
           - '8.6'
           - '8.8'
@@ -34,6 +35,13 @@ jobs:
       - uses: haskell/actions/setup@v1
         with:
           ghc-version: ${{ matrix.ghc }}
+
+      - uses: actions/cache@v2
+        with:
+          key: ${{ runner.os }}-${{ matrix.ghc }}-${{ github.sha }}
+          path: ~/.cabal/store
+          restore-keys: ${{ runner.os }}-${{ matrix.ghc }}-
+
       - uses: sol/run-haskell-tests@v1
 
   success:
