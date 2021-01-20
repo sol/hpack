@@ -35,6 +35,7 @@ import           Control.Applicative
 import qualified Control.Monad.Fail as Fail
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Writer
+import           Control.Monad.Trans.State.Strict
 import           Data.Monoid ((<>))
 import           Data.Scientific
 import           Data.Set (Set, notMember)
@@ -64,16 +65,20 @@ fromAesonPathElement e = case e of
   Aeson.Key k -> Key k
   Aeson.Index n -> Index n
 
-newtype Parser a = Parser {unParser :: WriterT (Set JSONPath) Aeson.Parser a}
+data ParserState = ParserState {
+  parserStateConsumedFields :: !(Set JSONPath)
+}
+
+newtype Parser a = Parser {unParser :: StateT ParserState Aeson.Parser a}
   deriving (Functor, Applicative, Alternative, Monad, Fail.MonadFail)
 
 liftParser :: Aeson.Parser a -> Parser a
 liftParser = Parser . lift
 
 runParser :: (Value -> Parser a) -> Value -> Either String (a, [String])
-runParser p v = case iparse (runWriterT . unParser <$> p) v of
+runParser p v = case iparse (flip runStateT (ParserState mempty) . unParser <$> p) v of
   IError path err -> Left ("Error while parsing " ++ formatPath (fromAesonPath path) ++ " - " ++ err)
-  ISuccess (a, consumed) -> Right (a, map formatPath (determineUnconsumed consumed v))
+  ISuccess (a, ParserState consumed) -> Right (a, map formatPath (determineUnconsumed consumed v))
 
 formatPath :: JSONPath -> String
 formatPath = go "$" . reverse
@@ -104,13 +109,18 @@ determineUnconsumed ((<> Set.singleton []) -> consumed) = Set.toList . execWrite
               go (Index n : path) v
 
 (<?>) :: Parser a -> Aeson.JSONPathElement -> Parser a
-(<?>) (Parser (WriterT p)) e = do
-  Parser (WriterT (p Aeson.<?> e)) <* markConsumed (fromAesonPathElement e)
+(<?>) p e = mapParser (Aeson.<?> e) p <* markConsumed (fromAesonPathElement e)
+
+mapParser :: (Aeson.Parser (a, ParserState) -> Aeson.Parser (b, ParserState)) -> Parser a -> Parser b
+mapParser f = Parser . mapStateT f . unParser
 
 markConsumed :: JSONPathElement -> Parser ()
 markConsumed e = do
   path <- getPath
-  Parser $ tell (Set.singleton $ e : path)
+  tellJSONPath (e : path)
+
+tellJSONPath :: JSONPath -> Parser ()
+tellJSONPath path = Parser . modify $ \ st -> st {parserStateConsumedFields = Set.insert path $ parserStateConsumedFields st}
 
 getPath :: Parser JSONPath
 getPath = liftParser $ Aeson.parserCatchError empty $ \ path _ -> return (fromAesonPath path)
