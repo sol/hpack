@@ -33,7 +33,11 @@ instance IsString Module where
   fromString = Module
 
 instance FromValue Module where
-  fromValue = fmap Module . fromValue
+  fromValue v = do
+    r <- fromValue v
+    case words r of
+      [name] -> return (Module name)
+      _ -> warn ("invalid module name " ++ show r) >> return (Module r)
 
 toModule :: Path -> Module
 toModule path = case reverse $ Path.components path of
