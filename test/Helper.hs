@@ -10,6 +10,7 @@ module Helper (
 , module System.FilePath
 , withCurrentDirectory
 , yaml
+, unknownField
 ) where
 
 import           Test.Hspec
@@ -26,6 +27,7 @@ import           Data.Yaml.TH (yamlQQ)
 import           Language.Haskell.TH.Quote (QuasiQuoter)
 
 import           Hpack.Config
+import           Data.Aeson.Config.FromValue
 
 instance IsString Cond where
   fromString = CondExpression
@@ -42,3 +44,6 @@ withTempDirectory action = Temp.withSystemTempDirectory "hspec" $ \dir -> do
 
 yaml :: Language.Haskell.TH.Quote.QuasiQuoter
 yaml = yamlQQ
+
+unknownField :: String -> Warning
+unknownField path = Warning path UnknownField

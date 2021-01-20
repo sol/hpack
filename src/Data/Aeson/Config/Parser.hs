@@ -4,6 +4,8 @@
 {-# LANGUAGE CPP #-}
 module Data.Aeson.Config.Parser (
   Parser
+, Warning(..)
+, WarningReason(..)
 , runParser
 
 , typeMismatch
@@ -13,6 +15,8 @@ module Data.Aeson.Config.Parser (
 , withArray
 , withNumber
 , withBool
+
+, warn
 
 , explicitParseField
 , explicitParseFieldMaybe
@@ -67,6 +71,7 @@ fromAesonPathElement e = case e of
 
 data ParserState = ParserState {
   parserStateConsumedFields :: !(Set JSONPath)
+, parserStateWarnings :: ![(JSONPath, String)]
 }
 
 newtype Parser a = Parser {unParser :: StateT ParserState Aeson.Parser a}
@@ -75,10 +80,22 @@ newtype Parser a = Parser {unParser :: StateT ParserState Aeson.Parser a}
 liftParser :: Aeson.Parser a -> Parser a
 liftParser = Parser . lift
 
-runParser :: (Value -> Parser a) -> Value -> Either String (a, [String])
-runParser p v = case iparse (flip runStateT (ParserState mempty) . unParser <$> p) v of
+data Warning = Warning String WarningReason
+  deriving (Eq, Show)
+
+data WarningReason = WarningReason String | UnknownField
+  deriving (Eq, Show)
+
+runParser :: (Value -> Parser a) -> Value -> Either String (a, [Warning])
+runParser p v = case iparse (flip runStateT (ParserState mempty mempty) . unParser <$> p) v of
   IError path err -> Left ("Error while parsing " ++ formatPath (fromAesonPath path) ++ " - " ++ err)
-  ISuccess (a, ParserState consumed) -> Right (a, map formatPath (determineUnconsumed consumed v))
+  ISuccess (a, ParserState consumed warnings) -> Right (a, map warning warnings ++ map unknownField (determineUnconsumed consumed v))
+  where
+    warning :: (JSONPath, String) -> Warning
+    warning (path, reason) = Warning (formatPath path) (WarningReason reason)
+
+    unknownField :: JSONPath -> Warning
+    unknownField path = Warning (formatPath path) UnknownField
 
 formatPath :: JSONPath -> String
 formatPath = go "$" . reverse
@@ -160,3 +177,8 @@ withNumber _ v = typeMismatch "Number" v
 withBool :: (Bool -> Parser a) -> Value -> Parser a
 withBool p (Bool b) = p b
 withBool _ v = typeMismatch "Boolean" v
+
+warn :: String -> Parser ()
+warn s = do
+  path <- getPath
+  Parser . modify $ \ st -> st {parserStateWarnings = (path, s) : parserStateWarnings st}

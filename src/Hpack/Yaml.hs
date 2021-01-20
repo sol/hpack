@@ -20,13 +20,13 @@ module Hpack.Yaml (
 import           Data.Bifunctor
 import           Data.Yaml hiding (decodeFile, decodeFileWithWarnings)
 import           Data.Yaml.Include
-import           Data.Yaml.Internal (Warning(..))
+import qualified Data.Yaml.Internal as Yaml
 import           Data.Aeson.Config.FromValue
 import           Data.Aeson.Config.Parser (fromAesonPath, formatPath)
 
-formatWarning :: FilePath -> Warning -> String
+formatWarning :: FilePath -> Yaml.Warning -> String
 formatWarning file = \ case
-  DuplicateKey path -> file ++ ": Duplicate field " ++ formatPath (fromAesonPath path)
+  Yaml.DuplicateKey path -> file ++ ": Duplicate field " ++ formatPath (fromAesonPath path)
 
 decodeYaml :: FilePath -> IO (Either String ([String], Value))
 decodeYaml file = do
