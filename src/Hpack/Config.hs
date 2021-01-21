@@ -1096,6 +1096,19 @@ toExecutableMap name executables mExecutable = do
 
 type GlobalOptions = CommonOptions CSources CxxSources JsSources Empty
 
+executableSectionMainCandidates :: Section ExecutableSection -> [FilePath]
+executableSectionMainCandidates sect = case sectionAll sectionSourceDirs sect of
+  [] -> mains
+  sourceDirs -> [src </> main | main <- mains, src <- sourceDirs]
+  where
+    mains :: [FilePath]
+    mains = concatMap sectionMain sect
+
+    sectionMain :: ExecutableSection -> [FilePath]
+    sectionMain exec = case parseMain <$> executableSectionMain exec of
+      Just (file, []) -> [file]
+      _ -> []
+
 toPackage_ :: MonadIO m => FilePath -> Product GlobalOptions (PackageConfig CSources CxxSources JsSources) -> Warnings m (Package, String)
 toPackage_ dir (Product g PackageConfig{..}) = do
   executableMap <- toExecutableMap packageName_ packageConfigExecutables packageConfigExecutable
@@ -1111,15 +1124,26 @@ toPackage_ dir (Product g PackageConfig{..}) = do
     toSections :: (Monad m, Monoid a) => Maybe (Map String (WithCommonOptions CSources CxxSources JsSources a)) -> Warnings m (Map String (Section a))
     toSections = maybe (return mempty) (traverse toSect)
 
-    toLib = liftIO . toLibrary dir packageName_
-    toExecutables = toSections >=> traverse (liftIO . toExecutable dir packageName_)
+  executableSections <- toSections executableMap
+  testSections <- toSections packageConfigTests
+  benchmarkSections <- toSections packageConfigBenchmarks
+
+  let
+    exclude :: [FilePath]
+    exclude = concatMap (concatMap executableSectionMainCandidates) [executableSections, testSections, benchmarkSections]
+
+    toLib :: MonadIO m => Section LibrarySection -> Warnings m (Section Library)
+    toLib = liftIO . toLibrary dir packageName_ exclude
+
+    toExecutables :: MonadIO m => Map String (Section ExecutableSection) -> Warnings m (Map String (Section Executable))
+    toExecutables = traverse (liftIO . toExecutable dir packageName_ exclude)
 
   mLibrary <- traverse (toSect >=> toLib) packageConfigLibrary
   internalLibraries <- toSections packageConfigInternalLibraries >>= traverse toLib
 
-  executables <- toExecutables executableMap
-  tests <- toExecutables packageConfigTests
-  benchmarks <- toExecutables packageConfigBenchmarks
+  executables <- toExecutables executableSections
+  tests <- toExecutables testSections
+  benchmarks <- toExecutables benchmarkSections
 
   licenseFileExists <- liftIO $ doesFileExist (dir </> "LICENSE")
 
@@ -1292,8 +1316,8 @@ getLibraryModules Library{..} = libraryExposedModules ++ libraryOtherModules
 getExecutableModules :: Executable -> [Module]
 getExecutableModules Executable{..} = executableOtherModules
 
-listModules :: FilePath -> Section a -> IO [Module]
-listModules dir Section{..} = concat <$> mapM (getModules dir) sectionSourceDirs
+listModules :: FilePath -> [FilePath] -> Section a -> IO [Module]
+listModules dir exclude Section{..} = concat <$> mapM (getModules dir exclude) sectionSourceDirs
 
 removeConditionalsThatAreAlwaysFalse :: Section a -> Section a
 removeConditionalsThatAreAlwaysFalse sect = sect {
@@ -1305,19 +1329,20 @@ removeConditionalsThatAreAlwaysFalse sect = sect {
 inferModules ::
      FilePath
   -> String
+  -> [FilePath]
   -> (a -> [Module])
   -> (b -> [Module])
   -> ([Module] -> [Module] -> a -> b)
   -> ([Module] -> a -> b)
   -> Section a
   -> IO (Section b)
-inferModules dir packageName_ getMentionedModules getInferredModules fromData fromConditionals = fmap removeConditionalsThatAreAlwaysFalse . traverseSectionAndConditionals
+inferModules dir packageName_ exclude getMentionedModules getInferredModules fromData fromConditionals = fmap removeConditionalsThatAreAlwaysFalse . traverseSectionAndConditionals
   (fromConfigSection fromData [pathsModuleFromPackageName packageName_])
   (fromConfigSection (\ [] -> fromConditionals) [])
   []
   where
     fromConfigSection fromConfig pathsModule_ outerModules sect@Section{sectionData = conf} = do
-      modules <- listModules dir sect
+      modules <- listModules dir exclude sect
       let
         mentionedModules = concatMap getMentionedModules sect
         inferableModules = (modules \\ outerModules) \\ mentionedModules
@@ -1325,9 +1350,9 @@ inferModules dir packageName_ getMentionedModules getInferredModules fromData fr
         r = fromConfig pathsModule inferableModules conf
       return (outerModules ++ getInferredModules r, r)
 
-toLibrary :: FilePath -> String -> Section LibrarySection -> IO (Section Library)
-toLibrary dir name =
-    inferModules dir name getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel fromLibrarySectionInConditional
+toLibrary :: FilePath -> String -> [FilePath] -> Section LibrarySection -> IO (Section Library)
+toLibrary dir name exclude =
+    inferModules dir name exclude getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel fromLibrarySectionInConditional
   where
     fromLibrarySectionTopLevel :: [Module] -> [Module] -> LibrarySection -> Library
     fromLibrarySectionTopLevel pathsModule inferableModules LibrarySection{..} =
@@ -1369,9 +1394,9 @@ getMentionedExecutableModules :: ExecutableSection -> [Module]
 getMentionedExecutableModules (ExecutableSection main otherModules generatedModules)=
   maybe id (:) (toModule . Path.fromFilePath <$> main) $ fromMaybeList (otherModules <> generatedModules)
 
-toExecutable :: FilePath -> String -> Section ExecutableSection -> IO (Section Executable)
-toExecutable dir packageName_ =
-    inferModules dir packageName_ getMentionedExecutableModules getExecutableModules fromExecutableSection (fromExecutableSection [])
+toExecutable :: FilePath -> String -> [FilePath] -> Section ExecutableSection -> IO (Section Executable)
+toExecutable dir packageName_ exclude =
+    inferModules dir packageName_ exclude getMentionedExecutableModules getExecutableModules fromExecutableSection (fromExecutableSection [])
   . expandMain
   where
     fromExecutableSection :: [Module] -> [Module] -> ExecutableSection -> Executable

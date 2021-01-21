@@ -11,6 +11,7 @@ module Hpack.Module (
 ) where
 
 import           Data.String
+import           Data.Maybe
 import           System.FilePath
 import qualified System.Directory as Directory
 import           Control.Monad
@@ -40,8 +41,8 @@ toModule path = case reverse $ Path.components path of
   [] -> Module ""
   file : dirs -> Module . intercalate "." . reverse $ dropExtension file : dirs
 
-getModules :: FilePath -> FilePath -> IO [Module]
-getModules dir literalSrc = sortModules <$> do
+getModules :: FilePath -> [FilePath] -> FilePath -> IO [Module]
+getModules dir exclude literalSrc = sortModules <$> do
   exists <- Directory.doesDirectoryExist (dir </> literalSrc)
   if exists
     then do
@@ -59,7 +60,18 @@ getModules dir literalSrc = sortModules <$> do
           | srcIsProjectRoot = filter (/= "Setup")
           | otherwise = id
 
-      toModules <$> getModuleFilesRecursive canonicalSrc
+        stripSrc :: Path -> Maybe Path
+        stripSrc
+          | srcIsProjectRoot = Just
+          | otherwise = Path.stripPrefix (Path.fromFilePath literalSrc)
+
+        excludePaths :: [Path]
+        excludePaths = mapMaybe (stripSrc . Path.fromFilePath) exclude
+
+        shouldExclude :: Path -> Bool
+        shouldExclude = (`elem` excludePaths)
+
+      toModules . filter (not . shouldExclude) <$> getModuleFilesRecursive canonicalSrc
     else return []
 
 sortModules :: [Module] -> [Module]
