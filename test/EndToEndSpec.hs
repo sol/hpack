@@ -95,7 +95,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           default-extensions: [RebindableSyntax, OverloadedStrings]
           library: {}
           |] `shouldRenderTo` (library [i|
-          default-extensions: RebindableSyntax OverloadedStrings
+          default-extensions:
+              RebindableSyntax
+              OverloadedStrings
           other-modules:
               Paths_foo
           |]) {packageCabalVersion = "2.2"}
@@ -109,7 +111,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               - condition: false
                 other-modules: Paths_foo
             |] `shouldRenderTo` (library [i|
-            default-extensions: RebindableSyntax OverloadedStrings
+            default-extensions:
+                RebindableSyntax
+                OverloadedStrings
             |])
 
     describe "spec-version" $ do
@@ -279,7 +283,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           ref: "2017"
         library: {}
         |] `shouldRenderTo` library_ [i|
-        default-extensions: RecordWildCards DeriveFunctor
+        default-extensions:
+            RecordWildCards
+            DeriveFunctor
         |]
 
       it "accepts library defaults" $ do
@@ -309,7 +315,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo/bar@v2
         library: {}
         |] `shouldRenderTo` library_ [i|
-        default-extensions: RecordWildCards DeriveFunctor
+        default-extensions:
+            RecordWildCards
+            DeriveFunctor
         |]
 
       it "accepts defaults recursively" $ do
@@ -319,7 +327,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         defaults: foo/bar@v1
         library: {}
         |] `shouldRenderTo` library_ [i|
-        default-extensions: DeriveFunctor
+        default-extensions:
+            DeriveFunctor
         |]
 
       it "fails on cyclic defaults" $ do
@@ -390,7 +399,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |] `shouldRenderTo` library [i|
         other-modules:
             Paths_foo
-        default-extensions: RecordWildCards DeriveFunctor
+        default-extensions:
+            RecordWildCards
+            DeriveFunctor
         |]
 
     describe "version" $ do

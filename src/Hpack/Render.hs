@@ -400,10 +400,10 @@ renderBuildable :: Bool -> Element
 renderBuildable = Field "buildable" . Literal . show
 
 renderDefaultExtensions :: [String] -> Element
-renderDefaultExtensions = Field "default-extensions" . WordList
+renderDefaultExtensions = Field "default-extensions" . LineSeparatedList
 
 renderOtherExtensions :: [String] -> Element
-renderOtherExtensions = Field "other-extensions" . WordList
+renderOtherExtensions = Field "other-extensions" . LineSeparatedList
 
 renderPaths :: [Path] -> Value
 renderPaths = LineSeparatedList . map renderPath
