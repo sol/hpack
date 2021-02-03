@@ -1,6 +1,4 @@
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE OverloadedStrings #-}
 module Hpack.Syntax.DependenciesSpec (spec) where
 
 import           Helper

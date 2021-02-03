@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
 module Hpack.Syntax.GitSpec (spec) where
 
 import           Helper
@@ -33,7 +32,7 @@ spec = do
     it "rejects space" $ do
       isValidRef "foo bar" `shouldBe` False
 
-    forM_ ["~", "^", ":", "?", "*", "[", "\\"] $ \ xs -> do
+    forM_ ["~", "^", ":", "?", "*", "[", "\\" :: String] $ \ xs -> do
       it [i|rejects #{xs}|] $ do
         isValidRef [i|foo#{xs}bar|] `shouldBe` False
 

@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE QuasiQuotes #-}
 module Hpack.LicenseSpec (spec) where
 
 import           Helper

@@ -1,7 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Data.Aeson.Config.Types where
 
 import           Data.Semigroup (Semigroup(..))
@@ -12,7 +8,8 @@ import           Data.Bifunctor
 import           Data.Aeson.Config.FromValue
 
 newtype List a = List {fromList :: [a]}
-  deriving (Eq, Show, Functor, Foldable, Traversable, Semigroup, Monoid)
+  deriving newtype (Eq, Show, Functor, Foldable, Semigroup, Monoid)
+  deriving (Traversable)
 
 instance FromValue a => FromValue (List a) where
   fromValue v = List <$> case v of

@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
 module Hpack.Syntax.DefaultsSpec (spec) where
 
 import           Helper

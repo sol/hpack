@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Hpack.Render.Dsl (
 -- * AST
   Element (..)
@@ -44,10 +42,10 @@ data CommaStyle = LeadingCommas | TrailingCommas
   deriving (Eq, Show)
 
 newtype Nesting = Nesting Int
-  deriving (Eq, Show, Num, Enum)
+  deriving newtype (Eq, Show, Num, Enum)
 
 newtype Alignment = Alignment Int
-  deriving (Eq, Show, Num)
+  deriving newtype (Eq, Show, Num)
 
 data RenderSettings = RenderSettings {
   renderSettingsIndentation :: Int

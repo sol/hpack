@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Hpack.Utf8Spec (spec) where
 
 import           Helper

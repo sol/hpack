@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 module Hpack.Syntax.Dependencies (
   Dependencies(..)
@@ -34,7 +32,7 @@ import           Hpack.Syntax.ParseDependencies
 
 newtype Dependencies = Dependencies {
   unDependencies :: Map String DependencyInfo
-} deriving (Eq, Show, Semigroup, Monoid)
+} deriving newtype (Eq, Show, Semigroup, Monoid)
 
 instance IsList Dependencies where
   type Item Dependencies = (String, DependencyInfo)

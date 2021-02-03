@@ -14,7 +14,7 @@ isValidRef ref =
   && not (any (isPrefixOf ".") components)
   && not (".." `isInfixOf` ref)
   && not (any isControl ref)
-  && all (`notElem` " ~^:?*[\\") ref
+  && all (`notElem` special) ref
   && not ("//" `isInfixOf` ref)
   && not ("/" `isPrefixOf` ref)
   && not ("/" `isSuffixOf` ref)
@@ -22,6 +22,9 @@ isValidRef ref =
   && not ("@{" `isInfixOf` ref)
   && not (ref == "@")
   where
+    special :: String
+    special = " ~^:?*[\\"
+
     components = splitDirectories ref
 
 isControl :: Char -> Bool

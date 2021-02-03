@@ -25,6 +25,7 @@ source-repository head
 library
   hs-source-dirs:
       src
+  default-extensions: BangPatterns ConstrainedClassMethods DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveTraversable ExistentialQuantification ExplicitForAll FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving KindSignatures MultiParamTypeClasses NamedFieldPuns PostfixOperators RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeOperators TypeSynonymInstances DeriveAnyClass DerivingStrategies LambdaCase OverloadedStrings RecordWildCards ViewPatterns DefaultSignatures
   ghc-options: -Wall
   build-depends:
       Cabal >=3.0.0.0 && <3.6
@@ -49,6 +50,24 @@ library
     , unordered-containers
     , vector
     , yaml >=0.10.0
+  if impl(ghc >= 8.10)
+    default-extensions: ImportQualifiedPost StandaloneKindSignatures
+  if impl(ghc >= 8.6)
+    default-extensions: NumericUnderscores
+  if impl(ghc >= 8.4)
+    default-extensions: EmptyDataDeriving HexFloatLiterals
+  if impl(ghc >= 8.0)
+    default-extensions: DeriveLift TypeApplications
+  if impl(ghc >= 7.10)
+    default-extensions: BinaryLiterals NamedWildCards
+  if impl(ghc >= 7.8)
+    default-extensions: EmptyCase
+  if impl(ghc >= 7.6)
+    default-extensions: InstanceSigs
+  if impl(ghc >= 7.4)
+    default-extensions: ConstraintKinds PolyKinds
+  if impl(ghc >= 7.2)
+    default-extensions: DeriveGeneric GADTSyntax
   exposed-modules:
       Hpack
       Hpack.Config
@@ -83,6 +102,7 @@ executable hpack
   main-is: Main.hs
   hs-source-dirs:
       driver
+  default-extensions: BangPatterns ConstrainedClassMethods DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveTraversable ExistentialQuantification ExplicitForAll FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving KindSignatures MultiParamTypeClasses NamedFieldPuns PostfixOperators RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeOperators TypeSynonymInstances DeriveAnyClass DerivingStrategies LambdaCase OverloadedStrings RecordWildCards ViewPatterns DefaultSignatures
   ghc-options: -Wall
   build-depends:
       Cabal >=3.0.0.0 && <3.6
@@ -108,6 +128,24 @@ executable hpack
     , unordered-containers
     , vector
     , yaml >=0.10.0
+  if impl(ghc >= 8.10)
+    default-extensions: ImportQualifiedPost StandaloneKindSignatures
+  if impl(ghc >= 8.6)
+    default-extensions: NumericUnderscores
+  if impl(ghc >= 8.4)
+    default-extensions: EmptyDataDeriving HexFloatLiterals
+  if impl(ghc >= 8.0)
+    default-extensions: DeriveLift TypeApplications
+  if impl(ghc >= 7.10)
+    default-extensions: BinaryLiterals NamedWildCards
+  if impl(ghc >= 7.8)
+    default-extensions: EmptyCase
+  if impl(ghc >= 7.6)
+    default-extensions: InstanceSigs
+  if impl(ghc >= 7.4)
+    default-extensions: ConstraintKinds PolyKinds
+  if impl(ghc >= 7.2)
+    default-extensions: DeriveGeneric GADTSyntax
   other-modules:
       Paths_hpack
   default-language: Haskell2010
@@ -118,6 +156,7 @@ test-suite spec
   hs-source-dirs:
       test
       src
+  default-extensions: BangPatterns ConstrainedClassMethods DeriveDataTypeable DeriveFoldable DeriveFunctor DeriveTraversable ExistentialQuantification ExplicitForAll FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving KindSignatures MultiParamTypeClasses NamedFieldPuns PostfixOperators RankNTypes ScopedTypeVariables StandaloneDeriving TupleSections TypeOperators TypeSynonymInstances DeriveAnyClass DerivingStrategies LambdaCase OverloadedStrings RecordWildCards ViewPatterns DefaultSignatures QuasiQuotes
   ghc-options: -Wall
   cpp-options: -DTEST
   build-depends:
@@ -150,6 +189,24 @@ test-suite spec
     , unordered-containers
     , vector
     , yaml >=0.10.0
+  if impl(ghc >= 8.10)
+    default-extensions: ImportQualifiedPost StandaloneKindSignatures
+  if impl(ghc >= 8.6)
+    default-extensions: NumericUnderscores
+  if impl(ghc >= 8.4)
+    default-extensions: EmptyDataDeriving HexFloatLiterals
+  if impl(ghc >= 8.0)
+    default-extensions: DeriveLift TypeApplications
+  if impl(ghc >= 7.10)
+    default-extensions: BinaryLiterals NamedWildCards
+  if impl(ghc >= 7.8)
+    default-extensions: EmptyCase
+  if impl(ghc >= 7.6)
+    default-extensions: InstanceSigs
+  if impl(ghc >= 7.4)
+    default-extensions: ConstraintKinds PolyKinds
+  if impl(ghc >= 7.2)
+    default-extensions: DeriveGeneric GADTSyntax
   build-tool-depends:
       hspec-discover:hspec-discover
   other-modules:

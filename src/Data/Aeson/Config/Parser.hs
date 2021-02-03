@@ -1,6 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE CPP #-}
 module Data.Aeson.Config.Parser (
   Parser
@@ -65,7 +62,7 @@ fromAesonPathElement e = case e of
   Aeson.Index n -> Index n
 
 newtype Parser a = Parser {unParser :: WriterT (Set JSONPath) Aeson.Parser a}
-  deriving (Functor, Applicative, Alternative, Monad, Fail.MonadFail)
+  deriving newtype (Functor, Applicative, Alternative, Monad, Fail.MonadFail)
 
 liftParser :: Aeson.Parser a -> Parser a
 liftParser = Parser . lift
