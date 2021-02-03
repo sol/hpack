@@ -1,3 +1,6 @@
+## Changes in next
+  - Render default-extensions / other-extensions line-separated
+
 ## Changes in 0.34.3
   - Ignore duplicate source directories (see #356)
   - Do not infer duplicate modules (see  #408, #406, #353)
