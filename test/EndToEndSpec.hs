@@ -70,6 +70,17 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           "package.yaml: Duplicate field $.name"
         ]
 
+    context "when a module name contains spaces" $ do
+      it "warns" $ do
+        [i|
+        name: foo
+        library:
+          other-modules:
+            Foo
+            Bar
+            Baz
+        |] `shouldWarn` ["package.yaml: invalid module name \"Foo Bar Baz\" in $.library.other-modules"]
+
     describe "handling of Paths_ module" $ do
       it "adds Paths_ to other-modules" $ do
         [i|

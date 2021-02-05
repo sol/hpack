@@ -849,16 +849,18 @@ sectionAll f sect = f sect <> foldMap (foldMap $ sectionAll f) (sectionCondition
 
 decodeValue :: FromValue a => ProgramName -> FilePath -> Value -> Warnings (Errors IO) a
 decodeValue (ProgramName programName) file value = do
-  (r, unknown) <- lift . ExceptT . return $ first (prefix ++) (Config.decodeValue value)
+  (r, warnings) <- lift . ExceptT . return $ first (prefix ++) (Config.decodeValue value)
   case r of
     UnsupportedSpecVersion v -> do
       lift $ throwE ("The file " ++ file ++ " requires version " ++ showVersion v ++ " of the Hpack package specification, however this version of " ++ programName ++ " only supports versions up to " ++ showVersion Hpack.version ++ ". Upgrading to the latest version of " ++ programName ++ " may resolve this issue.")
     SupportedSpecVersion a -> do
-      tell (map formatUnknownField unknown)
+      tell (map formatWarning warnings)
       return a
   where
     prefix = file ++ ": "
-    formatUnknownField name = prefix ++ "Ignoring unrecognized field " ++ name
+    formatWarning warning = prefix ++ case warning of
+      Warning path (WarningReason reason) -> reason <> " in " <> path
+      Warning path UnknownField -> "Ignoring unrecognized field " <> path
 
 data CheckSpecVersion a = SupportedSpecVersion a | UnsupportedSpecVersion Version
 

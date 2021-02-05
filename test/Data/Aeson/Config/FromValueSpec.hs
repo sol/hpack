@@ -52,7 +52,7 @@ spec = do
         name: "Joe"
         age: 23
         foo: bar
-        |] `shouldDecodeTo` Right (Person "Joe" 23 Nothing, ["$.foo"])
+        |] `shouldDecodeTo` Right (Person "Joe" 23 Nothing, [unknownField "$.foo"])
 
       it "captures nested unrecognized fields" $ do
         [yaml|
@@ -63,7 +63,7 @@ spec = do
           zip: "123456"
           foo:
             bar: 23
-        |] `shouldDecodeTo` Right (Person "Joe" 23 (Just (Address "somewhere" "123456")), ["$.address.foo"])
+        |] `shouldDecodeTo` Right (Person "Joe" 23 (Just (Address "somewhere" "123456")), [unknownField "$.address.foo"])
 
       it "ignores fields that start with an underscore" $ do
         [yaml|
@@ -95,7 +95,7 @@ spec = do
         role: engineer
         salary: 100000
         foo: bar
-        |] `shouldDecodeTo` Right ((Person "Joe" 23 Nothing, Job "engineer" 100000), ["$.foo"])
+        |] `shouldDecodeTo` Right ((Person "Joe" 23 Nothing, Job "engineer" 100000), [unknownField "$.foo"])
 
     context "with []" $ do
       it "captures unrecognized fields" $ do
@@ -111,7 +111,7 @@ spec = do
         - name: "Marry"
           age: 25
           bar: 42
-        |] `shouldDecodeTo` Right (expected, ["$[1].bar", "$[0].address.foo"])
+        |] `shouldDecodeTo` Right (expected, [unknownField "$[1].bar", unknownField "$[0].address.foo"])
 
     context "with Map" $ do
       it "captures unrecognized fields" $ do
@@ -120,4 +120,4 @@ spec = do
           region: somewhere
           zip: '123456'
           foo: bar
-        |] `shouldDecodeTo` Right (Map.fromList [("Joe", Address "somewhere" "123456")], ["$.Joe.foo"])
+        |] `shouldDecodeTo` Right (Map.fromList [("Joe", Address "somewhere" "123456")], [unknownField "$.Joe.foo"])

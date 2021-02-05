@@ -12,6 +12,8 @@ module Data.Aeson.Config.FromValue (
   FromValue(..)
 , Parser
 , Result
+, Warning(..)
+, WarningReason(..)
 , decodeValue
 
 , Generic
@@ -27,6 +29,8 @@ module Data.Aeson.Config.FromValue (
 , withArray
 , withNumber
 , withBool
+
+, warn
 
 , parseArray
 , traverseObject
@@ -56,7 +60,7 @@ import           Data.Aeson.Types (FromJSON(..))
 import           Data.Aeson.Config.Util
 import           Data.Aeson.Config.Parser
 
-type Result a = Either String (a, [String])
+type Result a = Either String (a, [Warning])
 
 decodeValue :: FromValue a => Value -> Result a
 decodeValue = runParser fromValue
