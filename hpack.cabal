@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.34.3
+version:        0.34.4
 synopsis:       A modern format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development

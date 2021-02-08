@@ -1,5 +1,6 @@
-## Changes in next
-  - Render default-extensions / other-extensions line-separated
+## Changes in 0.34.4
+  - Render `default-extensions` / `other-extensions` line-separated
+  - Compatibility with `Cabal-3.4.0.0`
 
 ## Changes in 0.34.3
   - Ignore duplicate source directories (see #356)
