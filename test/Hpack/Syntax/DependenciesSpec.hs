@@ -39,8 +39,8 @@ spec = do
 
         it "accepts dependencies with constraints" $ do
           [yaml|
-            hpack >= 2 && < 3
-          |] `shouldDecodeTo_` Dependencies [("hpack", defaultInfo { dependencyInfoVersion = versionRange ">=2 && <3" })]
+            hpack >= 2 && < 4
+          |] `shouldDecodeTo_` Dependencies [("hpack", defaultInfo { dependencyInfoVersion = versionRange ">=2 && <4" })]
 
         context "with invalid constraint" $ do
           it "returns an error message" $ do
@@ -56,8 +56,8 @@ spec = do
 
         it "accepts dependencies with constraints" $ do
           [yaml|
-            - hpack >= 2 && < 3
-          |] `shouldDecodeTo_` Dependencies [("hpack", defaultInfo { dependencyInfoVersion = versionRange ">=2 && <3" })]
+            - hpack >= 2 && < 4
+          |] `shouldDecodeTo_` Dependencies [("hpack", defaultInfo { dependencyInfoVersion = versionRange ">=2 && <4" })]
 
         it "accepts ^>=" $ do
           [yaml|

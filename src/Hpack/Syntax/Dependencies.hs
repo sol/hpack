@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -18,6 +19,12 @@ import           Distribution.Pretty (prettyShow)
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import           GHC.Exts
+
+#if MIN_VERSION_Cabal(3,4,0)
+import qualified Distribution.Compat.NonEmptySet as DependencySet
+#else
+import qualified Data.Set as DependencySet
+#endif
 
 import           Data.Aeson.Config.FromValue
 import           Data.Aeson.Config.Types
@@ -67,7 +74,7 @@ parseDependency :: Fail.MonadFail m => String -> Text -> m (String, DependencyVe
 parseDependency subject = fmap fromCabal . cabalParse subject . T.unpack
   where
     fromCabal :: D.Dependency -> (String, DependencyVersion)
-    fromCabal d = (toName (D.depPkgName d) (toList $ D.depLibraries d), DependencyVersion Nothing . versionConstraintFromCabal $ D.depVerRange d)
+    fromCabal d = (toName (D.depPkgName d) (DependencySet.toList $ D.depLibraries d), DependencyVersion Nothing . versionConstraintFromCabal $ D.depVerRange d)
 
     toName :: D.PackageName -> [D.LibraryName] -> String
     toName package components = prettyShow package <> case components of
