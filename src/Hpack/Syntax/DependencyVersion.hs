@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ViewPatterns #-}
 module Hpack.Syntax.DependencyVersion (
   githubBaseUrl
 , GitRef
@@ -33,11 +34,11 @@ import qualified Data.Text as T
 import qualified Data.HashMap.Strict as HashMap
 import           Text.PrettyPrint (renderStyle, Style(..), Mode(..))
 
-import           Distribution.Version (VersionRangeF(..))
 import qualified Distribution.Version as D
 
 import qualified Distribution.Parsec as D
 import qualified Distribution.Pretty as D
+import qualified Distribution.Types.VersionRange.Internal as D
 
 import           Data.Aeson.Config.FromValue
 
@@ -147,32 +148,42 @@ cabalParse subject s = case D.eitherParsec s of
   Right d -> return d
   Left _ ->fail $ unwords ["invalid",  subject, show s]
 
+renderVersionRange :: D.VersionRange -> String
+renderVersionRange = \ case
+  D.IntersectVersionRanges (D.OrLaterVersion x) (D.EarlierVersion y) | differByOneInLeastPosition (x, y) -> "==" ++ render x ++ ".*"
+  v -> render v
+  where
+    differByOneInLeastPosition = \ case
+      (reverse . D.versionNumbers -> x : xs, reverse . D.versionNumbers -> y : ys) -> xs == ys && succ x == y
+      _ -> False
+
+render :: D.Pretty a => a -> String
+render = renderStyle (Style OneLineMode 0 0) . D.pretty
+
 versionConstraintFromCabal :: D.VersionRange -> VersionConstraint
 versionConstraintFromCabal range
   | D.isAnyVersion range = AnyVersion
-  | otherwise = VersionRange . renderStyle style .
-      D.pretty
-      $ toPreCabal2VersionRange range
+  | otherwise = VersionRange . renderVersionRange $ toPreCabal2VersionRange range
   where
-    style = Style OneLineMode 0 0
-
     toPreCabal2VersionRange :: D.VersionRange -> D.VersionRange
     toPreCabal2VersionRange = D.embedVersionRange . D.cataVersionRange f
       where
-        f :: VersionRangeF (VersionRangeF D.VersionRange) -> VersionRangeF D.VersionRange
+        f :: D.VersionRangeF (D.VersionRangeF D.VersionRange) -> D.VersionRangeF D.VersionRange
         f = \ case
-          MajorBoundVersionF v -> IntersectVersionRangesF (D.embedVersionRange lower) (D.embedVersionRange upper)
+          D.MajorBoundVersionF v -> D.IntersectVersionRangesF (D.embedVersionRange lower) (D.embedVersionRange upper)
             where
-              lower = OrLaterVersionF v
-              upper = EarlierVersionF (D.majorUpperBound v)
+              lower = D.OrLaterVersionF v
+              upper = D.EarlierVersionF (D.majorUpperBound v)
 
-          AnyVersionF -> AnyVersionF
-          ThisVersionF v -> ThisVersionF v
-          LaterVersionF v -> LaterVersionF v
-          OrLaterVersionF v -> OrLaterVersionF v
-          EarlierVersionF v -> EarlierVersionF v
-          OrEarlierVersionF v -> OrEarlierVersionF v
-          WildcardVersionF v -> WildcardVersionF v
-          UnionVersionRangesF a b -> UnionVersionRangesF (D.embedVersionRange a) (D.embedVersionRange b)
-          IntersectVersionRangesF a b -> IntersectVersionRangesF (D.embedVersionRange a) (D.embedVersionRange b)
-          VersionRangeParensF a -> VersionRangeParensF (D.embedVersionRange a)
+          D.ThisVersionF v -> D.ThisVersionF v
+          D.LaterVersionF v -> D.LaterVersionF v
+          D.OrLaterVersionF v -> D.OrLaterVersionF v
+          D.EarlierVersionF v -> D.EarlierVersionF v
+          D.OrEarlierVersionF v -> D.OrEarlierVersionF v
+          D.UnionVersionRangesF a b -> D.UnionVersionRangesF (D.embedVersionRange a) (D.embedVersionRange b)
+          D.IntersectVersionRangesF a b -> D.IntersectVersionRangesF (D.embedVersionRange a) (D.embedVersionRange b)
+#if !MIN_VERSION_Cabal(3,4,0)
+          D.WildcardVersionF v -> D.WildcardVersionF v
+          D.VersionRangeParensF a -> D.VersionRangeParensF (D.embedVersionRange a)
+          D.AnyVersionF -> D.AnyVersionF
+#endif
