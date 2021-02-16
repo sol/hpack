@@ -27,9 +27,9 @@ jobs:
           - '8.10'
         include:
           - os: macos-latest
-            ghc: latest
+            ghc: '8.10'
           - os: windows-latest
-            ghc: latest
+            ghc: '8.10'
     steps:
       - uses: actions/checkout@v2
       - uses: haskell/actions/setup@v1
