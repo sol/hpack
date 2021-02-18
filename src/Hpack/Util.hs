@@ -20,11 +20,10 @@ module Hpack.Util (
 , nubOn
 ) where
 
+import           Imports
+
 import           Control.Exception
-import           Control.Monad
 import           Data.Char
-import           Data.Bifunctor
-import           Data.List hiding (nub, sort)
 import           Data.Ord
 import qualified Data.Set as Set
 import           System.IO.Error

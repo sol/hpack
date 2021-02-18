@@ -1,7 +1,8 @@
 module Path where
 
+import           Imports
+
 import           System.FilePath
-import           Data.String
 
 fromFilePath :: FilePath -> Path
 fromFilePath = Path . map PathComponent . splitDirectories

@@ -4,7 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Hpack.License where
 
-import           Control.Arrow ((&&&))
+import           Imports
 
 import           Distribution.Pretty (prettyShow)
 import           Distribution.Version (mkVersion)

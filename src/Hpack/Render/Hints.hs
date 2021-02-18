@@ -16,10 +16,10 @@ module Hpack.Render.Hints (
 #endif
 ) where
 
+import           Imports
+
 import           Data.Char
 import           Data.Maybe
-import           Data.List hiding (nub)
-import           Control.Applicative
 
 import           Hpack.Render.Dsl
 import           Hpack.Util

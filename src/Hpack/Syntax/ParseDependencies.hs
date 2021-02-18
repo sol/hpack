@@ -2,8 +2,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module Hpack.Syntax.ParseDependencies where
 
-import           Data.Text (Text)
-import           Data.Bifunctor
+import           Imports
+
 import           Data.Aeson.Config.FromValue
 
 data Parse k v = Parse {

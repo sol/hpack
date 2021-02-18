@@ -3,7 +3,6 @@
 module Hpack.RenderSpec (spec) where
 
 import           Helper
-import           Data.List
 
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.ConfigSpec hiding (spec)

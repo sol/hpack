@@ -80,21 +80,15 @@ module Hpack.Config (
 #endif
 ) where
 
-import           Control.Applicative
-import           Control.Arrow ((>>>), (&&&))
-import           Control.Monad
+import           Imports
+
 import           Data.Either
-import           Data.Bifunctor
 import           Data.Bitraversable
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.HashMap.Lazy as HashMap
-import           Data.List ((\\), sortBy, intercalate)
 import           Data.Maybe
-import           Data.Semigroup (Semigroup(..))
 import           Data.Ord
-import           Data.String
-import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Text.Encoding (decodeUtf8)
 import           Data.Scientific (Scientific)
@@ -404,12 +398,12 @@ traverseCommonOptions t@Traverse{..} c@CommonOptions{..} = do
     }
 
 traverseConditionalSection :: Traversal_ ConditionalSection
-traverseConditionalSection t@Traverse{..} = \ case
+traverseConditionalSection t = \ case
   ThenElseConditional c -> ThenElseConditional <$> bitraverse (traverseThenElse t) return c
   FlatConditional c -> FlatConditional <$> bitraverse (traverseWithCommonOptions t) return c
 
 traverseThenElse :: Traversal_ ThenElse
-traverseThenElse t@Traverse{..} c@ThenElse{..} = do
+traverseThenElse t c@ThenElse{..} = do
   then_ <- traverseWithCommonOptions t thenElseThen
   else_ <- traverseWithCommonOptions t thenElseElse
   return c{thenElseThen = then_, thenElseElse = else_}
@@ -599,7 +593,7 @@ data DefaultsConfig = DefaultsConfig {
 } deriving (Generic, FromValue)
 
 traversePackageConfig :: Traversal PackageConfig
-traversePackageConfig t@Traverse{..} p@PackageConfig{..} = do
+traversePackageConfig t p@PackageConfig{..} = do
   library <- traverse (traverseWithCommonOptions t) packageConfigLibrary
   internalLibraries <- traverseNamedConfigs t packageConfigInternalLibraries
   executable <- traverse (traverseWithCommonOptions t) packageConfigExecutable

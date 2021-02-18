@@ -30,16 +30,14 @@ module Data.Aeson.Config.Parser (
 , formatPath
 ) where
 
-import           Control.Monad
-import           Control.Applicative
+import           Imports
+
 import qualified Control.Monad.Fail as Fail
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.Writer
-import           Data.Monoid ((<>))
 import           Data.Scientific
 import           Data.Set (Set, notMember)
 import qualified Data.Set as Set
-import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Data.HashMap.Strict as HashMap

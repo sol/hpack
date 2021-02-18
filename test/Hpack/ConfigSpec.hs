@@ -19,7 +19,6 @@ import           Helper
 import           Data.Aeson.Config.FromValueSpec hiding (spec)
 
 import           Data.String.Interpolate.IsString
-import           Control.Arrow
 import qualified GHC.Exts as Exts
 import           System.Directory (createDirectory)
 import           Data.Either
