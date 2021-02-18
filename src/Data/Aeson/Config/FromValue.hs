@@ -39,15 +39,12 @@ module Data.Aeson.Config.FromValue (
 , Array
 ) where
 
+import           Imports
+
 import           GHC.Generics
 
-import           Control.Monad
-import           Control.Applicative
-
-import           Data.Bifunctor
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
-import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Data.HashMap.Strict as HashMap

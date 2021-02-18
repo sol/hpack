@@ -12,10 +12,11 @@ module Hpack.Defaults (
 #endif
 ) where
 
+import           Imports
+
 import           Network.HTTP.Types
 import           Network.HTTP.Client
 import           Network.HTTP.Client.TLS
-import           Data.List
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Char8 as B
 import           System.FilePath

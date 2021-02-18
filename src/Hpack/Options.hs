@@ -1,8 +1,8 @@
 {-# LANGUAGE LambdaCase #-}
 module Hpack.Options where
 
-import           Control.Applicative
-import           Control.Monad
+import           Imports
+
 import           Data.Maybe
 import           System.FilePath
 import           System.Directory

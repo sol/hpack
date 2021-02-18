@@ -25,11 +25,11 @@ module Hpack.Syntax.DependencyVersion (
 , cabalParse
 ) where
 
-import           Control.Applicative
+import           Imports
+
 import qualified Control.Monad.Fail as Fail
 import           Data.Maybe
 import           Data.Scientific
-import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.HashMap.Strict as HashMap
 import           Text.PrettyPrint (renderStyle, Style(..), Mode(..))

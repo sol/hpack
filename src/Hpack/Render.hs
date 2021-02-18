@@ -34,10 +34,10 @@ module Hpack.Render (
 #endif
 ) where
 
-import           Control.Monad
+import           Imports
+
 import           Data.Char
 import           Data.Maybe
-import           Data.List
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 
@@ -165,7 +165,7 @@ renderExecutables :: Map String (Section Executable) -> [Element]
 renderExecutables = map renderExecutable . Map.toList
 
 renderExecutable :: (String, Section Executable) -> Element
-renderExecutable (name, sect@(sectionData -> Executable{..})) =
+renderExecutable (name, sect) =
   Stanza ("executable " ++ name) (renderExecutableSection [] sect)
 
 renderTests :: Map String (Section Executable) -> [Element]

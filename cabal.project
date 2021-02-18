@@ -1,0 +1,5 @@
+packages:
+  hpack.cabal
+
+package hpack
+  ghc-options: -Werror

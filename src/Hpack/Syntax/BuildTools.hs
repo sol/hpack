@@ -7,12 +7,10 @@ module Hpack.Syntax.BuildTools (
 , SystemBuildTools(..)
 ) where
 
+import           Imports
+
 import qualified Control.Monad.Fail as Fail
-import           Data.Text (Text)
 import qualified Data.Text as T
-import           Data.Semigroup (Semigroup(..))
-import           Data.Bifunctor
-import           Control.Applicative
 import qualified Distribution.Package as D
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map

@@ -3,8 +3,8 @@
 {-# LANGUAGE ViewPatterns #-}
 module Hpack.CabalFile where
 
-import           Control.Monad
-import           Data.List
+import           Imports
+
 import           Data.Maybe
 import           Data.Version (Version(..))
 import qualified Data.Version as Version

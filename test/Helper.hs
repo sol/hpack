@@ -2,7 +2,8 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 module Helper (
-  module Test.Hspec
+  module Imports
+, module Test.Hspec
 , module Test.Mockery.Directory
 , module Control.Monad
 , module Control.Applicative
@@ -12,9 +13,10 @@ module Helper (
 , yaml
 ) where
 
+import           Imports
+
 import           Test.Hspec
 import           Test.Mockery.Directory
-import           Data.String
 import           Control.Monad
 import           Control.Applicative
 import           System.Directory (getCurrentDirectory, setCurrentDirectory, canonicalizePath)

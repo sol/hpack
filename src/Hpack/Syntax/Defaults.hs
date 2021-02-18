@@ -13,8 +13,9 @@ module Hpack.Syntax.Defaults (
 #endif
 ) where
 
+import           Imports
+
 import           Data.HashMap.Lazy (member)
-import           Data.List
 import qualified Data.Text as T
 import           System.FilePath.Posix (splitDirectories)
 

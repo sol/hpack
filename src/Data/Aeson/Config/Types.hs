@@ -4,10 +4,10 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Data.Aeson.Config.Types where
 
-import           Data.Semigroup (Semigroup(..))
+import           Imports
+
 import           Data.Bitraversable
 import           Data.Bifoldable
-import           Data.Bifunctor
 
 import           Data.Aeson.Config.FromValue
 

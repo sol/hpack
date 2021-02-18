@@ -24,8 +24,7 @@ module Hpack.Render.Dsl (
 #endif
 ) where
 
-import           Data.String
-import           Data.List
+import           Imports
 
 data Value =
     Literal String

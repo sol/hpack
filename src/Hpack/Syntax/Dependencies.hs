@@ -8,11 +8,10 @@ module Hpack.Syntax.Dependencies (
 , parseDependency
 ) where
 
+import           Imports
+
 import qualified Control.Monad.Fail as Fail
-import           Data.Text (Text)
-import           Data.List
 import qualified Data.Text as T
-import           Data.Semigroup (Semigroup(..))
 import qualified Distribution.Package as D
 import qualified Distribution.Types.LibraryName as D
 import           Distribution.Pretty (prettyShow)

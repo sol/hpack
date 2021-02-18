@@ -17,7 +17,8 @@ module Hpack.Yaml (
 , module Data.Aeson.Config.FromValue
 ) where
 
-import           Data.Bifunctor
+import           Imports
+
 import           Data.Yaml hiding (decodeFile, decodeFileWithWarnings)
 import           Data.Yaml.Include
 import           Data.Yaml.Internal (Warning(..))

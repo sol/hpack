@@ -2,8 +2,9 @@ module Hpack.Syntax.Git (
   isValidRef
 ) where
 
+import           Imports
+
 import           Data.Char (chr)
-import           Data.List
 import           System.FilePath.Posix
 
 -- https://git-scm.com/docs/git-check-ref-format

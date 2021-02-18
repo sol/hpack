@@ -42,7 +42,8 @@ module Hpack (
 #endif
 ) where
 
-import           Control.Monad
+import           Imports
+
 import           Data.Version (Version)
 import qualified Data.Version as Version
 import           System.FilePath

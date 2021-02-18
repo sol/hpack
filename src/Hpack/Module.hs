@@ -10,11 +10,10 @@ module Hpack.Module (
 #endif
 ) where
 
-import           Data.String
+import           Imports
+
 import           System.FilePath
 import qualified System.Directory as Directory
-import           Control.Monad
-import           Data.List hiding (nub, sort)
 
 import           Data.Aeson.Config.FromValue
 import           Hpack.Util
