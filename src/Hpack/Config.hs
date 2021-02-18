@@ -230,10 +230,11 @@ data ExecutableSection = ExecutableSection {
   executableSectionMain :: Alias 'True "main-is" (Last FilePath)
 , executableSectionOtherModules :: Maybe (List Module)
 , executableSectionGeneratedOtherModules :: Maybe (List Module)
+, executableSectionRtsOptions :: Maybe (List String)
 } deriving (Eq, Show, Generic, FromValue)
 
 instance Monoid ExecutableSection where
-  mempty = ExecutableSection mempty Nothing Nothing
+  mempty = ExecutableSection mempty Nothing Nothing Nothing
   mappend = (<>)
 
 instance Semigroup ExecutableSection where
@@ -241,6 +242,7 @@ instance Semigroup ExecutableSection where
       executableSectionMain = executableSectionMain a <> executableSectionMain b
     , executableSectionOtherModules = executableSectionOtherModules a <> executableSectionOtherModules b
     , executableSectionGeneratedOtherModules = executableSectionGeneratedOtherModules a <> executableSectionGeneratedOtherModules b
+    , executableSectionRtsOptions = executableSectionRtsOptions a <> executableSectionRtsOptions b
     }
 
 data VerbatimValue =
@@ -1428,13 +1430,13 @@ fromLibrarySectionPlain LibrarySection{..} = Library {
   }
 
 getMentionedExecutableModules :: ExecutableSection -> [Module]
-getMentionedExecutableModules (ExecutableSection (Alias (Last main)) otherModules generatedModules)=
+getMentionedExecutableModules (ExecutableSection (Alias (Last main)) otherModules generatedModules _rtsOptions)=
   maybe id (:) (toModule . Path.fromFilePath <$> main) $ fromMaybeList (otherModules <> generatedModules)
 
 toExecutable :: FilePath -> String -> Section ExecutableSection -> IO (Section Executable)
 toExecutable dir packageName_ =
     inferModules dir packageName_ getMentionedExecutableModules getExecutableModules fromExecutableSection (fromExecutableSection [])
-  . expandMain
+  . expandRtsOptions . expandMain
   where
     fromExecutableSection :: [Module] -> [Module] -> ExecutableSection -> Executable
     fromExecutableSection pathsModule inferableModules ExecutableSection{..} =
@@ -1443,12 +1445,33 @@ toExecutable dir packageName_ =
         otherModules = maybe (inferableModules ++ pathsModule) fromList executableSectionOtherModules
         generatedModules = maybe [] fromList executableSectionGeneratedOtherModules
 
+expandRtsOptions :: Section ExecutableSection -> Section ExecutableSection
+expandRtsOptions = flatten [] . expand
+  where
+    expand :: Section ExecutableSection -> Section ([String], ExecutableSection)
+    expand = fmap go
+      where
+        go :: ExecutableSection -> ([String], ExecutableSection)
+        go exec@ExecutableSection{..} = (fromMaybeList executableSectionRtsOptions, exec)
+
+    flatten :: [String] -> Section ([String], ExecutableSection) -> Section ExecutableSection
+    flatten outerRtsopts sect@Section{sectionData = (innerRtsopts, exec), ..} = sect{
+        sectionData = exec
+      , sectionGhcOptions = sectionGhcOptions ++ case innerRtsopts of
+        [] -> []
+        _ -> [show $ unwords ("-with-rtsopts" : rtsopts)]
+      , sectionConditionals = map (fmap $ flatten rtsopts) sectionConditionals
+      }
+      where
+        rtsopts = outerRtsopts ++ innerRtsopts
+
 expandMain :: Section ExecutableSection -> Section ExecutableSection
 expandMain = flatten . expand
   where
     expand :: Section ExecutableSection -> Section ([GhcOption], ExecutableSection)
     expand = fmap go
       where
+        go :: ExecutableSection -> ([GhcOption], ExecutableSection)
         go exec@ExecutableSection{..} =
           let
             (mainSrcFile, ghcOptions) = maybe (Nothing, []) (first Just . parseMain) (getLast $ unAlias executableSectionMain)
