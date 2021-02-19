@@ -39,6 +39,41 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 
 ## Documentation
 
+<!--ts-->
+   * [hpack: A modern format for Haskell packages](#hpack-a-modern-format-for-haskell-packages)
+      * [Design principles](#design-principles)
+      * [Tool integration](#tool-integration)
+      * [There is no user guide](#there-is-no-user-guide)
+      * [Examples](#examples)
+      * [Documentation](#documentation)
+         * [Handling of Paths_ modules](#handling-of-paths_-modules)
+         * [Quick-reference](#quick-reference)
+            * [Top-level fields](#top-level-fields)
+            * [cabal-version](#cabal-version)
+            * [Defaults](#defaults)
+            * [Custom setup](#custom-setup)
+            * [Common fields](#common-fields)
+            * [Library fields](#library-fields)
+            * [Executable fields](#executable-fields)
+            * [Test fields](#test-fields)
+            * [Benchmark fields](#benchmark-fields)
+            * [Flags](#flags)
+            * [Dependencies](#dependencies)
+            * [Conditionals](#conditionals)
+         * [File globbing](#file-globbing)
+         * [Passing things to Cabal verbatim](#passing-things-to-cabal-verbatim)
+            * [Objects](#objects)
+            * [Strings](#strings)
+            * [Lists of objects and strings](#lists-of-objects-and-strings)
+         * [Not repeating yourself](#not-repeating-yourself)
+      * [Vim integration](#vim-integration)
+      * [Stack support](#stack-support)
+      * [Binaries for use on Travis CI](#binaries-for-use-on-travis-ci)
+
+<!-- Added by: sol, at: Fri 19 Feb 2021 10:31:47 PM +07 -->
+
+<!--te-->
+
 ### Handling of `Paths_` modules
 
 Cabal generates a `Paths_` module for every package.  By default Hpack adds
@@ -110,7 +145,7 @@ verbatim:
   cabal-version: 2.2
 ```
 
-#### <a name="defaults"></a>Defaults
+#### Defaults
 
 Hpack allows the inclusion of [common fields](#common-fields) from a file on
 GitHub or a local file.
@@ -167,13 +202,13 @@ this reason it is recommended to only use tags as Git references.
    defaults file, then you can achieve this by adding that file to the cache
    manually.
 
-#### <a name="custom-setup"></a>Custom setup
+#### Custom setup
 
 | Hpack | Cabal | Default | Notes | Example |
 | --- | --- | --- | --- | --- |
 | `dependencies` | `setup-depends` | | Implies `build-type: Custom` | |
 
-#### <a name="common-fields"></a>Common fields
+#### Common fields
 
 These fields can be specified top-level or on a per section basis; top-level
 values are merged with per section values.
@@ -249,7 +284,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 **Note:** Unlike `Cabal`, Hpack does not accept system executables as
 `build-tools`.  Use `system-build-tools` if you need this.
 
-#### <a name="library-fields"></a>Library fields
+#### Library fields
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
@@ -263,7 +298,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `signatures` | · | | |
 | | `default-language` | `Haskell2010` | |
 
-#### <a name="executable-fields"></a>Executable fields
+#### Executable fields
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
@@ -272,17 +307,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 | | `default-language` | `Haskell2010` | |
 
-#### <a name="test-fields"></a>Test fields
-
-| Hpack | Cabal | Default | Notes |
-| --- | --- | --- | --- |
-| | `type` | `exitcode-stdio-1.0` | |
-| `main` | `main-is` | | |
-| `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
-| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
-
-#### <a name="benchmark-fields"></a>Benchmark fields
+#### Test fields
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
@@ -292,7 +317,17 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 | | `default-language` | `Haskell2010` | |
 
-#### <a name="flags"></a>Flags
+#### Benchmark fields
+
+| Hpack | Cabal | Default | Notes |
+| --- | --- | --- | --- |
+| | `type` | `exitcode-stdio-1.0` | |
+| `main` | `main-is` | | |
+| `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
+| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
+| | `default-language` | `Haskell2010` | |
+
+#### Flags
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
@@ -300,7 +335,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `manual` | · | | Required (unlike Cabal) |
 | `default` | · | | Required (unlike Cabal) |
 
-#### <a name="dependencies"></a> Dependencies
+#### Dependencies
 
 Dependencies can be specified as either a list or an object. These are
 equivalent:
@@ -375,7 +410,7 @@ imported!
 
 `mixin` was added in version `0.31.0`.
 
-#### <a name="conditionals"></a> Conditionals
+#### Conditionals
 
 Conditionals with no else branch:
 
@@ -419,7 +454,7 @@ becomes
 **Note:** Conditionals with `condition: false` are omitted from the generated
 `.cabal` file.
 
-### <a name="file-globbing"></a>File globbing
+### File globbing
 
 At place where you can specify a list of files you can also use glob patterns.
 Glob patterns and ordinary file names can be freely mixed, e.g.:
