@@ -192,7 +192,7 @@ hpackResult = hpackResultWithVersion version
 
 hpackResultWithVersion :: Version -> Options -> IO Result
 hpackResultWithVersion v (Options options force generateHashStrategy toStdout) = do
-  DecodeResult pkg (lines -> cabalVersion) cabalFileName warnings <- readPackageConfig options >>= either die return
+  DecodeResult pkg (lines -> cabalVersion) cabalFileName files warnings <- readPackageConfig options >>= either die return
   mExistingCabalFile <- readCabalFile cabalFileName
   let
     newCabalFile = makeCabalFile generateHashStrategy mExistingCabalFile cabalVersion v pkg
@@ -204,6 +204,13 @@ hpackResultWithVersion v (Options options force generateHashStrategy toStdout) =
   case status of
     Generated -> writeCabalFile options toStdout cabalFileName newCabalFile
     _ -> return ()
+
+  let generateFiles = mapM_ (uncurry ensureFile) files
+  case status of
+    Generated -> generateFiles
+    OutputUnchanged -> generateFiles
+    AlreadyGeneratedByNewerHpack -> return ()
+    ExistingCabalFileWasModifiedManually -> return ()
 
   return Result {
     resultWarnings = warnings

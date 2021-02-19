@@ -65,7 +65,7 @@ withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
   writeFile (dir </> "package.yaml") content
   withCurrentDirectory dir beforeAction
   r <- readPackageConfig (testDecodeOptions $ dir </> "package.yaml")
-  either expectationFailure (\ (DecodeResult p _ _ warnings) -> expectation (p, warnings)) r
+  either expectationFailure (\ (DecodeResult p _ _ _ warnings) -> expectation (p, warnings)) r
 
 withPackageConfig :: String -> IO () -> (Package -> Expectation) -> Expectation
 withPackageConfig content beforeAction expectation = withPackage content beforeAction (expectation . fst)
