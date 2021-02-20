@@ -2,6 +2,7 @@ module Hpack.Utf8 (
   encodeUtf8
 , readFile
 , writeFile
+, ensureFile
 , putStr
 , hPutStr
 , hPutStrLn
@@ -9,11 +10,15 @@ module Hpack.Utf8 (
 
 import           Prelude hiding (readFile, writeFile, putStr)
 
+import           Imports
+
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Encoding
 import           Data.Text.Encoding.Error (lenientDecode)
 import qualified Data.ByteString as B
 import           System.IO (Handle, stdout, IOMode(..), withFile, Newline(..), nativeNewline)
+import           System.Directory
+import           System.FilePath
 
 encodeUtf8 :: String -> B.ByteString
 encodeUtf8 = Encoding.encodeUtf8 . T.pack
@@ -59,3 +64,13 @@ hPutStrLn h xs = hPutStr h xs >> hPutStr h "\n"
 
 hPutStr :: Handle -> String -> IO ()
 hPutStr h = B.hPutStr h . encodeText
+
+ensureFile :: FilePath -> String -> IO ()
+ensureFile name new = do
+  exists <- doesFileExist name
+  if exists then do
+    old <- readFile name
+    unless (old == new) $ writeFile name new
+  else do
+    createDirectoryIfMissing True (takeDirectory name)
+    writeFile name new

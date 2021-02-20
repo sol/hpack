@@ -1,3 +1,6 @@
+## Changes in 0.34.5
+  - Add support for `generate-file`
+
 ## Changes in 0.34.4
   - Render `default-extensions` / `other-extensions` line-separated
   - Compatibility with `Cabal-3.4.0.0`

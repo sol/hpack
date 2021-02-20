@@ -160,6 +160,28 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             data/foo/index.html
         |]
 
+    describe "generate-file" $ do
+      it "generates files" $ do
+        [i|
+        generate-file:
+          name: Setup.hs
+          contents: |
+            import Distribution.Simple
+            main = defaultMain
+        library: {}
+        |] `shouldGenerateFiles` [("Setup.hs", "import Distribution.Simple\nmain = defaultMain\n")]
+
+      it "gives later occurrences precedence" $ do
+        [i|
+        generate-file:
+          name: foo
+          contents: bar
+        library:
+          generate-file:
+            name: foo
+            contents: baz
+        |] `shouldGenerateFiles` [("foo", "baz")]
+
     describe "data-dir" $ do
       it "accepts data-dir" $ do
         touch "data/foo.html"
@@ -1672,21 +1694,21 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             author: John Doe
             |]
 
-run :: HasCallStack => FilePath -> FilePath -> String -> IO ([String], String)
+run :: HasCallStack => FilePath -> FilePath -> String -> IO ([String], String, [(FilePath, String)])
 run userDataDir c old = run_ userDataDir c old >>= either assertFailure return
 
-run_ :: FilePath -> FilePath -> String -> IO (Either String ([String], String))
+run_ :: FilePath -> FilePath -> String -> IO (Either String ([String], String, [(FilePath, String)]))
 run_ userDataDir c old = do
   mPackage <- readPackageConfig defaultDecodeOptions {decodeOptionsTarget = c, decodeOptionsUserDataDir = Just userDataDir}
   return $ case mPackage of
-    Right (DecodeResult pkg cabalVersion _ warnings) ->
+    Right (DecodeResult pkg cabalVersion _ generateFiles warnings) ->
       let
         FormattingHints{..} = sniffFormattingHints (lines old)
         alignment = fromMaybe 0 formattingHintsAlignment
         settings = formattingHintsRenderSettings
         output = cabalVersion ++ Hpack.renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder pkg
       in
-        Right (warnings, output)
+        Right (warnings, output, generateFiles)
     Left err -> Left err
 
 data RenderResult = RenderResult [String] String
@@ -1701,16 +1723,22 @@ shouldRenderTo input p = do
   let currentDirectory = ".working-directory"
   createDirectory currentDirectory
   withCurrentDirectory currentDirectory $ do
-    (warnings, output) <- run ".." (".." </> packageConfig) expected
+    (warnings, output, _) <- run ".." (".." </> packageConfig) expected
     RenderResult warnings (dropEmptyLines output) `shouldBe` RenderResult (packageWarnings p) expected
   where
     expected = dropEmptyLines (renderPackage p)
     dropEmptyLines = unlines . filter (not . null) . lines
 
+shouldGenerateFiles :: HasCallStack => String -> [(FilePath, String)] -> Expectation
+shouldGenerateFiles input files = do
+  writeFile packageConfig input
+  (_, _, generateFiles) <- run "" packageConfig ""
+  generateFiles `shouldBe` files
+
 shouldWarn :: HasCallStack => String -> [String] -> Expectation
 shouldWarn input expected = do
   writeFile packageConfig input
-  (warnings, _) <- run "" packageConfig ""
+  (warnings, _, _) <- run "" packageConfig ""
   sort warnings `shouldBe` sort expected
 
 shouldFailWith :: HasCallStack => String -> String -> Expectation
