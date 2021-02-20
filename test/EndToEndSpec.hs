@@ -1436,6 +1436,33 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             ghc-options: -main-is Foo
           |]
 
+      describe "rts-options" $ do
+        it "maps rts-options to ghc-options" $ do
+          [i|
+          executable:
+            main: Main.hs
+            rts-options: -s -N
+          |] `shouldRenderTo` executable_ "foo" [i|
+            main-is: Main.hs
+            ghc-options: "-with-rtsopts -s -N"
+          |]
+
+        context "inside a conditional" $ do
+          it "includes rts-options from outer scope" $ do
+            [i|
+            executable:
+              main: Main.hs
+              rts-options: -s
+              when:
+                condition: flag(use-threading)
+                rts-options: -N
+            |] `shouldRenderTo` executable_ "foo" [i|
+              main-is: Main.hs
+              ghc-options: "-with-rtsopts -s"
+              if flag(use-threading)
+                ghc-options: "-with-rtsopts -s -N"
+            |]
+
     describe "when" $ do
       it "accepts conditionals" $ do
         [i|
