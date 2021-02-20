@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
 module Data.Aeson.Config.TypesSpec (spec) where
 
 import           Helper

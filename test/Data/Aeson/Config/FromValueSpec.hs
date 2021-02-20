@@ -1,8 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ConstraintKinds #-}
 module Data.Aeson.Config.FromValueSpec where
 
 import           Helper
@@ -120,4 +115,4 @@ spec = do
           region: somewhere
           zip: '123456'
           foo: bar
-        |] `shouldDecodeTo` Right (Map.fromList [("Joe", Address "somewhere" "123456")], ["$.Joe.foo"])
+        |] `shouldDecodeTo` Right (Map.fromList [("Joe" :: String, Address "somewhere" "123456")], ["$.Joe.foo"])

@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Hpack.Render.DslSpec where
 
 import           Test.Hspec

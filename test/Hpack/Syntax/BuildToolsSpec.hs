@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedLists #-}
 module Hpack.Syntax.BuildToolsSpec (spec) where
 

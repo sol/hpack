@@ -10,6 +10,17 @@ extra-source-files:
 
 ghc-options: -Wall
 
+defaults: sol/ghc2021@v0.1.0
+
+default-extensions:
+  - DeriveAnyClass
+  - DerivingStrategies
+  - LambdaCase
+  - OverloadedStrings
+  - RecordWildCards
+  - ViewPatterns
+  - DefaultSignatures
+
 dependencies:
   - base >= 4.9 && < 5
   - bytestring
@@ -64,3 +75,5 @@ tests:
       - template-haskell
       - HUnit >= 1.6.0.0
     build-tools: hspec-discover
+    default-extensions:
+      - QuasiQuotes

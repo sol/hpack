@@ -1,4 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
 module Hpack.CabalFileSpec (spec) where
 
 import           Helper

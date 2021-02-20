@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Hpack.ModuleSpec (spec) where
 
 import           Helper
