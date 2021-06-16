@@ -1,3 +1,6 @@
+## Changes in 0.34.5
+  - Support deeper subdirectory for github
+
 ## Changes in 0.34.4
   - Render `default-extensions` / `other-extensions` line-separated
   - Compatibility with `Cabal-3.4.0.0`
