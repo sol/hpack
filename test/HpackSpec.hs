@@ -99,32 +99,27 @@ spec = do
 
     context "without an existing cabal file" $ do
       with ForceHash generatesHash
-      with PreferHash generatesHash
       with ForceNoHash doesNotGenerateHash
       with PreferNoHash doesNotGenerateHash
 
     context "with an existing cabal file" $ do
       context "without a hash" $ before_ (hpackWithStrategy ForceNoHash >> modifyPackageConfig) $ do
         with ForceHash generatesHash
-        with PreferHash doesNotGenerateHash
         with ForceNoHash doesNotGenerateHash
         with PreferNoHash doesNotGenerateHash
 
       context "with a hash" $ before_ (hpackWithStrategy ForceHash >> modifyPackageConfig) $ do
         with ForceHash generatesHash
-        with PreferHash generatesHash
         with ForceNoHash doesNotGenerateHash
         with PreferNoHash generatesHash
 
         context "with manual modifications" $ before_ modifyCabalFile $ do
           with ForceHash doesNotOverwrite
-          with PreferHash doesNotOverwrite
           with ForceNoHash doesNotGenerateHash
           with PreferNoHash doesNotOverwrite
 
       context "when created manually" $ before_ manuallyCreateCabalFile $ do
         with ForceHash doesNotOverwrite
-        with PreferHash doesNotOverwrite
         with ForceNoHash doesNotOverwrite
         with PreferNoHash doesNotOverwrite
 

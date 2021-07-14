@@ -81,7 +81,10 @@ data Options = Options {
 , optionsToStdout :: Bool
 }
 
-data GenerateHashStrategy = ForceHash | ForceNoHash | PreferHash | PreferNoHash
+data GenerateHashStrategy
+  = ForceHash     -- ^ Option @--hash@ given.
+  | ForceNoHash   -- ^ Option @--no-hash given.
+  | PreferNoHash  -- ^ None of these option given, default behavior.
   deriving (Eq, Show)
 
 getOptions :: FilePath -> [String] -> IO (Maybe (Verbose, Options))
@@ -232,10 +235,9 @@ shouldGenerateHash :: Maybe CabalFile -> GenerateHashStrategy -> Bool
 shouldGenerateHash mExistingCabalFile strategy = case (strategy, mExistingCabalFile) of
   (ForceHash, _) -> True
   (ForceNoHash, _) -> False
-  (PreferHash, Nothing) -> True
   (PreferNoHash, Nothing) -> False
-  (_, Just CabalFile {cabalFileHash = Nothing}) -> False
-  (_, Just CabalFile {cabalFileHash = Just _}) -> True
+  (PreferNoHash, Just CabalFile {cabalFileHash = Nothing}) -> False
+  (PreferNoHash, Just CabalFile {cabalFileHash = Just _}) -> True
 
 renderCabalFile :: FilePath -> CabalFile -> [String]
 renderCabalFile file (CabalFile cabalVersion hpackVersion hash body) = cabalVersion ++ header file hpackVersion hash ++ body
