@@ -25,6 +25,7 @@ jobs:
           - '8.6'
           - '8.8'
           - '8.10'
+          - '9.0'
         include:
           - os: macos-latest
             ghc: '9.0'
