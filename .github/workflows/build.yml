@@ -28,7 +28,7 @@ jobs:
           - '9.0'
         include:
           - os: macos-latest
-            ghc: '8.10'
+            ghc: '9.0'
           - os: windows-latest
             ghc: '8.10'
     steps:
