@@ -199,6 +199,18 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           subdir: hspec-core
         |]
 
+      it "accepts owner/repo/path with more than one path segment" $ do
+        [i|
+        github: hspec/hspec/libs/hspec-core
+        |] `shouldRenderTo` package [i|
+        homepage: https://github.com/hspec/hspec#readme
+        bug-reports: https://github.com/hspec/hspec/issues
+        source-repository head
+          type: git
+          location: https://github.com/hspec/hspec
+          subdir: libs/hspec-core
+        |]
+
       it "rejects URLs" $ do
         [i|
         github: https://github.com/sol/hpack/issues/365
