@@ -292,7 +292,13 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsBuildTools :: Maybe BuildTools
 , commonOptionsSystemBuildTools :: Maybe SystemBuildTools
 , commonOptionsVerbatim :: Maybe (List Verbatim)
+, commonOptionsGenerateFile :: Maybe (List GenerateFile)
 } deriving (Functor, Generic)
+
+data GenerateFile = GenerateFile {
+  generateFileName :: FilePath
+, generateFileContents :: String
+} deriving (Generic, FromValue)
 
 type ParseCommonOptions = CommonOptions ParseCSources ParseCxxSources ParseJsSources
 instance FromValue a => FromValue (ParseCommonOptions a)
@@ -325,6 +331,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid 
   , commonOptionsBuildTools = Nothing
   , commonOptionsSystemBuildTools = Nothing
   , commonOptionsVerbatim = Nothing
+  , commonOptionsGenerateFile = Nothing
   }
   mappend = (<>)
 
@@ -356,6 +363,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semi
   , commonOptionsBuildTools = commonOptionsBuildTools a <> commonOptionsBuildTools b
   , commonOptionsSystemBuildTools = commonOptionsSystemBuildTools b <> commonOptionsSystemBuildTools a
   , commonOptionsVerbatim = commonOptionsVerbatim a <> commonOptionsVerbatim b
+  , commonOptionsGenerateFile = commonOptionsGenerateFile a <> commonOptionsGenerateFile b
   }
 
 type ParseCSources = Maybe (List FilePath)
@@ -644,6 +652,7 @@ data DecodeResult = DecodeResult {
   decodeResultPackage :: Package
 , decodeResultCabalVersion :: String
 , decodeResultCabalFile :: FilePath
+, decodeResultGenerateFiles :: [(FilePath, String)]
 , decodeResultWarnings :: [String]
 } deriving (Eq, Show)
 
@@ -656,8 +665,16 @@ readPackageConfig (DecodeOptions programName file mUserDataDir readValue) = runE
   userDataDir <- liftIO $ maybe (getAppUserDataDirectory "hpack") return mUserDataDir
   toPackage programName userDataDir dir config
   where
-    addCabalFile :: ((Package, String), [String]) -> DecodeResult
-    addCabalFile ((pkg, cabalVersion), warnings) = DecodeResult pkg cabalVersion (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
+    addCabalFile :: ((Package, String, [GenerateFile]), [String]) -> DecodeResult
+    addCabalFile ((pkg, cabalVersion, generateFiles), warnings) = DecodeResult {
+      decodeResultPackage = pkg
+    , decodeResultCabalVersion = cabalVersion
+    , decodeResultCabalFile = addPackageDir (packageName pkg ++ ".cabal")
+    , decodeResultGenerateFiles = map (first addPackageDir . (generateFileName &&& generateFileContents)) $ nubOn generateFileName $ reverse generateFiles
+    , decodeResultWarnings = warnings
+    }
+
+    addPackageDir = (takeDirectory_ file </>)
 
     takeDirectory_ :: FilePath -> FilePath
     takeDirectory_ p
@@ -997,11 +1014,14 @@ type ConfigWithDefaults = Product
 type CommonOptionsWithDefaults a = Product DefaultsConfig (CommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 type WithCommonOptionsWithDefaults a = Product DefaultsConfig (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 
-toPackage :: ProgramName -> FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) (Package, String)
+toPackage :: ProgramName -> FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) (Package, String, [GenerateFile])
 toPackage programName userDataDir dir =
       expandDefaultsInConfig programName userDataDir dir
   >=> traverseConfig (expandForeignSources dir)
-  >=> toPackage_ dir
+  >=> runGenerateFilesWithWarnings . toPackage_ dir
+
+runGenerateFilesWithWarnings :: Functor m => GenerateFilesWithWarnings m (a, b) -> Warnings m (a, b, [GenerateFile])
+runGenerateFilesWithWarnings = mapWriterT (fmap $ \ ((a, b), c) -> ((a, b, lefts c), rights c))
 
 expandDefaultsInConfig
   :: ProgramName
@@ -1090,19 +1110,19 @@ toExecutableMap name executables mExecutable = do
 
 type GlobalOptions = CommonOptions CSources CxxSources JsSources Empty
 
-toPackage_ :: MonadIO m => FilePath -> Product GlobalOptions (PackageConfig CSources CxxSources JsSources) -> Warnings m (Package, String)
+toPackage_ :: MonadIO m => FilePath -> Product GlobalOptions (PackageConfig CSources CxxSources JsSources) -> GenerateFilesWithWarnings m (Package, String)
 toPackage_ dir (Product g PackageConfig{..}) = do
-  executableMap <- toExecutableMap packageName_ packageConfigExecutables packageConfigExecutable
+  executableMap <- liftWarnings $ toExecutableMap packageName_ packageConfigExecutables packageConfigExecutable
   let
     globalVerbatim = commonOptionsVerbatim g
     globalOptions = g {commonOptionsVerbatim = Nothing}
 
     executableNames = maybe [] Map.keys executableMap
 
-    toSect :: (Monad m, Monoid a) => WithCommonOptions CSources CxxSources JsSources a -> Warnings m (Section a)
+    toSect :: (Monad m, Monoid a) => WithCommonOptions CSources CxxSources JsSources a -> GenerateFilesWithWarnings m (Section a)
     toSect = toSection packageName_ executableNames . first ((mempty <$ globalOptions) <>)
 
-    toSections :: (Monad m, Monoid a) => Maybe (Map String (WithCommonOptions CSources CxxSources JsSources a)) -> Warnings m (Map String (Section a))
+    toSections :: (Monad m, Monoid a) => Maybe (Map String (WithCommonOptions CSources CxxSources JsSources a)) -> GenerateFilesWithWarnings m (Map String (Section a))
     toSections = maybe (return mempty) (traverse toSect)
 
     toLib = liftIO . toLibrary dir packageName_
@@ -1125,12 +1145,12 @@ toPackage_ dir (Product g PackageConfig{..}) = do
     ++ concatMap sectionSourceDirs benchmarks
     )
 
-  extraSourceFiles <- expandGlobs "extra-source-files" dir (fromMaybeList packageConfigExtraSourceFiles)
-  extraDocFiles <- expandGlobs "extra-doc-files" dir (fromMaybeList packageConfigExtraDocFiles)
+  extraSourceFiles <- liftWarnings $ expandGlobs "extra-source-files" dir (fromMaybeList packageConfigExtraSourceFiles)
+  extraDocFiles <- liftWarnings $ expandGlobs "extra-doc-files" dir (fromMaybeList packageConfigExtraDocFiles)
 
   let dataBaseDir = maybe dir (dir </>) packageConfigDataDir
 
-  dataFiles <- expandGlobs "data-files" dataBaseDir (fromMaybeList packageConfigDataFiles)
+  dataFiles <- liftWarnings $ expandGlobs "data-files" dataBaseDir (fromMaybeList packageConfigDataFiles)
 
   let
     licenseFiles :: [String]
@@ -1143,7 +1163,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       input <- liftIO (tryReadFile (dir </> file))
       case input >>= inferLicense of
         Nothing -> do
-          tell ["Inferring license from file " ++ file ++ " failed!"]
+          liftWarnings $ tell ["Inferring license from file " ++ file ++ " failed!"]
           return Nothing
         license -> return license
     _ -> return Nothing
@@ -1182,8 +1202,8 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       , packageVerbatim = fromMaybeList globalVerbatim
       }
 
-  tell nameWarnings
-  tell (formatMissingSourceDirs missingSourceDirs)
+  liftWarnings $ tell nameWarnings
+  liftWarnings $ tell (formatMissingSourceDirs missingSourceDirs)
   return (determineCabalVersion inferredLicense pkg)
   where
     nameWarnings :: [String]
@@ -1394,13 +1414,20 @@ expandMain = flatten . expand
       , sectionConditionals = map (fmap flatten) sectionConditionals
       }
 
-toSection :: Monad m => String -> [String] -> WithCommonOptions CSources CxxSources JsSources a -> Warnings m (Section a)
+type GenerateFilesWithWarnings = WriterT [Either GenerateFile String]
+
+liftWarnings :: Functor m => Warnings m a -> GenerateFilesWithWarnings m a
+liftWarnings = mapWriterT (fmap (fmap $ map Right))
+
+toSection :: Monad m => String -> [String] -> WithCommonOptions CSources CxxSources JsSources a -> GenerateFilesWithWarnings m (Section a)
 toSection packageName_ executableNames = go
   where
+    go :: Monad m => WithCommonOptions CSources CxxSources JsSources a -> GenerateFilesWithWarnings m (Section a)
     go (Product CommonOptions{..} a) = do
       (systemBuildTools, buildTools) <- maybe (return mempty) toBuildTools commonOptionsBuildTools
 
       conditionals <- mapM toConditional (fromMaybeList commonOptionsWhen)
+      tell (map Left $ fromMaybeList commonOptionsGenerateFile)
       return Section {
         sectionData = a
       , sectionSourceDirs = nub $ fromMaybeList commonOptionsSourceDirs
@@ -1430,15 +1457,15 @@ toSection packageName_ executableNames = go
       , sectionSystemBuildTools = systemBuildTools <> fromMaybe mempty commonOptionsSystemBuildTools
       , sectionVerbatim = fromMaybeList commonOptionsVerbatim
       }
-    toBuildTools :: Monad m => BuildTools -> Warnings m (SystemBuildTools, Map BuildTool DependencyVersion)
-    toBuildTools = fmap (mkSystemBuildTools &&& mkBuildTools) . mapM (toBuildTool packageName_ executableNames). unBuildTools
+    toBuildTools :: Monad m => BuildTools -> GenerateFilesWithWarnings m (SystemBuildTools, Map BuildTool DependencyVersion)
+    toBuildTools = fmap (mkSystemBuildTools &&& mkBuildTools) . mapM (liftWarnings . toBuildTool packageName_ executableNames). unBuildTools
       where
         mkSystemBuildTools :: [Either (String, VersionConstraint) b] -> SystemBuildTools
         mkSystemBuildTools = SystemBuildTools . Map.fromList . lefts
 
         mkBuildTools = Map.fromList . rights
 
-    toConditional :: Monad m => ConditionalSection CSources CxxSources JsSources a -> Warnings m (Conditional (Section a))
+    toConditional :: Monad m => ConditionalSection CSources CxxSources JsSources a -> GenerateFilesWithWarnings m (Conditional (Section a))
     toConditional x = case x of
       ThenElseConditional (Product (ThenElse then_ else_) c) -> conditional c <$> (go then_) <*> (Just <$> go else_)
       FlatConditional (Product sect c) -> conditional c <$> (go sect) <*> pure Nothing
