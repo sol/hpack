@@ -40,7 +40,9 @@ import           Data.Set (Set, notMember)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
-import qualified Data.HashMap.Strict as HashMap
+import           Data.Aeson.Config.Key (Key)
+import qualified Data.Aeson.Config.Key as Key
+import qualified Data.Aeson.Config.KeyMap as KeyMap
 import           Data.Aeson.Types (Value(..), Object, Array)
 import qualified Data.Aeson.Types as Aeson
 import           Data.Aeson.Internal (IResult(..), iparse)
@@ -59,7 +61,7 @@ fromAesonPath = reverse . map fromAesonPathElement
 
 fromAesonPathElement :: Aeson.JSONPathElement -> JSONPathElement
 fromAesonPathElement e = case e of
-  Aeson.Key k -> Key k
+  Aeson.Key k -> Key (Key.toText k)
   Aeson.Index n -> Index n
 
 newtype Parser a = Parser {unParser :: WriterT (Set JSONPath) Aeson.Parser a}
@@ -94,7 +96,7 @@ determineUnconsumed ((<> Set.singleton []) -> consumed) = Set.toList . execWrite
           Bool _ -> return ()
           Null -> return ()
           Object o -> do
-            forM_ (HashMap.toList o) $ \ (k, v) -> do
+            forM_ (KeyMap.toList o) $ \ (Key.toText -> k, v) -> do
               unless ("_" `T.isPrefixOf` k) $ do
                 go (Key k : path) v
           Array xs -> do
@@ -113,13 +115,13 @@ markConsumed e = do
 getPath :: Parser JSONPath
 getPath = liftParser $ Aeson.parserCatchError empty $ \ path _ -> return (fromAesonPath path)
 
-explicitParseField :: (Value -> Parser a) -> Object -> Text -> Parser a
-explicitParseField p o key = case HashMap.lookup key o of
+explicitParseField :: (Value -> Parser a) -> Object -> Key -> Parser a
+explicitParseField p o key = case KeyMap.lookup key o of
   Nothing -> fail $ "key " ++ show key ++ " not present"
   Just v  -> p v <?> Aeson.Key key
 
-explicitParseFieldMaybe :: (Value -> Parser a) -> Object -> Text -> Parser (Maybe a)
-explicitParseFieldMaybe p o key = case HashMap.lookup key o of
+explicitParseFieldMaybe :: (Value -> Parser a) -> Object -> Key -> Parser (Maybe a)
+explicitParseFieldMaybe p o key = case KeyMap.lookup key o of
   Nothing -> pure Nothing
   Just v  -> Just <$> p v <?> Aeson.Key key
 

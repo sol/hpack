@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.34.4
+version:        0.34.5
 synopsis:       A modern format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
@@ -56,6 +56,8 @@ library
       Hpack.Yaml
   other-modules:
       Data.Aeson.Config.FromValue
+      Data.Aeson.Config.Key
+      Data.Aeson.Config.KeyMap
       Data.Aeson.Config.Parser
       Data.Aeson.Config.Types
       Data.Aeson.Config.Util
@@ -177,6 +179,8 @@ test-suite spec
       Hpack.UtilSpec
       HpackSpec
       Data.Aeson.Config.FromValue
+      Data.Aeson.Config.Key
+      Data.Aeson.Config.KeyMap
       Data.Aeson.Config.Parser
       Data.Aeson.Config.Types
       Data.Aeson.Config.Util

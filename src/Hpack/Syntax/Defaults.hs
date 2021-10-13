@@ -15,7 +15,7 @@ module Hpack.Syntax.Defaults (
 
 import           Imports
 
-import           Data.HashMap.Lazy (member)
+import           Data.Aeson.Config.KeyMap (member)
 import qualified Data.Text as T
 import           System.FilePath.Posix (splitDirectories)
 
