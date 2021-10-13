@@ -31,7 +31,7 @@ import qualified Control.Monad.Fail as Fail
 import           Data.Maybe
 import           Data.Scientific
 import qualified Data.Text as T
-import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Aeson.Config.KeyMap as KeyMap
 import           Text.PrettyPrint (renderStyle, Style(..), Mode(..))
 
 import qualified Distribution.Version as D
@@ -113,7 +113,7 @@ objectDependency o = let
 
     source :: Parser (Maybe SourceDependency)
     source
-      | any (`HashMap.member` o) ["path", "git", "github", "ref", "subdir"] = Just <$> (local <|> git)
+      | any (`KeyMap.member` o) ["path", "git", "github", "ref", "subdir"] = Just <$> (local <|> git)
       | otherwise = return Nothing
 
     in DependencyVersion <$> source <*> version

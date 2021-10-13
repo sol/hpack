@@ -5,6 +5,7 @@ module Hpack.Syntax.ParseDependencies where
 import           Imports
 
 import           Data.Aeson.Config.FromValue
+import qualified Data.Aeson.Config.Key as Key
 
 data Parse k v = Parse {
   parseString  :: Text -> Parser (k, v)
@@ -17,7 +18,7 @@ parseDependencies :: Parse k v -> Value -> Parser [(k, v)]
 parseDependencies parse@Parse{..} v = case v of
   String s -> return <$> parseString s
   Array xs -> parseArray (buildToolFromValue parse) xs
-  Object o -> map (first parseName) <$> traverseObject parseDictItem o
+  Object o -> map (first (parseName . Key.toText)) <$> traverseObject parseDictItem o
   _ -> typeMismatch "Array, Object, or String" v
 
 buildToolFromValue :: Parse k v -> Value -> Parser (k, v)
