@@ -86,7 +86,7 @@ import           Data.Either
 import           Data.Bitraversable
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
-import qualified Data.HashMap.Lazy as HashMap
+import qualified Data.Aeson.Config.KeyMap as KeyMap
 import           Data.Maybe
 import           Data.Ord
 import qualified Data.Text as T
@@ -428,10 +428,10 @@ instance FromValue a => FromValue (ParseConditionalSection a) where
     | otherwise = FlatConditional <$> fromValue v
     where
       giveHint = case v of
-        Object o -> case (,,) <$> HashMap.lookup "then" o <*> HashMap.lookup "else" o <*> HashMap.lookup "condition" o of
+        Object o -> case (,,) <$> KeyMap.lookup "then" o <*> KeyMap.lookup "else" o <*> KeyMap.lookup "condition" o of
           Just (Object then_, Object else_, String condition) -> do
-            when (HashMap.null then_) $ "then" `emptyTryInstead` flatElse
-            when (HashMap.null else_) $ "else" `emptyTryInstead` flatThen
+            when (KeyMap.null then_) $ "then" `emptyTryInstead` flatElse
+            when (KeyMap.null else_) $ "else" `emptyTryInstead` flatThen
             where
               flatThen = flatConditional condition then_
               flatElse = flatConditional (negate_ condition) else_
@@ -440,7 +440,7 @@ instance FromValue a => FromValue (ParseConditionalSection a) where
 
       negate_ condition = "!(" <> condition <> ")"
 
-      flatConditional condition sect = object [("when" .= HashMap.insert "condition" (String condition) sect)]
+      flatConditional condition sect = object [("when" .= KeyMap.insert "condition" (String condition) sect)]
 
       emptyTryInstead :: String -> Value -> Parser ()
       emptyTryInstead name sect = do
@@ -457,8 +457,8 @@ instance FromValue a => FromValue (ParseConditionalSection a) where
                 (_, "condition") -> GT
                 _ -> compare a b
 
-hasKey :: Text -> Value -> Bool
-hasKey key (Object o) = HashMap.member key o
+hasKey :: Key -> Value -> Bool
+hasKey key (Object o) = KeyMap.member key o
 hasKey _ _ = False
 
 newtype Condition = Condition {

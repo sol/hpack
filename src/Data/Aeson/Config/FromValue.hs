@@ -34,6 +34,7 @@ module Data.Aeson.Config.FromValue (
 , (.:)
 , (.:?)
 
+, Key
 , Value(..)
 , Object
 , Array
@@ -45,9 +46,11 @@ import           GHC.Generics
 
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
-import qualified Data.Text as T
 import qualified Data.Vector as V
-import qualified Data.HashMap.Strict as HashMap
+import           Data.Aeson.Config.Key (Key)
+import qualified Data.Aeson.Config.Key as Key
+import qualified Data.Aeson.Config.KeyMap as KeyMap
+
 import           Data.Aeson.Types (FromJSON(..))
 
 import           Data.Aeson.Config.Util
@@ -58,10 +61,10 @@ type Result a = Either String (a, [String])
 decodeValue :: FromValue a => Value -> Result a
 decodeValue = runParser fromValue
 
-(.:) :: FromValue a => Object -> Text -> Parser a
+(.:) :: FromValue a => Object -> Key -> Parser a
 (.:) = explicitParseField fromValue
 
-(.:?) :: FromValue a => Object -> Text -> Parser (Maybe a)
+(.:?) :: FromValue a => Object -> Key -> Parser (Maybe a)
 (.:?) = explicitParseFieldMaybe fromValue
 
 class FromValue a where
@@ -102,11 +105,11 @@ parseArray f = zipWithM (parseIndexed f) [0..] . V.toList
 instance FromValue a => FromValue (Map String a) where
   fromValue = withObject $ \ o -> do
     xs <- traverseObject fromValue o
-    return $ Map.fromList (map (first T.unpack) xs)
+    return $ Map.fromList (map (first Key.toString) xs)
 
-traverseObject :: (Value -> Parser a) -> Object -> Parser [(Text, a)]
+traverseObject :: (Value -> Parser a) -> Object -> Parser [(Key, a)]
 traverseObject f o = do
-  forM (HashMap.toList o) $ \ (name, value) ->
+  forM (KeyMap.toList o) $ \ (name, value) ->
     (,) name <$> f value <?> Key name
 
 instance (FromValue a, FromValue b) => FromValue (a, b) where
@@ -140,7 +143,7 @@ instance (Selector sel, FromValue a) => GenericDecode (S1 sel (Rec0 a)) where
 instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (S1 sel (Rec0 (Maybe a))) where
   genericDecode = accessFieldWith (.:?)
 
-accessFieldWith :: forall sel a p. Selector sel => (Object -> Text -> Parser a) -> Options -> Value -> Parser (S1 sel (Rec0 a) p)
-accessFieldWith op Options{..} v = M1 . K1 <$> withObject (`op` T.pack label) v
+accessFieldWith :: forall sel a p. Selector sel => (Object -> Key -> Parser a) -> Options -> Value -> Parser (S1 sel (Rec0 a) p)
+accessFieldWith op Options{..} v = M1 . K1 <$> withObject (`op` Key.fromString label) v
   where
     label = optionsRecordSelectorModifier $ selName (undefined :: S1 sel (Rec0 a) p)

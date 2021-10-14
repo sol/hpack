@@ -1,5 +1,5 @@
 ## Changes in 0.34.5
-  - Support deeper subdirectory for github
+  - Compatibility with `aeson-2.*`
 
 ## Changes in 0.34.4
   - Render `default-extensions` / `other-extensions` line-separated

@@ -56,6 +56,8 @@ library
       Hpack.Yaml
   other-modules:
       Data.Aeson.Config.FromValue
+      Data.Aeson.Config.Key
+      Data.Aeson.Config.KeyMap
       Data.Aeson.Config.Parser
       Data.Aeson.Config.Types
       Data.Aeson.Config.Util
@@ -177,6 +179,8 @@ test-suite spec
       Hpack.UtilSpec
       HpackSpec
       Data.Aeson.Config.FromValue
+      Data.Aeson.Config.Key
+      Data.Aeson.Config.KeyMap
       Data.Aeson.Config.Parser
       Data.Aeson.Config.Types
       Data.Aeson.Config.Util
