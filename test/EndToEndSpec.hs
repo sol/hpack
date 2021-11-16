@@ -79,6 +79,47 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             Paths_foo
         |]
 
+      context "when cabal-version is >= 2" $ do
+        it "adds Paths_ to autogen-modules" $ do
+          [i|
+          verbatim:
+            cabal-version: 2.0
+          library: {}
+          |] `shouldRenderTo` (library [i|
+          other-modules:
+              Paths_foo
+          autogen-modules:
+              Paths_foo
+          |]) { packageCabalVersion = "2.0" }
+
+        context "when Paths_ module is listed explicitly under generated-other-modules" $ do
+          it "adds Paths_ to autogen-modules only once" $ do
+            [i|
+            verbatim:
+              cabal-version: 2.0
+            library:
+              generated-other-modules: Paths_foo
+            |] `shouldRenderTo` (library [i|
+            other-modules:
+                Paths_foo
+            autogen-modules:
+                Paths_foo
+            |]) { packageCabalVersion = "2.0" }
+
+        context "when Paths_ module is listed explicitly under generated-exposed-modules" $ do
+          it "adds Paths_ to autogen-modules only once" $ do
+            [i|
+            verbatim:
+              cabal-version: 2.0
+            library:
+              generated-exposed-modules: Paths_foo
+            |] `shouldRenderTo` (library [i|
+            exposed-modules:
+                Paths_foo
+            autogen-modules:
+                Paths_foo
+            |]) { packageCabalVersion = "2.0" }
+
       context "when Paths_ is mentioned in a conditional that is always false" $ do
         it "does not add Paths_" $ do
           [i|
@@ -99,6 +140,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               RebindableSyntax
               OverloadedStrings
           other-modules:
+              Paths_foo
+          autogen-modules:
               Paths_foo
           |]) {packageCabalVersion = "2.2"}
 
@@ -455,6 +498,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           library
             other-modules:
                 Paths_foo
+            autogen-modules:
+                Paths_foo
             cxx-options: -Wall
             default-language: Haskell2010
           |]) {packageCabalVersion = "2.2"}
@@ -468,6 +513,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           license: some-license
           library
             other-modules:
+                Paths_foo
+            autogen-modules:
                 Paths_foo
             cxx-options: -Wall
             default-language: Haskell2010
@@ -671,6 +718,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             system-build-tools:
               g++ >= 5.4.0
           |] `shouldRenderTo` (executable_ "foo" [i|
+          autogen-modules:
+              Paths_foo
           build-tools:
               g++ >=5.4.0
           |]) {packageCabalVersion = "2.0"}
@@ -690,6 +739,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         executable:
           dependencies: foo:bar
         |] `shouldRenderTo` (executable_ "foo" [i|
+        autogen-modules:
+            Paths_foo
         build-depends:
             foo:bar
         |]) {packageCabalVersion = "3.0"}
@@ -800,6 +851,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         executable:
           cxx-options: -Wall
         |] `shouldRenderTo` (executable_ "foo" [i|
+        autogen-modules:
+            Paths_foo
         cxx-options: -Wall
         |]) {packageCabalVersion = "2.2"}
 
@@ -815,6 +868,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                   condition: True
                   cxx-options: -Wall
           |] `shouldRenderTo` (executable_ "foo" [i|
+          autogen-modules:
+              Paths_foo
           if true
             if true
               if true
@@ -829,6 +884,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             - foo.cc
             - cxxbits/*.cc
         |] `shouldRenderTo` (executable_ "foo" [i|
+        autogen-modules:
+            Paths_foo
         cxx-sources:
             foo.cc
             cxxbits/bar.cc
@@ -979,6 +1036,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         library:
           signatures: Foo
         |] `shouldRenderTo` (library_ [i|
+          autogen-modules:
+              Paths_foo
           signatures:
               Foo
         |]) {packageCabalVersion = "2.0"}
@@ -1008,6 +1067,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           |] `shouldRenderTo` (library [i|
           other-modules:
               Paths_foo
+          autogen-modules:
+              Paths_foo
           build-depends:
               foo
           mixins:
@@ -1025,6 +1086,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         exposed-modules:
             Foo
         other-modules:
+            Paths_foo
+        autogen-modules:
             Paths_foo
         hs-source-dirs:
             src
@@ -1054,6 +1117,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |] `shouldRenderTo` (internalLibrary "bar" [i|
         visibility: public
         other-modules:
+            Paths_foo
+        autogen-modules:
             Paths_foo
         |]) {packageCabalVersion = "3.0"}
 
@@ -1239,6 +1304,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
                 Bar
             autogen-modules:
+                Paths_foo
                 Foo
                 Bar
             |]) {packageCabalVersion = "2.0"}
@@ -1260,6 +1326,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
                 Other
             autogen-modules:
+                Paths_foo
                 Exposed
                 Other
             |]) {packageCabalVersion = "2.0"}
@@ -1276,6 +1343,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 generated-other-modules: Other
             |] `shouldRenderTo` (library [i|
             other-modules:
+                Paths_foo
+            autogen-modules:
                 Paths_foo
             hs-source-dirs:
                 src
@@ -1340,6 +1409,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
                 Foo
             autogen-modules:
+                Paths_foo
                 Foo
           |]) {packageCabalVersion = "2.0"}
 
