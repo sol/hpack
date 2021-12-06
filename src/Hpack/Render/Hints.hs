@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE ViewPatterns #-}
 module Hpack.Render.Hints (
   FormattingHints (..)
 , sniffFormattingHints

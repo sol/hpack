@@ -1,6 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ViewPatterns #-}
 module Hpack.Syntax.BuildTools (
   BuildTools(..)
 , ParseBuildTool(..)
@@ -31,7 +28,7 @@ data ParseBuildTool = QualifiedBuildTool String String | UnqualifiedBuildTool St
 
 newtype BuildTools = BuildTools {
   unBuildTools :: [(ParseBuildTool, DependencyVersion)]
-} deriving (Show, Eq, Semigroup, Monoid)
+} deriving newtype (Show, Eq, Semigroup, Monoid)
 
 instance FromValue BuildTools where
   fromValue = fmap BuildTools . parseDependencies parse
@@ -66,7 +63,7 @@ instance FromValue BuildTools where
 
 newtype SystemBuildTools = SystemBuildTools {
   unSystemBuildTools :: Map String VersionConstraint
-} deriving (Show, Eq, Semigroup, Monoid)
+} deriving newtype (Show, Eq, Semigroup, Monoid)
 
 instance FromValue SystemBuildTools where
   fromValue = fmap (SystemBuildTools . Map.fromList) . parseDependencies parse
