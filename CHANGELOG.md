@@ -1,3 +1,6 @@
+## Changes in 0.34.6
+  - Add `Paths_` module to `autogen-modules` when `cabal-version >= 2`
+
 ## Changes in 0.34.5
   - Compatibility with `aeson-2.*`
 
@@ -11,7 +14,7 @@
   - Reject empty `then` / `else` sections (see #362)
   - Omit conditionals that are always `false` from generated `.cabal` file
     (see #404)
-  - Infer correct `cabal-version` when `Path_` is used with `RebindableSyntax`
+  - Infer correct `cabal-version` when `Paths_` is used with `RebindableSyntax`
     and `OverloadedStrings` or `OverloadedLists` (see #400)
   - Do not use indentation from any existing `.cabal` file if it is invalid
     (e.g. `0`) (fixes #252)

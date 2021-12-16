@@ -703,15 +703,49 @@ verbatimValueToString = \ case
   VerbatimBool b -> show b
   VerbatimNull -> ""
 
-determineCabalVersion :: Maybe (License SPDX.License) -> Package -> (Package, String)
+addPathsModuleToGeneratedModules  :: Package -> Version -> Package
+addPathsModuleToGeneratedModules pkg cabalVersion
+  | cabalVersion < makeVersion [2] = pkg
+  | otherwise = pkg {
+      packageLibrary = fmap mapLibrary <$> packageLibrary pkg
+    , packageInternalLibraries = fmap mapLibrary <$> packageInternalLibraries pkg
+    , packageExecutables = fmap mapExecutable <$> packageExecutables pkg
+    , packageTests = fmap mapExecutable <$> packageTests pkg
+    , packageBenchmarks = fmap mapExecutable <$> packageBenchmarks pkg
+    }
+  where
+    pathsModule = pathsModuleFromPackageName (packageName pkg)
+
+    mapLibrary :: Library -> Library
+    mapLibrary lib
+      | pathsModule `elem` getLibraryModules lib = lib {
+          libraryGeneratedModules = if pathsModule `elem` generatedModules then generatedModules else pathsModule : generatedModules
+        }
+      | otherwise = lib
+      where
+        generatedModules = libraryGeneratedModules lib
+
+    mapExecutable :: Executable -> Executable
+    mapExecutable executable
+      | pathsModule `elem` executableOtherModules executable = executable {
+          executableGeneratedModules = if pathsModule `elem` generatedModules then generatedModules else pathsModule : generatedModules
+        }
+      | otherwise = executable
+      where
+        generatedModules = executableGeneratedModules executable
+
+determineCabalVersion :: Maybe (License SPDX.License) -> Package -> (Package, String, Maybe Version)
 determineCabalVersion inferredLicense pkg@Package{..} = (
     pkg {
         packageVerbatim = deleteVerbatimField "cabal-version" packageVerbatim
       , packageLicense = formatLicense <$> license
       }
-  , "cabal-version: " ++ fromMaybe inferredCabalVersion verbatimCabalVersion ++ "\n\n"
+  , "cabal-version: " ++ effectiveCabalVersion ++ "\n\n"
+  , parseVersion effectiveCabalVersion
   )
   where
+    effectiveCabalVersion = fromMaybe inferredCabalVersion verbatimCabalVersion
+
     license = fmap prettyShow <$> (parsedLicense <|> inferredLicense)
 
     parsedLicense = parseLicense <$> packageLicense
@@ -1211,7 +1245,9 @@ toPackage_ dir (Product g PackageConfig{..}) = do
 
   tell nameWarnings
   tell (formatMissingSourceDirs missingSourceDirs)
-  return (determineCabalVersion inferredLicense pkg)
+
+  let (pkg_, renderedCabalVersion, cabalVersion) = determineCabalVersion inferredLicense pkg
+  return (maybe pkg_ (addPathsModuleToGeneratedModules pkg_) cabalVersion, renderedCabalVersion)
   where
     nameWarnings :: [String]
     packageName_ :: String
