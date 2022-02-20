@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-util/gh-md-toc --insert --no-backup README.md
