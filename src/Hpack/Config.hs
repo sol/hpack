@@ -524,11 +524,11 @@ formatOrList xs = case reverse xs of
   y : x : [] -> x ++ " or " ++ y
   x : ys@(_:_:_) -> intercalate ", " . reverse $ ("or " ++ x) : ys
 
-type SectionConfigWithDefaluts cSources cxxSources jsSources a = Product DefaultsConfig (WithCommonOptions cSources cxxSources jsSources a)
+type SectionConfigWithDefaults cSources cxxSources jsSources a = Product DefaultsConfig (WithCommonOptions cSources cxxSources jsSources a)
 
 type PackageConfigWithDefaults cSources cxxSources jsSources = PackageConfig_
-  (SectionConfigWithDefaluts cSources cxxSources jsSources LibrarySection)
-  (SectionConfigWithDefaluts cSources cxxSources jsSources ExecutableSection)
+  (SectionConfigWithDefaults cSources cxxSources jsSources LibrarySection)
+  (SectionConfigWithDefaults cSources cxxSources jsSources ExecutableSection)
 
 type PackageConfig cSources cxxSources jsSources = PackageConfig_
   (WithCommonOptions cSources cxxSources jsSources LibrarySection)
