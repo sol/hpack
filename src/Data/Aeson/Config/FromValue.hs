@@ -42,6 +42,7 @@ module Data.Aeson.Config.FromValue (
 
 import           Imports
 
+import           Data.Monoid (Last(..))
 import           GHC.Generics
 
 import           Data.Map.Lazy (Map)
@@ -142,6 +143,9 @@ instance (Selector sel, FromValue a) => GenericDecode (S1 sel (Rec0 a)) where
 
 instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (S1 sel (Rec0 (Maybe a))) where
   genericDecode = accessFieldWith (.:?)
+
+instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (S1 sel (Rec0 (Last a))) where
+  genericDecode = accessFieldWith (\ value key -> Last <$> (value .:? key))
 
 accessFieldWith :: forall sel a p. Selector sel => (Object -> Key -> Parser a) -> Options -> Value -> Parser (S1 sel (Rec0 a) p)
 accessFieldWith op Options{..} v = M1 . K1 <$> withObject (`op` Key.fromString label) v

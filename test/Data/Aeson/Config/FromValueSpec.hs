@@ -9,6 +9,7 @@ import           Helper
 
 import           GHC.Generics
 import qualified Data.Map.Lazy as Map
+import           Data.Monoid (Last(..))
 
 import           Data.Aeson.Config.FromValue
 
@@ -40,6 +41,10 @@ data FlatMaybe = FlatMaybe {
 
 data NestedMaybe = NestedMaybe {
   nestedMaybeValue :: Maybe (Maybe String)
+} deriving (Eq, Show, Generic, FromValue)
+
+data FlatLast = FlatLast {
+  flatLastValue :: Last String
 } deriving (Eq, Show, Generic, FromValue)
 
 spec :: Spec
@@ -126,6 +131,22 @@ spec = do
           [yaml|
           value: null
           |] `shouldDecodeTo_` NestedMaybe (Just Nothing)
+
+      context "when parsing a field of type (Last a)" $ do
+        it "accepts a value" $ do
+          [yaml|
+          value: some value
+          |] `shouldDecodeTo_` FlatLast (Last $ Just "some value")
+
+        it "allows the field to be omitted" $ do
+          [yaml|
+          {}
+          |] `shouldDecodeTo_` FlatLast (Last Nothing)
+
+        it "rejects null" $ do
+          [yaml|
+          value: null
+          |] `shouldDecodeTo` (Left "Error while parsing $.value - expected String, but encountered Null" :: Result FlatLast)
 
     context "with (,)" $ do
       it "captures unrecognized fields" $ do

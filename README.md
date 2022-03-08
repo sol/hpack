@@ -218,6 +218,7 @@ values are merged with per section values.
 | `buildable` | · | | Per section takes precedence over top-level |
 | `source-dirs` | `hs-source-dirs` | | |
 | `default-extensions` | · | | |
+| `default-language` | . | `Haskell2010` | Also accepts `Haskell98` or `GHC2021`. Per section values prevail over top-level value |
 | `other-extensions` | · | | |
 | `ghc-options` | · | | |
 | `ghc-prof-options` | · | | |
@@ -296,7 +297,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 | `reexported-modules` | · | | |
 | `signatures` | · | | |
-| | `default-language` | `Haskell2010` | |
 
 #### Executable fields
 
@@ -305,7 +305,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
 
 #### Test fields
 
@@ -315,7 +314,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
 
 #### Benchmark fields
 
@@ -325,7 +323,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
 
 #### Flags
 

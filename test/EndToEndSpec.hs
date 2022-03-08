@@ -867,9 +867,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 when:
                   condition: True
                   cxx-options: -Wall
-          |] `shouldRenderTo` (executable_ "foo" [i|
+          |] `shouldRenderTo` (executable'_ "foo" [i|
           autogen-modules:
               Paths_foo
+          default-language: Haskell2010
           if true
             if true
               if true
@@ -890,6 +891,24 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             foo.cc
             cxxbits/bar.cc
         |]) {packageCabalVersion = "2.2"}
+
+    describe "default-language" $ do
+      it "accepts default-language" $ do
+        [i|
+        default-language: GHC2021
+        executable: {}
+        |] `shouldRenderTo` executable'_ "foo" [i|
+          default-language: GHC2021
+        |]
+
+      it "defers to section-level default-language" $ do
+        [i|
+        default-language: Haskell2010
+        executable:
+          default-language: GHC2021
+        |] `shouldRenderTo` executable'_ "foo" [i|
+          default-language: GHC2021
+        |]
 
     describe "extra-lib-dirs" $ do
       it "accepts extra-lib-dirs" $ do
@@ -1236,15 +1255,16 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 exposed-modules:
                   - Foo
                   - Paths_foo
-            |] `shouldRenderTo` library [i|
+            |] `shouldRenderTo` library' [i|
             hs-source-dirs:
                 src
+            exposed-modules:
+                Bar
+            default-language: Haskell2010
             if os(windows)
               exposed-modules:
                   Foo
                   Paths_foo
-            exposed-modules:
-                Bar
             |]
 
           context "with a source-dir inside the conditional" $ do
@@ -1255,9 +1275,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 when:
                   condition: os(windows)
                   source-dirs: windows
-              |] `shouldRenderTo` library [i|
+              |] `shouldRenderTo` library' [i|
               other-modules:
                   Paths_foo
+              default-language: Haskell2010
               if os(windows)
                 other-modules:
                     Foo
@@ -1278,11 +1299,12 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                   else:
                     source-dirs: unix/
 
-              |] `shouldRenderTo` library [i|
+              |] `shouldRenderTo` library' [i|
               exposed-modules:
                   Foo
               other-modules:
                   Paths_foo
+              default-language: Haskell2010
               if os(windows)
                 hs-source-dirs:
                     windows/
@@ -1341,13 +1363,14 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 condition: os(windows)
                 generated-exposed-modules: Exposed
                 generated-other-modules: Other
-            |] `shouldRenderTo` (library [i|
+            |] `shouldRenderTo` (library' [i|
             other-modules:
                 Paths_foo
             autogen-modules:
                 Paths_foo
             hs-source-dirs:
                 src
+            default-language: Haskell2010
             if os(windows)
               exposed-modules:
                   Exposed
@@ -1424,12 +1447,13 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 when:
                   condition: os(windows)
                   other-modules: Foo
-            |] `shouldRenderTo` executable "foo" [i|
+            |] `shouldRenderTo` executable' "foo" [i|
             other-modules:
                 Bar
                 Paths_foo
             hs-source-dirs:
                 src
+            default-language: Haskell2010
             if os(windows)
               other-modules:
                   Foo
@@ -1445,12 +1469,13 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 when:
                   condition: os(windows)
                   source-dirs: windows
-            |] `shouldRenderTo` executable "foo" [i|
+            |] `shouldRenderTo` executable' "foo" [i|
             other-modules:
                 Foo
                 Paths_foo
             hs-source-dirs:
                 src
+            default-language: Haskell2010
             if os(windows)
               other-modules:
                   Bar
@@ -1487,8 +1512,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               when:
                 condition: os(windows)
                 main: Foo.hs
-          |] `shouldRenderTo` executable_ "foo" [i|
+          |] `shouldRenderTo` executable'_ "foo" [i|
           ghc-options: -Wall
+          default-language: Haskell2010
           if os(windows)
             main-is: Foo.hs
           |]
@@ -1500,7 +1526,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               when:
                 condition: os(windows)
                 main: Foo
-          |] `shouldRenderTo` executable_ "foo" [i|
+          |] `shouldRenderTo` executable'_ "foo" [i|
+          default-language: Haskell2010
           if os(windows)
             main-is: Foo.hs
             ghc-options: -main-is Foo
@@ -1513,7 +1540,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           condition: os(windows)
           dependencies: Win32
         executable: {}
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable'_ "foo" [i|
+        default-language: Haskell2010
         if os(windows)
           build-depends:
               Win32
@@ -1547,7 +1575,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             else:
               dependencies: unix
           executable: {}
-          |] `shouldRenderTo` executable_ "foo" [i|
+          |] `shouldRenderTo` executable'_ "foo" [i|
+          default-language: Haskell2010
           if os(windows)
             build-depends:
                 Win32
@@ -1807,13 +1836,20 @@ library
   default-language: Haskell2010
 |]
 
+-- As for library, but without the final default-language: Haskell2010
+library' :: String -> Package
+library' = package . libraryContent
+
 library :: String -> Package
-library l = package content
-  where
-    content = [i|
+library l = package $
+  libraryContent l ++ [i|
+  default-language: Haskell2010
+|]
+
+libraryContent :: String -> String
+libraryContent l = [i|
 library
 #{indentBy 2 $ unindent l}
-  default-language: Haskell2010
 |]
 
 internalLibrary :: String -> String -> Package
@@ -1825,24 +1861,38 @@ library #{name}
   default-language: Haskell2010
 |]
 
+-- As for executable_, but without the final "  default-language: Haskell2020"
+executable'_ :: String -> String -> Package
+executable'_ name e = package $ executableContent_ name e
+
 executable_ :: String -> String -> Package
-executable_ name e = package content
-  where
-    content = [i|
+executable_ name e = package $
+  executableContent_ name e ++ [i|
+  default-language: Haskell2010
+|]
+
+executableContent_ :: String -> String -> String
+executableContent_ name e = [i|
 executable #{name}
   other-modules:
       Paths_foo
 #{indentBy 2 $ unindent e}
+|]
+
+-- As for executable, but without the final "  default-language: Haskell2020"
+executable' :: String -> String -> Package
+executable' name e = package $ executableContent name e
+
+executable :: String -> String -> Package
+executable name e = package $
+  executableContent name e ++ [i|
   default-language: Haskell2010
 |]
 
-executable :: String -> String -> Package
-executable name e = package content
-  where
-    content = [i|
+executableContent :: String -> String -> String
+executableContent name e = [i|
 executable #{name}
 #{indentBy 2 $ unindent e}
-  default-language: Haskell2010
 |]
 
 package :: String -> Package
