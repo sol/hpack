@@ -186,7 +186,7 @@ renderBenchmark (name, sect) =
     (renderExecutableSection [Field "type" "exitcode-stdio-1.0"] sect)
 
 renderExecutableSection :: [Element] -> Section Executable -> [Element]
-renderExecutableSection extraFields = renderSection renderExecutableFields extraFields [defaultLanguage]
+renderExecutableSection extraFields = renderSection renderExecutableFields extraFields
 
 renderExecutableFields :: Executable -> [Element]
 renderExecutableFields Executable{..} = mainIs ++ [otherModules, generatedModules]
@@ -203,7 +203,7 @@ renderLibrary :: Section Library -> Element
 renderLibrary sect = Stanza "library" $ renderLibrarySection sect
 
 renderLibrarySection :: Section Library -> [Element]
-renderLibrarySection = renderSection renderLibraryFields [] [defaultLanguage]
+renderLibrarySection = renderSection renderLibraryFields []
 
 renderLibraryFields :: Library -> [Element]
 renderLibraryFields Library{..} =
@@ -222,8 +222,8 @@ renderExposed = Field "exposed" . Literal . show
 renderVisibility :: String -> Element
 renderVisibility = Field "visibility" . Literal
 
-renderSection :: (a -> [Element]) -> [Element] -> [Element] -> Section a -> [Element]
-renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = addVerbatim sectionVerbatim $
+renderSection :: (a -> [Element]) -> [Element] -> Section a -> [Element]
+renderSection renderSectionData extraFieldsStart Section{..} = addVerbatim sectionVerbatim $
      extraFieldsStart
   ++ renderSectionData sectionData ++ [
     renderDirectories "hs-source-dirs" sectionSourceDirs
@@ -250,8 +250,8 @@ renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = ad
   ++ renderBuildTools sectionBuildTools sectionSystemBuildTools
   ++ renderDependencies "build-depends" sectionDependencies
   ++ maybe [] (return . renderBuildable) sectionBuildable
+  ++ maybe [] (return . renderDefaultLanguage) sectionDefaultLanguage
   ++ map (renderConditional renderSectionData) sectionConditionals
-  ++ extraFieldsEnd
 
 addVerbatim :: [Verbatim] -> [Element] -> [Element]
 addVerbatim verbatim fields = filterVerbatim verbatim fields ++ renderVerbatim verbatim
@@ -285,18 +285,15 @@ renderVerbatimObject = map renderPair . Map.toList
 renderConditional :: (a -> [Element]) -> Conditional (Section a) -> Element
 renderConditional renderSectionData (Conditional condition sect mElse) = case mElse of
   Nothing -> if_
-  Just else_ -> Group if_ (Stanza "else" $ renderSection renderSectionData [] [] else_)
+  Just else_ -> Group if_ (Stanza "else" $ renderSection renderSectionData [] else_)
   where
-    if_ = Stanza ("if " ++ renderCond condition) (renderSection renderSectionData [] [] sect)
+    if_ = Stanza ("if " ++ renderCond condition) (renderSection renderSectionData [] sect)
 
 renderCond :: Cond -> String
 renderCond = \ case
   CondExpression c -> c
   CondBool True -> "true"
   CondBool False -> "false"
-
-defaultLanguage :: Element
-defaultLanguage = Field "default-language" "Haskell2010"
 
 renderDirectories :: String -> [String] -> Element
 renderDirectories name = Field name . LineSeparatedList . replaceDots
@@ -375,6 +372,9 @@ renderSystemBuildTools = map renderSystemBuildTool . Map.toList . unSystemBuildT
 
 renderSystemBuildTool :: (String, VersionConstraint) -> String
 renderSystemBuildTool (name, constraint) = name ++ renderVersionConstraint constraint
+
+renderDefaultLanguage :: Language -> Element
+renderDefaultLanguage (Language lang) = Field "default-language" (Literal lang)
 
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList

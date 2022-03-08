@@ -37,6 +37,7 @@ module Hpack.Config (
 , packageDependencies
 , package
 , section
+, sectionWithHaskell2010
 , Package(..)
 , Dependencies(..)
 , DependencyInfo(..)
@@ -59,6 +60,7 @@ module Hpack.Config (
 , Cond(..)
 , Flag(..)
 , SourceRepository(..)
+, Language(..)
 , BuildType(..)
 , GhcProfOption
 , GhcjsOption
@@ -88,6 +90,7 @@ import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.Aeson.Config.KeyMap as KeyMap
 import           Data.Maybe
+import           Data.Monoid (Last(..))
 import           Data.Ord
 import qualified Data.Text as T
 import           Data.Text.Encoding (decodeUtf8)
@@ -185,7 +188,10 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, info) | (name, info) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
+section a = Section a [] mempty [] [] [] Nothing [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
+
+sectionWithHaskell2010 :: a -> Section a
+sectionWithHaskell2010 a = (section a) {sectionDefaultLanguage = Just $ Language "Haskell2010"}
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -271,6 +277,7 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsPkgConfigDependencies :: Maybe (List String)
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsOtherExtensions :: Maybe (List String)
+, commonOptionsDefaultLanguage :: Last Language
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsGhcjsOptions :: Maybe (List GhcjsOption)
@@ -304,6 +311,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid 
   , commonOptionsPkgConfigDependencies = Nothing
   , commonOptionsDefaultExtensions = Nothing
   , commonOptionsOtherExtensions = Nothing
+  , commonOptionsDefaultLanguage = Last Nothing
   , commonOptionsGhcOptions = Nothing
   , commonOptionsGhcProfOptions = Nothing
   , commonOptionsGhcjsOptions = Nothing
@@ -328,6 +336,9 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid 
   }
   mappend = (<>)
 
+defaultLanguage :: Language
+defaultLanguage = Language "Haskell2010"
+
 instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semigroup (CommonOptions cSources cxxSources jsSources a) where
   a <> b = CommonOptions {
     commonOptionsSourceDirs = commonOptionsSourceDirs a <> commonOptionsSourceDirs b
@@ -335,6 +346,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semi
   , commonOptionsPkgConfigDependencies = commonOptionsPkgConfigDependencies a <> commonOptionsPkgConfigDependencies b
   , commonOptionsDefaultExtensions = commonOptionsDefaultExtensions a <> commonOptionsDefaultExtensions b
   , commonOptionsOtherExtensions = commonOptionsOtherExtensions a <> commonOptionsOtherExtensions b
+  , commonOptionsDefaultLanguage = commonOptionsDefaultLanguage a <> commonOptionsDefaultLanguage b
   , commonOptionsGhcOptions = commonOptionsGhcOptions a <> commonOptionsGhcOptions b
   , commonOptionsGhcProfOptions = commonOptionsGhcProfOptions a <> commonOptionsGhcProfOptions b
   , commonOptionsGhcjsOptions = commonOptionsGhcjsOptions a <> commonOptionsGhcjsOptions b
@@ -501,6 +513,14 @@ instance Semigroup Empty where
 instance FromValue Empty where
   fromValue _ = return Empty
 
+newtype Language = Language String
+  deriving (Eq, Show, Generic)
+
+instance FromValue Language where
+  fromValue v = Language <$> case v of
+    String s -> return (T.unpack s)
+    _ -> typeMismatch "String" v
+
 data BuildType =
     Simple
   | Configure
@@ -640,6 +660,18 @@ instance IsString ProgramName where
 defaultDecodeOptions :: DecodeOptions
 defaultDecodeOptions = DecodeOptions "hpack" packageConfig Nothing Yaml.decodeYaml
 
+defaultCommonOptions :: ( Semigroup cSources
+                        , Semigroup cxxSources
+                        , Semigroup jsSources
+                        , Semigroup a
+                        , Monoid cSources
+                        , Monoid cxxSources
+                        , Monoid jsSources
+                        , Monoid a )
+                     => CommonOptions cSources cxxSources jsSources a
+defaultCommonOptions =
+  mempty {commonOptionsDefaultLanguage = Last (Just defaultLanguage)}
+
 data DecodeResult = DecodeResult {
   decodeResultPackage :: Package
 , decodeResultCabalVersion :: String
@@ -652,9 +684,13 @@ readPackageConfig (DecodeOptions programName file mUserDataDir readValue) = runE
   (warnings, value) <- lift . ExceptT $ readValue file
   tell warnings
   config <- decodeValue programName file value
+  let Product (Product _ configCommonOptions) _ = config
+      commonOptionsWithDefaults = defaultCommonOptions <> configCommonOptions
+      configWithDefaultLanguage =
+        first (second (const commonOptionsWithDefaults)) config
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
   userDataDir <- liftIO $ maybe (getAppUserDataDirectory "hpack") return mUserDataDir
-  toPackage programName userDataDir dir config
+  toPackage programName userDataDir dir configWithDefaultLanguage
   where
     addCabalFile :: ((Package, String), [String]) -> DecodeResult
     addCabalFile ((pkg, cabalVersion), warnings) = DecodeResult pkg cabalVersion (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
@@ -968,6 +1004,7 @@ data Section a = Section {
 , sectionPkgConfigDependencies :: [String]
 , sectionDefaultExtensions :: [String]
 , sectionOtherExtensions :: [String]
+, sectionDefaultLanguage :: Maybe Language
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
 , sectionGhcjsOptions :: [GhcjsOption]
@@ -1442,6 +1479,7 @@ toSection packageName_ executableNames = go
       , sectionSourceDirs = nub $ fromMaybeList commonOptionsSourceDirs
       , sectionDefaultExtensions = fromMaybeList commonOptionsDefaultExtensions
       , sectionOtherExtensions = fromMaybeList commonOptionsOtherExtensions
+      , sectionDefaultLanguage = getLast commonOptionsDefaultLanguage
       , sectionGhcOptions = fromMaybeList commonOptionsGhcOptions
       , sectionGhcProfOptions = fromMaybeList commonOptionsGhcProfOptions
       , sectionGhcjsOptions = fromMaybeList commonOptionsGhcjsOptions

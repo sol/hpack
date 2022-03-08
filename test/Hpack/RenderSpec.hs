@@ -16,6 +16,10 @@ library = Library Nothing Nothing [] [] [] [] []
 executable :: Section Executable
 executable = section (Executable (Just "Main.hs") [] [])
 
+executableWithHaskell2010 :: Section Executable
+executableWithHaskell2010 =
+  executable {sectionDefaultLanguage = Just $ Language "Haskell2010"}
+
 renderEmptySection :: Empty -> [Element]
 renderEmptySection Empty = []
 
@@ -110,7 +114,7 @@ spec = do
         ]
 
     it "includes buildable" $ do
-      renderPackage_ package {packageLibrary = Just (section library){sectionBuildable = Just False}} `shouldBe` unlines [
+      renderPackage_ package {packageLibrary = Just (sectionWithHaskell2010 library){sectionBuildable = Just False}} `shouldBe` unlines [
           "name: foo"
         , "version: 0.0.0"
         , "build-type: Simple"
@@ -122,7 +126,7 @@ spec = do
 
     context "when rendering library section" $ do
       it "renders library section" $ do
-        renderPackage_ package {packageLibrary = Just $ section library} `shouldBe` unlines [
+        renderPackage_ package {packageLibrary = Just (sectionWithHaskell2010 library)} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -147,7 +151,7 @@ spec = do
           ]
 
       it "retains section field order" $ do
-        renderPackageWith defaultRenderSettings 0 [] [("executable foo", ["default-language", "main-is", "ghc-options"])] package {packageExecutables = [("foo", executable {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
+        renderPackageWith defaultRenderSettings 0 [] [("executable foo", ["default-language", "main-is", "ghc-options"])] package {packageExecutables = [("foo", executableWithHaskell2010 {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -164,7 +168,7 @@ spec = do
               [ ("foo", defaultInfo { dependencyInfoVersion = versionRange "== 0.1.0" })
               , ("bar", defaultInfo)
               ]
-        renderPackage_ package {packageExecutables = [("foo", executable {sectionDependencies = dependencies})]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [("foo", executableWithHaskell2010 {sectionDependencies = dependencies})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -178,7 +182,7 @@ spec = do
           ]
 
       it "includes GHC options" $ do
-        renderPackage_ package {packageExecutables = [("foo", executable {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [("foo", executableWithHaskell2010 {sectionGhcOptions = ["-Wall", "-Werror"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -190,7 +194,7 @@ spec = do
           ]
 
       it "includes frameworks" $ do
-        renderPackage_ package {packageExecutables = [("foo", executable {sectionFrameworks = ["foo", "bar"]})]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [("foo", executableWithHaskell2010 {sectionFrameworks = ["foo", "bar"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -204,7 +208,7 @@ spec = do
           ]
 
       it "includes extra-framework-dirs" $ do
-        renderPackage_ package {packageExecutables = [("foo", executable {sectionExtraFrameworksDirs = ["foo", "bar"]})]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [("foo", executableWithHaskell2010 {sectionExtraFrameworksDirs = ["foo", "bar"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
@@ -218,7 +222,7 @@ spec = do
           ]
 
       it "includes GHC profiling options" $ do
-        renderPackage_ package {packageExecutables = [("foo", executable {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]})]} `shouldBe` unlines [
+        renderPackage_ package {packageExecutables = [("foo", executableWithHaskell2010 {sectionGhcProfOptions = ["-fprof-auto", "-rtsopts"]})]} `shouldBe` unlines [
             "name: foo"
           , "version: 0.0.0"
           , "build-type: Simple"
