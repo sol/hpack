@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.5.
+-- This file has been generated from package.yaml by hpack version 0.34.6.
 --
 -- see: https://github.com/sol/hpack
 
@@ -25,9 +25,9 @@ source-repository head
 library
   hs-source-dirs:
       src
-  ghc-options: -Wall
+  ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
-      Cabal >=3.0.0.0 && <3.6
+      Cabal >=3.0.0.0 && <3.7
     , Glob >=0.9.0
     , aeson >=1.4.3.0
     , base >=4.9 && <5
@@ -86,9 +86,9 @@ executable hpack
   main-is: Main.hs
   hs-source-dirs:
       driver
-  ghc-options: -Wall
+  ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
-      Cabal >=3.0.0.0 && <3.6
+      Cabal >=3.0.0.0 && <3.7
     , Glob >=0.9.0
     , aeson >=1.4.3.0
     , base >=4.9 && <5
@@ -121,10 +121,10 @@ test-suite spec
   hs-source-dirs:
       test
       src
-  ghc-options: -Wall
+  ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   cpp-options: -DTEST
   build-depends:
-      Cabal >=3.0.0.0 && <3.6
+      Cabal >=3.0.0.0 && <3.7
     , Glob >=0.9.0
     , HUnit >=1.6.0.0
     , QuickCheck
