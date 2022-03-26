@@ -1343,7 +1343,7 @@ inferModules ::
   -> IO (Section b)
 inferModules dir packageName_ getMentionedModules getInferredModules fromData fromConditionals = fmap removeConditionalsThatAreAlwaysFalse . traverseSectionAndConditionals
   (fromConfigSection fromData [pathsModuleFromPackageName packageName_])
-  (fromConfigSection (\ [] -> fromConditionals) [])
+  (fromConfigSection (\ _ -> fromConditionals) [])
   []
   where
     fromConfigSection fromConfig pathsModule_ outerModules sect@Section{sectionData = conf} = do
