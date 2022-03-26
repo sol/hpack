@@ -8,7 +8,7 @@ category: Development
 extra-source-files:
   - CHANGELOG.md
 
-ghc-options: -Wall
+ghc-options: -Wall -fno-warn-incomplete-uni-patterns
 
 dependencies:
   - base >= 4.9 && < 5
@@ -23,7 +23,7 @@ dependencies:
   - yaml >= 0.10.0
   - aeson >= 1.4.3.0
   - scientific
-  - Cabal >= 3.0.0.0 && < 3.6
+  - Cabal >= 3.0.0.0 && < 3.7
   - pretty
   - bifunctors
   - cryptonite
