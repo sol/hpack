@@ -1680,6 +1680,32 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             cabal-version: foo
           |] `shouldRenderTo` (package "") {packageCabalVersion = "foo"}
 
+        it "cabal-version can start verbatim" $ do
+          [i|
+          verbatim: |
+            cabal-version: 3.0
+            common set-lang
+              default-language: Haskell2010
+          |] `shouldRenderTo` (package "") {packageCabalVersion = "3.0"}
+
+        it "cabal-version can end verbatim" $ do
+          [i|
+          verbatim: |
+            common set-lang
+              default-language: Haskell2010
+            cabal-version: 3.0
+          |] `shouldRenderTo` (package "") {packageCabalVersion = "3.0"}
+
+        it "cabal-version can be sandwiched between other verbatim fields" $ do
+          [i|
+          verbatim: |
+            common set-lang-2010
+              default-language: Haskell2010
+            cabal-version: 3.0
+            common warn-all
+              ghc-options: -Wall
+          |] `shouldRenderTo` (package "") {packageCabalVersion = "3.0"}
+
         it "overrides other fields" $ do
           touch "foo"
           [i|
