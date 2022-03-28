@@ -44,7 +44,8 @@ import qualified Data.Map.Lazy as Map
 import           Hpack.Util
 import           Hpack.Config
 import           Hpack.Render.Hints
-import           Hpack.Render.Dsl
+import           Hpack.Render.Dsl hiding (sortFieldsBy)
+import qualified Hpack.Render.Dsl as Dsl
 
 renderPackage :: [String] -> Package -> String
 renderPackage oldCabalFile = renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder
@@ -415,3 +416,6 @@ renderPaths = LineSeparatedList . map renderPath
 
     needsQuoting :: FilePath -> Bool
     needsQuoting = any (\x -> isSpace x || x == ',')
+
+sortFieldsBy :: [String] -> [Element] -> [Element]
+sortFieldsBy existingFieldOrder = Dsl.sortFieldsBy ("import" : existingFieldOrder)
