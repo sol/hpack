@@ -1,3 +1,8 @@
+## Changes in 0.34.7
+  - Support `Cabal-3.6.*`
+  - Make sure that verbatim `import` fields are rendered at the beginning of
+    a section (see #486)
+
 ## Changes in 0.34.6
   - Add `Paths_` module to `autogen-modules` when `cabal-version >= 2`
 
