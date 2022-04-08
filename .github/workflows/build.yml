@@ -34,7 +34,7 @@ jobs:
             ghc: latest
     steps:
       - uses: actions/checkout@v2
-      - uses: haskell/actions/setup@v1
+      - uses: hspec/setup-haskell@v1
         with:
           ghc-version: ${{ matrix.ghc }}
 
