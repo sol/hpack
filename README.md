@@ -102,7 +102,7 @@ library:
 | `spec-version` |  | | The minimum version of `hpack` that is required to parse this package description.  | `spec-version: 0.30.0` | `0.30.0` |
 | `name` | · | | | | |
 | `version` | · | `0.0.0` | | | |
-| `language` | `default-language` | `Haskell2010` | | `language: GHC2021` | `0.34.8` |
+| `language` | `default-language` | `Haskell2010` | In contrast to `Cabal`'s `default-language` this is a top-level field, not a per-section field.  You can override it persection with `default-expressions: GHC2021`. | `language: GHC2021` | `0.34.8` |
 | `synopsis` | · | | | | |
 | `description` | · | | | | |
 | `category` | · | | | | |
