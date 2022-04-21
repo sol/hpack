@@ -34,6 +34,14 @@ data Job = Job {
 , jobSalary :: Int
 } deriving (Eq, Show, Generic, FromValue)
 
+data FlatMaybe = FlatMaybe {
+  flatMaybeValue :: Maybe String
+} deriving (Eq, Show, Generic, FromValue)
+
+data NestedMaybe = NestedMaybe {
+  nestedMaybeValue :: Maybe (Maybe String)
+} deriving (Eq, Show, Generic, FromValue)
+
 spec :: Spec
 spec = do
   describe "fromValue" $ do
@@ -86,6 +94,38 @@ spec = do
         name: "Joe"
         age: "23"
         |] `shouldDecodeTo` left "Error while parsing $.age - parsing Int failed, expected Number, but encountered String"
+
+      context "when parsing a field of type (Maybe a)" $ do
+        it "accepts a value" $ do
+          [yaml|
+          value: some value
+          |] `shouldDecodeTo_` FlatMaybe (Just "some value")
+
+        it "allows the field to be omitted" $ do
+          [yaml|
+          {}
+          |] `shouldDecodeTo_` FlatMaybe Nothing
+
+        it "rejects null" $ do
+          [yaml|
+          value: null
+          |] `shouldDecodeTo` (Left "Error while parsing $.value - expected String, but encountered Null" :: Result FlatMaybe)
+
+      context "when parsing a field of type (Maybe (Maybe a))" $ do
+        it "accepts a value" $ do
+          [yaml|
+          value: some value
+          |] `shouldDecodeTo_` NestedMaybe (Just $ Just "some value")
+
+        it "allows the field to be omitted" $ do
+          [yaml|
+          {}
+          |] `shouldDecodeTo_` NestedMaybe Nothing
+
+        it "accepts null" $ do
+          [yaml|
+          value: null
+          |] `shouldDecodeTo_` NestedMaybe (Just Nothing)
 
     context "with (,)" $ do
       it "captures unrecognized fields" $ do
