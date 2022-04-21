@@ -40,9 +40,9 @@ jobs:
 
       - uses: actions/cache@v2
         with:
-          key: ${{ runner.os }}-${{ matrix.ghc }}-${{ github.sha }}
+          key: ${{ runner.os }}-v2-${{ matrix.ghc }}-${{ github.sha }}
           path: ~/.cabal/store
-          restore-keys: ${{ runner.os }}-${{ matrix.ghc }}-
+          restore-keys: ${{ runner.os }}-v2-${{ matrix.ghc }}-
 
       - uses: sol/run-haskell-tests@v1
 
