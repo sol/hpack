@@ -7,6 +7,10 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DeriveFunctor #-}
 module Data.Aeson.Config.FromValue (
   FromValue(..)
 , Parser
@@ -37,18 +41,24 @@ module Data.Aeson.Config.FromValue (
 , Value(..)
 , Object
 , Array
+
+, Alias(..)
+, unAlias
 ) where
 
 import           Imports
 
 import           Data.Monoid (Last(..))
 import           GHC.Generics
+import           GHC.TypeLits
+import           Data.Proxy
 
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import qualified Data.Vector as V
 import           Data.Aeson.Config.Key (Key)
 import qualified Data.Aeson.Config.Key as Key
+import           Data.Aeson.Config.KeyMap (member)
 import qualified Data.Aeson.Config.KeyMap as KeyMap
 
 import           Data.Aeson.Types (FromJSON(..))
@@ -148,7 +158,26 @@ instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (Recor
 instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (RecordField sel (Last a)) where
   genericDecode = accessFieldWith (\ value key -> Last <$> (value .:? key))
 
+instance {-# OVERLAPPING #-} (Selector sel, FromValue a, KnownSymbol alias) => GenericDecode (RecordField sel (Alias alias (Maybe a))) where
+  genericDecode = accessFieldWith (\ value key -> aliasAccess (.:?) value (Alias key))
+
+instance {-# OVERLAPPING #-} (Selector sel, FromValue a, KnownSymbol alias) => GenericDecode (RecordField sel (Alias alias (Last a))) where
+  genericDecode = accessFieldWith (\ value key -> fmap Last <$> aliasAccess (.:?) value (Alias key))
+
+aliasAccess :: forall a alias. KnownSymbol alias => (Object -> Key -> Parser a) -> Object -> (Alias alias Key) -> Parser (Alias alias a)
+aliasAccess op value (Alias key)
+  | alias `member` value && not (key `member` value) = Alias <$> value `op` alias
+  | otherwise = Alias <$> value `op` key
+  where
+    alias = Key.fromString (symbolVal $ Proxy @alias)
+
 accessFieldWith :: forall sel a p. Selector sel => (Object -> Key -> Parser a) -> Options -> Value -> Parser (RecordField sel a p)
 accessFieldWith op Options{..} v = M1 . K1 <$> withObject (`op` Key.fromString label) v
   where
     label = optionsRecordSelectorModifier $ selName (undefined :: RecordField sel a p)
+
+newtype Alias (alias :: Symbol) a = Alias a
+  deriving (Show, Eq, Semigroup, Functor)
+
+unAlias :: Alias alias a -> a
+unAlias (Alias a) = a
