@@ -79,7 +79,10 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
     customSetup = maybe [] (return . renderCustomSetup) packageCustomSetup
 
     library :: [Element]
-    library = maybe [] (return . renderLibrary) packageLibrary
+    library = maybe [] (return . renderLibrary defaultLanguage) packageLibrary
+
+    defaultLanguage :: [Element]
+    defaultLanguage = maybe [] (return . Field "default-language" . Literal) packageLanguage
 
     stanzas :: [Element]
     stanzas = concat [
@@ -87,10 +90,10 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
       , customSetup
       , map renderFlag packageFlags
       , library
-      , renderInternalLibraries packageInternalLibraries
-      , renderExecutables packageExecutables
-      , renderTests packageTests
-      , renderBenchmarks packageBenchmarks
+      , renderInternalLibraries defaultLanguage packageInternalLibraries
+      , renderExecutables defaultLanguage packageExecutables
+      , renderTests defaultLanguage packageTests
+      , renderBenchmarks defaultLanguage packageBenchmarks
       ]
 
     headerFields :: [Element]
@@ -155,38 +158,38 @@ renderFlag Flag {..} = Stanza ("flag " ++ flagName) $ description ++ [
   where
     description = maybe [] (return . Field "description" . Literal) flagDescription
 
-renderInternalLibraries :: Map String (Section Library) -> [Element]
-renderInternalLibraries = map renderInternalLibrary . Map.toList
+renderInternalLibraries :: [Element] -> Map String (Section Library) -> [Element]
+renderInternalLibraries defaultLanguage = map (renderInternalLibrary defaultLanguage) . Map.toList
 
-renderInternalLibrary :: (String, Section Library) -> Element
-renderInternalLibrary (name, sect) =
-  Stanza ("library " ++ name) (renderLibrarySection sect)
+renderInternalLibrary :: [Element] -> (String, Section Library) -> Element
+renderInternalLibrary defaultLanguage (name, sect) =
+  Stanza ("library " ++ name) (renderLibrarySection defaultLanguage sect)
 
-renderExecutables :: Map String (Section Executable) -> [Element]
-renderExecutables = map renderExecutable . Map.toList
+renderExecutables :: [Element] -> Map String (Section Executable) -> [Element]
+renderExecutables defaultLanguage = map (renderExecutable defaultLanguage) . Map.toList
 
-renderExecutable :: (String, Section Executable) -> Element
-renderExecutable (name, sect) =
-  Stanza ("executable " ++ name) (renderExecutableSection [] sect)
+renderExecutable :: [Element] -> (String, Section Executable) -> Element
+renderExecutable defaultLanguage (name, sect) =
+  Stanza ("executable " ++ name) (renderExecutableSection defaultLanguage [] sect)
 
-renderTests :: Map String (Section Executable) -> [Element]
-renderTests = map renderTest . Map.toList
+renderTests :: [Element] -> Map String (Section Executable) -> [Element]
+renderTests defaultLanguage = map (renderTest defaultLanguage) . Map.toList
 
-renderTest :: (String, Section Executable) -> Element
-renderTest (name, sect) =
+renderTest :: [Element] -> (String, Section Executable) -> Element
+renderTest defaultLanguage (name, sect) =
   Stanza ("test-suite " ++ name)
-    (renderExecutableSection [Field "type" "exitcode-stdio-1.0"] sect)
+    (renderExecutableSection defaultLanguage [Field "type" "exitcode-stdio-1.0"] sect)
 
-renderBenchmarks :: Map String (Section Executable) -> [Element]
-renderBenchmarks = map renderBenchmark . Map.toList
+renderBenchmarks :: [Element] -> Map String (Section Executable) -> [Element]
+renderBenchmarks defaultLanguage = map (renderBenchmark defaultLanguage) . Map.toList
 
-renderBenchmark :: (String, Section Executable) -> Element
-renderBenchmark (name, sect) =
+renderBenchmark :: [Element] -> (String, Section Executable) -> Element
+renderBenchmark defaultLanguage (name, sect) =
   Stanza ("benchmark " ++ name)
-    (renderExecutableSection [Field "type" "exitcode-stdio-1.0"] sect)
+    (renderExecutableSection defaultLanguage [Field "type" "exitcode-stdio-1.0"] sect)
 
-renderExecutableSection :: [Element] -> Section Executable -> [Element]
-renderExecutableSection extraFields = renderSection renderExecutableFields extraFields [defaultLanguage]
+renderExecutableSection :: [Element] -> [Element] -> Section Executable -> [Element]
+renderExecutableSection defaultLanguage extraFields = renderSection renderExecutableFields extraFields defaultLanguage
 
 renderExecutableFields :: Executable -> [Element]
 renderExecutableFields Executable{..} = mainIs ++ [otherModules, generatedModules]
@@ -199,11 +202,11 @@ renderCustomSetup :: CustomSetup -> Element
 renderCustomSetup CustomSetup{..} =
   Stanza "custom-setup" $ renderDependencies "setup-depends" customSetupDependencies
 
-renderLibrary :: Section Library -> Element
-renderLibrary sect = Stanza "library" $ renderLibrarySection sect
+renderLibrary :: [Element] -> Section Library -> Element
+renderLibrary defaultLanguage sect = Stanza "library" $ renderLibrarySection defaultLanguage sect
 
-renderLibrarySection :: Section Library -> [Element]
-renderLibrarySection = renderSection renderLibraryFields [] [defaultLanguage]
+renderLibrarySection :: [Element] -> Section Library -> [Element]
+renderLibrarySection = renderSection renderLibraryFields []
 
 renderLibraryFields :: Library -> [Element]
 renderLibraryFields Library{..} =
@@ -294,9 +297,6 @@ renderCond = \ case
   CondExpression c -> c
   CondBool True -> "true"
   CondBool False -> "false"
-
-defaultLanguage :: Element
-defaultLanguage = Field "default-language" "Haskell2010"
 
 renderDirectories :: String -> [String] -> Element
 renderDirectories name = Field name . LineSeparatedList . replaceDots

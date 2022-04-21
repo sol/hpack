@@ -102,6 +102,7 @@ library:
 | `spec-version` |  | | The minimum version of `hpack` that is required to parse this package description.  | `spec-version: 0.30.0` | `0.30.0` |
 | `name` | · | | | | |
 | `version` | · | `0.0.0` | | | |
+| `language` | `default-language` | `Haskell2010` | | `language: GHC2021` | `0.34.8` |
 | `synopsis` | · | | | | |
 | `description` | · | | | | |
 | `category` | · | | | | |
@@ -296,7 +297,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 | `reexported-modules` | · | | |
 | `signatures` | · | | |
-| | `default-language` | `Haskell2010` | |
 
 #### Executable fields
 
@@ -305,7 +305,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
 
 #### Test fields
 
@@ -315,7 +314,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
 
 #### Benchmark fields
 
@@ -325,7 +323,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
 
 #### Flags
 

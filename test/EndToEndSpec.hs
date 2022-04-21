@@ -39,6 +39,35 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       other-modules:
           Paths_foo
       |]
+    it "warns on duplicate fields" $ do
+      [i|
+      name: foo
+      name: foo
+      |] `shouldWarn` [
+          "package.yaml: Duplicate field $.name"
+        ]
+
+    describe "language" $ do
+      it "allows to set default-language" $ do
+        [i|
+        language: GHC2021
+        library: {}
+        |] `shouldRenderTo` package [i|
+        library
+          other-modules:
+              Paths_foo
+          default-language: GHC2021
+        |]
+
+      it "allows to unset default-language" $ do
+        [i|
+        language: null
+        library: {}
+        |] `shouldRenderTo` package [i|
+        library
+          other-modules:
+              Paths_foo
+        |]
 
     describe "tested-with" $ do
       it "accepts a string" $ do
@@ -61,14 +90,6 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           , GHC == 7.2.2
           , GHC == 7.4.2
         |]
-
-    it "warns on duplicate fields" $ do
-      [i|
-      name: foo
-      name: foo
-      |] `shouldWarn` [
-          "package.yaml: Duplicate field $.name"
-        ]
 
     describe "handling of Paths_ module" $ do
       it "adds Paths_ to other-modules" $ do

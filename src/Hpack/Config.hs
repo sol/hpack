@@ -129,6 +129,7 @@ package :: String -> String -> Package
 package name version = Package {
     packageName = name
   , packageVersion = version
+  , packageLanguage = Just "Haskell2010"
   , packageSynopsis = Nothing
   , packageDescription = Nothing
   , packageHomepage = Nothing
@@ -545,6 +546,7 @@ instance FromValue PackageVersion where
 data PackageConfig_ library executable = PackageConfig {
   packageConfigName :: Maybe String
 , packageConfigVersion :: Maybe PackageVersion
+, packageConfigLanguage :: Maybe (Maybe String)
 , packageConfigSynopsis :: Maybe String
 , packageConfigDescription :: Maybe String
 , packageConfigHomepage :: Maybe (Maybe String)
@@ -910,6 +912,7 @@ instance FromValue ParseSpecVersion where
 data Package = Package {
   packageName :: String
 , packageVersion :: String
+, packageLanguage :: Maybe String
 , packageSynopsis :: Maybe String
 , packageDescription :: Maybe String
 , packageHomepage :: Maybe String
@@ -1188,6 +1191,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       pkg = Package {
         packageName = packageName_
       , packageVersion = maybe "0.0.0" unPackageVersion packageConfigVersion
+      , packageLanguage = fromMaybe (Just "Haskell2010") packageConfigLanguage
       , packageSynopsis = packageConfigSynopsis
       , packageDescription = packageConfigDescription
       , packageHomepage = homepage
