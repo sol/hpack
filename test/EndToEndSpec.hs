@@ -37,6 +37,13 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       library: {}
       |] `shouldRenderTo` library_ [i|
       |]
+    it "warns on duplicate fields" $ do
+      [i|
+      name: foo
+      name: foo
+      |] `shouldWarn` [
+          "package.yaml: Duplicate field $.name"
+        ]
 
     describe "tested-with" $ do
       it "accepts a string" $ do
@@ -59,14 +66,6 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           , GHC == 7.2.2
           , GHC == 7.4.2
         |]
-
-    it "warns on duplicate fields" $ do
-      [i|
-      name: foo
-      name: foo
-      |] `shouldWarn` [
-          "package.yaml: Duplicate field $.name"
-        ]
 
     describe "handling of Paths_ module" $ do
       it "adds Paths_ to other-modules" $ do
@@ -352,6 +351,31 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             Foo
         |]
 
+      it "accepts executable defaults" $ do
+        writeFile "defaults/sol/hpack-template/2017/.hpack/defaults.yaml" [i|
+        main: Foo.hs
+        |]
+
+        [i|
+        executable:
+          defaults: sol/hpack-template@2017
+        |] `shouldRenderTo` executable_ "foo" [i|
+        main-is: Foo.hs
+        |]
+
+      it "gives `main` from executable section precedence" $ do
+        writeFile "defaults/sol/hpack-template/2017/.hpack/defaults.yaml" [i|
+        main: Foo.hs
+        |]
+
+        [i|
+        executable:
+          main: Bar.hs
+          defaults: sol/hpack-template@2017
+        |] `shouldRenderTo` executable_ "foo" [i|
+        main-is: Bar.hs
+        |]
+
       it "accepts a list of defaults" $ do
         writeFile "defaults/foo/bar/v1/.hpack/defaults.yaml" "default-extensions: RecordWildCards"
         writeFile "defaults/foo/bar/v2/.hpack/defaults.yaml" "default-extensions: DeriveFunctor"
@@ -630,6 +654,16 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           packageCabalVersion = "1.12"
         }
 
+      it "accepts build-tool-depends as an alias" $ do
+        [i|
+        executable:
+          build-tool-depends:
+            hspec-discover: 0.1.0
+        |] `shouldRenderTo` (executable_ "foo" [i|
+        build-tool-depends:
+            hspec-discover:hspec-discover ==0.1.0
+        |]) { packageCabalVersion = "1.12" }
+
       context "when the name of a build tool matches an executable from the same package" $ do
         it "adds it to build-tools" $ do
           [i|
@@ -735,6 +769,15 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             base
         |]
 
+      it "accepts build-depends as an alias" $ do
+        [i|
+        executable:
+          build-depends: base
+        |] `shouldRenderTo` executable_ "foo" [i|
+        build-depends:
+            base
+        |]
+
       it "accepts dependencies with subcomponents" $ do
         [i|
         executable:
@@ -786,6 +829,18 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       it "accepts pkg-config-dependencies" $ do
         [i|
         pkg-config-dependencies:
+          - QtWebKit
+          - weston
+        executable: {}
+        |] `shouldRenderTo` executable_ "foo" [i|
+        pkgconfig-depends:
+            QtWebKit
+          , weston
+        |]
+
+      it "accepts pkgconfig-depends as an alias" $ do
+        [i|
+        pkgconfig-depends:
           - QtWebKit
           - weston
         executable: {}
@@ -1508,6 +1563,14 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             |]
 
     describe "executables" $ do
+      it "accepts main-is as an alias for main" $ do
+        [i|
+        executable:
+          main-is: Foo.hs
+        |] `shouldRenderTo` executable_ "foo" [i|
+        main-is: Foo.hs
+        |]
+
       it "accepts arbitrary entry points as main" $ do
         touch "src/Foo.hs"
         touch "src/Bar.hs"

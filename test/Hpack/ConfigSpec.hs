@@ -425,6 +425,15 @@ spec = do
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
 
+      it "accepts hs-source-dirs as an alias for source-dirs" $ do
+        withPackageConfig_ [i|
+          library:
+            hs-source-dirs:
+              - foo
+              - bar
+          |]
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
+
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
           library:

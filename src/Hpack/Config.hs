@@ -13,6 +13,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DataKinds #-}
 module Hpack.Config (
 -- | /__NOTE:__/ This module is exposed to allow integration of Hpack into
 -- other tools.  It is not meant for general use by end users.  The following
@@ -224,18 +225,18 @@ instance Semigroup LibrarySection where
     }
 
 data ExecutableSection = ExecutableSection {
-  executableSectionMain :: Maybe FilePath
+  executableSectionMain :: Alias "main-is" (Last FilePath)
 , executableSectionOtherModules :: Maybe (List Module)
 , executableSectionGeneratedOtherModules :: Maybe (List Module)
 } deriving (Eq, Show, Generic, FromValue)
 
 instance Monoid ExecutableSection where
-  mempty = ExecutableSection Nothing Nothing Nothing
+  mempty = ExecutableSection (Alias $ Last Nothing) Nothing Nothing
   mappend = (<>)
 
 instance Semigroup ExecutableSection where
   a <> b = ExecutableSection {
-      executableSectionMain = executableSectionMain b <|> executableSectionMain a
+      executableSectionMain = executableSectionMain a <> executableSectionMain b
     , executableSectionOtherModules = executableSectionOtherModules a <> executableSectionOtherModules b
     , executableSectionGeneratedOtherModules = executableSectionGeneratedOtherModules a <> executableSectionGeneratedOtherModules b
     }
@@ -268,9 +269,9 @@ instance FromValue Verbatim where
     _ -> typeMismatch (formatOrList ["String", "Object"]) v
 
 data CommonOptions cSources cxxSources jsSources a = CommonOptions {
-  commonOptionsSourceDirs :: Maybe (List FilePath)
-, commonOptionsDependencies :: Maybe Dependencies
-, commonOptionsPkgConfigDependencies :: Maybe (List String)
+  commonOptionsSourceDirs :: Alias "hs-source-dirs" (Maybe (List FilePath))
+, commonOptionsDependencies :: Alias "build-depends" (Maybe Dependencies)
+, commonOptionsPkgConfigDependencies :: Alias "pkgconfig-depends" (Maybe (List String))
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsOtherExtensions :: Maybe (List String)
 , commonOptionsDefaultLanguage :: Last Language
@@ -292,7 +293,7 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Maybe Bool
 , commonOptionsWhen :: Maybe (List (ConditionalSection cSources cxxSources jsSources a))
-, commonOptionsBuildTools :: Maybe BuildTools
+, commonOptionsBuildTools :: Alias "build-tool-depends" (Maybe BuildTools)
 , commonOptionsSystemBuildTools :: Maybe SystemBuildTools
 , commonOptionsVerbatim :: Maybe (List Verbatim)
 } deriving (Functor, Generic)
@@ -302,9 +303,9 @@ instance FromValue a => FromValue (ParseCommonOptions a)
 
 instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid cSources, Monoid cxxSources, Monoid jsSources) => Monoid (CommonOptions cSources cxxSources jsSources a) where
   mempty = CommonOptions {
-    commonOptionsSourceDirs = Nothing
-  , commonOptionsDependencies = Nothing
-  , commonOptionsPkgConfigDependencies = Nothing
+    commonOptionsSourceDirs = Alias Nothing
+  , commonOptionsDependencies = Alias Nothing
+  , commonOptionsPkgConfigDependencies = Alias Nothing
   , commonOptionsDefaultExtensions = Nothing
   , commonOptionsOtherExtensions = Nothing
   , commonOptionsDefaultLanguage = Last Nothing
@@ -326,7 +327,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid 
   , commonOptionsLdOptions = Nothing
   , commonOptionsBuildable = Nothing
   , commonOptionsWhen = Nothing
-  , commonOptionsBuildTools = Nothing
+  , commonOptionsBuildTools = Alias Nothing
   , commonOptionsSystemBuildTools = Nothing
   , commonOptionsVerbatim = Nothing
   }
@@ -1416,7 +1417,7 @@ fromLibrarySectionPlain LibrarySection{..} = Library {
   }
 
 getMentionedExecutableModules :: ExecutableSection -> [Module]
-getMentionedExecutableModules (ExecutableSection main otherModules generatedModules)=
+getMentionedExecutableModules (ExecutableSection (Alias (Last main)) otherModules generatedModules)=
   maybe id (:) (toModule . Path.fromFilePath <$> main) $ fromMaybeList (otherModules <> generatedModules)
 
 toExecutable :: FilePath -> String -> Section ExecutableSection -> IO (Section Executable)
@@ -1426,7 +1427,7 @@ toExecutable dir packageName_ =
   where
     fromExecutableSection :: [Module] -> [Module] -> ExecutableSection -> Executable
     fromExecutableSection pathsModule inferableModules ExecutableSection{..} =
-      (Executable executableSectionMain (otherModules ++ generatedModules) generatedModules)
+      (Executable (getLast $ unAlias executableSectionMain) (otherModules ++ generatedModules) generatedModules)
       where
         otherModules = maybe (inferableModules ++ pathsModule) fromList executableSectionOtherModules
         generatedModules = maybe [] fromList executableSectionGeneratedOtherModules
@@ -1439,9 +1440,9 @@ expandMain = flatten . expand
       where
         go exec@ExecutableSection{..} =
           let
-            (mainSrcFile, ghcOptions) = maybe (Nothing, []) (first Just . parseMain) executableSectionMain
+            (mainSrcFile, ghcOptions) = maybe (Nothing, []) (first Just . parseMain) (getLast $ unAlias executableSectionMain)
           in
-            (ghcOptions, exec{executableSectionMain = mainSrcFile})
+            (ghcOptions, exec{executableSectionMain = Alias $ Last mainSrcFile})
 
     flatten :: Section ([GhcOption], ExecutableSection) -> Section ExecutableSection
     flatten sect@Section{sectionData = (ghcOptions, exec), ..} = sect{
@@ -1454,12 +1455,12 @@ toSection :: Monad m => String -> [String] -> WithCommonOptions CSources CxxSour
 toSection packageName_ executableNames = go
   where
     go (Product CommonOptions{..} a) = do
-      (systemBuildTools, buildTools) <- maybe (return mempty) toBuildTools commonOptionsBuildTools
+      (systemBuildTools, buildTools) <- maybe (return mempty) toBuildTools (unAlias commonOptionsBuildTools)
 
       conditionals <- mapM toConditional (fromMaybeList commonOptionsWhen)
       return Section {
         sectionData = a
-      , sectionSourceDirs = nub $ fromMaybeList commonOptionsSourceDirs
+      , sectionSourceDirs = nub $ fromMaybeList (unAlias commonOptionsSourceDirs)
       , sectionDefaultExtensions = fromMaybeList commonOptionsDefaultExtensions
       , sectionOtherExtensions = fromMaybeList commonOptionsOtherExtensions
       , sectionDefaultLanguage = getLast commonOptionsDefaultLanguage
@@ -1480,8 +1481,8 @@ toSection packageName_ executableNames = go
       , sectionInstallIncludes = fromMaybeList commonOptionsInstallIncludes
       , sectionLdOptions = fromMaybeList commonOptionsLdOptions
       , sectionBuildable = commonOptionsBuildable
-      , sectionDependencies = fromMaybe mempty commonOptionsDependencies
-      , sectionPkgConfigDependencies = fromMaybeList commonOptionsPkgConfigDependencies
+      , sectionDependencies = fromMaybe mempty (unAlias commonOptionsDependencies)
+      , sectionPkgConfigDependencies = fromMaybeList (unAlias commonOptionsPkgConfigDependencies)
       , sectionConditionals = conditionals
       , sectionBuildTools = buildTools
       , sectionSystemBuildTools = systemBuildTools <> fromMaybe mempty commonOptionsSystemBuildTools
