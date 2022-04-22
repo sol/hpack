@@ -177,7 +177,7 @@ accessFieldWith op Options{..} v = M1 . K1 <$> withObject (`op` Key.fromString l
     label = optionsRecordSelectorModifier $ selName (undefined :: RecordField sel a p)
 
 newtype Alias (alias :: Symbol) a = Alias a
-  deriving (Show, Eq, Semigroup, Functor)
+  deriving (Show, Eq, Semigroup, Monoid, Functor)
 
 unAlias :: Alias alias a -> a
 unAlias (Alias a) = a

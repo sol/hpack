@@ -231,7 +231,7 @@ data ExecutableSection = ExecutableSection {
 } deriving (Eq, Show, Generic, FromValue)
 
 instance Monoid ExecutableSection where
-  mempty = ExecutableSection (Alias $ Last Nothing) Nothing Nothing
+  mempty = ExecutableSection mempty Nothing Nothing
   mappend = (<>)
 
 instance Semigroup ExecutableSection where
@@ -274,7 +274,7 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsPkgConfigDependencies :: Alias "pkgconfig-depends" (Maybe (List String))
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsOtherExtensions :: Maybe (List String)
-, commonOptionsDefaultLanguage :: Last Language
+, commonOptionsLanguage :: Alias "default-language" (Last Language)
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsGhcjsOptions :: Maybe (List GhcjsOption)
@@ -291,7 +291,7 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsIncludeDirs :: Maybe (List FilePath)
 , commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
-, commonOptionsBuildable :: Maybe Bool
+, commonOptionsBuildable :: Last Bool
 , commonOptionsWhen :: Maybe (List (ConditionalSection cSources cxxSources jsSources a))
 , commonOptionsBuildTools :: Alias "build-tool-depends" (Maybe BuildTools)
 , commonOptionsSystemBuildTools :: Maybe SystemBuildTools
@@ -308,7 +308,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid 
   , commonOptionsPkgConfigDependencies = Alias Nothing
   , commonOptionsDefaultExtensions = Nothing
   , commonOptionsOtherExtensions = Nothing
-  , commonOptionsDefaultLanguage = Last Nothing
+  , commonOptionsLanguage = mempty
   , commonOptionsGhcOptions = Nothing
   , commonOptionsGhcProfOptions = Nothing
   , commonOptionsGhcjsOptions = Nothing
@@ -325,7 +325,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid 
   , commonOptionsIncludeDirs = Nothing
   , commonOptionsInstallIncludes = Nothing
   , commonOptionsLdOptions = Nothing
-  , commonOptionsBuildable = Nothing
+  , commonOptionsBuildable = mempty
   , commonOptionsWhen = Nothing
   , commonOptionsBuildTools = Alias Nothing
   , commonOptionsSystemBuildTools = Nothing
@@ -340,7 +340,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semi
   , commonOptionsPkgConfigDependencies = commonOptionsPkgConfigDependencies a <> commonOptionsPkgConfigDependencies b
   , commonOptionsDefaultExtensions = commonOptionsDefaultExtensions a <> commonOptionsDefaultExtensions b
   , commonOptionsOtherExtensions = commonOptionsOtherExtensions a <> commonOptionsOtherExtensions b
-  , commonOptionsDefaultLanguage = commonOptionsDefaultLanguage a <> commonOptionsDefaultLanguage b
+  , commonOptionsLanguage = commonOptionsLanguage a <> commonOptionsLanguage b
   , commonOptionsGhcOptions = commonOptionsGhcOptions a <> commonOptionsGhcOptions b
   , commonOptionsGhcProfOptions = commonOptionsGhcProfOptions a <> commonOptionsGhcProfOptions b
   , commonOptionsGhcjsOptions = commonOptionsGhcjsOptions a <> commonOptionsGhcjsOptions b
@@ -357,7 +357,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semi
   , commonOptionsIncludeDirs = commonOptionsIncludeDirs a <> commonOptionsIncludeDirs b
   , commonOptionsInstallIncludes = commonOptionsInstallIncludes a <> commonOptionsInstallIncludes b
   , commonOptionsLdOptions = commonOptionsLdOptions a <> commonOptionsLdOptions b
-  , commonOptionsBuildable = commonOptionsBuildable b <|> commonOptionsBuildable a
+  , commonOptionsBuildable = commonOptionsBuildable a <> commonOptionsBuildable b
   , commonOptionsWhen = commonOptionsWhen a <> commonOptionsWhen b
   , commonOptionsBuildTools = commonOptionsBuildTools a <> commonOptionsBuildTools b
   , commonOptionsSystemBuildTools = commonOptionsSystemBuildTools b <> commonOptionsSystemBuildTools a
@@ -674,7 +674,7 @@ readPackageConfig (DecodeOptions programName file mUserDataDir readValue) = runE
     setDefaultLanguage :: Language -> ConfigWithDefaults -> ConfigWithDefaults
     setDefaultLanguage language config = first (second setLanguage) config
       where
-        setLanguage = (mempty { commonOptionsDefaultLanguage = Last (Just language) } <>)
+        setLanguage = (mempty { commonOptionsLanguage = Alias . Last $ Just language } <>)
 
     addCabalFile :: ((Package, String), [String]) -> DecodeResult
     addCabalFile ((pkg, cabalVersion), warnings) = DecodeResult pkg cabalVersion (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
@@ -988,7 +988,7 @@ data Section a = Section {
 , sectionPkgConfigDependencies :: [String]
 , sectionDefaultExtensions :: [String]
 , sectionOtherExtensions :: [String]
-, sectionDefaultLanguage :: Maybe Language
+, sectionLanguage :: Maybe Language
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
 , sectionGhcjsOptions :: [GhcjsOption]
@@ -1463,7 +1463,7 @@ toSection packageName_ executableNames = go
       , sectionSourceDirs = nub $ fromMaybeList (unAlias commonOptionsSourceDirs)
       , sectionDefaultExtensions = fromMaybeList commonOptionsDefaultExtensions
       , sectionOtherExtensions = fromMaybeList commonOptionsOtherExtensions
-      , sectionDefaultLanguage = getLast commonOptionsDefaultLanguage
+      , sectionLanguage = getLast $ unAlias commonOptionsLanguage
       , sectionGhcOptions = fromMaybeList commonOptionsGhcOptions
       , sectionGhcProfOptions = fromMaybeList commonOptionsGhcProfOptions
       , sectionGhcjsOptions = fromMaybeList commonOptionsGhcjsOptions
@@ -1480,7 +1480,7 @@ toSection packageName_ executableNames = go
       , sectionIncludeDirs = fromMaybeList commonOptionsIncludeDirs
       , sectionInstallIncludes = fromMaybeList commonOptionsInstallIncludes
       , sectionLdOptions = fromMaybeList commonOptionsLdOptions
-      , sectionBuildable = commonOptionsBuildable
+      , sectionBuildable = getLast commonOptionsBuildable
       , sectionDependencies = fromMaybe mempty (unAlias commonOptionsDependencies)
       , sectionPkgConfigDependencies = fromMaybeList (unAlias commonOptionsPkgConfigDependencies)
       , sectionConditionals = conditionals

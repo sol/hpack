@@ -250,7 +250,7 @@ renderSection renderSectionData extraFieldsStart Section{..} = addVerbatim secti
   ++ renderBuildTools sectionBuildTools sectionSystemBuildTools
   ++ renderDependencies "build-depends" sectionDependencies
   ++ maybe [] (return . renderBuildable) sectionBuildable
-  ++ maybe [] (return . renderDefaultLanguage) sectionDefaultLanguage
+  ++ maybe [] (return . renderLanguage) sectionLanguage
   ++ map (renderConditional renderSectionData) sectionConditionals
 
 addVerbatim :: [Verbatim] -> [Element] -> [Element]
@@ -373,8 +373,8 @@ renderSystemBuildTools = map renderSystemBuildTool . Map.toList . unSystemBuildT
 renderSystemBuildTool :: (String, VersionConstraint) -> String
 renderSystemBuildTool (name, constraint) = name ++ renderVersionConstraint constraint
 
-renderDefaultLanguage :: Language -> Element
-renderDefaultLanguage (Language lang) = Field "default-language" (Literal lang)
+renderLanguage :: Language -> Element
+renderLanguage (Language lang) = Field "default-language" (Literal lang)
 
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList
