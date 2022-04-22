@@ -28,12 +28,14 @@ import           Control.Monad.Trans.Writer (runWriter)
 import           Hpack.Syntax.Dependencies
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.BuildTools
-import           Hpack.Config hiding (package)
+import           Hpack.Config hiding (section, package)
 import qualified Hpack.Config as Config
 
 import           Data.Aeson.Config.Types
 import           Data.Aeson.Config.FromValue
 
+section :: a -> Section a
+section a = (Config.section a) {sectionDefaultLanguage = Just $ Language "Haskell2010"}
 
 instance Exts.IsList (Maybe (List a)) where
   type Item (Maybe (List a)) = a
@@ -323,9 +325,9 @@ spec = do
             cpp-options: -DTEST
         |]
         (`shouldBe` package {
-          packageLibrary = Just (sectionWithHaskell2010 library) {sectionCppOptions = ["-DFOO", "-DLIB"]}
-        , packageExecutables = Map.fromList [("foo", (sectionWithHaskell2010 $ executable "Main.hs") {sectionCppOptions = ["-DFOO", "-DFOO"]})]
-        , packageTests = Map.fromList [("spec", (sectionWithHaskell2010 $ executable "Spec.hs") {sectionCppOptions = ["-DFOO", "-DTEST"]})]
+          packageLibrary = Just (section library) {sectionCppOptions = ["-DFOO", "-DLIB"]}
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionCppOptions = ["-DFOO", "-DFOO"]})]
+        , packageTests = Map.fromList [("spec", (section $ executable "Spec.hs") {sectionCppOptions = ["-DFOO", "-DTEST"]})]
         }
         )
 
@@ -347,9 +349,9 @@ spec = do
             cc-options: -O0
         |]
         (`shouldBe` package {
-          packageLibrary = Just (sectionWithHaskell2010 library) {sectionCcOptions = ["-Wall", "-fLIB"]}
-        , packageExecutables = Map.fromList [("foo", (sectionWithHaskell2010 $ executable "Main.hs") {sectionCcOptions = ["-Wall", "-O2"]})]
-        , packageTests = Map.fromList [("spec", (sectionWithHaskell2010 $ executable "Spec.hs") {sectionCcOptions = ["-Wall", "-O0"]})]
+          packageLibrary = Just (section library) {sectionCcOptions = ["-Wall", "-fLIB"]}
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionCcOptions = ["-Wall", "-O2"]})]
+        , packageTests = Map.fromList [("spec", (section $ executable "Spec.hs") {sectionCcOptions = ["-Wall", "-O0"]})]
         }
         )
 
@@ -371,9 +373,9 @@ spec = do
             ghcjs-options: -ghcjs3
         |]
         (`shouldBe` package {
-          packageLibrary = Just (sectionWithHaskell2010 library) {sectionGhcjsOptions = ["-dedupe", "-ghcjs1"]}
-        , packageExecutables = Map.fromList [("foo", (sectionWithHaskell2010 $ executable "Main.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs2"]})]
-        , packageTests = Map.fromList [("spec", (sectionWithHaskell2010 $ executable "Spec.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs3"]})]
+          packageLibrary = Just (section library) {sectionGhcjsOptions = ["-dedupe", "-ghcjs1"]}
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs2"]})]
+        , packageTests = Map.fromList [("spec", (section $ executable "Spec.hs") {sectionGhcjsOptions = ["-dedupe", "-ghcjs3"]})]
         }
         )
 
@@ -383,7 +385,7 @@ spec = do
           ld-options: -static
         |]
         (`shouldBe` package {
-          packageLibrary = Just (sectionWithHaskell2010 library) {sectionLdOptions = ["-static"]}
+          packageLibrary = Just (section library) {sectionLdOptions = ["-static"]}
         }
         )
 
@@ -398,8 +400,8 @@ spec = do
             main: Main.hs
         |]
         (`shouldBe` package {
-          packageLibrary = Just (sectionWithHaskell2010 library) {sectionBuildable = Just True}
-        , packageExecutables = Map.fromList [("foo", (sectionWithHaskell2010 $ executable "Main.hs") {sectionBuildable = Just False})]
+          packageLibrary = Just (section library) {sectionBuildable = Just True}
+        , packageExecutables = Map.fromList [("foo", (section $ executable "Main.hs") {sectionBuildable = Just False})]
         }
         )
 
@@ -421,7 +423,7 @@ spec = do
               - foo
               - bar
           |]
-          (packageLibrary >>> (`shouldBe` Just (sectionWithHaskell2010 library) {sectionSourceDirs = ["foo", "bar"]}))
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
 
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
@@ -430,7 +432,7 @@ spec = do
               - Foo
               - Bar
           |]
-          (packageLibrary >>> (`shouldBe` Just (sectionWithHaskell2010 library) {sectionDefaultExtensions = ["Foo", "Bar"]}))
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionDefaultExtensions = ["Foo", "Bar"]}))
 
       it "accepts global default-extensions" $ do
         withPackageConfig_ [i|
@@ -439,7 +441,7 @@ spec = do
             - Bar
           library: {}
           |]
-          (packageLibrary >>> (`shouldBe` Just (sectionWithHaskell2010 library) {sectionDefaultExtensions = ["Foo", "Bar"]}))
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionDefaultExtensions = ["Foo", "Bar"]}))
 
       it "accepts global source-dirs" $ do
         withPackageConfig_ [i|
@@ -448,14 +450,14 @@ spec = do
             - bar
           library: {}
           |]
-          (packageLibrary >>> (`shouldBe` Just (sectionWithHaskell2010 library) {sectionSourceDirs = ["foo", "bar"]}))
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
 
       it "allows to specify exposed" $ do
         withPackageConfig_ [i|
           library:
             exposed: no
           |]
-          (packageLibrary >>> (`shouldBe` Just (sectionWithHaskell2010 library{libraryExposed = Just False})))
+          (packageLibrary >>> (`shouldBe` Just (section library{libraryExposed = Just False})))
 
     context "when reading executable section" $ do
       it "reads executables section" $ do
@@ -464,14 +466,14 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (sectionWithHaskell2010 $ executable "driver/Main.hs"))]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", section $ executable "driver/Main.hs")]))
 
       it "reads executable section" $ do
         withPackageConfig_ [i|
           executable:
             main: driver/Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (sectionWithHaskell2010 $ executable "driver/Main.hs"))]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", section $ executable "driver/Main.hs")]))
 
       context "with both executable and executables" $ do
         it "gives executable precedence" $ do
@@ -482,7 +484,7 @@ spec = do
               foo2:
                 main: driver/Main2.hs
             |]
-            (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (sectionWithHaskell2010 $ executable "driver/Main1.hs"))]))
+            (packageExecutables >>> (`shouldBe` Map.fromList [("foo", section $ executable "driver/Main1.hs")]))
 
         it "warns" $ do
           withPackageWarnings_ [i|
@@ -504,7 +506,7 @@ spec = do
                 - foo
                 - bar
           |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (sectionWithHaskell2010 (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
 
       it "accepts global source-dirs" $ do
         withPackageConfig_ [i|
@@ -515,7 +517,7 @@ spec = do
             foo:
               main: Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (sectionWithHaskell2010 (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section (executable "Main.hs") {executableOtherModules = ["Paths_foo"]}) {sectionSourceDirs = ["foo", "bar"]})]))
 
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
@@ -526,7 +528,7 @@ spec = do
                 - Foo
                 - Bar
           |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (sectionWithHaskell2010 $ executable "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]})]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]})]))
 
       it "accepts global default-extensions" $ do
         withPackageConfig_ [i|
@@ -537,7 +539,7 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (sectionWithHaskell2010 $ executable "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]})]))
+          (packageExecutables >>> (`shouldBe` Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionDefaultExtensions = ["Foo", "Bar"]})]))
 
       it "accepts GHC options" $ do
         withPackageConfig_ [i|
@@ -546,7 +548,7 @@ spec = do
               main: driver/Main.hs
               ghc-options: -Wall
           |]
-          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (sectionWithHaskell2010 $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall"]})]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall"]})]})
 
       it "accepts global GHC options" $ do
         withPackageConfig_ [i|
@@ -555,7 +557,7 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (sectionWithHaskell2010 $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall"]})]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcOptions = ["-Wall"]})]})
 
       it "accepts GHC profiling options" $ do
         withPackageConfig_ [i|
@@ -564,7 +566,7 @@ spec = do
               main: driver/Main.hs
               ghc-prof-options: -fprof-auto
           |]
-          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (sectionWithHaskell2010 $ executable "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]})]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]})]})
 
       it "accepts global GHC profiling options" $ do
         withPackageConfig_ [i|
@@ -573,7 +575,7 @@ spec = do
             foo:
               main: driver/Main.hs
           |]
-          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (sectionWithHaskell2010 $ executable "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]})]})
+          (`shouldBe` package {packageExecutables = Map.fromList [("foo", (section $ executable "driver/Main.hs") {sectionGhcProfOptions = ["-fprof-auto"]})]})
 
     context "when reading test section" $ do
       it "reads test section" $ do
@@ -582,7 +584,7 @@ spec = do
             spec:
               main: test/Spec.hs
           |]
-          (`shouldBe` package {packageTests = Map.fromList [("spec", (sectionWithHaskell2010 $ executable "test/Spec.hs"))]})
+          (`shouldBe` package {packageTests = Map.fromList [("spec", section $ executable "test/Spec.hs")]})
 
     context "when a specified source directory does not exist" $ do
       it "warns" $ do
