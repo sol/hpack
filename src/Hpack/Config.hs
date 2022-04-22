@@ -666,16 +666,11 @@ readPackageConfig :: DecodeOptions -> IO (Either String DecodeResult)
 readPackageConfig (DecodeOptions programName file mUserDataDir readValue) = runExceptT $ fmap addCabalFile . runWriterT $ do
   (warnings, value) <- lift . ExceptT $ readValue file
   tell warnings
-  config <- setDefaultLanguage "Haskell2010" <$> decodeValue programName file value
+  config <- decodeValue programName file value
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
   userDataDir <- liftIO $ maybe (getAppUserDataDirectory "hpack") return mUserDataDir
   toPackage programName userDataDir dir config
   where
-    setDefaultLanguage :: Language -> ConfigWithDefaults -> ConfigWithDefaults
-    setDefaultLanguage language config = first (second setLanguage) config
-      where
-        setLanguage = (mempty { commonOptionsLanguage = Alias . Last $ Just language } <>)
-
     addCabalFile :: ((Package, String), [String]) -> DecodeResult
     addCabalFile ((pkg, cabalVersion), warnings) = DecodeResult pkg cabalVersion (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
 
@@ -1055,8 +1050,13 @@ type WithCommonOptionsWithDefaults a = Product DefaultsConfig (WithCommonOptions
 toPackage :: ProgramName -> FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) (Package, String)
 toPackage programName userDataDir dir =
       expandDefaultsInConfig programName userDataDir dir
-  >=> traverseConfig (expandForeignSources dir)
+  >=> setDefaultLanguage "Haskell2010"
+  >>> traverseConfig (expandForeignSources dir)
   >=> toPackage_ dir
+  where
+    setDefaultLanguage language config = first setLanguage config
+      where
+        setLanguage = (mempty { commonOptionsLanguage = Alias . Last $ Just language } <>)
 
 expandDefaultsInConfig
   :: ProgramName
