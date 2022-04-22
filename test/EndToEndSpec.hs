@@ -11,7 +11,7 @@ import qualified Prelude
 import           Helper
 import           Test.HUnit
 
-import           System.Directory (canonicalizePath, createDirectory)
+import           System.Directory (canonicalizePath)
 import           Data.Maybe
 import           Data.List
 import           Data.String.Interpolate
@@ -662,7 +662,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |] `shouldRenderTo` (executable_ "foo" [i|
         build-tool-depends:
             hspec-discover:hspec-discover ==0.1.0
-        |]) { packageCabalVersion = "1.12" }
+        |]) {
+          packageCabalVersion = "1.12"
+        , packageWarnings = ["package.yaml: $.executable.build-tool-depends is deprecated, use $.executable.build-tools instead"]
+        }
 
       context "when the name of a build tool matches an executable from the same package" $ do
         it "adds it to build-tools" $ do
@@ -773,10 +776,12 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         [i|
         executable:
           build-depends: base
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` (executable_ "foo" [i|
         build-depends:
             base
-        |]
+        |]) {
+          packageWarnings = ["package.yaml: $.executable.build-depends is deprecated, use $.executable.dependencies instead"]
+        }
 
       it "accepts dependencies with subcomponents" $ do
         [i|
@@ -965,11 +970,13 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         [i|
         default-language: GHC2021
         executable: {}
-        |] `shouldRenderTo` executable "foo" [i|
+        |] `shouldRenderTo` (executable "foo" [i|
           other-modules:
               Paths_foo
           default-language: GHC2021
-        |]
+        |]) {
+          packageWarnings = ["package.yaml: $.default-language is deprecated, use $.language instead"]
+        }
 
       it "gives section-level language precedence" $ do
         [i|
@@ -1591,9 +1598,11 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         [i|
         executable:
           main-is: Foo.hs
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` (executable_ "foo" [i|
         main-is: Foo.hs
-        |]
+        |]) {
+          packageWarnings = ["package.yaml: $.executable.main-is is deprecated, use $.executable.main instead"]
+        }
 
       it "accepts arbitrary entry points as main" $ do
         touch "src/Foo.hs"
@@ -1917,11 +1926,8 @@ instance Show RenderResult where
 shouldRenderTo :: HasCallStack => String -> Package -> Expectation
 shouldRenderTo input p = do
   writeFile packageConfig ("name: foo\n" ++ unindent input)
-  let currentDirectory = ".working-directory"
-  createDirectory currentDirectory
-  withCurrentDirectory currentDirectory $ do
-    (warnings, output) <- run ".." (".." </> packageConfig) expected
-    RenderResult warnings (dropEmptyLines output) `shouldBe` RenderResult (packageWarnings p) expected
+  (warnings, output) <- run "" packageConfig expected
+  RenderResult warnings (dropEmptyLines output) `shouldBe` RenderResult (packageWarnings p) expected
   where
     expected = dropEmptyLines (renderPackage p)
     dropEmptyLines = unlines . filter (not . null) . lines

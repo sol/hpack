@@ -225,7 +225,7 @@ instance Semigroup LibrarySection where
     }
 
 data ExecutableSection = ExecutableSection {
-  executableSectionMain :: Alias "main-is" (Last FilePath)
+  executableSectionMain :: Alias 'True "main-is" (Last FilePath)
 , executableSectionOtherModules :: Maybe (List Module)
 , executableSectionGeneratedOtherModules :: Maybe (List Module)
 } deriving (Eq, Show, Generic, FromValue)
@@ -269,12 +269,12 @@ instance FromValue Verbatim where
     _ -> typeMismatch (formatOrList ["String", "Object"]) v
 
 data CommonOptions cSources cxxSources jsSources a = CommonOptions {
-  commonOptionsSourceDirs :: Alias "hs-source-dirs" (Maybe (List FilePath))
-, commonOptionsDependencies :: Alias "build-depends" (Maybe Dependencies)
-, commonOptionsPkgConfigDependencies :: Alias "pkgconfig-depends" (Maybe (List String))
+  commonOptionsSourceDirs :: Alias 'True "hs-source-dirs" (Maybe (List FilePath))
+, commonOptionsDependencies :: Alias 'True "build-depends" (Maybe Dependencies)
+, commonOptionsPkgConfigDependencies :: Alias 'False "pkgconfig-depends" (Maybe (List String))
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsOtherExtensions :: Maybe (List String)
-, commonOptionsLanguage :: Alias "default-language" (Last Language)
+, commonOptionsLanguage :: Alias 'True "default-language" (Last Language)
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsGhcjsOptions :: Maybe (List GhcjsOption)
@@ -293,7 +293,7 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Last Bool
 , commonOptionsWhen :: Maybe (List (ConditionalSection cSources cxxSources jsSources a))
-, commonOptionsBuildTools :: Alias "build-tool-depends" (Maybe BuildTools)
+, commonOptionsBuildTools :: Alias 'True "build-tool-depends" (Maybe BuildTools)
 , commonOptionsSystemBuildTools :: Maybe SystemBuildTools
 , commonOptionsVerbatim :: Maybe (List Verbatim)
 } deriving (Functor, Generic)
@@ -892,16 +892,18 @@ sectionAll f sect = f sect <> foldMap (foldMap $ sectionAll f) (sectionCondition
 
 decodeValue :: FromValue a => ProgramName -> FilePath -> Value -> Warnings (Errors IO) a
 decodeValue (ProgramName programName) file value = do
-  (r, unknown) <- lift . ExceptT . return $ first (prefix ++) (Config.decodeValue value)
+  (r, unknown, deprecated) <- lift . ExceptT . return $ first (prefix ++) (Config.decodeValue value)
   case r of
     UnsupportedSpecVersion v -> do
       lift $ throwE ("The file " ++ file ++ " requires version " ++ showVersion v ++ " of the Hpack package specification, however this version of " ++ programName ++ " only supports versions up to " ++ showVersion Hpack.version ++ ". Upgrading to the latest version of " ++ programName ++ " may resolve this issue.")
     SupportedSpecVersion a -> do
       tell (map formatUnknownField unknown)
+      tell (map formatDeprecatedField deprecated)
       return a
   where
     prefix = file ++ ": "
     formatUnknownField name = prefix ++ "Ignoring unrecognized field " ++ name
+    formatDeprecatedField (name, substitute) = prefix <> name <> " is deprecated, use " <> substitute <> " instead"
 
 data CheckSpecVersion a = SupportedSpecVersion a | UnsupportedSpecVersion Version
 

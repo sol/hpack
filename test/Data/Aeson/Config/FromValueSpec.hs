@@ -18,7 +18,7 @@ shouldDecodeTo :: (HasCallStack, Eq a, Show a, FromValue a) => Value -> Result a
 shouldDecodeTo value expected = decodeValue value `shouldBe` expected
 
 shouldDecodeTo_ :: (HasCallStack, Eq a, Show a, FromValue a) => Value -> a -> Expectation
-shouldDecodeTo_ value expected = decodeValue value `shouldBe` Right (expected, [])
+shouldDecodeTo_ value expected = decodeValue value `shouldBe` Right (expected, [], [])
 
 data Person = Person {
   personName :: String
@@ -41,7 +41,7 @@ data FlatMaybe = FlatMaybe {
 } deriving (Eq, Show, Generic, FromValue)
 
 data AliasMaybe = AliasMaybe {
-  aliasMaybeValue :: Alias "some-alias" (Maybe String)
+  aliasMaybeValue :: Alias 'False "some-alias" (Maybe String)
 } deriving (Eq, Show, Generic, FromValue)
 
 data NestedMaybe = NestedMaybe {
@@ -49,7 +49,7 @@ data NestedMaybe = NestedMaybe {
 } deriving (Eq, Show, Generic, FromValue)
 
 data AliasNestedMaybe = AliasNestedMaybe {
-  aliasNestedMaybeValue :: Alias "some-alias" (Maybe (Maybe String))
+  aliasNestedMaybeValue :: Alias 'False "some-alias" (Maybe (Maybe String))
 } deriving (Eq, Show, Generic, FromValue)
 
 data FlatLast = FlatLast {
@@ -57,7 +57,7 @@ data FlatLast = FlatLast {
 } deriving (Eq, Show, Generic, FromValue)
 
 data AliasLast = AliasLast {
-  aliasLastValue :: Alias "some-alias" (Last String)
+  aliasLastValue :: Alias 'False "some-alias" (Last String)
 } deriving (Eq, Show, Generic, FromValue)
 
 spec :: Spec
@@ -78,7 +78,7 @@ spec = do
         name: "Joe"
         age: 23
         foo: bar
-        |] `shouldDecodeTo` Right (Person "Joe" 23 Nothing, ["$.foo"])
+        |] `shouldDecodeTo` Right (Person "Joe" 23 Nothing, ["$.foo"], [])
 
       it "captures nested unrecognized fields" $ do
         [yaml|
@@ -89,7 +89,7 @@ spec = do
           zip: "123456"
           foo:
             bar: 23
-        |] `shouldDecodeTo` Right (Person "Joe" 23 (Just (Address "somewhere" "123456")), ["$.address.foo"])
+        |] `shouldDecodeTo` Right (Person "Joe" 23 (Just (Address "somewhere" "123456")), ["$.address.foo"], [])
 
       it "ignores fields that start with an underscore" $ do
         [yaml|
@@ -160,7 +160,7 @@ spec = do
           [yaml|
           value: some value
           some-alias: some alias value
-          |] `shouldDecodeTo` Right (AliasMaybe (Alias $ Just "some value"), ["$.some-alias"])
+          |] `shouldDecodeTo` Right (AliasMaybe (Alias $ Just "some value"), ["$.some-alias"], [])
 
         it "allows the field to be omitted" $ do
           [yaml|
@@ -187,7 +187,7 @@ spec = do
           [yaml|
           value: some value
           some-alias: some alias value
-          |] `shouldDecodeTo` Right (AliasNestedMaybe (Alias . Just $ Just "some value"), ["$.some-alias"])
+          |] `shouldDecodeTo` Right (AliasNestedMaybe (Alias . Just $ Just "some value"), ["$.some-alias"], [])
 
         it "allows the field to be omitted" $ do
           [yaml|
@@ -230,7 +230,7 @@ spec = do
           [yaml|
           value: some value
           some-alias: some alias value
-          |] `shouldDecodeTo` Right (AliasLast (Alias . Last $ Just "some value"), ["$.some-alias"])
+          |] `shouldDecodeTo` Right (AliasLast (Alias . Last $ Just "some value"), ["$.some-alias"], [])
 
         it "allows the field to be omitted" $ do
           [yaml|
@@ -250,7 +250,7 @@ spec = do
         role: engineer
         salary: 100000
         foo: bar
-        |] `shouldDecodeTo` Right ((Person "Joe" 23 Nothing, Job "engineer" 100000), ["$.foo"])
+        |] `shouldDecodeTo` Right ((Person "Joe" 23 Nothing, Job "engineer" 100000), ["$.foo"], [])
 
     context "with []" $ do
       it "captures unrecognized fields" $ do
@@ -266,7 +266,7 @@ spec = do
         - name: "Marry"
           age: 25
           bar: 42
-        |] `shouldDecodeTo` Right (expected, ["$[1].bar", "$[0].address.foo"])
+        |] `shouldDecodeTo` Right (expected, ["$[1].bar", "$[0].address.foo"], [])
 
     context "with Map" $ do
       it "captures unrecognized fields" $ do
@@ -275,4 +275,4 @@ spec = do
           region: somewhere
           zip: '123456'
           foo: bar
-        |] `shouldDecodeTo` Right (Map.fromList [("Joe", Address "somewhere" "123456")], ["$.Joe.foo"])
+        |] `shouldDecodeTo` Right (Map.fromList [("Joe", Address "somewhere" "123456")], ["$.Joe.foo"], [])
