@@ -35,9 +35,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       _foo:
         bar: 23
       library: {}
-      |] `shouldRenderTo` library [i|
-      other-modules:
-          Paths_foo
+      |] `shouldRenderTo` library_ [i|
       |]
 
     describe "tested-with" $ do
@@ -77,6 +75,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |] `shouldRenderTo` library [i|
         other-modules:
             Paths_foo
+        default-language: Haskell2010
         |]
 
       context "when cabal-version is >= 2" $ do
@@ -90,6 +89,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               Paths_foo
           autogen-modules:
               Paths_foo
+          default-language: Haskell2010
           |]) { packageCabalVersion = "2.0" }
 
         context "when Paths_ module is listed explicitly under generated-other-modules" $ do
@@ -104,6 +104,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
             autogen-modules:
                 Paths_foo
+            default-language: Haskell2010
             |]) { packageCabalVersion = "2.0" }
 
         context "when Paths_ module is listed explicitly under generated-exposed-modules" $ do
@@ -118,6 +119,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
             autogen-modules:
                 Paths_foo
+            default-language: Haskell2010
             |]) { packageCabalVersion = "2.0" }
 
       context "when Paths_ is mentioned in a conditional that is always false" $ do
@@ -128,9 +130,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             - condition: false
               other-modules: Paths_foo
           |] `shouldRenderTo` library [i|
+          default-language: Haskell2010
           |]
 
-      context "with RebindableSyntax and OverloadedStrings or OverloadedStrings" $ do
+      context "when Paths_ is used with RebindableSyntax and (OverloadedStrings or OverloadedLists)" $ do
         it "infers cabal-version 2.2" $ do
           [i|
           default-extensions: [RebindableSyntax, OverloadedStrings]
@@ -143,6 +146,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               Paths_foo
           autogen-modules:
               Paths_foo
+          default-language: Haskell2010
           |]) {packageCabalVersion = "2.2"}
 
         context "when Paths_ is mentioned in a conditional that is always false" $ do
@@ -157,6 +161,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             default-extensions:
                 RebindableSyntax
                 OverloadedStrings
+            default-language: Haskell2010
             |])
 
     describe "spec-version" $ do
@@ -342,11 +347,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             github: sol/hpack-template
             path: defaults.yaml
             ref: "2017"
-        |] `shouldRenderTo` library [i|
+        |] `shouldRenderTo` library_ [i|
         exposed-modules:
             Foo
-        other-modules:
-            Paths_foo
         |]
 
       it "accepts a list of defaults" $ do
@@ -439,9 +442,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         defaults:
           local: defaults/foo.yaml
         library: {}
-        |] `shouldRenderTo` library [i|
-        other-modules:
-            Paths_foo
+        |] `shouldRenderTo` library_ [i|
         default-extensions:
             RecordWildCards
             DeriveFunctor
@@ -1079,6 +1080,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               Foo
           other-modules:
               Foo
+          default-language: Haskell2010
           |]
 
       context "with mixins" $ do
@@ -1098,6 +1100,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               foo
           mixins:
               foo (Blah as Etc)
+          default-language: Haskell2010
           |]) {packageCabalVersion = "2.0"}
 
     describe "internal-libraries" $ do
@@ -1162,6 +1165,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               Foo
           other-modules:
               Paths_foo
+          default-language: Haskell2010
           |]
 
         it "ignores duplicate modules" $ do
@@ -1177,6 +1181,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               Foo
           other-modules:
               Paths_foo
+          default-language: Haskell2010
           |]
 
         context "with exposed-modules" $ do
@@ -1195,6 +1200,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             other-modules:
                 Bar
                 Paths_foo
+            default-language: Haskell2010
             |]
 
         context "with other-modules" $ do
@@ -1212,6 +1218,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Foo
             other-modules:
                 Bar
+            default-language: Haskell2010
             |]
 
         context "with both exposed-modules and other-modules" $ do
@@ -1230,6 +1237,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Foo
             other-modules:
                 Bar
+            default-language: Haskell2010
             |]
 
         context "with neither exposed-modules nor other-modules" $ do
@@ -1247,6 +1255,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Foo
             other-modules:
                 Paths_foo
+            default-language: Haskell2010
             |]
 
         context "with a conditional" $ do
@@ -1338,6 +1347,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
                 Foo
                 Bar
+            default-language: Haskell2010
             |]) {packageCabalVersion = "2.0"}
 
           it "does not infer any mentioned generated modules" $ do
@@ -1360,6 +1370,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Paths_foo
                 Exposed
                 Other
+            default-language: Haskell2010
             |]) {packageCabalVersion = "2.0"}
 
           it "does not infer any generated modules mentioned inside conditionals" $ do
@@ -1864,7 +1875,6 @@ library l = package content
     content = [i|
 library
 #{indentBy 2 $ unindent l}
-  default-language: Haskell2010
 |]
 
 internalLibrary :: String -> String -> Package
