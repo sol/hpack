@@ -982,6 +982,20 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           default-language: GHC2021
         |]
 
+      it "accepts language from defaults" $ do
+        writeFile "defaults/sol/hpack-template/2017/.hpack/defaults.yaml" [i|
+        language: GHC2021
+        |]
+
+        [i|
+        defaults: sol/hpack-template@2017
+        library: {}
+        |] `shouldRenderTo` library [i|
+        other-modules:
+            Paths_foo
+        default-language: GHC2021
+        |]
+
     describe "extra-lib-dirs" $ do
       it "accepts extra-lib-dirs" $ do
         [i|
