@@ -966,6 +966,15 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           default-language: GHC2021
         |]
 
+      it "omits language if it is null" $ do
+        [i|
+        language: null
+        executable: {}
+        |] `shouldRenderTo` executable "foo" [i|
+          other-modules:
+              Paths_foo
+        |]
+
       it "accepts default-language as an alias" $ do
         [i|
         default-language: GHC2021

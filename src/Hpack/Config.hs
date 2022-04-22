@@ -274,7 +274,7 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsPkgConfigDependencies :: Alias 'False "pkgconfig-depends" (Maybe (List String))
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsOtherExtensions :: Maybe (List String)
-, commonOptionsLanguage :: Alias 'True "default-language" (Last Language)
+, commonOptionsLanguage :: Alias 'True "default-language" (Last (Maybe Language))
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsGhcjsOptions :: Maybe (List GhcjsOption)
@@ -1058,7 +1058,7 @@ toPackage programName userDataDir dir =
   where
     setDefaultLanguage language config = first setLanguage config
       where
-        setLanguage = (mempty { commonOptionsLanguage = Alias . Last $ Just language } <>)
+        setLanguage = (mempty { commonOptionsLanguage = Alias . Last $ Just (Just language) } <>)
 
 expandDefaultsInConfig
   :: ProgramName
@@ -1465,7 +1465,7 @@ toSection packageName_ executableNames = go
       , sectionSourceDirs = nub $ fromMaybeList (unAlias commonOptionsSourceDirs)
       , sectionDefaultExtensions = fromMaybeList commonOptionsDefaultExtensions
       , sectionOtherExtensions = fromMaybeList commonOptionsOtherExtensions
-      , sectionLanguage = getLast $ unAlias commonOptionsLanguage
+      , sectionLanguage = join . getLast $ unAlias commonOptionsLanguage
       , sectionGhcOptions = fromMaybeList commonOptionsGhcOptions
       , sectionGhcProfOptions = fromMaybeList commonOptionsGhcProfOptions
       , sectionGhcjsOptions = fromMaybeList commonOptionsGhcjsOptions
