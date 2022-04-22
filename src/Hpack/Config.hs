@@ -37,7 +37,6 @@ module Hpack.Config (
 , packageDependencies
 , package
 , section
-, sectionWithHaskell2010
 , Package(..)
 , Dependencies(..)
 , DependencyInfo(..)
@@ -190,9 +189,6 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
 section :: a -> Section a
 section a = Section a [] mempty [] [] [] Nothing [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
 
-sectionWithHaskell2010 :: a -> Section a
-sectionWithHaskell2010 a = (section a) {sectionDefaultLanguage = Just $ Language "Haskell2010"}
-
 packageConfig :: FilePath
 packageConfig = "package.yaml"
 
@@ -335,9 +331,6 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid 
   , commonOptionsVerbatim = Nothing
   }
   mappend = (<>)
-
-defaultLanguage :: Language
-defaultLanguage = Language "Haskell2010"
 
 instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semigroup (CommonOptions cSources cxxSources jsSources a) where
   a <> b = CommonOptions {
@@ -514,19 +507,20 @@ instance FromValue Empty where
   fromValue _ = return Empty
 
 newtype Language = Language String
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show)
+
+instance IsString Language where
+  fromString = Language
 
 instance FromValue Language where
-  fromValue v = Language <$> case v of
-    String s -> return (T.unpack s)
-    _ -> typeMismatch "String" v
+  fromValue = fmap Language . fromValue
 
 data BuildType =
     Simple
   | Configure
   | Make
   | Custom
-  deriving (Eq, Show, Generic, Enum, Bounded)
+  deriving (Eq, Show, Enum, Bounded)
 
 instance FromValue BuildType where
   fromValue = withText $ \ (T.unpack -> t) -> do
@@ -660,18 +654,6 @@ instance IsString ProgramName where
 defaultDecodeOptions :: DecodeOptions
 defaultDecodeOptions = DecodeOptions "hpack" packageConfig Nothing Yaml.decodeYaml
 
-defaultCommonOptions :: ( Semigroup cSources
-                        , Semigroup cxxSources
-                        , Semigroup jsSources
-                        , Semigroup a
-                        , Monoid cSources
-                        , Monoid cxxSources
-                        , Monoid jsSources
-                        , Monoid a )
-                     => CommonOptions cSources cxxSources jsSources a
-defaultCommonOptions =
-  mempty {commonOptionsDefaultLanguage = Last (Just defaultLanguage)}
-
 data DecodeResult = DecodeResult {
   decodeResultPackage :: Package
 , decodeResultCabalVersion :: String
@@ -683,15 +665,16 @@ readPackageConfig :: DecodeOptions -> IO (Either String DecodeResult)
 readPackageConfig (DecodeOptions programName file mUserDataDir readValue) = runExceptT $ fmap addCabalFile . runWriterT $ do
   (warnings, value) <- lift . ExceptT $ readValue file
   tell warnings
-  config <- decodeValue programName file value
-  let Product (Product _ configCommonOptions) _ = config
-      commonOptionsWithDefaults = defaultCommonOptions <> configCommonOptions
-      configWithDefaultLanguage =
-        first (second (const commonOptionsWithDefaults)) config
+  config <- setDefaultLanguage "Haskell2010" <$> decodeValue programName file value
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
   userDataDir <- liftIO $ maybe (getAppUserDataDirectory "hpack") return mUserDataDir
-  toPackage programName userDataDir dir configWithDefaultLanguage
+  toPackage programName userDataDir dir config
   where
+    setDefaultLanguage :: Language -> ConfigWithDefaults -> ConfigWithDefaults
+    setDefaultLanguage language config = first (second setLanguage) config
+      where
+        setLanguage = (mempty { commonOptionsDefaultLanguage = Last (Just language) } <>)
+
     addCabalFile :: ((Package, String), [String]) -> DecodeResult
     addCabalFile ((pkg, cabalVersion), warnings) = DecodeResult pkg cabalVersion (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
 
