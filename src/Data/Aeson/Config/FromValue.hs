@@ -6,7 +6,6 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
-
 {-# LANGUAGE ConstraintKinds #-}
 module Data.Aeson.Config.FromValue (
   FromValue(..)
@@ -138,16 +137,18 @@ instance (GenericDecode a) => GenericDecode (C1 c a) where
 instance (GenericDecode a, GenericDecode b) => GenericDecode (a :*: b) where
   genericDecode opts o = (:*:) <$> genericDecode opts o <*> genericDecode opts o
 
-instance (Selector sel, FromValue a) => GenericDecode (S1 sel (Rec0 a)) where
+type RecordField sel a = S1 sel (Rec0 a)
+
+instance (Selector sel, FromValue a) => GenericDecode (RecordField sel a) where
   genericDecode = accessFieldWith (.:)
 
-instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (S1 sel (Rec0 (Maybe a))) where
+instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (RecordField sel (Maybe a)) where
   genericDecode = accessFieldWith (.:?)
 
-instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (S1 sel (Rec0 (Last a))) where
+instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (RecordField sel (Last a)) where
   genericDecode = accessFieldWith (\ value key -> Last <$> (value .:? key))
 
-accessFieldWith :: forall sel a p. Selector sel => (Object -> Key -> Parser a) -> Options -> Value -> Parser (S1 sel (Rec0 a) p)
+accessFieldWith :: forall sel a p. Selector sel => (Object -> Key -> Parser a) -> Options -> Value -> Parser (RecordField sel a p)
 accessFieldWith op Options{..} v = M1 . K1 <$> withObject (`op` Key.fromString label) v
   where
-    label = optionsRecordSelectorModifier $ selName (undefined :: S1 sel (Rec0 a) p)
+    label = optionsRecordSelectorModifier $ selName (undefined :: RecordField sel a p)
