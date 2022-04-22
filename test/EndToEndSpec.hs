@@ -950,8 +950,18 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             cxxbits/bar.cc
         |]) {packageCabalVersion = "2.2"}
 
-    describe "default-language" $ do
-      it "accepts default-language" $ do
+    describe "language" $ do
+      it "accepts language" $ do
+        [i|
+        language: GHC2021
+        executable: {}
+        |] `shouldRenderTo` executable "foo" [i|
+          other-modules:
+              Paths_foo
+          default-language: GHC2021
+        |]
+
+      it "accepts default-language as an alias" $ do
         [i|
         default-language: GHC2021
         executable: {}
@@ -961,11 +971,11 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           default-language: GHC2021
         |]
 
-      it "defers to section-level default-language" $ do
+      it "gives section-level language precedence" $ do
         [i|
-        default-language: Haskell2010
+        language: Haskell2010
         executable:
-          default-language: GHC2021
+          language: GHC2021
         |] `shouldRenderTo` executable "foo" [i|
           other-modules:
               Paths_foo

@@ -218,7 +218,7 @@ values are merged with per section values.
 | `buildable` | · | | Per section takes precedence over top-level |
 | `source-dirs` | `hs-source-dirs` | | |
 | `default-extensions` | · | | |
-| `default-language` | . | `Haskell2010` | Also accepts `Haskell98` or `GHC2021`. Per section values prevail over top-level value |
+| `language` | `default-language` | `Haskell2010` | Also accepts `Haskell98` or `GHC2021`. Per section takes precedence over top-level |
 | `other-extensions` | · | | |
 | `ghc-options` | · | | |
 | `ghc-prof-options` | · | | |

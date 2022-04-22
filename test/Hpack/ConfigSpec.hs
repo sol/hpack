@@ -35,7 +35,7 @@ import           Data.Aeson.Config.Types
 import           Data.Aeson.Config.FromValue
 
 section :: a -> Section a
-section a = (Config.section a) {sectionDefaultLanguage = Just $ Language "Haskell2010"}
+section a = (Config.section a) {sectionLanguage = Just $ Language "Haskell2010"}
 
 instance Exts.IsList (Maybe (List a)) where
   type Item (Maybe (List a)) = a

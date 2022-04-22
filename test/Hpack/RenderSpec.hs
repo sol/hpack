@@ -15,7 +15,7 @@ library = Library Nothing Nothing [] [] [] [] []
 
 executable :: Section Executable
 executable = (section $ Executable (Just "Main.hs") [] []) {
-  sectionDefaultLanguage = Just $ Language "Haskell2010"
+  sectionLanguage = Just $ Language "Haskell2010"
 }
 
 renderEmptySection :: Empty -> [Element]
