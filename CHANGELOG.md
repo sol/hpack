@@ -1,3 +1,9 @@
+## Changes in 0.35.0
+  - Add support for `language` (thanks @mpilgrem)
+  - Accept Cabal names for fields where Hpack and Cabal use different
+    terminology, but still warn (e.g. accept `hs-source-dirs` as an alias for
+    `source-dirs`)
+
 ## Changes in 0.34.7
   - Support `Cabal-3.6.*`
   - Make sure that verbatim `import` fields are rendered at the beginning of
