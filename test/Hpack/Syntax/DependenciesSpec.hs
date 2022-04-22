@@ -212,7 +212,7 @@ spec = do
               outer-name:
                 name: inner-name
                 path: somewhere
-            |] `shouldDecodeTo` Right (Dependencies [("outer-name", defaultInfo { dependencyInfoVersion = DependencyVersion source AnyVersion })], ["$.outer-name.name"])
+            |] `shouldDecodeTo` Right (Dependencies [("outer-name", defaultInfo { dependencyInfoVersion = DependencyVersion source AnyVersion })], ["$.outer-name.name"], [])
 
           it "defaults to any version" $ do
             [yaml|

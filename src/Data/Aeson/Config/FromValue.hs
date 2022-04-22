@@ -66,7 +66,7 @@ import           Data.Aeson.Types (FromJSON(..))
 import           Data.Aeson.Config.Util
 import           Data.Aeson.Config.Parser
 
-type Result a = Either String (a, [String])
+type Result a = Either String (a, [String], [(String, String)])
 
 decodeValue :: FromValue a => Value -> Result a
 decodeValue = runParser fromValue
@@ -158,17 +158,20 @@ instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (Recor
 instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (RecordField sel (Last a)) where
   genericDecode = accessFieldWith (\ value key -> Last <$> (value .:? key))
 
-instance {-# OVERLAPPING #-} (Selector sel, FromValue a, KnownSymbol alias) => GenericDecode (RecordField sel (Alias alias (Maybe a))) where
+instance {-# OVERLAPPING #-} (Selector sel, FromValue a, KnownBool deprecated, KnownSymbol alias) => GenericDecode (RecordField sel (Alias deprecated alias (Maybe a))) where
   genericDecode = accessFieldWith (\ value key -> aliasAccess (.:?) value (Alias key))
 
-instance {-# OVERLAPPING #-} (Selector sel, FromValue a, KnownSymbol alias) => GenericDecode (RecordField sel (Alias alias (Last a))) where
+instance {-# OVERLAPPING #-} (Selector sel, FromValue a, KnownBool deprecated, KnownSymbol alias) => GenericDecode (RecordField sel (Alias deprecated alias (Last a))) where
   genericDecode = accessFieldWith (\ value key -> fmap Last <$> aliasAccess (.:?) value (Alias key))
 
-aliasAccess :: forall a alias. KnownSymbol alias => (Object -> Key -> Parser a) -> Object -> (Alias alias Key) -> Parser (Alias alias a)
+aliasAccess :: forall deprecated alias a. (KnownBool deprecated, KnownSymbol alias) => (Object -> Key -> Parser a) -> Object -> (Alias deprecated alias Key) -> Parser (Alias deprecated alias a)
 aliasAccess op value (Alias key)
-  | alias `member` value && not (key `member` value) = Alias <$> value `op` alias
+  | alias `member` value && not (key `member` value) = Alias <$> value `op` alias <* deprecated
   | otherwise = Alias <$> value `op` key
   where
+    deprecated = case boolVal (Proxy @deprecated) of
+      False -> return ()
+      True -> markDeprecated alias key
     alias = Key.fromString (symbolVal $ Proxy @alias)
 
 accessFieldWith :: forall sel a p. Selector sel => (Object -> Key -> Parser a) -> Options -> Value -> Parser (RecordField sel a p)
@@ -176,8 +179,17 @@ accessFieldWith op Options{..} v = M1 . K1 <$> withObject (`op` Key.fromString l
   where
     label = optionsRecordSelectorModifier $ selName (undefined :: RecordField sel a p)
 
-newtype Alias (alias :: Symbol) a = Alias a
+newtype Alias (deprecated :: Bool) (alias :: Symbol) a = Alias a
   deriving (Show, Eq, Semigroup, Monoid, Functor)
 
-unAlias :: Alias alias a -> a
+unAlias :: Alias deprecated alias a -> a
 unAlias (Alias a) = a
+
+class KnownBool (a :: Bool) where
+  boolVal :: Proxy a -> Bool
+
+instance KnownBool 'True where
+  boolVal _ = True
+
+instance KnownBool 'False where
+  boolVal _ = False
