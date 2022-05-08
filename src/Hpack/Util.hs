@@ -94,12 +94,11 @@ expandGlobs name dir patterns = do
     combineResults :: [GlobResult] -> [GlobResult] -> ([String], [FilePath])
     combineResults inc exc = 
       let
-        include :: [(String, FilePath)]
-        include = uncurry zip $ convertResults inc
-        exclude :: [(String, FilePath)]
-        exclude = uncurry zip $ convertResults exc
+        
+        (inwarn, include) = convertResults inc
+        (exwarn, exclude) = convertResults exc
       in 
-        unzip $ union include exclude \\ intersect include exclude
+        (inwarn ++ exwarn, include \\ exclude)
     convertResults :: [GlobResult] -> ([String], [FilePath]) 
     convertResults = bimap concat (nub . concat) . unzip . map fromResult
     fromResult :: GlobResult -> ([String], [FilePath])
