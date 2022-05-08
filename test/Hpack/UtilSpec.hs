@@ -49,7 +49,7 @@ spec = do
       touch (dir </> "foo.js")
       touch (dir </> "bar.js")
       expandGlobs "field-name" dir ["foo.js", "bar.js"] `shouldReturn` ([], ["foo.js", "bar.js"])
-
+    
     it "removes duplicates" $ \dir -> do
       touch (dir </> "foo.js")
       expandGlobs "field-name" dir ["foo.js", "*.js"] `shouldReturn` ([], ["foo.js"])
@@ -64,7 +64,19 @@ spec = do
       touch (dir </> "foo2")
       touch (dir </> "foo[1,2]")
       expandGlobs "field-name" dir ["foo[1,2]"] `shouldReturn` ([], ["foo[1,2]"])
-
+    context "when accepting exclusion patterns" $ do 
+      it "removes all files matched" $ \dir -> do 
+        let goodfiles = [
+                  "files/foo.js"
+                , "files/bar.js"
+                , "files/baz.js"]
+            badfiles = [
+                  "files/foo.hs"
+                , "files/bar.hs"
+                , "files/baz.hs"]
+        mapM_ (touch . (dir </>)) goodfiles
+        mapM_ (touch . (dir </>)) badfiles
+        expandGlobs "field-name" dir ["files/*", "!files/*.hs"] `shouldReturn` ([], sort goodfiles)
     context "when expanding *" $ do
       it "expands by extension" $ \dir -> do
         let files = [
