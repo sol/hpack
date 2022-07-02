@@ -328,6 +328,16 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `reexported-modules` | · | | |
 | `signatures` | · | | |
 
+#### Foreign Library
+
+| Hpack | Cabal | Default | Notes |
+| --- | --- | --- | --- |
+| `type` | `type` | | |
+| `lib-version-info` | `lib-version-info` | | |
+| `options` | `options` | | [https://cabal.readthedocs.io/en/3.4/cabal-package.html#pkg-field-foreign-library-options](Foreign Library Options) |
+| `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
+| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
+
 #### Executable fields
 
 | Hpack | Cabal | Default | Notes |
