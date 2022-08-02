@@ -659,7 +659,7 @@ steps are required.
 You can get binaries for use on Travis CI with:
 
 ```
-curl -sSL https://github.com/sol/hpack/raw/master/get-hpack.sh | bash
+curl -sSL https://github.com/sol/hpack/raw/main/get-hpack.sh | bash
 ```
 
 (both Linux and OS X are supported)
