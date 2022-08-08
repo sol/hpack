@@ -332,6 +332,20 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `manual` | · | | Required (unlike Cabal) |
 | `default` | · | | Required (unlike Cabal) |
 
+Flags must be specified as an object:
+
+```
+flags:
+  development:
+    description: A development or production build 
+    manual: True
+    default: False
+  fast:
+    manual: True
+    default: False
+
+```
+
 #### Dependencies
 
 Dependencies can be specified as either a list or an object. These are
