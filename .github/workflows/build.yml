@@ -34,20 +34,24 @@ jobs:
           - '9.4'
         include:
           - os: macos-latest
-            ghc: latest
+            ghc: system
           - os: windows-latest
-            ghc: latest
+            ghc: system
     steps:
       - uses: actions/checkout@v2
       - uses: hspec/setup-haskell@v1
         with:
           ghc-version: ${{ matrix.ghc }}
 
-      - uses: actions/cache@v2
+      - run: cabal update
+      - run: echo "::set-output name=version::`ghc --numeric-version`"
+        shell: bash
+        id: ghc
+      - uses: actions/cache@v3
         with:
-          key: ${{ runner.os }}-v2-${{ matrix.ghc }}-${{ github.run_id }}
-          path: ~/.cabal/store
-          restore-keys: ${{ runner.os }}-v2-${{ matrix.ghc }}-
+          path: ${{ runner.os == 'Windows' && 'C:/cabal/store' || '~/.cabal/store' }}
+          key: ${{ runner.os }}-v2-${{ steps.ghc.outputs.version }}-${{ github.run_id }}
+          restore-keys: ${{ runner.os }}-v2-${{ steps.ghc.outputs.version }}-
 
       - uses: sol/run-haskell-tests@v1
 
