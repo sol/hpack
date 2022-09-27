@@ -43,10 +43,13 @@ jobs:
         with:
           ghc-version: ${{ matrix.ghc }}
 
-      - uses: actions/cache@v2
+      - run: mkdir %CABAL_DIR%
+        path: runner.os == 'Windows'
+
+      - uses: actions/cache@v3
         with:
+          path: ${{ runner.os == 'Windows' && 'C:/cabal/store' || '~/.cabal/store' }}
           key: ${{ runner.os }}-v2-${{ matrix.ghc }}-${{ github.run_id }}
-          path: ~/.cabal/store
           restore-keys: ${{ runner.os }}-v2-${{ matrix.ghc }}-
 
       - uses: sol/run-haskell-tests@v1
