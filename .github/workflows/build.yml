@@ -51,8 +51,8 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: ${{ runner.os == 'Windows' && 'C:/cabal/store' || '~/.cabal/store' }}
-          key: ${{ runner.os }}-v2-${{ matrix.ghc }}-${{ github.run_id }}
-          restore-keys: ${{ runner.os }}-v2-${{ matrix.ghc }}-
+          key: ${{ runner.os }}-v2-${{ steps.ghc.outputs.version }}-${{ github.run_id }}
+          restore-keys: ${{ runner.os }}-v2-${{ steps.ghc.outputs.version }}-
 
       - uses: sol/run-haskell-tests@v1
 
