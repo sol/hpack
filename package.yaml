@@ -23,7 +23,7 @@ dependencies:
   - yaml >= 0.10.0
   - aeson >= 1.4.3.0
   - scientific
-  - Cabal >= 3.0.0.0 && < 3.7
+  - Cabal >= 3.0.0.0 && < 3.9
   - pretty
   - bifunctors
   - cryptonite
