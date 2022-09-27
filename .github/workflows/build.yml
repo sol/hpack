@@ -44,7 +44,10 @@ jobs:
           ghc-version: ${{ matrix.ghc }}
 
       - run: cabal update
-
+      - run: echo "::set-output name=version::`ghc --numeric-version`"
+        shell: bash
+        id: ghc
+      - run: echo {{ ghc.version }}
       - uses: actions/cache@v3
         with:
           path: ${{ runner.os == 'Windows' && 'C:/cabal/store' || '~/.cabal/store' }}
