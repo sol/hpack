@@ -44,7 +44,7 @@ jobs:
           ghc-version: ${{ matrix.ghc }}
 
       - run: mkdir %CABAL_DIR%
-        path: runner.os == 'Windows'
+        if: runner.os == 'Windows'
 
       - uses: actions/cache@v3
         with:
