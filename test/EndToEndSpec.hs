@@ -11,18 +11,16 @@ import qualified Prelude
 import           Helper
 import           Test.HUnit
 
-import           System.Directory (canonicalizePath)
 import           Data.Maybe
 import           Data.List
 import           Data.String.Interpolate
 import           Data.String.Interpolate.Util
-import           Data.Version (showVersion)
+import           Data.Version (makeVersion)
 
+import           Hpack.Error (HpackError(..), renderHpackError, hpackProgName)
 import qualified Hpack.Render as Hpack
 import           Hpack.Config (packageConfig, readPackageConfig, DecodeOptions(..), DecodeResult(..), defaultDecodeOptions)
 import           Hpack.Render.Hints (FormattingHints(..), sniffFormattingHints)
-
-import qualified Paths_hpack as Hpack (version)
 
 writeFile :: FilePath -> String -> IO ()
 writeFile file c = touch file >> Prelude.writeFile file c
@@ -173,12 +171,12 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       it "fails on malformed spec-version" $ do
         [i|
         spec-version: foo
-        |] `shouldFailWith` "package.yaml: Error while parsing $.spec-version - invalid value \"foo\""
+        |] `shouldFailWith` (DecodeValueError "package.yaml" "Error while parsing $.spec-version - invalid value \"foo\"")
 
       it "fails on unsupported spec-version" $ do
         [i|
         spec-version: 25.0
-        |] `shouldFailWith` ("The file package.yaml requires version 25.0 of the Hpack package specification, however this version of hpack only supports versions up to " ++ showVersion Hpack.version ++ ". Upgrading to the latest version of hpack may resolve this issue.")
+        |] `shouldFailWith` (HpackVersionUnsupported "package.yaml" (makeVersion [25,0]) (makeVersion [0,35,0]))
 
       it "fails on unsupported spec-version from defaults" $ do
         let file = joinPath ["defaults", "sol", "hpack-template", "2017", "defaults.yaml"]
@@ -192,7 +190,11 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           path: defaults.yaml
           ref: "2017"
         library: {}
-        |] `shouldFailWith` ("The file " ++ file ++ " requires version 25.0 of the Hpack package specification, however this version of hpack only supports versions up to " ++ showVersion Hpack.version ++ ". Upgrading to the latest version of hpack may resolve this issue.")
+        |] `shouldFailWith'` (\e -> case e of
+          -- As file path formats depend on the operating system, do not test
+          -- the specific file path.
+          HpackVersionUnsupported _ v1 v2 -> v1 == makeVersion [25,0] && v2 == makeVersion [0,35,0]
+          _ -> False)
 
     describe "data-files" $ do
       it "accepts data-files" $ do
@@ -249,7 +251,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       it "rejects URLs" $ do
         [i|
         github: https://github.com/sol/hpack/issues/365
-        |] `shouldFailWith` "package.yaml: Error while parsing $.github - expected owner/repo or owner/repo/subdir, but encountered \"https://github.com/sol/hpack/issues/365\""
+        |] `shouldFailWith` (DecodeValueError "package.yaml" "Error while parsing $.github - expected owner/repo or owner/repo/subdir, but encountered \"https://github.com/sol/hpack/issues/365\"")
 
     describe "homepage" $ do
       it "accepts homepage URL" $ do
@@ -407,12 +409,14 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           file2 = "defaults/foo/bar/v2/.hpack/defaults.yaml"
         writeFile file1 "defaults: foo/bar@v2"
         writeFile file2 "defaults: foo/bar@v1"
-        canonic1 <- canonicalizePath file1
-        canonic2 <- canonicalizePath file2
         [i|
         defaults: foo/bar@v1
         library: {}
-        |] `shouldFailWith` [i|cycle in defaults (#{canonic1} -> #{canonic2} -> #{canonic1})|]
+        |] `shouldFailWith'` (\e -> case e of
+          -- As the file paths in CycleInDefaultsException are absolute ones we
+          -- test only that there are three of them.
+          CycleInDefaultsError [_, _, _] -> True
+          _ -> False)
 
       it "fails if defaults don't exist" $ do
         pending
@@ -421,7 +425,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           github: sol/foo
           ref: bar
         library: {}
-        |] `shouldFailWith` "Invalid value for \"defaults\"! File https://raw.githubusercontent.com/sol/foo/bar/.hpack/defaults.yaml does not exist!"
+        |] `shouldFailWith` (DefaultsFileUrlNotFound "https://raw.githubusercontent.com/sol/foo/bar/.hpack/defaults.yaml")
 
       it "fails on parse error" $ do
         let file = joinPath ["defaults", "sol", "hpack-template", "2017", "defaults.yaml"]
@@ -432,7 +436,11 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           path: defaults.yaml
           ref: "2017"
         library: {}
-        |] `shouldFailWith` (file ++ ": Error while parsing $ - expected Object, but encountered Array")
+        |] `shouldFailWith'` (\e -> case e of
+          -- As file path formats depend on the operating system, do not test
+          -- the specific file path.
+          DecodeValueError _ "Error while parsing $ - expected Object, but encountered Array" -> True
+          _ -> False)
 
       it "warns on unknown fields" $ do
         let file = joinPath ["defaults", "sol", "hpack-template", "2017", "defaults.yaml"]
@@ -487,7 +495,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       it "rejects other values" $ do
         [i|
         version: {}
-        |] `shouldFailWith` "package.yaml: Error while parsing $.version - expected Number or String, but encountered Object"
+        |] `shouldFailWith` (DecodeValueError "package.yaml" "Error while parsing $.version - expected Number or String, but encountered Object")
 
     describe "license" $ do
       it "accepts cabal-style licenses" $ do
@@ -593,7 +601,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
       it "rejects invalid values" $ do
         [i|
         build-type: foo
-        |] `shouldFailWith` "package.yaml: Error while parsing $.build-type - expected one of Simple, Configure, Make, or Custom"
+        |] `shouldFailWith` (DecodeValueError "package.yaml" "Error while parsing $.build-type - expected one of Simple, Configure, Make, or Custom")
 
 
     describe "extra-doc-files" $ do
@@ -1732,13 +1740,13 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               else:
                 dependencies: unix
             executable: {}
-            |] `shouldFailWith` unlines [
-                "package.yaml: Error while parsing $.when - an empty \"then\" section is not allowed, try the following instead:"
-              , ""
-              , "when:"
-              , "  condition: '!(os(windows))'"
-              , "  dependencies: unix"
-              ]
+            |] `shouldFailWith` (DecodeValueError "package.yaml" $ unlines [
+                  "Error while parsing $.when - an empty \"then\" section is not allowed, try the following instead:"
+                , ""
+                , "when:"
+                , "  condition: '!(os(windows))'"
+                , "  dependencies: unix"
+                ])
 
         context "with empty else-branch" $ do
           it "provides a hint" $ do
@@ -1749,13 +1757,13 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 dependencies: Win32
               else: {}
             executable: {}
-            |] `shouldFailWith` unlines [
-                "package.yaml: Error while parsing $.when - an empty \"else\" section is not allowed, try the following instead:"
-              , ""
-              , "when:"
-              , "  condition: os(windows)"
-              , "  dependencies: Win32"
-              ]
+            |] `shouldFailWith` (DecodeValueError "package.yaml" $ unlines [
+                  "Error while parsing $.when - an empty \"else\" section is not allowed, try the following instead:"
+                , ""
+                , "when:"
+                , "  condition: os(windows)"
+                , "  dependencies: Win32"
+                ])
 
         it "rejects invalid conditionals" $ do
           [i|
@@ -1764,14 +1772,14 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             then:
               dependencies: Win32
             else: null
-          |] `shouldFailWith` "package.yaml: Error while parsing $.when.else - expected Object, but encountered Null"
+          |] `shouldFailWith` (DecodeValueError "package.yaml" "Error while parsing $.when.else - expected Object, but encountered Null")
 
         it "rejects invalid conditionals" $ do
           [i|
             dependencies:
               - foo
               - 23
-          |] `shouldFailWith` "package.yaml: Error while parsing $.dependencies[1] - expected Object or String, but encountered Number"
+          |] `shouldFailWith` (DecodeValueError "package.yaml" "Error while parsing $.dependencies[1] - expected Object or String, but encountered Number")
 
         it "warns on unknown fields" $ do
           [i|
@@ -1910,9 +1918,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             |]
 
 run :: HasCallStack => FilePath -> FilePath -> String -> IO ([String], String)
-run userDataDir c old = run_ userDataDir c old >>= either assertFailure return
+run userDataDir c old = run_ userDataDir c old >>= either (assertFailure . renderHpackError hpackProgName) return
 
-run_ :: FilePath -> FilePath -> String -> IO (Either String ([String], String))
+run_ :: FilePath -> FilePath -> String -> IO (Either HpackError ([String], String))
 run_ userDataDir c old = do
   mPackage <- readPackageConfig defaultDecodeOptions {decodeOptionsTarget = c, decodeOptionsUserDataDir = Just userDataDir}
   return $ case mPackage of
@@ -1947,10 +1955,20 @@ shouldWarn input expected = do
   (warnings, _) <- run "" packageConfig ""
   sort warnings `shouldBe` sort expected
 
-shouldFailWith :: HasCallStack => String -> String -> Expectation
+shouldFailWith :: HasCallStack => String -> HpackError -> Expectation
 shouldFailWith input expected = do
   writeFile packageConfig input
-  run_ "" packageConfig "" `shouldReturn` Left expected
+  result <- run_ "" packageConfig ""
+  result `shouldBe` Left expected
+
+shouldFailWith' :: HasCallStack => String -> Selector HpackError -> Expectation
+shouldFailWith' input expected = do
+  writeFile packageConfig input
+  result <- run_ "" packageConfig ""
+  let expected' v = case v of
+        Left e -> expected e
+        Right _ -> False
+  result `shouldSatisfy` expected'
 
 customSetup :: String -> Package
 customSetup a = (package content) {packageCabalVersion = "1.24", packageBuildType = "Custom"}

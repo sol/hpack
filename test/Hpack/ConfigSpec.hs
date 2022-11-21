@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -25,6 +26,7 @@ import           Data.Either
 import qualified Data.Map.Lazy as Map
 import           Control.Monad.Trans.Writer (runWriter)
 
+import           Hpack.Error (HpackError (..))
 import           Hpack.Syntax.Dependencies
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.BuildTools
@@ -67,7 +69,7 @@ withPackage content beforeAction expectation = withTempDirectory $ \dir_ -> do
   writeFile (dir </> "package.yaml") content
   withCurrentDirectory dir beforeAction
   r <- readPackageConfig (testDecodeOptions $ dir </> "package.yaml")
-  either expectationFailure (\ (DecodeResult p _ _ warnings) -> expectation (p, warnings)) r
+  either (expectationFailure . show) (\ (DecodeResult p _ _ warnings) -> expectation (p, warnings)) r
 
 withPackageConfig :: String -> IO () -> (Package -> Expectation) -> Expectation
 withPackageConfig content beforeAction expectation = withPackage content beforeAction (expectation . fst)
@@ -632,7 +634,18 @@ spec = do
             foo: bar
             foo baz
             |]
-          readPackageConfig (testDecodeOptions file) `shouldReturn` Left (file ++ ":3:12: could not find expected ':' while scanning a simple key")
+          let expected v = case v of
+                Left (HpackParseYamlParseException {..}) ->
+                  -- As the yamlIndex appears to vary depending on the operating
+                  -- system, we do not test for it.
+                     yamlFile == file
+                  && yamlLine == 3
+                  && yamlColumn == 12
+                  && yamlProblem == "could not find expected ':'"
+                  && yamlContext == "while scanning a simple key"
+                _ -> False
+          result <- readPackageConfig (testDecodeOptions file)
+          result `shouldSatisfy` expected
 
       context "when package.yaml is invalid" $ do
         it "returns an error" $ \dir -> do
@@ -646,7 +659,8 @@ spec = do
       context "when package.yaml does not exist" $ do
         it "returns an error" $ \dir -> do
           let file = dir </> "package.yaml"
-          readPackageConfig (testDecodeOptions file) `shouldReturn` Left [i|#{file}: Yaml file not found: #{file}|]
+              expected = Left (HpackParseYamlException file [i|Yaml file not found: #{file}|])
+          readPackageConfig (testDecodeOptions file) `shouldReturn` expected
 
   describe "fromValue" $ do
     context "with Cond" $ do

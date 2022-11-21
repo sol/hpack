@@ -24,19 +24,22 @@ import           Data.Yaml.Include
 import           Data.Yaml.Internal (Warning(..))
 import           Data.Aeson.Config.FromValue
 import           Data.Aeson.Config.Parser (fromAesonPath, formatPath)
+import           Hpack.Error (HpackError (..))
 
 formatWarning :: FilePath -> Warning -> String
 formatWarning file = \ case
   DuplicateKey path -> file ++ ": Duplicate field " ++ formatPath (fromAesonPath path)
 
-decodeYaml :: FilePath -> IO (Either String ([String], Value))
+decodeYaml :: FilePath -> IO (Either HpackError ([String], Value))
 decodeYaml file = do
   result <- decodeFileWithWarnings file
-  return $ either (Left . errToString) (Right . first (map $ formatWarning file)) result
-  where
-    errToString err = file ++ case err of
-      AesonException e -> ": " ++ e
-      InvalidYaml (Just (YamlException s)) -> ": " ++ s
-      InvalidYaml (Just (YamlParseException{..})) -> ":" ++ show yamlLine ++ ":" ++ show yamlColumn ++ ": " ++ yamlProblem ++ " " ++ yamlContext
-        where YamlMark{..} = yamlProblemMark
-      _ -> ": " ++ show err
+  return $ either (Left . toHpackError file) (Right . first (map $ formatWarning file)) result
+
+toHpackError :: FilePath -> ParseException -> HpackError
+toHpackError file (AesonException s) = HpackParseAesonException file s
+toHpackError file (InvalidYaml (Just (YamlException s))) = HpackParseYamlException file s
+toHpackError yamlFile (InvalidYaml (Just (YamlParseException{..}))) = HpackParseYamlParseException {..}
+ where
+  YamlMark{..} = yamlProblemMark
+-- All other ParseException values are reduced to their show result
+toHpackError file e = HpackParseOtherException file (show e)

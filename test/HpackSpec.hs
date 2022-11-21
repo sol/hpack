@@ -4,11 +4,13 @@ import           Helper
 
 import           Prelude hiding (readFile)
 import qualified Prelude as Prelude
+import           System.Exit (die)
 
 import           Control.DeepSeq
 
 import           Hpack.Config
 import           Hpack.CabalFile
+import           Hpack.Error (hpackProgName, renderHpackError)
 import           Hpack hiding (hpack)
 
 readFile :: FilePath -> IO String
@@ -55,7 +57,7 @@ spec = do
     let
       file = "foo.cabal"
 
-      hpackWithVersion v = hpackResultWithVersion (makeVersion v) defaultOptions
+      hpackWithVersion v = hpackResultWithVersion (makeVersion v) defaultOptions >>= either (die . renderHpackError hpackProgName) return
       hpackWithStrategy strategy = hpackResult defaultOptions { optionsGenerateHashStrategy = strategy }
       hpackForce = hpackResult defaultOptions {optionsForce = Force}
 

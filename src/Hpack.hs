@@ -20,13 +20,13 @@ module Hpack (
 -- * Running Hpack
 , hpack
 , hpackResult
+, hpackResultWithError
 , printResult
 , Result(..)
 , Status(..)
 
 -- * Options
 , defaultOptions
-, setProgramName
 , setTarget
 , setDecode
 , getOptions
@@ -56,14 +56,15 @@ import           Data.Maybe
 import           Paths_hpack (version)
 import           Hpack.Options
 import           Hpack.Config
+import           Hpack.Error (HpackError, renderHpackError, hpackProgName)
 import           Hpack.Render
 import           Hpack.Util
 import           Hpack.Utf8 as Utf8
 import           Hpack.CabalFile
 
 programVersion :: Maybe Version -> String
-programVersion Nothing = "hpack"
-programVersion (Just v) = "hpack version " ++ Version.showVersion v
+programVersion Nothing = unProgramName hpackProgName
+programVersion (Just v) = unProgramName hpackProgName ++ " version " ++ Version.showVersion v
 
 header :: FilePath -> Maybe Version -> (Maybe Hash) -> [String]
 header p v hash = [
@@ -127,11 +128,7 @@ setTarget :: FilePath -> Options -> Options
 setTarget target options@Options{..} =
   options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsTarget = target}}
 
-setProgramName :: ProgramName -> Options -> Options
-setProgramName name options@Options{..} =
-  options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsProgramName = name}}
-
-setDecode :: (FilePath -> IO (Either String ([String], Value))) -> Options -> Options
+setDecode :: (FilePath -> IO (Either HpackError ([String], Value))) -> Options -> Options
 setDecode decode options@Options{..} =
   options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsDecode = decode}}
 
@@ -188,28 +185,34 @@ calculateHash :: CabalFile -> Hash
 calculateHash (CabalFile cabalVersion _ _ body) = sha256 (unlines $ cabalVersion ++ body)
 
 hpackResult :: Options -> IO Result
-hpackResult = hpackResultWithVersion version
+hpackResult opts = hpackResultWithError opts >>= either (die . renderHpackError hpackProgName) return
 
-hpackResultWithVersion :: Version -> Options -> IO Result
+hpackResultWithError :: Options -> IO (Either HpackError Result)
+hpackResultWithError = hpackResultWithVersion version
+
+hpackResultWithVersion :: Version -> Options -> IO (Either HpackError Result)
 hpackResultWithVersion v (Options options force generateHashStrategy toStdout) = do
-  DecodeResult pkg (lines -> cabalVersion) cabalFileName warnings <- readPackageConfig options >>= either die return
-  mExistingCabalFile <- readCabalFile cabalFileName
-  let
-    newCabalFile = makeCabalFile generateHashStrategy mExistingCabalFile cabalVersion v pkg
+  eres <- readPackageConfig options
+  case eres of
+    Right (DecodeResult pkg (lines -> cabalVersion) cabalFileName warnings) -> do
+      mExistingCabalFile <- readCabalFile cabalFileName
+      let
+        newCabalFile = makeCabalFile generateHashStrategy mExistingCabalFile cabalVersion v pkg
 
-    status = case force of
-      Force -> Generated
-      NoForce -> maybe Generated (mkStatus newCabalFile) mExistingCabalFile
+        status = case force of
+          Force -> Generated
+          NoForce -> maybe Generated (mkStatus newCabalFile) mExistingCabalFile
 
-  case status of
-    Generated -> writeCabalFile options toStdout cabalFileName newCabalFile
-    _ -> return ()
+      case status of
+        Generated -> writeCabalFile options toStdout cabalFileName newCabalFile
+        _ -> return ()
 
-  return Result {
-    resultWarnings = warnings
-  , resultCabalFile = cabalFileName
-  , resultStatus = status
-  }
+      return $ Right $ Result {
+        resultWarnings = warnings
+      , resultCabalFile = cabalFileName
+      , resultStatus = status
+      }
+    Left e -> return $ Left e
 
 writeCabalFile :: DecodeOptions -> Bool -> FilePath -> CabalFile -> IO ()
 writeCabalFile options toStdout name cabalFile = do
