@@ -32,6 +32,35 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 
 ## Examples
 
+The following `package.yaml` describes a project with a library under `src`, an executable under `app/Main.hs` and tests under `test/Main.hs`:
+
+```yaml
+name: mylib
+
+dependencies:
+  - base >= 4.9 && < 5
+
+library:
+  source-dirs: src
+
+executable:
+  main: Main.hs
+  source-dirs: app
+  dependencies:
+    - mylib
+
+tests:
+  spec:
+    main: Main.hs
+    source-dirs:
+      - test
+      - src
+    dependencies:
+      - QuickCheck
+```
+
+### More examples
+
  * Given this [package.yaml](https://github.com/sol/hpack/blob/master/package.yaml) running `hpack` will generate [hpack.cabal](https://github.com/sol/hpack/blob/master/hpack.cabal)
  * Given this [package.yaml](https://github.com/zalora/getopt-generics/blob/master/package.yaml) running `hpack` will generate [getopt-generics.cabal](https://github.com/zalora/getopt-generics/blob/master/getopt-generics.cabal)
  * Given this [package.yaml](https://github.com/hspec/sensei/blob/master/package.yaml) running `hpack` will generate [sensei.cabal](https://github.com/hspec/sensei/blob/master/sensei.cabal)
