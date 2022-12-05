@@ -633,9 +633,12 @@ instance FromValue ParsePackageConfig
 type Warnings m = WriterT [String] m
 type Errors = ExceptT String
 
+liftEither :: IO (Either String a) -> Warnings (Errors IO) a
+liftEither = lift . ExceptT
+
 decodeYaml :: FromValue a => ProgramName -> FilePath -> Warnings (Errors IO) a
 decodeYaml programName file = do
-  (warnings, a) <- lift (ExceptT $ Yaml.decodeYaml file)
+  (warnings, a) <- liftEither $ Yaml.decodeYaml file
   tell warnings
   decodeValue programName file a
 
@@ -664,7 +667,7 @@ data DecodeResult = DecodeResult {
 
 readPackageConfig :: DecodeOptions -> IO (Either String DecodeResult)
 readPackageConfig (DecodeOptions programName file mUserDataDir readValue) = runExceptT $ fmap addCabalFile . runWriterT $ do
-  (warnings, value) <- lift . ExceptT $ readValue file
+  (warnings, value) <- liftEither $ readValue file
   tell warnings
   config <- decodeValue programName file value
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
@@ -892,7 +895,7 @@ sectionAll f sect = f sect <> foldMap (foldMap $ sectionAll f) (sectionCondition
 
 decodeValue :: FromValue a => ProgramName -> FilePath -> Value -> Warnings (Errors IO) a
 decodeValue (ProgramName programName) file value = do
-  (r, unknown, deprecated) <- lift . ExceptT . return $ first (prefix ++) (Config.decodeValue value)
+  (r, unknown, deprecated) <- liftEither . return $ first (prefix ++) (Config.decodeValue value)
   case r of
     UnsupportedSpecVersion v -> do
       lift $ throwE ("The file " ++ file ++ " requires version " ++ showVersion v ++ " of the Hpack package specification, however this version of " ++ programName ++ " only supports versions up to " ++ showVersion Hpack.version ++ ". Upgrading to the latest version of " ++ programName ++ " may resolve this issue.")
@@ -1123,7 +1126,7 @@ expandDefaults programName userDataDir = expand []
       -> Defaults
       -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
     get seen dir defaults = do
-      file <- lift $ ExceptT (ensure userDataDir dir defaults)
+      file <- liftEither (ensure userDataDir dir defaults)
       seen_ <- lift (checkCycle seen file)
       let dir_ = takeDirectory file
       decodeYaml programName file >>= expand seen_ dir_
