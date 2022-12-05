@@ -41,6 +41,7 @@ library:
     - Hpack.Config
     - Hpack.Render
     - Hpack.Yaml
+    - Hpack.Error
 
 executable:
   main: Main.hs

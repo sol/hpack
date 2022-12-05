@@ -33,6 +33,7 @@ module Hpack.Config (
 , packageConfig
 , DecodeResult(..)
 , readPackageConfig
+, readPackageConfigWithError
 
 , renamePackage
 , packageDependencies
@@ -112,6 +113,7 @@ import           Data.Aeson.Config.Types
 import           Data.Aeson.Config.FromValue hiding (decodeValue)
 import qualified Data.Aeson.Config.FromValue as Config
 
+import           Hpack.Error
 import           Hpack.Syntax.Defaults
 import           Hpack.Util hiding (expandGlobs)
 import qualified Hpack.Util as Util
@@ -631,14 +633,16 @@ type ParsePackageConfig = PackageConfigWithDefaults ParseCSources ParseCxxSource
 instance FromValue ParsePackageConfig
 
 type Warnings m = WriterT [String] m
-type Errors = ExceptT (ProgramName -> String)
+type Errors = ExceptT HpackError
 
-liftEither :: IO (Either String a) -> Warnings (Errors IO) a
-liftEither = lift . ExceptT . fmap (first const)
+liftEither :: IO (Either HpackError a) -> Warnings (Errors IO) a
+liftEither = lift . ExceptT
 
-decodeYaml :: FromValue a => FilePath -> Warnings (Errors IO) a
-decodeYaml file = do
-  (warnings, a) <- liftEither $ Yaml.decodeYaml file
+type FormatYamlParseError = FilePath -> Yaml.ParseException -> String
+
+decodeYaml :: FromValue a => FormatYamlParseError -> FilePath -> Warnings (Errors IO) a
+decodeYaml formatYamlParseError file = do
+  (warnings, a) <- liftEither $ first (ParseError . formatYamlParseError file) <$> Yaml.decodeYamlWithParseError file
   tell warnings
   decodeValue file a
 
@@ -647,16 +651,11 @@ data DecodeOptions = DecodeOptions {
 , decodeOptionsTarget :: FilePath
 , decodeOptionsUserDataDir :: Maybe FilePath
 , decodeOptionsDecode :: FilePath -> IO (Either String ([String], Value))
+, decodeOptionsFormatYamlParseError :: FilePath -> Yaml.ParseException -> String
 }
 
-newtype ProgramName = ProgramName String
-  deriving (Eq, Show)
-
-instance IsString ProgramName where
-  fromString = ProgramName
-
 defaultDecodeOptions :: DecodeOptions
-defaultDecodeOptions = DecodeOptions "hpack" packageConfig Nothing Yaml.decodeYaml
+defaultDecodeOptions = DecodeOptions "hpack" packageConfig Nothing Yaml.decodeYaml Yaml.formatYamlParseError
 
 data DecodeResult = DecodeResult {
   decodeResultPackage :: Package
@@ -666,13 +665,16 @@ data DecodeResult = DecodeResult {
 } deriving (Eq, Show)
 
 readPackageConfig :: DecodeOptions -> IO (Either String DecodeResult)
-readPackageConfig (DecodeOptions programName file mUserDataDir readValue) = fmap (first ($ programName)) . runExceptT $ fmap addCabalFile . runWriterT $ do
-  (warnings, value) <- liftEither $ readValue file
+readPackageConfig options = first (formatHpackError $ decodeOptionsProgramName options) <$> readPackageConfigWithError options
+
+readPackageConfigWithError :: DecodeOptions -> IO (Either HpackError DecodeResult)
+readPackageConfigWithError (DecodeOptions _ file mUserDataDir readValue formatYamlParseError) = runExceptT $ fmap addCabalFile . runWriterT $ do
+  (warnings, value) <- liftEither $ first ParseError <$> readValue file
   tell warnings
   config <- decodeValue file value
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
   userDataDir <- liftIO $ maybe (getAppUserDataDirectory "hpack") return mUserDataDir
-  toPackage userDataDir dir config
+  toPackage formatYamlParseError userDataDir dir config
   where
     addCabalFile :: ((Package, String), [String]) -> DecodeResult
     addCabalFile ((pkg, cabalVersion), warnings) = DecodeResult pkg cabalVersion (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
@@ -895,10 +897,10 @@ sectionAll f sect = f sect <> foldMap (foldMap $ sectionAll f) (sectionCondition
 
 decodeValue :: FromValue a => FilePath -> Value -> Warnings (Errors IO) a
 decodeValue file value = do
-  (r, unknown, deprecated) <- liftEither . return $ first (prefix ++) (Config.decodeValue value)
+  (r, unknown, deprecated) <- liftEither . return $ first (DecodeValueError file) (Config.decodeValue value)
   case r of
     UnsupportedSpecVersion v -> do
-      lift $ throwE $ \ (ProgramName programName) -> "The file " ++ file ++ " requires version " ++ showVersion v ++ " of the Hpack package specification, however this version of " ++ programName ++ " only supports versions up to " ++ showVersion Hpack.version ++ ". Upgrading to the latest version of " ++ programName ++ " may resolve this issue."
+      lift . throwE $ HpackVersionNotSupported file v Hpack.version
     SupportedSpecVersion a -> do
       tell (map formatUnknownField unknown)
       tell (map formatDeprecatedField deprecated)
@@ -1052,9 +1054,9 @@ type ConfigWithDefaults = Product
 type CommonOptionsWithDefaults a = Product DefaultsConfig (CommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 type WithCommonOptionsWithDefaults a = Product DefaultsConfig (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 
-toPackage :: FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) (Package, String)
-toPackage userDataDir dir =
-      expandDefaultsInConfig userDataDir dir
+toPackage :: FormatYamlParseError -> FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) (Package, String)
+toPackage formatYamlParseError userDataDir dir =
+      expandDefaultsInConfig formatYamlParseError userDataDir dir
   >=> setDefaultLanguage "Haskell2010"
   >>> traverseConfig (expandForeignSources dir)
   >=> toPackage_ dir
@@ -1064,32 +1066,35 @@ toPackage userDataDir dir =
         setLanguage = (mempty { commonOptionsLanguage = Alias . Last $ Just (Just language) } <>)
 
 expandDefaultsInConfig
-  :: FilePath
+  :: FormatYamlParseError
+  -> FilePath
   -> FilePath
   -> ConfigWithDefaults
   -> Warnings (Errors IO) (Config ParseCSources ParseCxxSources ParseJsSources)
-expandDefaultsInConfig userDataDir dir = bitraverse (expandGlobalDefaults userDataDir dir) (expandSectionDefaults userDataDir dir)
+expandDefaultsInConfig formatYamlParseError userDataDir dir = bitraverse (expandGlobalDefaults formatYamlParseError userDataDir dir) (expandSectionDefaults formatYamlParseError userDataDir dir)
 
 expandGlobalDefaults
-  :: FilePath
+  :: FormatYamlParseError
+  -> FilePath
   -> FilePath
   -> CommonOptionsWithDefaults Empty
   -> Warnings (Errors IO) (CommonOptions ParseCSources ParseCxxSources ParseJsSources Empty)
-expandGlobalDefaults userDataDir dir = do
-  fmap (`Product` Empty) >>> expandDefaults userDataDir dir >=> \ (Product c Empty) -> return c
+expandGlobalDefaults formatYamlParseError userDataDir dir = do
+  fmap (`Product` Empty) >>> expandDefaults formatYamlParseError userDataDir dir >=> \ (Product c Empty) -> return c
 
 expandSectionDefaults
-  :: FilePath
+  :: FormatYamlParseError
+  -> FilePath
   -> FilePath
   -> PackageConfigWithDefaults ParseCSources ParseCxxSources ParseJsSources
   -> Warnings (Errors IO) (PackageConfig ParseCSources ParseCxxSources ParseJsSources)
-expandSectionDefaults userDataDir dir p@PackageConfig{..} = do
-  library <- traverse (expandDefaults userDataDir dir) packageConfigLibrary
-  internalLibraries <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigInternalLibraries
-  executable <- traverse (expandDefaults userDataDir dir) packageConfigExecutable
-  executables <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigExecutables
-  tests <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigTests
-  benchmarks <- traverse (traverse (expandDefaults userDataDir dir)) packageConfigBenchmarks
+expandSectionDefaults formatYamlParseError userDataDir dir p@PackageConfig{..} = do
+  library <- traverse (expandDefaults formatYamlParseError userDataDir dir) packageConfigLibrary
+  internalLibraries <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigInternalLibraries
+  executable <- traverse (expandDefaults formatYamlParseError userDataDir dir) packageConfigExecutable
+  executables <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigExecutables
+  tests <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigTests
+  benchmarks <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigBenchmarks
   return p{
       packageConfigLibrary = library
     , packageConfigInternalLibraries = internalLibraries
@@ -1101,11 +1106,12 @@ expandSectionDefaults userDataDir dir p@PackageConfig{..} = do
 
 expandDefaults
   :: (FromValue a, Semigroup a, Monoid a)
-  => FilePath
+  => FormatYamlParseError
+  -> FilePath
   -> FilePath
   -> WithCommonOptionsWithDefaults a
   -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
-expandDefaults userDataDir = expand []
+expandDefaults formatYamlParseError userDataDir = expand []
   where
     expand :: (FromValue a, Semigroup a, Monoid a) =>
          [FilePath]
@@ -1125,14 +1131,14 @@ expandDefaults userDataDir = expand []
       file <- liftEither (ensure userDataDir dir defaults)
       seen_ <- lift (checkCycle seen file)
       let dir_ = takeDirectory file
-      decodeYaml file >>= expand seen_ dir_
+      decodeYaml formatYamlParseError file >>= expand seen_ dir_
 
     checkCycle :: [FilePath] -> FilePath -> Errors IO [FilePath]
     checkCycle seen file = do
       canonic <- liftIO $ canonicalizePath file
       let seen_ = canonic : seen
       when (canonic `elem` seen) $ do
-        throwE . const $ "cycle in defaults (" ++ intercalate " -> " (reverse seen_) ++ ")"
+        throwE $ CycleInDefaults (reverse seen_)
       return seen_
 
 toExecutableMap :: Monad m => String -> Maybe (Map String a) -> Maybe a -> Warnings m (Maybe (Map String a))
