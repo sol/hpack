@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.7.
+-- This file has been generated from package.yaml by hpack version 0.35.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -54,6 +54,7 @@ library
       Hpack.Config
       Hpack.Render
       Hpack.Yaml
+      Hpack.Error
   other-modules:
       Data.Aeson.Config.FromValue
       Data.Aeson.Config.Key
@@ -188,6 +189,7 @@ test-suite spec
       Hpack.CabalFile
       Hpack.Config
       Hpack.Defaults
+      Hpack.Error
       Hpack.Haskell
       Hpack.License
       Hpack.Module

@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
 module Hpack (
 -- | /__NOTE:__/ This module is exposed to allow integration of Hpack into
 -- other tools.  It is not meant for general use by end users.  The following
@@ -20,6 +21,7 @@ module Hpack (
 -- * Running Hpack
 , hpack
 , hpackResult
+, hpackResultWithError
 , printResult
 , Result(..)
 , Status(..)
@@ -29,6 +31,7 @@ module Hpack (
 , setProgramName
 , setTarget
 , setDecode
+, setFormatYamlParseError
 , getOptions
 , Verbose(..)
 , Options(..)
@@ -56,10 +59,12 @@ import           Data.Maybe
 import           Paths_hpack (version)
 import           Hpack.Options
 import           Hpack.Config
+import           Hpack.Error (HpackError, formatHpackError)
 import           Hpack.Render
 import           Hpack.Util
 import           Hpack.Utf8 as Utf8
 import           Hpack.CabalFile
+import qualified Data.Yaml as Yaml
 
 programVersion :: Maybe Version -> String
 programVersion Nothing = "hpack"
@@ -135,6 +140,41 @@ setDecode :: (FilePath -> IO (Either String ([String], Value))) -> Options -> Op
 setDecode decode options@Options{..} =
   options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsDecode = decode}}
 
+-- | This is used to format any `Yaml.ParseException`s encountered during
+-- decoding of <https://github.com/sol/hpack#defaults defaults>.
+--
+-- Note that:
+--
+-- 1. This is not used to format `Yaml.ParseException`s encountered during
+-- decoding of the main @package.yaml@.  To customize this you have to set a
+-- custom decode function.
+--
+-- 2. Some of the constructors of `Yaml.ParseException` are never produced by
+-- Hpack (e.g. `Yaml.AesonException` as Hpack uses it's own mechanism to decode
+-- `Yaml.Value`s).
+--
+-- Example:
+--
+-- @
+-- example :: IO (Either `HpackError` `Result`)
+-- example = `hpackResultWithError` options
+--   where
+--     options :: `Options`
+--     options = setCustomYamlParseErrorFormat format `defaultOptions`
+--
+--     format :: FilePath -> `Yaml.ParseException` -> String
+--     format file err = file ++ ": " ++ displayException err
+--
+-- setCustomYamlParseErrorFormat :: (FilePath -> `Yaml.ParseException` -> String) -> `Options` -> `Options`
+-- setCustomYamlParseErrorFormat format = `setDecode` decode >>> `setFormatYamlParseError` format
+--   where
+--     decode :: FilePath -> IO (Either String ([String], Value))
+--     decode file = first (format file) \<$> `Hpack.Yaml.decodeYamlWithParseError` file
+-- @
+setFormatYamlParseError :: (FilePath -> Yaml.ParseException -> String) -> Options -> Options
+setFormatYamlParseError formatYamlParseError options@Options{..} =
+  options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsFormatYamlParseError = formatYamlParseError}}
+
 data Result = Result {
   resultWarnings :: [String]
 , resultCabalFile :: String
@@ -188,28 +228,35 @@ calculateHash :: CabalFile -> Hash
 calculateHash (CabalFile cabalVersion _ _ body) = sha256 (unlines $ cabalVersion ++ body)
 
 hpackResult :: Options -> IO Result
-hpackResult = hpackResultWithVersion version
+hpackResult opts = hpackResultWithError opts >>= either (die . formatHpackError programName) return
+  where
+    programName = decodeOptionsProgramName (optionsDecodeOptions opts)
 
-hpackResultWithVersion :: Version -> Options -> IO Result
+hpackResultWithError :: Options -> IO (Either HpackError Result)
+hpackResultWithError = hpackResultWithVersion version
+
+hpackResultWithVersion :: Version -> Options -> IO (Either HpackError Result)
 hpackResultWithVersion v (Options options force generateHashStrategy toStdout) = do
-  DecodeResult pkg (lines -> cabalVersion) cabalFileName warnings <- readPackageConfig options >>= either die return
-  mExistingCabalFile <- readCabalFile cabalFileName
-  let
-    newCabalFile = makeCabalFile generateHashStrategy mExistingCabalFile cabalVersion v pkg
+  readPackageConfigWithError options >>= \ case
+    Right (DecodeResult pkg (lines -> cabalVersion) cabalFileName warnings) -> do
+      mExistingCabalFile <- readCabalFile cabalFileName
+      let
+        newCabalFile = makeCabalFile generateHashStrategy mExistingCabalFile cabalVersion v pkg
 
-    status = case force of
-      Force -> Generated
-      NoForce -> maybe Generated (mkStatus newCabalFile) mExistingCabalFile
+        status = case force of
+          Force -> Generated
+          NoForce -> maybe Generated (mkStatus newCabalFile) mExistingCabalFile
 
-  case status of
-    Generated -> writeCabalFile options toStdout cabalFileName newCabalFile
-    _ -> return ()
+      case status of
+        Generated -> writeCabalFile options toStdout cabalFileName newCabalFile
+        _ -> return ()
 
-  return Result {
-    resultWarnings = warnings
-  , resultCabalFile = cabalFileName
-  , resultStatus = status
-  }
+      return $ Right Result {
+        resultWarnings = warnings
+      , resultCabalFile = cabalFileName
+      , resultStatus = status
+      }
+    Left err -> return $ Left err
 
 writeCabalFile :: DecodeOptions -> Bool -> FilePath -> CabalFile -> IO ()
 writeCabalFile options toStdout name cabalFile = do
