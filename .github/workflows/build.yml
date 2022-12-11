@@ -42,16 +42,14 @@ jobs:
       - uses: hspec/setup-haskell@v1
         with:
           ghc-version: ${{ matrix.ghc }}
+        id: setup-haskell
 
       - run: cabal update
-      - run: echo "::set-output name=version::`ghc --numeric-version`"
-        shell: bash
-        id: ghc
       - uses: actions/cache@v3
         with:
           path: ${{ runner.os == 'Windows' && 'C:/cabal/store' || '~/.cabal/store' }}
-          key: ${{ runner.os }}-v2-${{ steps.ghc.outputs.version }}-${{ github.run_id }}
-          restore-keys: ${{ runner.os }}-v2-${{ steps.ghc.outputs.version }}-
+          key: ${{ runner.os }}-v2-${{ steps.setup-haskell.outputs.ghc-version }}-${{ github.run_id }}
+          restore-keys: ${{ runner.os }}-v2-${{ steps.setup-haskell.outputs.ghc-version }}-
 
       - uses: sol/run-haskell-tests@v1
 
