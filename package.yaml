@@ -7,6 +7,7 @@ github: sol/hpack
 category: Development
 extra-source-files:
   - CHANGELOG.md
+  - resources/**/*
 
 ghc-options: -Wall -fno-warn-incomplete-uni-patterns
 

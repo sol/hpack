@@ -50,8 +50,8 @@ spec = do
 
   describe "renderCabalFile" $ do
     it "is inverse to readCabalFile" $ do
-      expected <- lines <$> readFile "hpack.cabal"
-      Just c <- readCabalFile "hpack.cabal"
+      expected <- lines <$> readFile "resources/test/hpack.cabal"
+      Just c <- readCabalFile "resources/test/hpack.cabal"
       renderCabalFile "package.yaml" c `shouldBe` expected
 
   describe "hpackResult" $ around_ inTempDirectory $ before_ (writeFile packageConfig "name: foo") $ do
