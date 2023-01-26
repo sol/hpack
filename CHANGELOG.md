@@ -1,3 +1,6 @@
+## Changes in 0.35.2
+  - Add support for `ghc-shared-options`
+
 ## Changes in 0.35.1
   - Allow `Cabal-3.8.*`
   - Additions to internal API
