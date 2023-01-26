@@ -222,6 +222,7 @@ values are merged with per section values.
 | `other-extensions` | · | | |
 | `ghc-options` | · | | |
 | `ghc-prof-options` | · | | |
+| `ghc-shared-options` | · | | |
 | `ghcjs-options` | · | | |
 | `cpp-options` | · | | |
 | `cc-options` | · | | |

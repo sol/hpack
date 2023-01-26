@@ -190,7 +190,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, info) | (name, info) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] Nothing [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
+section a = Section a [] mempty [] [] [] Nothing [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -279,6 +279,7 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsLanguage :: Alias 'True "default-language" (Last (Maybe Language))
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
+, commonOptionsGhcSharedOptions :: Maybe (List GhcOption)
 , commonOptionsGhcjsOptions :: Maybe (List GhcjsOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
 , commonOptionsCcOptions :: Maybe (List CcOption)
@@ -313,6 +314,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid 
   , commonOptionsLanguage = mempty
   , commonOptionsGhcOptions = Nothing
   , commonOptionsGhcProfOptions = Nothing
+  , commonOptionsGhcSharedOptions = Nothing
   , commonOptionsGhcjsOptions = Nothing
   , commonOptionsCppOptions = Nothing
   , commonOptionsCcOptions = Nothing
@@ -345,6 +347,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semi
   , commonOptionsLanguage = commonOptionsLanguage a <> commonOptionsLanguage b
   , commonOptionsGhcOptions = commonOptionsGhcOptions a <> commonOptionsGhcOptions b
   , commonOptionsGhcProfOptions = commonOptionsGhcProfOptions a <> commonOptionsGhcProfOptions b
+  , commonOptionsGhcSharedOptions = commonOptionsGhcSharedOptions a <> commonOptionsGhcSharedOptions b
   , commonOptionsGhcjsOptions = commonOptionsGhcjsOptions a <> commonOptionsGhcjsOptions b
   , commonOptionsCppOptions = commonOptionsCppOptions a <> commonOptionsCppOptions b
   , commonOptionsCcOptions = commonOptionsCcOptions a <> commonOptionsCcOptions b
@@ -993,6 +996,7 @@ data Section a = Section {
 , sectionLanguage :: Maybe Language
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
+, sectionGhcSharedOptions :: [GhcOption]
 , sectionGhcjsOptions :: [GhcjsOption]
 , sectionCppOptions :: [CppOption]
 , sectionCcOptions :: [CcOption]
@@ -1468,11 +1472,14 @@ toSection packageName_ executableNames = go
       return Section {
         sectionData = a
       , sectionSourceDirs = nub $ fromMaybeList (unAlias commonOptionsSourceDirs)
+      , sectionDependencies = fromMaybe mempty (unAlias commonOptionsDependencies)
+      , sectionPkgConfigDependencies = fromMaybeList (unAlias commonOptionsPkgConfigDependencies)
       , sectionDefaultExtensions = fromMaybeList commonOptionsDefaultExtensions
       , sectionOtherExtensions = fromMaybeList commonOptionsOtherExtensions
       , sectionLanguage = join . getLast $ unAlias commonOptionsLanguage
       , sectionGhcOptions = fromMaybeList commonOptionsGhcOptions
       , sectionGhcProfOptions = fromMaybeList commonOptionsGhcProfOptions
+      , sectionGhcSharedOptions = fromMaybeList commonOptionsGhcSharedOptions
       , sectionGhcjsOptions = fromMaybeList commonOptionsGhcjsOptions
       , sectionCppOptions = fromMaybeList commonOptionsCppOptions
       , sectionCcOptions = fromMaybeList commonOptionsCcOptions
@@ -1488,8 +1495,6 @@ toSection packageName_ executableNames = go
       , sectionInstallIncludes = fromMaybeList commonOptionsInstallIncludes
       , sectionLdOptions = fromMaybeList commonOptionsLdOptions
       , sectionBuildable = getLast commonOptionsBuildable
-      , sectionDependencies = fromMaybe mempty (unAlias commonOptionsDependencies)
-      , sectionPkgConfigDependencies = fromMaybeList (unAlias commonOptionsPkgConfigDependencies)
       , sectionConditionals = conditionals
       , sectionBuildTools = buildTools
       , sectionSystemBuildTools = systemBuildTools <> fromMaybe mempty commonOptionsSystemBuildTools
@@ -1505,7 +1510,7 @@ toSection packageName_ executableNames = go
 
     toConditional :: Monad m => ConditionalSection CSources CxxSources JsSources a -> Warnings m (Conditional (Section a))
     toConditional x = case x of
-      ThenElseConditional (Product (ThenElse then_ else_) c) -> conditional c <$> (go then_) <*> (Just <$> go else_)
+      ThenElseConditional (Product (ThenElse then_ else_) c) -> conditional c <$> go then_ <*> (Just <$> go else_)
       FlatConditional (Product sect c) -> conditional c <$> (go sect) <*> pure Nothing
       where
         conditional = Conditional . conditionCondition

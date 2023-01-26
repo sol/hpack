@@ -231,6 +231,7 @@ renderSection renderSectionData extraFieldsStart Section{..} = addVerbatim secti
   , renderOtherExtensions sectionOtherExtensions
   , renderGhcOptions sectionGhcOptions
   , renderGhcProfOptions sectionGhcProfOptions
+  , renderGhcSharedOptions sectionGhcSharedOptions
   , renderGhcjsOptions sectionGhcjsOptions
   , renderCppOptions sectionCppOptions
   , renderCcOptions sectionCcOptions
@@ -381,6 +382,9 @@ renderGhcOptions = Field "ghc-options" . WordList
 
 renderGhcProfOptions :: [GhcProfOption] -> Element
 renderGhcProfOptions = Field "ghc-prof-options" . WordList
+
+renderGhcSharedOptions :: [GhcOption] -> Element
+renderGhcSharedOptions = Field "ghc-shared-options" . WordList
 
 renderGhcjsOptions :: [GhcjsOption] -> Element
 renderGhcjsOptions = Field "ghcjs-options" . WordList

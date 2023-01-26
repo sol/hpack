@@ -881,6 +881,15 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             bar.h
         |]
 
+    describe "ghc-shared-options" $ do
+      it "accepts ghc-shared-options" $ do
+        [i|
+        ghc-shared-options: -Wall
+        executable: {}
+        |] `shouldRenderTo` executable_ "foo" [i|
+        ghc-shared-options: -Wall
+        |]
+
     describe "js-sources" $ before_ (touch "foo.js" >> touch "jsbits/bar.js") $ do
       it "accepts js-sources" $ do
         [i|
@@ -2034,7 +2043,7 @@ indentBy n = unlines . map (replicate n ' ' ++) . lines
 
 license :: String
 license = [i|
-Copyright (c) 2014-2018 Simon Hengel <sol@typeful.net>
+Copyright (c) 2014-2023 Simon Hengel <sol@typeful.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
