@@ -12,19 +12,19 @@ extra-source-files:
 ghc-options: -Wall -fno-warn-incomplete-uni-patterns
 
 dependencies:
-  - base >= 4.9 && < 5
+  - base
   - bytestring
   - deepseq
-  - directory >= 1.2.5.0
+  - directory
   - filepath
-  - Glob >= 0.9.0
+  - Glob
   - text
   - containers
   - unordered-containers
-  - yaml >= 0.10.0
-  - aeson >= 1.4.3.0
+  - yaml
+  - aeson
   - scientific
-  - Cabal >= 3.0.0.0 && < 3.9
+  - Cabal
   - pretty
   - bifunctors
   - cryptonite
@@ -33,7 +33,7 @@ dependencies:
   - http-client
   - http-client-tls
   - vector
-  - infer-license >= 0.2.0 && < 0.3
+  - infer-license
 
 library:
   source-dirs: src
@@ -58,11 +58,11 @@ tests:
       - test
       - src
     dependencies:
-      - hspec == 2.*
+      - hspec
       - QuickCheck
       - temporary
-      - mockery >= 0.3
+      - mockery 
       - interpolate
       - template-haskell
-      - HUnit >= 1.6.0.0
+      - HUnit
     build-tools: hspec-discover
