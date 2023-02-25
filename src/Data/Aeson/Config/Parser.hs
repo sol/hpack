@@ -47,7 +47,11 @@ import qualified Data.Aeson.Config.Key as Key
 import qualified Data.Aeson.Config.KeyMap as KeyMap
 import           Data.Aeson.Types (Value(..), Object, Array)
 import qualified Data.Aeson.Types as Aeson
+#if MIN_VERSION_aeson(2,1,0)
+import           Data.Aeson.Types (IResult(..), iparse)
+#else
 import           Data.Aeson.Internal (IResult(..), iparse)
+#endif
 #if !MIN_VERSION_aeson(1,4,5)
 import qualified Data.Aeson.Internal as Aeson
 #endif
