@@ -603,10 +603,14 @@ data GitHub = GitHub {
 instance FromValue GitHub where
   fromValue v = do
     input <- fromValue v
+    let errmsg = "expected owner/repo or owner/repo/subdir, but encountered " ++ show input
     case map T.unpack $ T.splitOn "/" input of
-      [owner, repo, subdir] -> return $ GitHub owner repo (Just subdir)
+      [] -> fail errmsg
+      [_] -> fail errmsg
+      ("http:" : _) -> fail errmsg
+      ("https:" : _) -> fail errmsg
       [owner, repo] -> return $ GitHub owner repo Nothing
-      _ -> fail $ "expected owner/repo or owner/repo/subdir, but encountered " ++ show input
+      (owner : repo : subdirs@(_:_)) -> return $ GitHub owner repo (Just (intercalate "/" subdirs))
 
 data DefaultsConfig = DefaultsConfig {
   defaultsConfigDefaults :: Maybe (List Defaults)
