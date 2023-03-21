@@ -24,7 +24,7 @@ dependencies:
   - yaml >= 0.10.0
   - aeson >= 1.4.3.0
   - scientific
-  - Cabal >= 3.0.0.0 && < 3.9
+  - Cabal >= 3.0.0.0 && < 3.11
   - pretty
   - bifunctors
   - cryptonite
@@ -34,6 +34,11 @@ dependencies:
   - http-client-tls
   - vector
   - infer-license >= 0.2.0 && < 0.3
+
+# See https://github.com/haskell/network/pull/552.
+when:
+  condition: impl(ghc >= 9.4.5) && os(windows)
+  dependencies: network >= 3.1.2.9
 
 library:
   source-dirs: src
