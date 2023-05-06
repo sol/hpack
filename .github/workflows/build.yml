@@ -32,6 +32,7 @@ jobs:
           - '9.0'
           - '9.2'
           - '9.4'
+          - '9.6'
         include:
           - os: macos-latest
             ghc: system
@@ -47,9 +48,9 @@ jobs:
       - run: cabal update
       - uses: actions/cache@v3
         with:
-          path: ${{ runner.os == 'Windows' && 'C:/cabal/store' || '~/.cabal/store' }}
-          key: ${{ runner.os }}-v2-${{ steps.setup-haskell.outputs.ghc-version }}-${{ github.run_id }}
-          restore-keys: ${{ runner.os }}-v2-${{ steps.setup-haskell.outputs.ghc-version }}-
+          path: ${{ runner.os == 'Windows' && 'C:/cabal/store/' || runner.os == 'macOS' && '~/.cabal/store/' || '~/.local/state/cabal/store/' }}
+          key: ${{ runner.os }}-${{ steps.setup-haskell.outputs.ghc-version }}-${{ github.run_id }}
+          restore-keys: ${{ runner.os }}-${{ steps.setup-haskell.outputs.ghc-version }}-
 
       - uses: sol/run-haskell-tests@v1
 
