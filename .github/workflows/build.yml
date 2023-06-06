@@ -52,7 +52,8 @@ jobs:
           key: ${{ runner.os }}-${{ steps.setup-haskell.outputs.ghc-version }}-${{ github.run_id }}
           restore-keys: ${{ runner.os }}-${{ steps.setup-haskell.outputs.ghc-version }}-
 
-      - uses: sol/run-haskell-tests@v1
+      - run: cabal build
+      - run: cabal test --test-show-details=direct
 
   success:
     needs: build
