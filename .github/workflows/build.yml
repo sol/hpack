@@ -39,6 +39,7 @@ jobs:
           key: ${{ runner.os }}-${{ steps.setup-haskell.outputs.ghc-version }}-${{ github.run_id }}
           restore-keys: ${{ runner.os }}-${{ steps.setup-haskell.outputs.ghc-version }}-
 
+      - run: cabal configure --enable-tests --enable-executable-static
       - run: cabal build
       - run: cabal test --test-show-details=direct
 
