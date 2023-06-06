@@ -26,6 +26,8 @@ jobs:
         ghc:
           - system
     steps:
+      - run: sudo apt-get install glibc-static
+
       - uses: actions/checkout@v3
       - uses: hspec/setup-haskell@v1
         with:
@@ -42,6 +44,12 @@ jobs:
       - run: cabal configure --enable-tests --enable-executable-static
       - run: cabal build
       - run: cabal test --test-show-details=direct
+
+      - run: mv `find dist-newstyle/build/ -name hpack -type f` .
+      - uses: actions/upload-artifact@v3
+        with:
+          name: hpack
+          path: hpack
 
   success:
     needs: build
