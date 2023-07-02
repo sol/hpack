@@ -12,7 +12,7 @@ extra-source-files:
 ghc-options: -Wall -fno-warn-incomplete-uni-patterns
 
 dependencies:
-  - base >= 4.9 && < 5
+  - base >= 4.13 && < 5
   - bytestring
   - deepseq
   - directory >= 1.2.5.0
@@ -27,11 +27,11 @@ dependencies:
   - Cabal >= 3.0.0.0 && < 3.11
   - pretty
   - bifunctors
-  - cryptonite
+  - crypton
   - transformers
   - http-types
   - http-client
-  - http-client-tls
+  - http-client-tls >= 0.3.6.2
   - vector
   - infer-license >= 0.2.0 && < 0.3
 

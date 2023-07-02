@@ -31,16 +31,16 @@ library
       Cabal >=3.0.0.0 && <3.11
     , Glob >=0.9.0
     , aeson >=1.4.3.0
-    , base >=4.9 && <5
+    , base >=4.13 && <5
     , bifunctors
     , bytestring
     , containers
-    , cryptonite
+    , crypton
     , deepseq
     , directory >=1.2.5.0
     , filepath
     , http-client
-    , http-client-tls
+    , http-client-tls >=0.3.6.2
     , http-types
     , infer-license >=0.2.0 && <0.3
     , pretty
@@ -96,17 +96,17 @@ executable hpack
       Cabal >=3.0.0.0 && <3.11
     , Glob >=0.9.0
     , aeson >=1.4.3.0
-    , base >=4.9 && <5
+    , base >=4.13 && <5
     , bifunctors
     , bytestring
     , containers
-    , cryptonite
+    , crypton
     , deepseq
     , directory >=1.2.5.0
     , filepath
     , hpack
     , http-client
-    , http-client-tls
+    , http-client-tls >=0.3.6.2
     , http-types
     , infer-license >=0.2.0 && <0.3
     , pretty
@@ -137,17 +137,17 @@ test-suite spec
     , HUnit >=1.6.0.0
     , QuickCheck
     , aeson >=1.4.3.0
-    , base >=4.9 && <5
+    , base >=4.13 && <5
     , bifunctors
     , bytestring
     , containers
-    , cryptonite
+    , crypton
     , deepseq
     , directory >=1.2.5.0
     , filepath
     , hspec ==2.*
     , http-client
-    , http-client-tls
+    , http-client-tls >=0.3.6.2
     , http-types
     , infer-license >=0.2.0 && <0.3
     , interpolate

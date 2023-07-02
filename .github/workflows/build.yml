@@ -24,9 +24,6 @@ jobs:
         os:
           - ubuntu-latest
         ghc:
-          - '8.2'
-          - '8.4'
-          - '8.6'
           - '8.8'
           - '8.10'
           - '9.0'
@@ -37,7 +34,7 @@ jobs:
           - os: macos-latest
             ghc: system
           - os: windows-latest
-            ghc: system
+            ghc: '9.2'
     steps:
       - uses: actions/checkout@v3
       - uses: hspec/setup-haskell@v1
