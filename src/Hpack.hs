@@ -248,7 +248,7 @@ hpackResultWithVersion v (Options options force generateHashStrategy toStdout) =
           NoForce -> maybe Generated (mkStatus newCabalFile) mExistingCabalFile
 
       case status of
-        Generated -> writeCabalFile options toStdout cabalFileName newCabalFile
+        Generated -> writeCabalFile options toStdout cabalFileName mExistingCabalFile newCabalFile
         _ -> return ()
 
       return $ Right Result {
@@ -258,8 +258,9 @@ hpackResultWithVersion v (Options options force generateHashStrategy toStdout) =
       }
     Left err -> return $ Left err
 
-writeCabalFile :: DecodeOptions -> Bool -> FilePath -> CabalFile -> IO ()
-writeCabalFile options toStdout name cabalFile = do
+writeCabalFile :: DecodeOptions -> Bool -> FilePath -> Maybe CabalFile -> CabalFile -> IO ()
+writeCabalFile _ _ _ (Just oldCabalFile) newCabalFile | oldCabalFile == newCabalFile = mempty
+writeCabalFile options toStdout name _ cabalFile = do
   write . unlines $ renderCabalFile (decodeOptionsTarget options) cabalFile
   where
     write = if toStdout then Utf8.putStr else Utf8.writeFile name
