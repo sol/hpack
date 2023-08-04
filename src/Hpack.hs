@@ -206,8 +206,8 @@ printResult verbose r = do
 printWarnings :: [String] -> IO ()
 printWarnings = mapM_ $ Utf8.hPutStrLn stderr . ("WARNING: " ++)
 
-mkStatus :: CabalFile -> CabalFile -> Status
-mkStatus new@(CabalFile _ mNewVersion mNewHash _) existing@(CabalFile _ mExistingVersion _ _)
+mkStatus :: NewCabalFile -> ExistingCabalFile -> Status
+mkStatus new@(CabalFile _ mNewVersion mNewHash _ _) existing@(CabalFile _ mExistingVersion _ _ _)
   | new `hasSameContent` existing = OutputUnchanged
   | otherwise = case mExistingVersion of
       Nothing -> ExistingCabalFileWasModifiedManually
@@ -216,16 +216,19 @@ mkStatus new@(CabalFile _ mNewVersion mNewHash _) existing@(CabalFile _ mExistin
         | isJust mNewHash && hashMismatch existing -> ExistingCabalFileWasModifiedManually
         | otherwise -> Generated
 
-hasSameContent :: CabalFile -> CabalFile -> Bool
-hasSameContent (CabalFile cabalVersionA _ _ a) (CabalFile cabalVersionB _ _ b) = cabalVersionA == cabalVersionB && a == b
+hasSameContent :: NewCabalFile -> ExistingCabalFile -> Bool
+hasSameContent (CabalFile cabalVersionA _ _ a ()) (CabalFile cabalVersionB _ _ b gitConflictMarkers) =
+     cabalVersionA == cabalVersionB
+  && a == b
+  && gitConflictMarkers == DoesNotHaveGitConflictMarkers
 
-hashMismatch :: CabalFile -> Bool
+hashMismatch :: ExistingCabalFile -> Bool
 hashMismatch cabalFile = case cabalFileHash cabalFile of
   Nothing -> False
-  Just hash -> hash /= calculateHash cabalFile
+  Just hash -> cabalFileGitConflictMarkers cabalFile == HasGitConflictMarkers || hash /= calculateHash cabalFile
 
-calculateHash :: CabalFile -> Hash
-calculateHash (CabalFile cabalVersion _ _ body) = sha256 (unlines $ cabalVersion ++ body)
+calculateHash :: CabalFile a -> Hash
+calculateHash (CabalFile cabalVersion _ _ body _) = sha256 (unlines $ cabalVersion ++ body)
 
 hpackResult :: Options -> IO Result
 hpackResult opts = hpackResultWithError opts >>= either (die . formatHpackError programName) return
@@ -258,16 +261,16 @@ hpackResultWithVersion v (Options options force generateHashStrategy toStdout) =
       }
     Left err -> return $ Left err
 
-writeCabalFile :: DecodeOptions -> Bool -> FilePath -> CabalFile -> IO ()
+writeCabalFile :: DecodeOptions -> Bool -> FilePath -> NewCabalFile -> IO ()
 writeCabalFile options toStdout name cabalFile = do
   write . unlines $ renderCabalFile (decodeOptionsTarget options) cabalFile
   where
     write = if toStdout then Utf8.putStr else Utf8.writeFile name
 
-makeCabalFile :: GenerateHashStrategy -> Maybe CabalFile -> [String] -> Version -> Package -> CabalFile
+makeCabalFile :: GenerateHashStrategy -> Maybe ExistingCabalFile -> [String] -> Version -> Package -> NewCabalFile
 makeCabalFile strategy mExistingCabalFile cabalVersion v pkg = cabalFile
   where
-    cabalFile = CabalFile cabalVersion (Just v) hash body
+    cabalFile = CabalFile cabalVersion (Just v) hash body ()
 
     hash
       | shouldGenerateHash mExistingCabalFile strategy = Just $ calculateHash cabalFile
@@ -275,7 +278,7 @@ makeCabalFile strategy mExistingCabalFile cabalVersion v pkg = cabalFile
 
     body = lines $ renderPackage (maybe [] cabalFileContents mExistingCabalFile) pkg
 
-shouldGenerateHash :: Maybe CabalFile -> GenerateHashStrategy -> Bool
+shouldGenerateHash :: Maybe ExistingCabalFile -> GenerateHashStrategy -> Bool
 shouldGenerateHash mExistingCabalFile strategy = case (strategy, mExistingCabalFile) of
   (ForceHash, _) -> True
   (ForceNoHash, _) -> False
@@ -284,5 +287,5 @@ shouldGenerateHash mExistingCabalFile strategy = case (strategy, mExistingCabalF
   (_, Just CabalFile {cabalFileHash = Nothing}) -> False
   (_, Just CabalFile {cabalFileHash = Just _}) -> True
 
-renderCabalFile :: FilePath -> CabalFile -> [String]
-renderCabalFile file (CabalFile cabalVersion hpackVersion hash body) = cabalVersion ++ header file hpackVersion hash ++ body
+renderCabalFile :: FilePath -> NewCabalFile -> [String]
+renderCabalFile file (CabalFile cabalVersion hpackVersion hash body _) = cabalVersion ++ header file hpackVersion hash ++ body

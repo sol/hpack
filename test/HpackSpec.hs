@@ -12,7 +12,7 @@ import           Control.DeepSeq
 import           Hpack.Config
 import           Hpack.CabalFile
 import           Hpack.Error (formatHpackError)
-import           Hpack hiding (hpack)
+import           Hpack
 
 readFile :: FilePath -> IO String
 readFile name = Prelude.readFile name >>= (return $!!)
@@ -52,7 +52,7 @@ spec = do
     it "is inverse to readCabalFile" $ do
       expected <- lines <$> readFile "resources/test/hpack.cabal"
       Just c <- readCabalFile "resources/test/hpack.cabal"
-      renderCabalFile "package.yaml" c `shouldBe` expected
+      renderCabalFile "package.yaml" c {cabalFileGitConflictMarkers = ()} `shouldBe` expected
 
   describe "hpackResult" $ around_ inTempDirectory $ before_ (writeFile packageConfig "name: foo") $ do
     let
@@ -155,3 +155,22 @@ spec = do
           old <- readFile file
           hpackWithVersion [0,20,0] `shouldReturn` outputUnchanged
           readFile file `shouldReturn` old
+
+      context "with git conflict markers" $ do
+        context "when the new and the existing .cabal file are essentially the same" $ do
+          it "still removes the conflict markers" $ do
+            hpack NoVerbose defaultOptions
+            old <- readFile file
+            let
+              modified :: String
+              modified = unlines $ case break (== "version: 0.0.0") $ lines old of
+                (xs, v : ys)  -> xs ++
+                  "<<<<<<< ours" :
+                  v :
+                  "=======" :
+                  "version: 0.1.0" :
+                  ">>>>>>> theirs" : ys
+                _ -> undefined
+            writeFile file modified
+            hpack NoVerbose defaultOptions
+            readFile file `shouldReturn` old

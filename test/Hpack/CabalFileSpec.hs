@@ -28,12 +28,12 @@ spec = do
     it "includes hash" $ do
       inTempDirectory $ do
         writeFile file $ mkHeader "package.yaml" version hash
-        readCabalFile file `shouldReturn` Just (CabalFile [] (Just version) (Just hash) [])
+        readCabalFile file `shouldReturn` Just (CabalFile [] (Just version) (Just hash) [] DoesNotHaveGitConflictMarkers)
 
     it "accepts cabal-version at the beginning of the file" $ do
       inTempDirectory $ do
         writeFile file $ ("cabal-version: 2.2\n" ++ mkHeader "package.yaml" version hash)
-        readCabalFile file `shouldReturn` Just (CabalFile ["cabal-version: 2.2"] (Just version) (Just hash) [])
+        readCabalFile file `shouldReturn` Just (CabalFile ["cabal-version: 2.2"] (Just version) (Just hash) [] DoesNotHaveGitConflictMarkers)
 
   describe "extractVersion" $ do
     it "extracts Hpack version from a cabal file" $ do
