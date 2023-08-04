@@ -1,5 +1,6 @@
 ## Changes in 0.36.0
  - Add `--canonical`
+ - Avoid unnecessary writes on `--force` (see #555)
  - When an existing `.cabal` does not align fields then do not align fields in
    the generated `.cabal` file.
  - Fix a bug related to git conflict markers in existing `.cabal` files: When a

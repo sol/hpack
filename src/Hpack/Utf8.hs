@@ -1,7 +1,9 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Hpack.Utf8 (
   encodeUtf8
 , readFile
-, writeFile
+, ensureFile
 , putStr
 , hPutStr
 , hPutStrLn
@@ -9,6 +11,8 @@ module Hpack.Utf8 (
 
 import           Prelude hiding (readFile, writeFile, putStr)
 
+import           Control.Monad
+import           Control.Exception (try, IOException)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Encoding
 import           Data.Text.Encoding.Error (lenientDecode)
@@ -48,8 +52,13 @@ decodeNewlines = go
 readFile :: FilePath -> IO String
 readFile = fmap decodeText . B.readFile
 
-writeFile :: FilePath -> String -> IO ()
-writeFile name xs = withFile name WriteMode (`hPutStr` xs)
+ensureFile :: FilePath -> String -> IO ()
+ensureFile name new = do
+  try (readFile name) >>= \ case
+    Left (_ :: IOException) -> do
+      withFile name WriteMode (`hPutStr` new)
+    Right old -> unless (old == new) $ do
+      withFile name WriteMode (`hPutStr` new)
 
 putStr :: String -> IO ()
 putStr = hPutStr stdout

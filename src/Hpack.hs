@@ -267,7 +267,7 @@ writeCabalFile :: DecodeOptions -> Bool -> FilePath -> NewCabalFile -> IO ()
 writeCabalFile options toStdout name cabalFile = do
   write . unlines $ renderCabalFile (decodeOptionsTarget options) cabalFile
   where
-    write = if toStdout then Utf8.putStr else Utf8.writeFile name
+    write = if toStdout then Utf8.putStr else Utf8.ensureFile name
 
 makeCabalFile :: OutputStrategy -> GenerateHashStrategy -> Maybe ExistingCabalFile -> [String] -> Version -> Package -> NewCabalFile
 makeCabalFile outputStrategy generateHashStrategy mExistingCabalFile cabalVersion v pkg = cabalFile
