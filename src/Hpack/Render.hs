@@ -48,10 +48,10 @@ import           Hpack.Render.Dsl hiding (sortFieldsBy)
 import qualified Hpack.Render.Dsl as Dsl
 
 renderPackage :: [String] -> Package -> String
-renderPackage oldCabalFile = renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder
+renderPackage oldCabalFile = renderPackageWith settings headerFieldsAlignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder
   where
     FormattingHints{..} = sniffFormattingHints oldCabalFile
-    alignment = fromMaybe 16 formattingHintsAlignment
+    headerFieldsAlignment = fromMaybe 16 formattingHintsAlignment
     settings = formattingHintsRenderSettings
 
 renderPackageWith :: RenderSettings -> Alignment -> [String] -> [(String, [String])] -> Package -> String

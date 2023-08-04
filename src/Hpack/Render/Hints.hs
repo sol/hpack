@@ -77,11 +77,12 @@ indentationTotal :: Indentation -> Int
 indentationTotal (Indentation fieldName padding) = fieldName + padding
 
 sniffAlignment :: [String] -> Maybe Alignment
-sniffAlignment input
-  | all (indentationPadding >>> (== 1)) indentations = Just 0
-  | otherwise = case nub (map indentationTotal indentations) of
-      [n] -> Just (Alignment n)
-      _ -> Nothing
+sniffAlignment input = case indentations of
+  [] -> Nothing
+  _ | all (indentationPadding >>> (== 1)) indentations -> Just 0
+  _ -> case nub (map indentationTotal indentations) of
+    [n] -> Just (Alignment n)
+    _ -> Nothing
   where
     indentations :: [Indentation]
     indentations = catMaybes . map (splitField >=> indentation) $ input

@@ -117,6 +117,11 @@ spec = do
               ]
         sniffAlignment input `shouldBe` Just 0
 
+    context "with an empty input list" $ do
+      it "returns Nothing" $ do
+        let input = []
+        sniffAlignment input `shouldBe` Nothing
+
   describe "splitField" $ do
     it "splits fields" $ do
       splitField "foo:   bar" `shouldBe` Just ("foo", "   bar")

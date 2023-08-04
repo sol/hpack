@@ -159,7 +159,11 @@ spec = do
       context "with git conflict markers" $ do
         context "when the new and the existing .cabal file are essentially the same" $ do
           it "still removes the conflict markers" $ do
-            hpack NoVerbose defaultOptions
+            writeFile file $ unlines [
+                "--"
+              , "name: foo"
+              ]
+            hpack NoVerbose defaultOptions {optionsForce = Force}
             old <- readFile file
             let
               modified :: String
