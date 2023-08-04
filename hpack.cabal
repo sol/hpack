@@ -11,6 +11,7 @@ description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
 homepage:       https://github.com/sol/hpack#readme
 bug-reports:    https://github.com/sol/hpack/issues
+author:         Simon Hengel <sol@typeful.net>
 maintainer:     Simon Hengel <sol@typeful.net>
 license:        MIT
 license-file:   LICENSE
