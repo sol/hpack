@@ -1,7 +1,7 @@
 ## Changes in 0.36.0
+ - Add `--canonical`
  - When an existing `.cabal` does not align fields then do not align fields in
    the generated `.cabal` file.
-
  - Fix a bug related to git conflict markers in existing `.cabal` files: When a
    `.cabal` file was essentially unchanged, but contained git conflict markers
    then `hpack` did not write a new `.cabal` file at all.  To address this
