@@ -37,6 +37,7 @@ module Hpack (
 , Options(..)
 , Force(..)
 , GenerateHashStrategy(..)
+, OutputStrategy(..)
 
 #ifdef TEST
 , hpackResultWithVersion
@@ -84,6 +85,7 @@ data Options = Options {
 , optionsForce :: Force
 , optionsGenerateHashStrategy :: GenerateHashStrategy
 , optionsToStdout :: Bool
+, optionsOutputStrategy :: OutputStrategy
 }
 
 data GenerateHashStrategy = ForceHash | ForceNoHash | PreferHash | PreferNoHash
@@ -102,12 +104,12 @@ getOptions defaultPackageConfig args = do
     Help -> do
       printHelp
       return Nothing
-    Run (ParseOptions verbose force hash toStdout file) -> do
+    Run (ParseOptions verbose force hash toStdout file outputStrategy) -> do
       let generateHash = case hash of
             Just True -> ForceHash
             Just False -> ForceNoHash
             Nothing -> PreferNoHash
-      return $ Just (verbose, Options defaultDecodeOptions {decodeOptionsTarget = file} force generateHash toStdout)
+      return $ Just (verbose, Options defaultDecodeOptions {decodeOptionsTarget = file} force generateHash toStdout outputStrategy)
     ParseError -> do
       printHelp
       exitFailure
@@ -116,7 +118,7 @@ printHelp :: IO ()
 printHelp = do
   name <- getProgName
   Utf8.hPutStrLn stderr $ unlines [
-      "Usage: " ++ name ++ " [ --silent ] [ --force | -f ] [ --[no-]hash ] [ PATH ] [ - ]"
+      "Usage: " ++ name ++ " [ --silent ] [ --canonical ] [ --force | -f ] [ --[no-]hash ] [ PATH ] [ - ]"
     , "       " ++ name ++ " --version"
     , "       " ++ name ++ " --numeric-version"
     , "       " ++ name ++ " --help"
@@ -126,7 +128,7 @@ hpack :: Verbose -> Options -> IO ()
 hpack verbose options = hpackResult options >>= printResult verbose
 
 defaultOptions :: Options
-defaultOptions = Options defaultDecodeOptions NoForce PreferNoHash False
+defaultOptions = Options defaultDecodeOptions NoForce PreferNoHash False MinimizeDiffs
 
 setTarget :: FilePath -> Options -> Options
 setTarget target options@Options{..} =
@@ -239,12 +241,12 @@ hpackResultWithError :: Options -> IO (Either HpackError Result)
 hpackResultWithError = hpackResultWithVersion version
 
 hpackResultWithVersion :: Version -> Options -> IO (Either HpackError Result)
-hpackResultWithVersion v (Options options force generateHashStrategy toStdout) = do
+hpackResultWithVersion v (Options options force generateHashStrategy toStdout outputStrategy) = do
   readPackageConfigWithError options >>= \ case
     Right (DecodeResult pkg (lines -> cabalVersion) cabalFileName warnings) -> do
       mExistingCabalFile <- readCabalFile cabalFileName
       let
-        newCabalFile = makeCabalFile generateHashStrategy mExistingCabalFile cabalVersion v pkg
+        newCabalFile = makeCabalFile outputStrategy generateHashStrategy mExistingCabalFile cabalVersion v pkg
 
         status = case force of
           Force -> Generated
@@ -267,16 +269,24 @@ writeCabalFile options toStdout name cabalFile = do
   where
     write = if toStdout then Utf8.putStr else Utf8.writeFile name
 
-makeCabalFile :: GenerateHashStrategy -> Maybe ExistingCabalFile -> [String] -> Version -> Package -> NewCabalFile
-makeCabalFile strategy mExistingCabalFile cabalVersion v pkg = cabalFile
+makeCabalFile :: OutputStrategy -> GenerateHashStrategy -> Maybe ExistingCabalFile -> [String] -> Version -> Package -> NewCabalFile
+makeCabalFile outputStrategy generateHashStrategy mExistingCabalFile cabalVersion v pkg = cabalFile
   where
+    hints :: [String]
+    hints = case outputStrategy of
+      CanonicalOutput -> []
+      MinimizeDiffs -> maybe [] cabalFileContents mExistingCabalFile
+
+    cabalFile :: NewCabalFile
     cabalFile = CabalFile cabalVersion (Just v) hash body ()
 
+    hash :: Maybe Hash
     hash
-      | shouldGenerateHash mExistingCabalFile strategy = Just $ calculateHash cabalFile
+      | shouldGenerateHash mExistingCabalFile generateHashStrategy = Just $ calculateHash cabalFile
       | otherwise = Nothing
 
-    body = lines $ renderPackage (maybe [] cabalFileContents mExistingCabalFile) pkg
+    body :: [String]
+    body = lines $ renderPackage hints pkg
 
 shouldGenerateHash :: Maybe ExistingCabalFile -> GenerateHashStrategy -> Bool
 shouldGenerateHash mExistingCabalFile strategy = case (strategy, mExistingCabalFile) of
