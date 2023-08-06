@@ -1,5 +1,6 @@
-## Changes in 0.36.0
- - Add `--canonical`
+## Changes in 0.35.4
+ - Add `--canonical`, which can be used to produce canonical output instead of
+   trying to produce minimal diffs
  - Avoid unnecessary writes on `--force` (see #555)
  - When an existing `.cabal` does not align fields then do not align fields in
    the generated `.cabal` file.
@@ -8,6 +9,9 @@
    then `hpack` did not write a new `.cabal` file at all.  To address this
    `hpack` now unconditionally writes a new `.cabal` file when the existing
    `.cabal` file contains any git conflict markers.
+
+## Changes in 0.35.3
+  - Depend on `crypton` instead of `cryptonite`
 
 ## Changes in 0.35.2
   - Add support for `ghc-shared-options`
