@@ -1,3 +1,6 @@
+## Changes in 0.35.5
+ - Add (undocumented) `list` command
+
 ## Changes in 0.35.4
  - Add `--canonical`, which can be used to produce canonical output instead of
    trying to produce minimal diffs
