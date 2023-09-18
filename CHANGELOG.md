@@ -1,3 +1,6 @@
+## Changes in 0.36.0
+ - Don't infer `Paths_`-module with `spec-version: 0.36.0` or later
+
 ## Changes in 0.35.5
  - Add (undocumented) `list` command
 

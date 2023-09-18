@@ -1,5 +1,6 @@
+spec-version: 0.36.0
 name: hpack
-version: 0.35.5
+version: 0.36.0
 synopsis: A modern format for Haskell packages
 description: See README at <https://github.com/sol/hpack#readme>
 author: Simon Hengel <sol@typeful.net>
@@ -50,6 +51,7 @@ library:
     - Hpack.Render
     - Hpack.Yaml
     - Hpack.Error
+  generated-other-modules: Paths_hpack
 
 executable:
   main: Main.hs
@@ -64,6 +66,7 @@ tests:
     source-dirs:
       - test
       - src
+    generated-other-modules: Paths_hpack
     dependencies:
       - hspec == 2.*
       - QuickCheck
