@@ -47,6 +47,8 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
       * [Examples](#examples)
       * [Documentation](#documentation)
          * [Handling of Paths_ modules](#handling-of-paths_-modules)
+            * [Modern behavior](#modern-behavior)
+            * [Legacy behavior](#legacy-behavior)
          * [Quick-reference](#quick-reference)
             * [Top-level fields](#top-level-fields)
             * [cabal-version](#cabal-version)
@@ -70,18 +72,41 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
       * [Stack support](#stack-support)
       * [Binaries for use on Travis CI](#binaries-for-use-on-travis-ci)
 
-<!-- Added by: sol, at: Fri 19 Feb 2021 10:31:47 PM +07 -->
+<!-- Added by: sol, at: Mon Sep 18 11:40:17 AM +07 2023 -->
 
 <!--te-->
 
 ### Handling of `Paths_` modules
 
-Cabal generates a `Paths_` module for every package.  By default Hpack adds
-that module to `other-modules` when generating a `.cabal` file.  This is
-sometimes useful and most of the time not harmful.
+Cabal generates a `Paths_` module for every package.  How exactly Hpack behaves
+in regards to that module depends on the value of the `spec-version` field.
 
-However, there are situations when this can lead to compilation errors (e.g
-when using a custom `Prelude`).
+If the `spec-version` is explicitly specified and at least `0.36.0` the modern
+behavior is used, otherwise Hpack falls back to the legacy behavior.
+
+To use the modern behavior, require at least
+```yaml
+spec-version: 0.36.0
+```
+in your `package.yaml`.
+
+#### Modern behavior
+
+If you want to use the `Paths_` module for a component, you have to explicitly
+specify it under `generated-other-modules`.
+
+***Example:***
+
+```yaml
+library:
+  source-dirs: src
+  generated-other-modules: Paths_name # substitute name with the package name
+```
+
+#### Legacy behavior
+
+For historic reasons Hpack adds the `Paths_` module to `other-modules` when
+generating a `.cabal` file.
 
 To prevent Hpack from adding the `Paths_` module to `other-modules` add the
 following to `package.yaml`:

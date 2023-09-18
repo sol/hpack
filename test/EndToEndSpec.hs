@@ -77,6 +77,15 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         default-language: Haskell2010
         |]
 
+      context "when spec-version is >= 0.36.0" $ do
+        it "does not add Paths_" $ do
+          [i|
+          spec-version: 0.36.0
+          library: {}
+          |] `shouldRenderTo` library [i|
+          default-language: Haskell2010
+          |]
+
       context "when cabal-version is >= 2" $ do
         it "adds Paths_ to autogen-modules" $ do
           [i|

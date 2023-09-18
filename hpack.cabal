@@ -1,11 +1,11 @@
-cabal-version: 1.12
+cabal-version: 2.0
 
--- This file has been generated from package.yaml by hpack version 0.35.5.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.35.5
+version:        0.36.0
 synopsis:       A modern format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
@@ -84,6 +84,8 @@ library
       Imports
       Path
       Paths_hpack
+  autogen-modules:
+      Paths_hpack
   default-language: Haskell2010
   if impl(ghc >= 9.4.5) && os(windows)
     build-depends:
@@ -119,8 +121,6 @@ executable hpack
     , unordered-containers
     , vector
     , yaml >=0.10.0
-  other-modules:
-      Paths_hpack
   default-language: Haskell2010
   if impl(ghc >= 9.4.5) && os(windows)
     build-depends:
@@ -219,6 +219,8 @@ test-suite spec
       Hpack.Yaml
       Imports
       Path
+      Paths_hpack
+  autogen-modules:
       Paths_hpack
   default-language: Haskell2010
   if impl(ghc >= 9.4.5) && os(windows)

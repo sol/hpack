@@ -99,6 +99,8 @@ import           Data.Text.Encoding (decodeUtf8)
 import           Data.Scientific (Scientific)
 import           System.Directory
 import           System.FilePath
+import           Control.Monad.State (MonadState, StateT, evalStateT)
+import qualified Control.Monad.State as State
 import           Control.Monad.Writer (MonadWriter, WriterT, runWriterT, tell)
 import           Control.Monad.Except
 import           Data.Version (Version, makeVersion, showVersion)
@@ -639,7 +641,7 @@ liftIOEither action = liftIO action >>= liftEither
 
 type FormatYamlParseError = FilePath -> Yaml.ParseException -> String
 
-decodeYaml :: (FromValue a, MonadIO m, Warnings m, Errors m) => FormatYamlParseError -> FilePath -> m a
+decodeYaml :: (FromValue a, MonadIO m, Warnings m, Errors m, State m) => FormatYamlParseError -> FilePath -> m a
 decodeYaml formatYamlParseError file = do
   (warnings, a) <- liftIOEither $ first (ParseError . formatYamlParseError file) <$> Yaml.decodeYamlWithParseError file
   tell warnings
@@ -668,11 +670,12 @@ readPackageConfig options = first (formatHpackError $ decodeOptionsProgramName o
 
 type Errors = MonadError HpackError
 type Warnings = MonadWriter [String]
+type State = MonadState SpecVersion
 
-type ConfigM m = WriterT [String] (ExceptT HpackError m)
+type ConfigM m = StateT SpecVersion (WriterT [String] (ExceptT HpackError m))
 
-runConfigM :: ConfigM m a -> m (Either HpackError (a, [String]))
-runConfigM = runExceptT . runWriterT
+runConfigM :: Monad m => ConfigM m a -> m (Either HpackError (a, [String]))
+runConfigM = runExceptT . runWriterT . (`evalStateT` NoSpecVersion)
 
 readPackageConfigWithError :: DecodeOptions -> IO (Either HpackError DecodeResult)
 readPackageConfigWithError (DecodeOptions _ file mUserDataDir readValue formatYamlParseError) = fmap (fmap addCabalFile) . runConfigM $ do
@@ -902,15 +905,16 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
 sectionAll :: Monoid b => (Section a -> b) -> Section a -> b
 sectionAll f sect = f sect <> foldMap (foldMap $ sectionAll f) (sectionConditionals sect)
 
-decodeValue :: (FromValue a, Warnings m, Errors m) => FilePath -> Value -> m a
+decodeValue :: (FromValue a, State m, Warnings m, Errors m) => FilePath -> Value -> m a
 decodeValue file value = do
   (r, unknown, deprecated) <- liftEither $ first (DecodeValueError file) (Config.decodeValue value)
   case r of
     UnsupportedSpecVersion v -> do
       throwError $ HpackVersionNotSupported file v Hpack.version
-    SupportedSpecVersion a -> do
+    SupportedSpecVersion v a -> do
       tell (map formatUnknownField unknown)
       tell (map formatDeprecatedField deprecated)
+      State.modify $ max v
       return a
   where
     prefix :: String
@@ -922,14 +926,20 @@ decodeValue file value = do
     formatDeprecatedField :: (String, String) -> String
     formatDeprecatedField (name, substitute) = prefix <> name <> " is deprecated, use " <> substitute <> " instead"
 
-data CheckSpecVersion a = SupportedSpecVersion a | UnsupportedSpecVersion Version
+data SpecVersion = NoSpecVersion | SpecVersion Version
+  deriving (Eq, Show, Ord)
+
+toSpecVersion :: Maybe ParseSpecVersion -> SpecVersion
+toSpecVersion = maybe NoSpecVersion (SpecVersion . unParseSpecVersion)
+
+data CheckSpecVersion a = SupportedSpecVersion SpecVersion a | UnsupportedSpecVersion Version
 
 instance FromValue a => FromValue (CheckSpecVersion a) where
   fromValue = withObject $ \ o -> o .:? "spec-version" >>= \ case
     Just (ParseSpecVersion v) | Hpack.version < v -> return $ UnsupportedSpecVersion v
-    _ -> SupportedSpecVersion <$> fromValue (Object o)
+    v -> SupportedSpecVersion (toSpecVersion v) <$> fromValue (Object o)
 
-newtype ParseSpecVersion = ParseSpecVersion Version
+newtype ParseSpecVersion = ParseSpecVersion {unParseSpecVersion :: Version}
 
 instance FromValue ParseSpecVersion where
   fromValue value = do
@@ -1079,7 +1089,7 @@ toPackage formatYamlParseError userDataDir dir =
         setLanguage = (mempty { commonOptionsLanguage = Alias . Last $ Just (Just language) } <>)
 
 expandDefaultsInConfig
-  :: (MonadIO m, Warnings m, Errors m) =>
+  :: (MonadIO m, Warnings m, Errors m, State m) =>
      FormatYamlParseError
   -> FilePath
   -> FilePath
@@ -1088,7 +1098,7 @@ expandDefaultsInConfig
 expandDefaultsInConfig formatYamlParseError userDataDir dir = bitraverse (expandGlobalDefaults formatYamlParseError userDataDir dir) (expandSectionDefaults formatYamlParseError userDataDir dir)
 
 expandGlobalDefaults
-  :: (MonadIO m, Warnings m, Errors m) =>
+  :: (MonadIO m, Warnings m, Errors m, State m) =>
      FormatYamlParseError
   -> FilePath
   -> FilePath
@@ -1098,7 +1108,7 @@ expandGlobalDefaults formatYamlParseError userDataDir dir = do
   fmap (`Product` Empty) >>> expandDefaults formatYamlParseError userDataDir dir >=> \ (Product c Empty) -> return c
 
 expandSectionDefaults
-  :: (MonadIO m, Warnings m, Errors m) =>
+  :: (MonadIO m, Warnings m, Errors m, State m) =>
      FormatYamlParseError
   -> FilePath
   -> FilePath
@@ -1121,7 +1131,7 @@ expandSectionDefaults formatYamlParseError userDataDir dir p@PackageConfig{..} =
     }
 
 expandDefaults
-  :: forall a m. (MonadIO m, Warnings m, Errors m) =>
+  :: forall a m. (MonadIO m, Warnings m, Errors m, State m) =>
      (FromValue a, Monoid a)
   => FormatYamlParseError
   -> FilePath
@@ -1169,7 +1179,7 @@ toExecutableMap name executables mExecutable = do
 
 type GlobalOptions = CommonOptions CSources CxxSources JsSources Empty
 
-toPackage_ :: (MonadIO m, Warnings m) => FilePath -> Product GlobalOptions (PackageConfig CSources CxxSources JsSources) -> m (Package, String)
+toPackage_ :: (MonadIO m, Warnings m, State m) => FilePath -> Product GlobalOptions (PackageConfig CSources CxxSources JsSources) -> m (Package, String)
 toPackage_ dir (Product g PackageConfig{..}) = do
   executableMap <- toExecutableMap packageName_ packageConfigExecutables packageConfigExecutable
   let
@@ -1377,7 +1387,7 @@ removeConditionalsThatAreAlwaysFalse sect = sect {
   where
     p = (/= CondBool False) . conditionalCondition
 
-inferModules :: MonadIO m =>
+inferModules :: (MonadIO m, State m) =>
      FilePath
   -> String
   -> (a -> [Module])
@@ -1386,10 +1396,19 @@ inferModules :: MonadIO m =>
   -> ([Module] -> a -> b)
   -> Section a
   -> m (Section b)
-inferModules dir packageName_ getMentionedModules getInferredModules fromData fromConditionals = fmap removeConditionalsThatAreAlwaysFalse . traverseSectionAndConditionals
-  (fromConfigSection fromData [pathsModuleFromPackageName packageName_])
-  (fromConfigSection (\ [] -> fromConditionals) [])
-  []
+inferModules dir packageName_ getMentionedModules getInferredModules fromData fromConditionals sect_ = do
+  specVersion <- State.get
+  let
+    pathsModule :: [Module]
+    pathsModule = case specVersion of
+      SpecVersion v | v >= makeVersion [0,36,0] -> []
+      _ -> [pathsModuleFromPackageName packageName_]
+
+  removeConditionalsThatAreAlwaysFalse <$> traverseSectionAndConditionals
+    (fromConfigSection fromData pathsModule)
+    (fromConfigSection (\ [] -> fromConditionals) [])
+    []
+    sect_
   where
     fromConfigSection fromConfig pathsModule_ outerModules sect@Section{sectionData = conf} = do
       modules <- liftIO $ listModules dir sect
@@ -1400,7 +1419,7 @@ inferModules dir packageName_ getMentionedModules getInferredModules fromData fr
         r = fromConfig pathsModule inferableModules conf
       return (outerModules ++ getInferredModules r, r)
 
-toLibrary :: MonadIO m => FilePath -> String -> Section LibrarySection -> m (Section Library)
+toLibrary :: (MonadIO m, State m) => FilePath -> String -> Section LibrarySection -> m (Section Library)
 toLibrary dir name =
     inferModules dir name getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel fromLibrarySectionInConditional
   where
@@ -1444,7 +1463,7 @@ getMentionedExecutableModules :: ExecutableSection -> [Module]
 getMentionedExecutableModules (ExecutableSection (Alias (Last main)) otherModules generatedModules)=
   maybe id (:) (toModule . Path.fromFilePath <$> main) $ fromMaybeList (otherModules <> generatedModules)
 
-toExecutable :: MonadIO m => FilePath -> String -> Section ExecutableSection -> m (Section Executable)
+toExecutable :: (MonadIO m, State m) => FilePath -> String -> Section ExecutableSection -> m (Section Executable)
 toExecutable dir packageName_ =
     inferModules dir packageName_ getMentionedExecutableModules getExecutableModules fromExecutableSection (fromExecutableSection [])
   . expandMain
