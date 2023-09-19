@@ -239,7 +239,7 @@ values are merged with per section values.
 | `ld-options` | · | | |
 | `dependencies` | `build-depends` | | See [Dependencies](#dependencies) |
 | `pkg-config-dependencies` | `pkgconfig-depends` | | |
-| `build-tools` | [`build-tools`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tools) and/or [`build-tool-depends`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tool-depends) | | |
+| `build-tools` | [`build-tools`](https://cabal.readthedocs.io/en/stable/cabal-package.html#pkg-field-build-tools) and/or [`build-tool-depends`](https://cabal.readthedocs.io/en/stable/cabal-package.html#pkg-field-build-tool-depends) | | |
 | `system-build-tools` | `build-tools` | | A set of system executables that have to be on the `PATH` to build this component |
 | `when` | | | Accepts a list of conditionals (see [Conditionals](#conditionals)) |
 
