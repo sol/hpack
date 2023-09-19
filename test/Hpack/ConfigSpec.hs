@@ -157,8 +157,8 @@ spec = do
           toBuildTool_ (UnqualifiedBuildTool "bar") `shouldBe` (Right (BuildTool "bar" "bar", anyVersion), [])
 
       context "when name matches a local executable" $ do
-        it "returns a LocalBuildTool" $ do
-          toBuildTool_ (UnqualifiedBuildTool "foo") `shouldBe` (Right (LocalBuildTool "foo", anyVersion), [])
+        it "uses the current package name" $ do
+          toBuildTool_ (UnqualifiedBuildTool "foo") `shouldBe` (Right (BuildTool "my-package" "foo", anyVersion), [])
 
       context "when name matches a legacy executable" $ do
         it "warns" $ do
@@ -176,10 +176,6 @@ spec = do
       context "when only executable matches a local executable" $ do
         it "returns a BuildTool" $ do
           toBuildTool_ (QualifiedBuildTool "other-package" "foo") `shouldBe` (Right (BuildTool "other-package" "foo", anyVersion), [])
-
-      context "when both package matches the current package and executable matches a local executable" $ do
-        it "returns a LocalBuildTool" $ do
-          toBuildTool_ (QualifiedBuildTool "my-package" "foo") `shouldBe` (Right (LocalBuildTool "foo", anyVersion), [])
 
   describe "readPackageConfig" $ do
     it "warns on missing name" $ do

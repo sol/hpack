@@ -668,15 +668,15 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         }
 
       context "when the name of a build tool matches an executable from the same package" $ do
-        it "adds it to build-tools" $ do
+        it "adds it to build-tool-depends" $ do
           [i|
           executables:
             bar:
               build-tools:
                 - bar
           |] `shouldRenderTo` executable_ "bar" [i|
-          build-tools:
-              bar
+          build-tool-depends:
+              my-package:bar
           |]
 
         it "gives per-section unqualified names precedence over global qualified names" $ do
@@ -688,8 +688,8 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
               build-tools:
                 - bar == 0.2.0
           |] `shouldRenderTo` executable_ "bar" [i|
-          build-tools:
-              bar ==0.2.0
+          build-tool-depends:
+              my-package:bar ==0.2.0
           |]
 
         it "gives per-section qualified names precedence over global unqualified names" $ do
@@ -701,8 +701,8 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
               build-tools:
                 - my-package:bar == 0.2.0
           |] `shouldRenderTo` executable_ "bar" [i|
-          build-tools:
-              bar ==0.2.0
+          build-tool-depends:
+              my-package:bar ==0.2.0
           |]
 
       context "when the name of a build tool matches a legacy system build tool" $ do
