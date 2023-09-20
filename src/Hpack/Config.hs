@@ -983,7 +983,7 @@ data Executable = Executable {
 , executableGeneratedModules :: [Module]
 } deriving (Eq, Show)
 
-data BuildTool = BuildTool String String | LocalBuildTool String
+data BuildTool = BuildTool String String
   deriving (Show, Eq, Ord)
 
 data Section a = Section {
@@ -1517,14 +1517,11 @@ toSection packageName_ executableNames = go
 
 type SystemBuildTool = (String, VersionConstraint)
 
-toBuildTool :: Monad m => String -> [String] -> (ParseBuildTool, DependencyVersion)
-  -> Warnings m (Either SystemBuildTool (BuildTool, DependencyVersion))
+toBuildTool :: Monad m => String -> [String] -> (ParseBuildTool, DependencyVersion) -> Warnings m (Either SystemBuildTool (BuildTool, DependencyVersion))
 toBuildTool packageName_ executableNames = \ case
-  (QualifiedBuildTool pkg executable, v)
-    | pkg == packageName_ && executable `elem` executableNames -> localBuildTool executable v
-    | otherwise -> buildTool pkg executable v
+  (QualifiedBuildTool pkg executable, v) -> buildTool pkg executable v
   (UnqualifiedBuildTool executable, v)
-    | executable `elem` executableNames -> localBuildTool executable v
+    | executable `elem` executableNames -> buildTool packageName_ executable v
     | Just pkg <- lookup executable legacyTools -> legacyBuildTool pkg executable v
     | executable `elem` legacySystemTools, DependencyVersion Nothing c <- v -> legacySystemBuildTool executable c
     | otherwise -> buildTool executable executable v
@@ -1533,7 +1530,6 @@ toBuildTool packageName_ executableNames = \ case
 
     systemBuildTool = return . Left
 
-    localBuildTool executable v = return . Right $ (LocalBuildTool executable, v)
     legacyBuildTool pkg executable v = warnLegacyTool pkg executable >> buildTool pkg executable v
     legacySystemBuildTool executable c = warnLegacySystemTool executable >> systemBuildTool (executable, c)
 

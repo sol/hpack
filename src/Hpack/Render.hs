@@ -351,7 +351,6 @@ data RenderBuildTool = BuildTools String | BuildToolDepends String
 
 renderBuildTool :: (BuildTool,  DependencyVersion) -> RenderBuildTool
 renderBuildTool (buildTool, renderVersion -> version) = case buildTool of
-  LocalBuildTool executable -> BuildTools (executable ++ version)
   BuildTool pkg executable
     | pkg == executable && executable `elem` knownBuildTools -> BuildTools (executable ++ version)
     | otherwise -> BuildToolDepends (pkg ++ ":" ++ executable ++ version)
