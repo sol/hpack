@@ -30,6 +30,7 @@ dependencies:
   - bifunctors
   - crypton
   - transformers
+  - mtl
   - http-types
   - http-client
   - http-client-tls >= 0.3.6.2

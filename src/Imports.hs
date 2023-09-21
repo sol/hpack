@@ -4,6 +4,7 @@ import           Control.Applicative as Imports
 import           Control.Arrow as Imports ((>>>), (&&&))
 import           Control.Exception as Imports (Exception(..))
 import           Control.Monad as Imports
+import           Control.Monad.IO.Class as Imports
 import           Data.Bifunctor as Imports
 import           Data.List as Imports hiding (sort, nub)
 import           Data.Monoid as Imports (Monoid(..))

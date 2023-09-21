@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.4.
+-- This file has been generated from package.yaml by hpack version 0.35.5.
 --
 -- see: https://github.com/sol/hpack
 
@@ -44,6 +44,7 @@ library
     , http-client-tls >=0.3.6.2
     , http-types
     , infer-license >=0.2.0 && <0.3
+    , mtl
     , pretty
     , scientific
     , text
@@ -110,6 +111,7 @@ executable hpack
     , http-client-tls >=0.3.6.2
     , http-types
     , infer-license >=0.2.0 && <0.3
+    , mtl
     , pretty
     , scientific
     , text
@@ -153,6 +155,7 @@ test-suite spec
     , infer-license >=0.2.0 && <0.3
     , interpolate
     , mockery >=0.3
+    , mtl
     , pretty
     , scientific
     , template-haskell
