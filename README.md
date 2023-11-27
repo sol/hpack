@@ -682,10 +682,4 @@ steps are required.
 
 ## Binaries for use on Travis CI
 
-You can get binaries for use on Travis CI with:
-
-```
-curl -sSL https://github.com/sol/hpack/raw/master/get-hpack.sh | bash
-```
-
-(both Linux and OS X are supported)
+We currently do not distribute binaries for use on Travis CI.
