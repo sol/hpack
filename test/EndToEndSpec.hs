@@ -11,7 +11,7 @@ import qualified Prelude
 import           Helper
 import           Test.HUnit
 
-import           System.Directory (canonicalizePath, createDirectory)
+import           System.Directory (canonicalizePath)
 import           Data.Maybe
 import           Data.List
 import           Data.String.Interpolate
@@ -28,17 +28,22 @@ writeFile :: FilePath -> String -> IO ()
 writeFile file c = touch file >> Prelude.writeFile file c
 
 spec :: Spec
-spec = around_ (inTempDirectoryNamed "foo") $ do
+spec = around_ (inTempDirectoryNamed "my-package") $ do
   describe "hpack" $ do
     it "ignores fields that start with an underscore" $ do
       [i|
       _foo:
         bar: 23
       library: {}
-      |] `shouldRenderTo` library [i|
-      other-modules:
-          Paths_foo
+      |] `shouldRenderTo` library_ [i|
       |]
+    it "warns on duplicate fields" $ do
+      [i|
+      name: foo
+      name: foo
+      |] `shouldWarn` [
+          "package.yaml: Duplicate field $.name"
+        ]
 
     describe "tested-with" $ do
       it "accepts a string" $ do
@@ -62,22 +67,68 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           , GHC == 7.4.2
         |]
 
-    it "warns on duplicate fields" $ do
-      [i|
-      name: foo
-      name: foo
-      |] `shouldWarn` [
-          "package.yaml: Duplicate field $.name"
-        ]
-
     describe "handling of Paths_ module" $ do
       it "adds Paths_ to other-modules" $ do
         [i|
         library: {}
         |] `shouldRenderTo` library [i|
         other-modules:
-            Paths_foo
+            Paths_my_package
+        default-language: Haskell2010
         |]
+
+      context "when spec-version is >= 0.36.0" $ do
+        it "does not add Paths_" $ do
+          [i|
+          spec-version: 0.36.0
+          library: {}
+          |] `shouldRenderTo` library [i|
+          default-language: Haskell2010
+          |]
+
+      context "when cabal-version is >= 2" $ do
+        it "adds Paths_ to autogen-modules" $ do
+          [i|
+          verbatim:
+            cabal-version: 2.0
+          library: {}
+          |] `shouldRenderTo` (library [i|
+          other-modules:
+              Paths_my_package
+          autogen-modules:
+              Paths_my_package
+          default-language: Haskell2010
+          |]) { packageCabalVersion = "2.0" }
+
+        context "when Paths_ module is listed explicitly under generated-other-modules" $ do
+          it "adds Paths_ to autogen-modules only once" $ do
+            [i|
+            verbatim:
+              cabal-version: 2.0
+            library:
+              generated-other-modules: Paths_my_package
+            |] `shouldRenderTo` (library [i|
+            other-modules:
+                Paths_my_package
+            autogen-modules:
+                Paths_my_package
+            default-language: Haskell2010
+            |]) { packageCabalVersion = "2.0" }
+
+        context "when Paths_ module is listed explicitly under generated-exposed-modules" $ do
+          it "adds Paths_ to autogen-modules only once" $ do
+            [i|
+            verbatim:
+              cabal-version: 2.0
+            library:
+              generated-exposed-modules: Paths_my_package
+            |] `shouldRenderTo` (library [i|
+            exposed-modules:
+                Paths_my_package
+            autogen-modules:
+                Paths_my_package
+            default-language: Haskell2010
+            |]) { packageCabalVersion = "2.0" }
 
       context "when Paths_ is mentioned in a conditional that is always false" $ do
         it "does not add Paths_" $ do
@@ -85,11 +136,12 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           library:
             when:
             - condition: false
-              other-modules: Paths_foo
+              other-modules: Paths_my_package
           |] `shouldRenderTo` library [i|
+          default-language: Haskell2010
           |]
 
-      context "with RebindableSyntax and OverloadedStrings or OverloadedStrings" $ do
+      context "when Paths_ is used with RebindableSyntax and (OverloadedStrings or OverloadedLists)" $ do
         it "infers cabal-version 2.2" $ do
           [i|
           default-extensions: [RebindableSyntax, OverloadedStrings]
@@ -99,7 +151,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               RebindableSyntax
               OverloadedStrings
           other-modules:
-              Paths_foo
+              Paths_my_package
+          autogen-modules:
+              Paths_my_package
+          default-language: Haskell2010
           |]) {packageCabalVersion = "2.2"}
 
         context "when Paths_ is mentioned in a conditional that is always false" $ do
@@ -109,11 +164,12 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             library:
               when:
               - condition: false
-                other-modules: Paths_foo
+                other-modules: Paths_my_package
             |] `shouldRenderTo` (library [i|
             default-extensions:
                 RebindableSyntax
                 OverloadedStrings
+            default-language: Haskell2010
             |])
 
     describe "spec-version" $ do
@@ -299,11 +355,34 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             github: sol/hpack-template
             path: defaults.yaml
             ref: "2017"
-        |] `shouldRenderTo` library [i|
+        |] `shouldRenderTo` library_ [i|
         exposed-modules:
             Foo
-        other-modules:
-            Paths_foo
+        |]
+
+      it "accepts executable defaults" $ do
+        writeFile "defaults/sol/hpack-template/2017/.hpack/defaults.yaml" [i|
+        main: Foo.hs
+        |]
+
+        [i|
+        executable:
+          defaults: sol/hpack-template@2017
+        |] `shouldRenderTo` executable_ "my-package" [i|
+        main-is: Foo.hs
+        |]
+
+      it "gives `main` from executable section precedence" $ do
+        writeFile "defaults/sol/hpack-template/2017/.hpack/defaults.yaml" [i|
+        main: Foo.hs
+        |]
+
+        [i|
+        executable:
+          main: Bar.hs
+          defaults: sol/hpack-template@2017
+        |] `shouldRenderTo` executable_ "my-package" [i|
+        main-is: Bar.hs
         |]
 
       it "accepts a list of defaults" $ do
@@ -396,9 +475,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         defaults:
           local: defaults/foo.yaml
         library: {}
-        |] `shouldRenderTo` library [i|
-        other-modules:
-            Paths_foo
+        |] `shouldRenderTo` library_ [i|
         default-extensions:
             RecordWildCards
             DeriveFunctor
@@ -454,7 +531,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           license: BSD-3-Clause
           library
             other-modules:
-                Paths_foo
+                Paths_my_package
+            autogen-modules:
+                Paths_my_package
             cxx-options: -Wall
             default-language: Haskell2010
           |]) {packageCabalVersion = "2.2"}
@@ -468,7 +547,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           license: some-license
           library
             other-modules:
-                Paths_foo
+                Paths_my_package
+            autogen-modules:
+                Paths_my_package
             cxx-options: -Wall
             default-language: Haskell2010
           |]) {packageCabalVersion = "2.2"}
@@ -563,7 +644,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         executable:
           build-tools:
             alex == 0.1.0
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         build-tools:
             alex ==0.1.0
         |]
@@ -573,13 +654,26 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         executable:
           build-tools:
             hspec-discover: 0.1.0
-        |] `shouldRenderTo` (executable_ "foo" [i|
+        |] `shouldRenderTo` (executable_ "my-package" [i|
         build-tool-depends:
             hspec-discover:hspec-discover ==0.1.0
         |]) {
           -- NOTE: We do not set this to 2.0 on purpose, so that the .cabal
           -- file is compatible with a wider range of Cabal versions!
           packageCabalVersion = "1.12"
+        }
+
+      it "accepts build-tool-depends as an alias" $ do
+        [i|
+        executable:
+          build-tool-depends:
+            hspec-discover: 0.1.0
+        |] `shouldRenderTo` (executable_ "my-package" [i|
+        build-tool-depends:
+            hspec-discover:hspec-discover ==0.1.0
+        |]) {
+          packageCabalVersion = "1.12"
+        , packageWarnings = ["package.yaml: $.executable.build-tool-depends is deprecated, use $.executable.build-tools instead"]
         }
 
       context "when the name of a build tool matches an executable from the same package" $ do
@@ -597,7 +691,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         it "gives per-section unqualified names precedence over global qualified names" $ do
           [i|
           build-tools:
-            - foo:bar == 0.1.0
+            - my-package:bar == 0.1.0
           executables:
             bar:
               build-tools:
@@ -614,7 +708,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           executables:
             bar:
               build-tools:
-                - foo:bar == 0.2.0
+                - my-package:bar == 0.2.0
           |] `shouldRenderTo` executable_ "bar" [i|
           build-tools:
               bar ==0.2.0
@@ -626,7 +720,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           executable:
             build-tools:
               ghc >= 7.10
-          |] `shouldRenderTo` (executable_ "foo" [i|
+          |] `shouldRenderTo` (executable_ "my-package" [i|
           build-tools:
               ghc >=7.10
           |]) { packageWarnings = ["Listing \"ghc\" under build-tools is deperecated! Please list system executables under system-build-tools instead!"] }
@@ -637,7 +731,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         executable:
           system-build-tools:
             ghc >= 7.10
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         build-tools:
             ghc >=7.10
         |]
@@ -648,7 +742,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           executable:
             system-build-tools:
               hpc
-          |] `shouldRenderTo` (executable_ "foo" [i|
+          |] `shouldRenderTo` (executable_ "my-package" [i|
           build-tools:
               hpc
           |]) {packageCabalVersion = "1.14"}
@@ -659,7 +753,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           executable:
             system-build-tools:
               ghcjs
-          |] `shouldRenderTo` (executable_ "foo" [i|
+          |] `shouldRenderTo` (executable_ "my-package" [i|
           build-tools:
               ghcjs
           |]) {packageCabalVersion = "1.22"}
@@ -670,7 +764,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           executable:
             system-build-tools:
               g++ >= 5.4.0
-          |] `shouldRenderTo` (executable_ "foo" [i|
+          |] `shouldRenderTo` (executable_ "my-package" [i|
+          autogen-modules:
+              Paths_my_package
           build-tools:
               g++ >=5.4.0
           |]) {packageCabalVersion = "2.0"}
@@ -680,16 +776,29 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         [i|
         executable:
           dependencies: base
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         build-depends:
             base
         |]
+
+      it "accepts build-depends as an alias" $ do
+        [i|
+        executable:
+          build-depends: base
+        |] `shouldRenderTo` (executable_ "my-package" [i|
+        build-depends:
+            base
+        |]) {
+          packageWarnings = ["package.yaml: $.executable.build-depends is deprecated, use $.executable.dependencies instead"]
+        }
 
       it "accepts dependencies with subcomponents" $ do
         [i|
         executable:
           dependencies: foo:bar
-        |] `shouldRenderTo` (executable_ "foo" [i|
+        |] `shouldRenderTo` (executable_ "my-package" [i|
+        autogen-modules:
+            Paths_my_package
         build-depends:
             foo:bar
         |]) {packageCabalVersion = "3.0"}
@@ -700,7 +809,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           dependencies:
             - base
             - transformers
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         build-depends:
             base
           , transformers
@@ -713,7 +822,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             - base
           executable:
             dependencies: hspec
-          |] `shouldRenderTo` executable_ "foo" [i|
+          |] `shouldRenderTo` executable_ "my-package" [i|
           build-depends:
               base
             , hspec
@@ -725,7 +834,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             - base
           executable:
             dependencies: base >= 2
-          |] `shouldRenderTo` executable_ "foo" [i|
+          |] `shouldRenderTo` executable_ "my-package" [i|
           build-depends:
               base >=2
           |]
@@ -737,7 +846,19 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - QtWebKit
           - weston
         executable: {}
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
+        pkgconfig-depends:
+            QtWebKit
+          , weston
+        |]
+
+      it "accepts pkgconfig-depends as an alias" $ do
+        [i|
+        pkgconfig-depends:
+          - QtWebKit
+          - weston
+        executable: {}
+        |] `shouldRenderTo` executable_ "my-package" [i|
         pkgconfig-depends:
             QtWebKit
           , weston
@@ -750,7 +871,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo
           - bar
         executable: {}
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         include-dirs:
             foo
             bar
@@ -763,10 +884,19 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo.h
           - bar.h
         executable: {}
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         install-includes:
             foo.h
             bar.h
+        |]
+
+    describe "ghc-shared-options" $ do
+      it "accepts ghc-shared-options" $ do
+        [i|
+        ghc-shared-options: -Wall
+        executable: {}
+        |] `shouldRenderTo` executable_ "my-package" [i|
+        ghc-shared-options: -Wall
         |]
 
     describe "js-sources" $ before_ (touch "foo.js" >> touch "jsbits/bar.js") $ do
@@ -776,7 +906,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           js-sources:
             - foo.js
             - jsbits/*.js
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         js-sources:
             foo.js
             jsbits/bar.js
@@ -788,7 +918,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo.js
           - jsbits/*.js
         executable: {}
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         js-sources:
             foo.js
             jsbits/bar.js
@@ -799,7 +929,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         [i|
         executable:
           cxx-options: -Wall
-        |] `shouldRenderTo` (executable_ "foo" [i|
+        |] `shouldRenderTo` (executable_ "my-package" [i|
+        autogen-modules:
+            Paths_my_package
         cxx-options: -Wall
         |]) {packageCabalVersion = "2.2"}
 
@@ -814,7 +946,12 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 when:
                   condition: True
                   cxx-options: -Wall
-          |] `shouldRenderTo` (executable_ "foo" [i|
+          |] `shouldRenderTo` (executable "my-package" [i|
+          other-modules:
+              Paths_my_package
+          autogen-modules:
+              Paths_my_package
+          default-language: Haskell2010
           if true
             if true
               if true
@@ -828,11 +965,70 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           cxx-sources:
             - foo.cc
             - cxxbits/*.cc
-        |] `shouldRenderTo` (executable_ "foo" [i|
+        |] `shouldRenderTo` (executable_ "my-package" [i|
+        autogen-modules:
+            Paths_my_package
         cxx-sources:
             foo.cc
             cxxbits/bar.cc
         |]) {packageCabalVersion = "2.2"}
+
+    describe "language" $ do
+      it "accepts language" $ do
+        [i|
+        language: GHC2021
+        executable: {}
+        |] `shouldRenderTo` executable "my-package" [i|
+          other-modules:
+              Paths_my_package
+          default-language: GHC2021
+        |]
+
+      it "omits language if it is null" $ do
+        [i|
+        language: null
+        executable: {}
+        |] `shouldRenderTo` executable "my-package" [i|
+          other-modules:
+              Paths_my_package
+        |]
+
+      it "accepts default-language as an alias" $ do
+        [i|
+        default-language: GHC2021
+        executable: {}
+        |] `shouldRenderTo` (executable "my-package" [i|
+          other-modules:
+              Paths_my_package
+          default-language: GHC2021
+        |]) {
+          packageWarnings = ["package.yaml: $.default-language is deprecated, use $.language instead"]
+        }
+
+      it "gives section-level language precedence" $ do
+        [i|
+        language: Haskell2010
+        executable:
+          language: GHC2021
+        |] `shouldRenderTo` executable "my-package" [i|
+          other-modules:
+              Paths_my_package
+          default-language: GHC2021
+        |]
+
+      it "accepts language from defaults" $ do
+        writeFile "defaults/sol/hpack-template/2017/.hpack/defaults.yaml" [i|
+        language: GHC2021
+        |]
+
+        [i|
+        defaults: sol/hpack-template@2017
+        library: {}
+        |] `shouldRenderTo` library [i|
+        other-modules:
+            Paths_my_package
+        default-language: GHC2021
+        |]
 
     describe "extra-lib-dirs" $ do
       it "accepts extra-lib-dirs" $ do
@@ -841,7 +1037,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo
           - bar
         executable: {}
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         extra-lib-dirs:
             foo
             bar
@@ -854,7 +1050,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo
           - bar
         executable: {}
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         extra-libraries:
             foo
             bar
@@ -867,7 +1063,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo
           - bar
         executable: {}
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         extra-frameworks-dirs:
             foo
             bar
@@ -880,7 +1076,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           - foo
           - bar
         executable: {}
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable_ "my-package" [i|
         frameworks:
             foo
             bar
@@ -979,6 +1175,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         library:
           signatures: Foo
         |] `shouldRenderTo` (library_ [i|
+          autogen-modules:
+              Paths_my_package
           signatures:
               Foo
         |]) {packageCabalVersion = "2.0"}
@@ -995,6 +1193,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               Foo
           other-modules:
               Foo
+          default-language: Haskell2010
           |]
 
       context "with mixins" $ do
@@ -1007,11 +1206,14 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                   - (Blah as Etc)
           |] `shouldRenderTo` (library [i|
           other-modules:
-              Paths_foo
+              Paths_my_package
+          autogen-modules:
+              Paths_my_package
           build-depends:
               foo
           mixins:
               foo (Blah as Etc)
+          default-language: Haskell2010
           |]) {packageCabalVersion = "2.0"}
 
     describe "internal-libraries" $ do
@@ -1025,7 +1227,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         exposed-modules:
             Foo
         other-modules:
-            Paths_foo
+            Paths_my_package
+        autogen-modules:
+            Paths_my_package
         hs-source-dirs:
             src
         |]
@@ -1054,7 +1258,9 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |] `shouldRenderTo` (internalLibrary "bar" [i|
         visibility: public
         other-modules:
-            Paths_foo
+            Paths_my_package
+        autogen-modules:
+            Paths_my_package
         |]) {packageCabalVersion = "3.0"}
 
     context "when inferring modules" $ do
@@ -1071,7 +1277,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           exposed-modules:
               Foo
           other-modules:
-              Paths_foo
+              Paths_my_package
+          default-language: Haskell2010
           |]
 
         it "ignores duplicate modules" $ do
@@ -1086,7 +1293,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           exposed-modules:
               Foo
           other-modules:
-              Paths_foo
+              Paths_my_package
+          default-language: Haskell2010
           |]
 
         context "with exposed-modules" $ do
@@ -1104,7 +1312,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Foo
             other-modules:
                 Bar
-                Paths_foo
+                Paths_my_package
+            default-language: Haskell2010
             |]
 
         context "with other-modules" $ do
@@ -1122,6 +1331,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Foo
             other-modules:
                 Bar
+            default-language: Haskell2010
             |]
 
         context "with both exposed-modules and other-modules" $ do
@@ -1140,6 +1350,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Foo
             other-modules:
                 Bar
+            default-language: Haskell2010
             |]
 
         context "with neither exposed-modules nor other-modules" $ do
@@ -1156,7 +1367,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 Bar
                 Foo
             other-modules:
-                Paths_foo
+                Paths_my_package
+            default-language: Haskell2010
             |]
 
         context "with a conditional" $ do
@@ -1170,16 +1382,18 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 condition: os(windows)
                 exposed-modules:
                   - Foo
-                  - Paths_foo
-            |] `shouldRenderTo` library [i|
-            hs-source-dirs:
-                src
-            if os(windows)
+                  - Paths_my_package
+            |] `shouldRenderTo` package [i|
+            library
+              hs-source-dirs:
+                  src
               exposed-modules:
-                  Foo
-                  Paths_foo
-            exposed-modules:
-                Bar
+                  Bar
+              default-language: Haskell2010
+              if os(windows)
+                exposed-modules:
+                    Foo
+                    Paths_my_package
             |]
 
           context "with a source-dir inside the conditional" $ do
@@ -1190,14 +1404,16 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 when:
                   condition: os(windows)
                   source-dirs: windows
-              |] `shouldRenderTo` library [i|
-              other-modules:
-                  Paths_foo
-              if os(windows)
+              |] `shouldRenderTo` package [i|
+              library
                 other-modules:
-                    Foo
-                hs-source-dirs:
-                    windows
+                    Paths_my_package
+                default-language: Haskell2010
+                if os(windows)
+                  other-modules:
+                      Foo
+                  hs-source-dirs:
+                      windows
               |]
 
             it "does not infer outer modules" $ do
@@ -1213,17 +1429,19 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                   else:
                     source-dirs: unix/
 
-              |] `shouldRenderTo` library [i|
-              exposed-modules:
-                  Foo
-              other-modules:
-                  Paths_foo
-              if os(windows)
-                hs-source-dirs:
-                    windows/
-              else
-                hs-source-dirs:
-                    unix/
+              |] `shouldRenderTo` package [i|
+              library
+                exposed-modules:
+                    Foo
+                other-modules:
+                    Paths_my_package
+                default-language: Haskell2010
+                if os(windows)
+                  hs-source-dirs:
+                      windows/
+                else
+                  hs-source-dirs:
+                      unix/
               |]
 
         context "with generated modules" $ do
@@ -1236,11 +1454,13 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             exposed-modules:
                 Foo
             other-modules:
-                Paths_foo
+                Paths_my_package
                 Bar
             autogen-modules:
+                Paths_my_package
                 Foo
                 Bar
+            default-language: Haskell2010
             |]) {packageCabalVersion = "2.0"}
 
           it "does not infer any mentioned generated modules" $ do
@@ -1257,11 +1477,13 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             exposed-modules:
                 Exposed
             other-modules:
-                Paths_foo
+                Paths_my_package
                 Other
             autogen-modules:
+                Paths_my_package
                 Exposed
                 Other
+            default-language: Haskell2010
             |]) {packageCabalVersion = "2.0"}
 
           it "does not infer any generated modules mentioned inside conditionals" $ do
@@ -1274,19 +1496,23 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 condition: os(windows)
                 generated-exposed-modules: Exposed
                 generated-other-modules: Other
-            |] `shouldRenderTo` (library [i|
-            other-modules:
-                Paths_foo
-            hs-source-dirs:
-                src
-            if os(windows)
-              exposed-modules:
-                  Exposed
+            |] `shouldRenderTo` (package [i|
+            library
               other-modules:
-                  Other
+                  Paths_my_package
               autogen-modules:
-                  Other
-                  Exposed
+                  Paths_my_package
+              hs-source-dirs:
+                  src
+              default-language: Haskell2010
+              if os(windows)
+                exposed-modules:
+                    Exposed
+                other-modules:
+                    Other
+                autogen-modules:
+                    Other
+                    Exposed
             |]) {packageCabalVersion = "2.0"}
 
       context "with an executable" $ do
@@ -1304,7 +1530,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 src
             other-modules:
                 Foo
-                Paths_foo
+                Paths_my_package
+            default-language: Haskell2010
           |]
 
         it "allows to specify other-modules" $ do
@@ -1322,6 +1549,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
                 src
             other-modules:
                 Baz
+            default-language: Haskell2010
           |]
 
         it "does not infer any mentioned generated modules" $ do
@@ -1337,10 +1565,12 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             hs-source-dirs:
                 src
             other-modules:
-                Paths_foo
+                Paths_my_package
                 Foo
             autogen-modules:
+                Paths_my_package
                 Foo
+            default-language: Haskell2010
           |]) {packageCabalVersion = "2.0"}
 
         context "with a conditional" $ do
@@ -1357,9 +1587,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             |] `shouldRenderTo` executable "foo" [i|
             other-modules:
                 Bar
-                Paths_foo
+                Paths_my_package
             hs-source-dirs:
                 src
+            default-language: Haskell2010
             if os(windows)
               other-modules:
                   Foo
@@ -1378,9 +1609,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             |] `shouldRenderTo` executable "foo" [i|
             other-modules:
                 Foo
-                Paths_foo
+                Paths_my_package
             hs-source-dirs:
                 src
+            default-language: Haskell2010
             if os(windows)
               other-modules:
                   Bar
@@ -1389,6 +1621,16 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             |]
 
     describe "executables" $ do
+      it "accepts main-is as an alias for main" $ do
+        [i|
+        executable:
+          main-is: Foo.hs
+        |] `shouldRenderTo` (executable_ "my-package" [i|
+        main-is: Foo.hs
+        |]) {
+          packageWarnings = ["package.yaml: $.executable.main-is is deprecated, use $.executable.main instead"]
+        }
+
       it "accepts arbitrary entry points as main" $ do
         touch "src/Foo.hs"
         touch "src/Bar.hs"
@@ -1404,7 +1646,8 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             src
         other-modules:
             Bar
-            Paths_foo
+            Paths_my_package
+        default-language: Haskell2010
         |]
 
       context "with a conditional" $ do
@@ -1417,8 +1660,11 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               when:
                 condition: os(windows)
                 main: Foo.hs
-          |] `shouldRenderTo` executable_ "foo" [i|
+          |] `shouldRenderTo` executable "foo" [i|
           ghc-options: -Wall
+          other-modules:
+              Paths_my_package
+          default-language: Haskell2010
           if os(windows)
             main-is: Foo.hs
           |]
@@ -1430,7 +1676,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
               when:
                 condition: os(windows)
                 main: Foo
-          |] `shouldRenderTo` executable_ "foo" [i|
+          |] `shouldRenderTo` executable "foo" [i|
+          other-modules:
+              Paths_my_package
+          default-language: Haskell2010
           if os(windows)
             main-is: Foo.hs
             ghc-options: -main-is Foo
@@ -1443,7 +1692,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           condition: os(windows)
           dependencies: Win32
         executable: {}
-        |] `shouldRenderTo` executable_ "foo" [i|
+        |] `shouldRenderTo` executable "my-package" [i|
+        other-modules:
+            Paths_my_package
+        default-language: Haskell2010
         if os(windows)
           build-depends:
               Win32
@@ -1477,7 +1729,10 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
             else:
               dependencies: unix
           executable: {}
-          |] `shouldRenderTo` executable_ "foo" [i|
+          |] `shouldRenderTo` executable "my-package" [i|
+          other-modules:
+              Paths_my_package
+          default-language: Haskell2010
           if os(windows)
             build-depends:
                 Win32
@@ -1567,7 +1822,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |] `shouldRenderTo` package [i|
         library
           other-modules:
-              Paths_foo
+              Paths_my_package
           default-language: Haskell2010
           foo: 23
           bar: 42
@@ -1584,7 +1839,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |] `shouldRenderTo` package [i|
         library
           other-modules:
-              Paths_foo
+              Paths_my_package
           default-language: Haskell2010
           build-depneds:
               foo
@@ -1600,7 +1855,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
         |] `shouldRenderTo` package [i|
         library
           other-modules:
-              Paths_foo
+              Paths_my_package
         |]
 
       context "when specified globally" $ do
@@ -1629,7 +1884,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           foo: 23
           library
             other-modules:
-                Paths_foo
+                Paths_my_package
             default-language: Haskell2010
           |]
 
@@ -1644,7 +1899,7 @@ spec = around_ (inTempDirectoryNamed "foo") $ do
           test-suite spec
             type: detailed-0.9
             other-modules:
-                Paths_foo
+                Paths_my_package
             default-language: Haskell2010
           |]
     describe "default value of maintainer" $ do
@@ -1697,12 +1952,9 @@ instance Show RenderResult where
 
 shouldRenderTo :: HasCallStack => String -> Package -> Expectation
 shouldRenderTo input p = do
-  writeFile packageConfig ("name: foo\n" ++ unindent input)
-  let currentDirectory = ".working-directory"
-  createDirectory currentDirectory
-  withCurrentDirectory currentDirectory $ do
-    (warnings, output) <- run ".." (".." </> packageConfig) expected
-    RenderResult warnings (dropEmptyLines output) `shouldBe` RenderResult (packageWarnings p) expected
+  writeFile packageConfig ("name: my-package\n" ++ unindent input)
+  (warnings, output) <- run "" packageConfig expected
+  RenderResult warnings (dropEmptyLines output) `shouldBe` RenderResult (packageWarnings p) expected
   where
     expected = dropEmptyLines (renderPackage p)
     dropEmptyLines = unlines . filter (not . null) . lines
@@ -1732,7 +1984,7 @@ library_ l = package content
     content = [i|
 library
   other-modules:
-      Paths_foo
+      Paths_my_package
 #{indentBy 2 $ unindent l}
   default-language: Haskell2010
 |]
@@ -1743,7 +1995,6 @@ library l = package content
     content = [i|
 library
 #{indentBy 2 $ unindent l}
-  default-language: Haskell2010
 |]
 
 internalLibrary :: String -> String -> Package
@@ -1761,7 +2012,7 @@ executable_ name e = package content
     content = [i|
 executable #{name}
   other-modules:
-      Paths_foo
+      Paths_my_package
 #{indentBy 2 $ unindent e}
   default-language: Haskell2010
 |]
@@ -1772,11 +2023,10 @@ executable name e = package content
     content = [i|
 executable #{name}
 #{indentBy 2 $ unindent e}
-  default-language: Haskell2010
 |]
 
 package :: String -> Package
-package c = Package "foo" "0.0.0" "Simple" "1.12" c []
+package c = Package "my-package" "0.0.0" "Simple" "1.12" c []
 
 data Package = Package {
   packageName :: String
@@ -1802,7 +2052,7 @@ indentBy n = unlines . map (replicate n ' ' ++) . lines
 
 license :: String
 license = [i|
-Copyright (c) 2014-2018 Simon Hengel <sol@typeful.net>
+Copyright (c) 2014-2023 Simon Hengel <sol@typeful.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

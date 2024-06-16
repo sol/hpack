@@ -28,6 +28,8 @@ module Data.Aeson.Config.Parser (
 
 , fromAesonPath
 , formatPath
+
+, markDeprecated
 ) where
 
 import           Imports
@@ -40,10 +42,16 @@ import           Data.Set (Set, notMember)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Vector as V
-import qualified Data.HashMap.Strict as HashMap
+import           Data.Aeson.Config.Key (Key)
+import qualified Data.Aeson.Config.Key as Key
+import qualified Data.Aeson.Config.KeyMap as KeyMap
 import           Data.Aeson.Types (Value(..), Object, Array)
 import qualified Data.Aeson.Types as Aeson
+#if MIN_VERSION_aeson(2,1,0)
+import           Data.Aeson.Types (IResult(..), iparse)
+#else
 import           Data.Aeson.Internal (IResult(..), iparse)
+#endif
 #if !MIN_VERSION_aeson(1,4,5)
 import qualified Data.Aeson.Internal as Aeson
 #endif
@@ -54,24 +62,27 @@ data JSONPathElement = Key Text | Index Int
 
 type JSONPath = [JSONPathElement]
 
+data Path = Consumed JSONPath | Deprecated JSONPath JSONPath
+  deriving (Eq, Ord, Show)
+
 fromAesonPath :: Aeson.JSONPath -> JSONPath
 fromAesonPath = reverse . map fromAesonPathElement
 
 fromAesonPathElement :: Aeson.JSONPathElement -> JSONPathElement
 fromAesonPathElement e = case e of
-  Aeson.Key k -> Key k
+  Aeson.Key k -> Key (Key.toText k)
   Aeson.Index n -> Index n
 
-newtype Parser a = Parser {unParser :: WriterT (Set JSONPath) Aeson.Parser a}
+newtype Parser a = Parser {unParser :: WriterT (Set Path) Aeson.Parser a}
   deriving (Functor, Applicative, Alternative, Monad, Fail.MonadFail)
 
 liftParser :: Aeson.Parser a -> Parser a
 liftParser = Parser . lift
 
-runParser :: (Value -> Parser a) -> Value -> Either String (a, [String])
+runParser :: (Value -> Parser a) -> Value -> Either String (a, [String], [(String, String)])
 runParser p v = case iparse (runWriterT . unParser <$> p) v of
   IError path err -> Left ("Error while parsing " ++ formatPath (fromAesonPath path) ++ " - " ++ err)
-  ISuccess (a, consumed) -> Right (a, map formatPath (determineUnconsumed consumed v))
+  ISuccess (a, paths) -> Right (a, map formatPath (determineUnconsumed paths v), [(formatPath name, formatPath substitute) | Deprecated name substitute <- Set.toList paths])
 
 formatPath :: JSONPath -> String
 formatPath = go "$" . reverse
@@ -82,19 +93,19 @@ formatPath = go "$" . reverse
       Index n : xs -> go (acc ++ "[" ++ show n ++ "]") xs
       Key key : xs -> go (acc ++ "." ++ T.unpack key) xs
 
-determineUnconsumed :: Set JSONPath -> Value -> [JSONPath]
-determineUnconsumed ((<> Set.singleton []) -> consumed) = Set.toList . execWriter . go []
+determineUnconsumed :: Set Path -> Value -> [JSONPath]
+determineUnconsumed ((<> Set.singleton (Consumed [])) -> consumed) = Set.toList . execWriter . go []
   where
     go :: JSONPath -> Value -> Writer (Set JSONPath) ()
     go path value
-      | path `notMember` consumed = tell (Set.singleton path)
+      | Consumed path `notMember` consumed = tell (Set.singleton path)
       | otherwise = case value of
           Number _ -> return ()
           String _ -> return ()
           Bool _ -> return ()
           Null -> return ()
           Object o -> do
-            forM_ (HashMap.toList o) $ \ (k, v) -> do
+            forM_ (KeyMap.toList o) $ \ (Key.toText -> k, v) -> do
               unless ("_" `T.isPrefixOf` k) $ do
                 go (Key k : path) v
           Array xs -> do
@@ -108,18 +119,23 @@ determineUnconsumed ((<> Set.singleton []) -> consumed) = Set.toList . execWrite
 markConsumed :: JSONPathElement -> Parser ()
 markConsumed e = do
   path <- getPath
-  Parser $ tell (Set.singleton $ e : path)
+  Parser $ tell (Set.singleton . Consumed $ e : path)
+
+markDeprecated :: Key -> Key -> Parser ()
+markDeprecated (Key.toText -> name) (Key.toText -> substitute) = do
+  path <- getPath
+  Parser $ tell (Set.singleton $ Deprecated (Key name : path) (Key substitute : path))
 
 getPath :: Parser JSONPath
 getPath = liftParser $ Aeson.parserCatchError empty $ \ path _ -> return (fromAesonPath path)
 
-explicitParseField :: (Value -> Parser a) -> Object -> Text -> Parser a
-explicitParseField p o key = case HashMap.lookup key o of
+explicitParseField :: (Value -> Parser a) -> Object -> Key -> Parser a
+explicitParseField p o key = case KeyMap.lookup key o of
   Nothing -> fail $ "key " ++ show key ++ " not present"
   Just v  -> p v <?> Aeson.Key key
 
-explicitParseFieldMaybe :: (Value -> Parser a) -> Object -> Text -> Parser (Maybe a)
-explicitParseFieldMaybe p o key = case HashMap.lookup key o of
+explicitParseFieldMaybe :: (Value -> Parser a) -> Object -> Key -> Parser (Maybe a)
+explicitParseFieldMaybe p o key = case KeyMap.lookup key o of
   Nothing -> pure Nothing
   Just v  -> Just <$> p v <?> Aeson.Key key
 

@@ -1,18 +1,20 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE LiberalTypeSynonyms #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE FlexibleContexts #-}
 module Hpack.Config (
 -- | /__NOTE:__/ This module is exposed to allow integration of Hpack into
 -- other tools.  It is not meant for general use by end users.  The following
@@ -32,6 +34,7 @@ module Hpack.Config (
 , packageConfig
 , DecodeResult(..)
 , readPackageConfig
+, readPackageConfigWithError
 
 , renamePackage
 , packageDependencies
@@ -59,6 +62,7 @@ module Hpack.Config (
 , Cond(..)
 , Flag(..)
 , SourceRepository(..)
+, Language(..)
 , BuildType(..)
 , GhcProfOption
 , GhcjsOption
@@ -86,18 +90,19 @@ import           Data.Either
 import           Data.Bitraversable
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
-import qualified Data.HashMap.Lazy as HashMap
+import qualified Data.Aeson.Config.KeyMap as KeyMap
 import           Data.Maybe
+import           Data.Monoid (Last(..))
 import           Data.Ord
 import qualified Data.Text as T
 import           Data.Text.Encoding (decodeUtf8)
 import           Data.Scientific (Scientific)
 import           System.Directory
 import           System.FilePath
-import           Control.Monad.Trans.Class
-import           Control.Monad.Trans.Writer
-import           Control.Monad.Trans.Except
-import           Control.Monad.IO.Class
+import           Control.Monad.State (MonadState, StateT, evalStateT)
+import qualified Control.Monad.State as State
+import           Control.Monad.Writer (MonadWriter, WriterT, runWriterT, tell)
+import           Control.Monad.Except
 import           Data.Version (Version, makeVersion, showVersion)
 
 import           Distribution.Pretty (prettyShow)
@@ -109,6 +114,7 @@ import           Data.Aeson.Config.Types
 import           Data.Aeson.Config.FromValue hiding (decodeValue)
 import qualified Data.Aeson.Config.FromValue as Config
 
+import           Hpack.Error
 import           Hpack.Syntax.Defaults
 import           Hpack.Util hiding (expandGlobs)
 import qualified Hpack.Util as Util
@@ -185,7 +191,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, info) | (name, info) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
+section a = Section a [] mempty [] [] [] Nothing [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -222,18 +228,18 @@ instance Semigroup LibrarySection where
     }
 
 data ExecutableSection = ExecutableSection {
-  executableSectionMain :: Maybe FilePath
+  executableSectionMain :: Alias 'True "main-is" (Last FilePath)
 , executableSectionOtherModules :: Maybe (List Module)
 , executableSectionGeneratedOtherModules :: Maybe (List Module)
 } deriving (Eq, Show, Generic, FromValue)
 
 instance Monoid ExecutableSection where
-  mempty = ExecutableSection Nothing Nothing Nothing
+  mempty = ExecutableSection mempty Nothing Nothing
   mappend = (<>)
 
 instance Semigroup ExecutableSection where
   a <> b = ExecutableSection {
-      executableSectionMain = executableSectionMain b <|> executableSectionMain a
+      executableSectionMain = executableSectionMain a <> executableSectionMain b
     , executableSectionOtherModules = executableSectionOtherModules a <> executableSectionOtherModules b
     , executableSectionGeneratedOtherModules = executableSectionGeneratedOtherModules a <> executableSectionGeneratedOtherModules b
     }
@@ -266,13 +272,15 @@ instance FromValue Verbatim where
     _ -> typeMismatch (formatOrList ["String", "Object"]) v
 
 data CommonOptions cSources cxxSources jsSources a = CommonOptions {
-  commonOptionsSourceDirs :: Maybe (List FilePath)
-, commonOptionsDependencies :: Maybe Dependencies
-, commonOptionsPkgConfigDependencies :: Maybe (List String)
+  commonOptionsSourceDirs :: Alias 'True "hs-source-dirs" (Maybe (List FilePath))
+, commonOptionsDependencies :: Alias 'True "build-depends" (Maybe Dependencies)
+, commonOptionsPkgConfigDependencies :: Alias 'False "pkgconfig-depends" (Maybe (List String))
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsOtherExtensions :: Maybe (List String)
+, commonOptionsLanguage :: Alias 'True "default-language" (Last (Maybe Language))
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
+, commonOptionsGhcSharedOptions :: Maybe (List GhcOption)
 , commonOptionsGhcjsOptions :: Maybe (List GhcjsOption)
 , commonOptionsCppOptions :: Maybe (List CppOption)
 , commonOptionsCcOptions :: Maybe (List CcOption)
@@ -287,9 +295,9 @@ data CommonOptions cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsIncludeDirs :: Maybe (List FilePath)
 , commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
-, commonOptionsBuildable :: Maybe Bool
+, commonOptionsBuildable :: Last Bool
 , commonOptionsWhen :: Maybe (List (ConditionalSection cSources cxxSources jsSources a))
-, commonOptionsBuildTools :: Maybe BuildTools
+, commonOptionsBuildTools :: Alias 'True "build-tool-depends" (Maybe BuildTools)
 , commonOptionsSystemBuildTools :: Maybe SystemBuildTools
 , commonOptionsVerbatim :: Maybe (List Verbatim)
 } deriving (Functor, Generic)
@@ -299,13 +307,15 @@ instance FromValue a => FromValue (ParseCommonOptions a)
 
 instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid cSources, Monoid cxxSources, Monoid jsSources) => Monoid (CommonOptions cSources cxxSources jsSources a) where
   mempty = CommonOptions {
-    commonOptionsSourceDirs = Nothing
-  , commonOptionsDependencies = Nothing
-  , commonOptionsPkgConfigDependencies = Nothing
+    commonOptionsSourceDirs = Alias Nothing
+  , commonOptionsDependencies = Alias Nothing
+  , commonOptionsPkgConfigDependencies = Alias Nothing
   , commonOptionsDefaultExtensions = Nothing
   , commonOptionsOtherExtensions = Nothing
+  , commonOptionsLanguage = mempty
   , commonOptionsGhcOptions = Nothing
   , commonOptionsGhcProfOptions = Nothing
+  , commonOptionsGhcSharedOptions = Nothing
   , commonOptionsGhcjsOptions = Nothing
   , commonOptionsCppOptions = Nothing
   , commonOptionsCcOptions = Nothing
@@ -320,9 +330,9 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources, Monoid 
   , commonOptionsIncludeDirs = Nothing
   , commonOptionsInstallIncludes = Nothing
   , commonOptionsLdOptions = Nothing
-  , commonOptionsBuildable = Nothing
+  , commonOptionsBuildable = mempty
   , commonOptionsWhen = Nothing
-  , commonOptionsBuildTools = Nothing
+  , commonOptionsBuildTools = Alias Nothing
   , commonOptionsSystemBuildTools = Nothing
   , commonOptionsVerbatim = Nothing
   }
@@ -335,8 +345,10 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semi
   , commonOptionsPkgConfigDependencies = commonOptionsPkgConfigDependencies a <> commonOptionsPkgConfigDependencies b
   , commonOptionsDefaultExtensions = commonOptionsDefaultExtensions a <> commonOptionsDefaultExtensions b
   , commonOptionsOtherExtensions = commonOptionsOtherExtensions a <> commonOptionsOtherExtensions b
+  , commonOptionsLanguage = commonOptionsLanguage a <> commonOptionsLanguage b
   , commonOptionsGhcOptions = commonOptionsGhcOptions a <> commonOptionsGhcOptions b
   , commonOptionsGhcProfOptions = commonOptionsGhcProfOptions a <> commonOptionsGhcProfOptions b
+  , commonOptionsGhcSharedOptions = commonOptionsGhcSharedOptions a <> commonOptionsGhcSharedOptions b
   , commonOptionsGhcjsOptions = commonOptionsGhcjsOptions a <> commonOptionsGhcjsOptions b
   , commonOptionsCppOptions = commonOptionsCppOptions a <> commonOptionsCppOptions b
   , commonOptionsCcOptions = commonOptionsCcOptions a <> commonOptionsCcOptions b
@@ -351,7 +363,7 @@ instance (Semigroup cSources, Semigroup cxxSources, Semigroup jsSources) => Semi
   , commonOptionsIncludeDirs = commonOptionsIncludeDirs a <> commonOptionsIncludeDirs b
   , commonOptionsInstallIncludes = commonOptionsInstallIncludes a <> commonOptionsInstallIncludes b
   , commonOptionsLdOptions = commonOptionsLdOptions a <> commonOptionsLdOptions b
-  , commonOptionsBuildable = commonOptionsBuildable b <|> commonOptionsBuildable a
+  , commonOptionsBuildable = commonOptionsBuildable a <> commonOptionsBuildable b
   , commonOptionsWhen = commonOptionsWhen a <> commonOptionsWhen b
   , commonOptionsBuildTools = commonOptionsBuildTools a <> commonOptionsBuildTools b
   , commonOptionsSystemBuildTools = commonOptionsSystemBuildTools b <> commonOptionsSystemBuildTools a
@@ -428,10 +440,10 @@ instance FromValue a => FromValue (ParseConditionalSection a) where
     | otherwise = FlatConditional <$> fromValue v
     where
       giveHint = case v of
-        Object o -> case (,,) <$> HashMap.lookup "then" o <*> HashMap.lookup "else" o <*> HashMap.lookup "condition" o of
+        Object o -> case (,,) <$> KeyMap.lookup "then" o <*> KeyMap.lookup "else" o <*> KeyMap.lookup "condition" o of
           Just (Object then_, Object else_, String condition) -> do
-            when (HashMap.null then_) $ "then" `emptyTryInstead` flatElse
-            when (HashMap.null else_) $ "else" `emptyTryInstead` flatThen
+            when (KeyMap.null then_) $ "then" `emptyTryInstead` flatElse
+            when (KeyMap.null else_) $ "else" `emptyTryInstead` flatThen
             where
               flatThen = flatConditional condition then_
               flatElse = flatConditional (negate_ condition) else_
@@ -440,7 +452,7 @@ instance FromValue a => FromValue (ParseConditionalSection a) where
 
       negate_ condition = "!(" <> condition <> ")"
 
-      flatConditional condition sect = object [("when" .= HashMap.insert "condition" (String condition) sect)]
+      flatConditional condition sect = object [("when" .= KeyMap.insert "condition" (String condition) sect)]
 
       emptyTryInstead :: String -> Value -> Parser ()
       emptyTryInstead name sect = do
@@ -457,8 +469,8 @@ instance FromValue a => FromValue (ParseConditionalSection a) where
                 (_, "condition") -> GT
                 _ -> compare a b
 
-hasKey :: Text -> Value -> Bool
-hasKey key (Object o) = HashMap.member key o
+hasKey :: Key -> Value -> Bool
+hasKey key (Object o) = KeyMap.member key o
 hasKey _ _ = False
 
 newtype Condition = Condition {
@@ -501,12 +513,21 @@ instance Semigroup Empty where
 instance FromValue Empty where
   fromValue _ = return Empty
 
+newtype Language = Language String
+  deriving (Eq, Show)
+
+instance IsString Language where
+  fromString = Language
+
+instance FromValue Language where
+  fromValue = fmap Language . fromValue
+
 data BuildType =
     Simple
   | Configure
   | Make
   | Custom
-  deriving (Eq, Show, Generic, Enum, Bounded)
+  deriving (Eq, Show, Enum, Bounded)
 
 instance FromValue BuildType where
   fromValue = withText $ \ (T.unpack -> t) -> do
@@ -524,11 +545,11 @@ formatOrList xs = case reverse xs of
   y : x : [] -> x ++ " or " ++ y
   x : ys@(_:_:_) -> intercalate ", " . reverse $ ("or " ++ x) : ys
 
-type SectionConfigWithDefaluts cSources cxxSources jsSources a = Product DefaultsConfig (WithCommonOptions cSources cxxSources jsSources a)
+type SectionConfigWithDefaults cSources cxxSources jsSources a = Product DefaultsConfig (WithCommonOptions cSources cxxSources jsSources a)
 
 type PackageConfigWithDefaults cSources cxxSources jsSources = PackageConfig_
-  (SectionConfigWithDefaluts cSources cxxSources jsSources LibrarySection)
-  (SectionConfigWithDefaluts cSources cxxSources jsSources ExecutableSection)
+  (SectionConfigWithDefaults cSources cxxSources jsSources LibrarySection)
+  (SectionConfigWithDefaults cSources cxxSources jsSources ExecutableSection)
 
 type PackageConfig cSources cxxSources jsSources = PackageConfig_
   (WithCommonOptions cSources cxxSources jsSources LibrarySection)
@@ -615,30 +636,27 @@ type ParsePackageConfig = PackageConfigWithDefaults ParseCSources ParseCxxSource
 
 instance FromValue ParsePackageConfig
 
-type Warnings m = WriterT [String] m
-type Errors = ExceptT String
+liftIOEither :: (MonadIO m, Errors m) => IO (Either HpackError a) -> m a
+liftIOEither action = liftIO action >>= liftEither
 
-decodeYaml :: FromValue a => ProgramName -> FilePath -> Warnings (Errors IO) a
-decodeYaml programName file = do
-  (warnings, a) <- lift (ExceptT $ Yaml.decodeYaml file)
+type FormatYamlParseError = FilePath -> Yaml.ParseException -> String
+
+decodeYaml :: (FromValue a, MonadIO m, Warnings m, Errors m, State m) => FormatYamlParseError -> FilePath -> m a
+decodeYaml formatYamlParseError file = do
+  (warnings, a) <- liftIOEither $ first (ParseError . formatYamlParseError file) <$> Yaml.decodeYamlWithParseError file
   tell warnings
-  decodeValue programName file a
+  decodeValue file a
 
 data DecodeOptions = DecodeOptions {
   decodeOptionsProgramName :: ProgramName
 , decodeOptionsTarget :: FilePath
 , decodeOptionsUserDataDir :: Maybe FilePath
 , decodeOptionsDecode :: FilePath -> IO (Either String ([String], Value))
+, decodeOptionsFormatYamlParseError :: FilePath -> Yaml.ParseException -> String
 }
 
-newtype ProgramName = ProgramName String
-  deriving (Eq, Show)
-
-instance IsString ProgramName where
-  fromString = ProgramName
-
 defaultDecodeOptions :: DecodeOptions
-defaultDecodeOptions = DecodeOptions "hpack" packageConfig Nothing Yaml.decodeYaml
+defaultDecodeOptions = DecodeOptions "hpack" packageConfig Nothing Yaml.decodeYaml Yaml.formatYamlParseError
 
 data DecodeResult = DecodeResult {
   decodeResultPackage :: Package
@@ -648,13 +666,25 @@ data DecodeResult = DecodeResult {
 } deriving (Eq, Show)
 
 readPackageConfig :: DecodeOptions -> IO (Either String DecodeResult)
-readPackageConfig (DecodeOptions programName file mUserDataDir readValue) = runExceptT $ fmap addCabalFile . runWriterT $ do
-  (warnings, value) <- lift . ExceptT $ readValue file
+readPackageConfig options = first (formatHpackError $ decodeOptionsProgramName options) <$> readPackageConfigWithError options
+
+type Errors = MonadError HpackError
+type Warnings = MonadWriter [String]
+type State = MonadState SpecVersion
+
+type ConfigM m = StateT SpecVersion (WriterT [String] (ExceptT HpackError m))
+
+runConfigM :: Monad m => ConfigM m a -> m (Either HpackError (a, [String]))
+runConfigM = runExceptT . runWriterT . (`evalStateT` NoSpecVersion)
+
+readPackageConfigWithError :: DecodeOptions -> IO (Either HpackError DecodeResult)
+readPackageConfigWithError (DecodeOptions _ file mUserDataDir readValue formatYamlParseError) = fmap (fmap addCabalFile) . runConfigM $ do
+  (warnings, value) <- liftIOEither $ first ParseError <$> readValue file
   tell warnings
-  config <- decodeValue programName file value
+  config <- decodeValue file value
   dir <- liftIO $ takeDirectory <$> canonicalizePath file
   userDataDir <- liftIO $ maybe (getAppUserDataDirectory "hpack") return mUserDataDir
-  toPackage programName userDataDir dir config
+  toPackage formatYamlParseError userDataDir dir config
   where
     addCabalFile :: ((Package, String), [String]) -> DecodeResult
     addCabalFile ((pkg, cabalVersion), warnings) = DecodeResult pkg cabalVersion (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
@@ -676,15 +706,49 @@ verbatimValueToString = \ case
   VerbatimBool b -> show b
   VerbatimNull -> ""
 
-determineCabalVersion :: Maybe (License SPDX.License) -> Package -> (Package, String)
+addPathsModuleToGeneratedModules  :: Package -> Version -> Package
+addPathsModuleToGeneratedModules pkg cabalVersion
+  | cabalVersion < makeVersion [2] = pkg
+  | otherwise = pkg {
+      packageLibrary = fmap mapLibrary <$> packageLibrary pkg
+    , packageInternalLibraries = fmap mapLibrary <$> packageInternalLibraries pkg
+    , packageExecutables = fmap mapExecutable <$> packageExecutables pkg
+    , packageTests = fmap mapExecutable <$> packageTests pkg
+    , packageBenchmarks = fmap mapExecutable <$> packageBenchmarks pkg
+    }
+  where
+    pathsModule = pathsModuleFromPackageName (packageName pkg)
+
+    mapLibrary :: Library -> Library
+    mapLibrary lib
+      | pathsModule `elem` getLibraryModules lib = lib {
+          libraryGeneratedModules = if pathsModule `elem` generatedModules then generatedModules else pathsModule : generatedModules
+        }
+      | otherwise = lib
+      where
+        generatedModules = libraryGeneratedModules lib
+
+    mapExecutable :: Executable -> Executable
+    mapExecutable executable
+      | pathsModule `elem` executableOtherModules executable = executable {
+          executableGeneratedModules = if pathsModule `elem` generatedModules then generatedModules else pathsModule : generatedModules
+        }
+      | otherwise = executable
+      where
+        generatedModules = executableGeneratedModules executable
+
+determineCabalVersion :: Maybe (License SPDX.License) -> Package -> (Package, String, Maybe Version)
 determineCabalVersion inferredLicense pkg@Package{..} = (
     pkg {
         packageVerbatim = deleteVerbatimField "cabal-version" packageVerbatim
       , packageLicense = formatLicense <$> license
       }
-  , "cabal-version: " ++ fromMaybe inferredCabalVersion verbatimCabalVersion ++ "\n\n"
+  , "cabal-version: " ++ effectiveCabalVersion ++ "\n\n"
+  , parseVersion effectiveCabalVersion
   )
   where
+    effectiveCabalVersion = fromMaybe inferredCabalVersion verbatimCabalVersion
+
     license = fmap prettyShow <$> (parsedLicense <|> inferredLicense)
 
     parsedLicense = parseLicense <$> packageLicense
@@ -838,30 +902,44 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
     hasSubcomponents :: String -> Bool
     hasSubcomponents = elem ':'
 
-sectionAll :: (Semigroup b, Monoid b) => (Section a -> b) -> Section a -> b
+sectionAll :: Monoid b => (Section a -> b) -> Section a -> b
 sectionAll f sect = f sect <> foldMap (foldMap $ sectionAll f) (sectionConditionals sect)
 
-decodeValue :: FromValue a => ProgramName -> FilePath -> Value -> Warnings (Errors IO) a
-decodeValue (ProgramName programName) file value = do
-  (r, unknown) <- lift . ExceptT . return $ first (prefix ++) (Config.decodeValue value)
+decodeValue :: (FromValue a, State m, Warnings m, Errors m) => FilePath -> Value -> m a
+decodeValue file value = do
+  (r, unknown, deprecated) <- liftEither $ first (DecodeValueError file) (Config.decodeValue value)
   case r of
     UnsupportedSpecVersion v -> do
-      lift $ throwE ("The file " ++ file ++ " requires version " ++ showVersion v ++ " of the Hpack package specification, however this version of " ++ programName ++ " only supports versions up to " ++ showVersion Hpack.version ++ ". Upgrading to the latest version of " ++ programName ++ " may resolve this issue.")
-    SupportedSpecVersion a -> do
+      throwError $ HpackVersionNotSupported file v Hpack.version
+    SupportedSpecVersion v a -> do
       tell (map formatUnknownField unknown)
+      tell (map formatDeprecatedField deprecated)
+      State.modify $ max v
       return a
   where
+    prefix :: String
     prefix = file ++ ": "
+
+    formatUnknownField :: String -> String
     formatUnknownField name = prefix ++ "Ignoring unrecognized field " ++ name
 
-data CheckSpecVersion a = SupportedSpecVersion a | UnsupportedSpecVersion Version
+    formatDeprecatedField :: (String, String) -> String
+    formatDeprecatedField (name, substitute) = prefix <> name <> " is deprecated, use " <> substitute <> " instead"
+
+data SpecVersion = NoSpecVersion | SpecVersion Version
+  deriving (Eq, Show, Ord)
+
+toSpecVersion :: Maybe ParseSpecVersion -> SpecVersion
+toSpecVersion = maybe NoSpecVersion (SpecVersion . unParseSpecVersion)
+
+data CheckSpecVersion a = SupportedSpecVersion SpecVersion a | UnsupportedSpecVersion Version
 
 instance FromValue a => FromValue (CheckSpecVersion a) where
   fromValue = withObject $ \ o -> o .:? "spec-version" >>= \ case
     Just (ParseSpecVersion v) | Hpack.version < v -> return $ UnsupportedSpecVersion v
-    _ -> SupportedSpecVersion <$> fromValue (Object o)
+    v -> SupportedSpecVersion (toSpecVersion v) <$> fromValue (Object o)
 
-newtype ParseSpecVersion = ParseSpecVersion Version
+newtype ParseSpecVersion = ParseSpecVersion {unParseSpecVersion :: Version}
 
 instance FromValue ParseSpecVersion where
   fromValue value = do
@@ -934,8 +1012,10 @@ data Section a = Section {
 , sectionPkgConfigDependencies :: [String]
 , sectionDefaultExtensions :: [String]
 , sectionOtherExtensions :: [String]
+, sectionLanguage :: Maybe Language
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
+, sectionGhcSharedOptions :: [GhcOption]
 , sectionGhcjsOptions :: [GhcjsOption]
 , sectionCppOptions :: [CppOption]
 , sectionCcOptions :: [CcOption]
@@ -997,42 +1077,50 @@ type ConfigWithDefaults = Product
 type CommonOptionsWithDefaults a = Product DefaultsConfig (CommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 type WithCommonOptionsWithDefaults a = Product DefaultsConfig (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
 
-toPackage :: ProgramName -> FilePath -> FilePath -> ConfigWithDefaults -> Warnings (Errors IO) (Package, String)
-toPackage programName userDataDir dir =
-      expandDefaultsInConfig programName userDataDir dir
-  >=> traverseConfig (expandForeignSources dir)
+toPackage :: FormatYamlParseError -> FilePath -> FilePath -> ConfigWithDefaults -> ConfigM IO (Package, String)
+toPackage formatYamlParseError userDataDir dir =
+      expandDefaultsInConfig formatYamlParseError userDataDir dir
+  >=> setDefaultLanguage "Haskell2010"
+  >>> traverseConfig (expandForeignSources dir)
   >=> toPackage_ dir
+  where
+    setDefaultLanguage language config = first setLanguage config
+      where
+        setLanguage = (mempty { commonOptionsLanguage = Alias . Last $ Just (Just language) } <>)
 
 expandDefaultsInConfig
-  :: ProgramName
+  :: (MonadIO m, Warnings m, Errors m, State m) =>
+     FormatYamlParseError
   -> FilePath
   -> FilePath
   -> ConfigWithDefaults
-  -> Warnings (Errors IO) (Config ParseCSources ParseCxxSources ParseJsSources)
-expandDefaultsInConfig programName userDataDir dir = bitraverse (expandGlobalDefaults programName userDataDir dir) (expandSectionDefaults programName userDataDir dir)
+  -> m (Config ParseCSources ParseCxxSources ParseJsSources)
+expandDefaultsInConfig formatYamlParseError userDataDir dir = bitraverse (expandGlobalDefaults formatYamlParseError userDataDir dir) (expandSectionDefaults formatYamlParseError userDataDir dir)
 
 expandGlobalDefaults
-  :: ProgramName
+  :: (MonadIO m, Warnings m, Errors m, State m) =>
+     FormatYamlParseError
   -> FilePath
   -> FilePath
   -> CommonOptionsWithDefaults Empty
-  -> Warnings (Errors IO) (CommonOptions ParseCSources ParseCxxSources ParseJsSources Empty)
-expandGlobalDefaults programName userDataDir dir = do
-  fmap (`Product` Empty) >>> expandDefaults programName userDataDir dir >=> \ (Product c Empty) -> return c
+  -> m (CommonOptions ParseCSources ParseCxxSources ParseJsSources Empty)
+expandGlobalDefaults formatYamlParseError userDataDir dir = do
+  fmap (`Product` Empty) >>> expandDefaults formatYamlParseError userDataDir dir >=> \ (Product c Empty) -> return c
 
 expandSectionDefaults
-  :: ProgramName
+  :: (MonadIO m, Warnings m, Errors m, State m) =>
+     FormatYamlParseError
   -> FilePath
   -> FilePath
   -> PackageConfigWithDefaults ParseCSources ParseCxxSources ParseJsSources
-  -> Warnings (Errors IO) (PackageConfig ParseCSources ParseCxxSources ParseJsSources)
-expandSectionDefaults programName userDataDir dir p@PackageConfig{..} = do
-  library <- traverse (expandDefaults programName userDataDir dir) packageConfigLibrary
-  internalLibraries <- traverse (traverse (expandDefaults programName userDataDir dir)) packageConfigInternalLibraries
-  executable <- traverse (expandDefaults programName userDataDir dir) packageConfigExecutable
-  executables <- traverse (traverse (expandDefaults programName userDataDir dir)) packageConfigExecutables
-  tests <- traverse (traverse (expandDefaults programName userDataDir dir)) packageConfigTests
-  benchmarks <- traverse (traverse (expandDefaults programName userDataDir dir)) packageConfigBenchmarks
+  -> m (PackageConfig ParseCSources ParseCxxSources ParseJsSources)
+expandSectionDefaults formatYamlParseError userDataDir dir p@PackageConfig{..} = do
+  library <- traverse (expandDefaults formatYamlParseError userDataDir dir) packageConfigLibrary
+  internalLibraries <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigInternalLibraries
+  executable <- traverse (expandDefaults formatYamlParseError userDataDir dir) packageConfigExecutable
+  executables <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigExecutables
+  tests <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigTests
+  benchmarks <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigBenchmarks
   return p{
       packageConfigLibrary = library
     , packageConfigInternalLibraries = internalLibraries
@@ -1043,43 +1131,44 @@ expandSectionDefaults programName userDataDir dir p@PackageConfig{..} = do
     }
 
 expandDefaults
-  :: (FromValue a, Semigroup a, Monoid a)
-  => ProgramName
+  :: forall a m. (MonadIO m, Warnings m, Errors m, State m) =>
+     (FromValue a, Monoid a)
+  => FormatYamlParseError
   -> FilePath
   -> FilePath
   -> WithCommonOptionsWithDefaults a
-  -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
-expandDefaults programName userDataDir = expand []
+  -> m (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
+expandDefaults formatYamlParseError userDataDir = expand []
   where
-    expand :: (FromValue a, Semigroup a, Monoid a) =>
+    expand ::
          [FilePath]
       -> FilePath
       -> WithCommonOptionsWithDefaults a
-      -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
+      -> m (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
     expand seen dir (Product DefaultsConfig{..} c) = do
       d <- mconcat <$> mapM (get seen dir) (fromMaybeList defaultsConfigDefaults)
       return (d <> c)
 
-    get :: forall a. (FromValue a, Semigroup a, Monoid a) =>
+    get ::
          [FilePath]
       -> FilePath
       -> Defaults
-      -> Warnings (Errors IO) (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
+      -> m (WithCommonOptions ParseCSources ParseCxxSources ParseJsSources a)
     get seen dir defaults = do
-      file <- lift $ ExceptT (ensure userDataDir dir defaults)
-      seen_ <- lift (checkCycle seen file)
+      file <- liftIOEither (ensure userDataDir dir defaults)
+      seen_ <- checkCycle seen file
       let dir_ = takeDirectory file
-      decodeYaml programName file >>= expand seen_ dir_
+      decodeYaml formatYamlParseError file >>= expand seen_ dir_
 
-    checkCycle :: [FilePath] -> FilePath -> Errors IO [FilePath]
+    checkCycle :: [FilePath] -> FilePath -> m [FilePath]
     checkCycle seen file = do
       canonic <- liftIO $ canonicalizePath file
       let seen_ = canonic : seen
       when (canonic `elem` seen) $ do
-        throwE ("cycle in defaults (" ++ intercalate " -> " (reverse seen_) ++ ")")
+        throwError $ CycleInDefaults (reverse seen_)
       return seen_
 
-toExecutableMap :: Monad m => String -> Maybe (Map String a) -> Maybe a -> Warnings m (Maybe (Map String a))
+toExecutableMap :: Warnings m => String -> Maybe (Map String a) -> Maybe a -> m (Maybe (Map String a))
 toExecutableMap name executables mExecutable = do
   case mExecutable of
     Just executable -> do
@@ -1090,7 +1179,7 @@ toExecutableMap name executables mExecutable = do
 
 type GlobalOptions = CommonOptions CSources CxxSources JsSources Empty
 
-toPackage_ :: MonadIO m => FilePath -> Product GlobalOptions (PackageConfig CSources CxxSources JsSources) -> Warnings m (Package, String)
+toPackage_ :: (MonadIO m, Warnings m, State m) => FilePath -> Product GlobalOptions (PackageConfig CSources CxxSources JsSources) -> m (Package, String)
 toPackage_ dir (Product g PackageConfig{..}) = do
   executableMap <- toExecutableMap packageName_ packageConfigExecutables packageConfigExecutable
   let
@@ -1099,14 +1188,14 @@ toPackage_ dir (Product g PackageConfig{..}) = do
 
     executableNames = maybe [] Map.keys executableMap
 
-    toSect :: (Monad m, Monoid a) => WithCommonOptions CSources CxxSources JsSources a -> Warnings m (Section a)
+    toSect :: (Warnings m, Monoid a) => WithCommonOptions CSources CxxSources JsSources a -> m (Section a)
     toSect = toSection packageName_ executableNames . first ((mempty <$ globalOptions) <>)
 
-    toSections :: (Monad m, Monoid a) => Maybe (Map String (WithCommonOptions CSources CxxSources JsSources a)) -> Warnings m (Map String (Section a))
+    toSections :: (Warnings m, Monoid a) => Maybe (Map String (WithCommonOptions CSources CxxSources JsSources a)) -> m (Map String (Section a))
     toSections = maybe (return mempty) (traverse toSect)
 
-    toLib = liftIO . toLibrary dir packageName_
-    toExecutables = toSections >=> traverse (liftIO . toExecutable dir packageName_)
+    toLib = toLibrary dir packageName_
+    toExecutables = toSections >=> traverse (toExecutable dir packageName_)
 
   mLibrary <- traverse (toSect >=> toLib) packageConfigLibrary
   internalLibraries <- toSections packageConfigInternalLibraries >>= traverse toLib
@@ -1184,7 +1273,9 @@ toPackage_ dir (Product g PackageConfig{..}) = do
 
   tell nameWarnings
   tell (formatMissingSourceDirs missingSourceDirs)
-  return (determineCabalVersion inferredLicense pkg)
+
+  let (pkg_, renderedCabalVersion, cabalVersion) = determineCabalVersion inferredLicense pkg
+  return (maybe pkg_ (addPathsModuleToGeneratedModules pkg_) cabalVersion, renderedCabalVersion)
   where
     nameWarnings :: [String]
     packageName_ :: String
@@ -1235,9 +1326,9 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       _            -> Nothing
 
 expandForeignSources
-  :: MonadIO m
+  :: (MonadIO m, Warnings m)
   => FilePath
-  -> Traverse (Warnings m) ParseCSources CSources ParseCxxSources CxxSources ParseJsSources JsSources
+  -> Traverse m ParseCSources CSources ParseCxxSources CxxSources ParseJsSources JsSources
 expandForeignSources dir = Traverse {
     traverseCSources = expand "c-sources"
   , traverseCxxSources = expand "cxx-sources"
@@ -1253,7 +1344,7 @@ newtype Path = Path { unPath :: FilePath }
 instance IsString Path where
   fromString = Path
 
-expandGlobs :: MonadIO m => String -> FilePath -> [String] -> Warnings m [Path]
+expandGlobs :: (MonadIO m, Warnings m) => String -> FilePath -> [String] -> m [Path]
 expandGlobs name dir patterns = map Path <$> do
   (warnings, files) <- liftIO $ Util.expandGlobs name dir patterns
   tell warnings
@@ -1296,7 +1387,7 @@ removeConditionalsThatAreAlwaysFalse sect = sect {
   where
     p = (/= CondBool False) . conditionalCondition
 
-inferModules ::
+inferModules :: (MonadIO m, State m) =>
      FilePath
   -> String
   -> (a -> [Module])
@@ -1304,14 +1395,23 @@ inferModules ::
   -> ([Module] -> [Module] -> a -> b)
   -> ([Module] -> a -> b)
   -> Section a
-  -> IO (Section b)
-inferModules dir packageName_ getMentionedModules getInferredModules fromData fromConditionals = fmap removeConditionalsThatAreAlwaysFalse . traverseSectionAndConditionals
-  (fromConfigSection fromData [pathsModuleFromPackageName packageName_])
-  (fromConfigSection (\ [] -> fromConditionals) [])
-  []
+  -> m (Section b)
+inferModules dir packageName_ getMentionedModules getInferredModules fromData fromConditionals sect_ = do
+  specVersion <- State.get
+  let
+    pathsModule :: [Module]
+    pathsModule = case specVersion of
+      SpecVersion v | v >= makeVersion [0,36,0] -> []
+      _ -> [pathsModuleFromPackageName packageName_]
+
+  removeConditionalsThatAreAlwaysFalse <$> traverseSectionAndConditionals
+    (fromConfigSection fromData pathsModule)
+    (fromConfigSection (\ [] -> fromConditionals) [])
+    []
+    sect_
   where
     fromConfigSection fromConfig pathsModule_ outerModules sect@Section{sectionData = conf} = do
-      modules <- listModules dir sect
+      modules <- liftIO $ listModules dir sect
       let
         mentionedModules = concatMap getMentionedModules sect
         inferableModules = (modules \\ outerModules) \\ mentionedModules
@@ -1319,7 +1419,7 @@ inferModules dir packageName_ getMentionedModules getInferredModules fromData fr
         r = fromConfig pathsModule inferableModules conf
       return (outerModules ++ getInferredModules r, r)
 
-toLibrary :: FilePath -> String -> Section LibrarySection -> IO (Section Library)
+toLibrary :: (MonadIO m, State m) => FilePath -> String -> Section LibrarySection -> m (Section Library)
 toLibrary dir name =
     inferModules dir name getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel fromLibrarySectionInConditional
   where
@@ -1360,17 +1460,17 @@ fromLibrarySectionPlain LibrarySection{..} = Library {
   }
 
 getMentionedExecutableModules :: ExecutableSection -> [Module]
-getMentionedExecutableModules (ExecutableSection main otherModules generatedModules)=
+getMentionedExecutableModules (ExecutableSection (Alias (Last main)) otherModules generatedModules)=
   maybe id (:) (toModule . Path.fromFilePath <$> main) $ fromMaybeList (otherModules <> generatedModules)
 
-toExecutable :: FilePath -> String -> Section ExecutableSection -> IO (Section Executable)
+toExecutable :: (MonadIO m, State m) => FilePath -> String -> Section ExecutableSection -> m (Section Executable)
 toExecutable dir packageName_ =
     inferModules dir packageName_ getMentionedExecutableModules getExecutableModules fromExecutableSection (fromExecutableSection [])
   . expandMain
   where
     fromExecutableSection :: [Module] -> [Module] -> ExecutableSection -> Executable
     fromExecutableSection pathsModule inferableModules ExecutableSection{..} =
-      (Executable executableSectionMain (otherModules ++ generatedModules) generatedModules)
+      (Executable (getLast $ unAlias executableSectionMain) (otherModules ++ generatedModules) generatedModules)
       where
         otherModules = maybe (inferableModules ++ pathsModule) fromList executableSectionOtherModules
         generatedModules = maybe [] fromList executableSectionGeneratedOtherModules
@@ -1383,9 +1483,9 @@ expandMain = flatten . expand
       where
         go exec@ExecutableSection{..} =
           let
-            (mainSrcFile, ghcOptions) = maybe (Nothing, []) (first Just . parseMain) executableSectionMain
+            (mainSrcFile, ghcOptions) = maybe (Nothing, []) (first Just . parseMain) (getLast $ unAlias executableSectionMain)
           in
-            (ghcOptions, exec{executableSectionMain = mainSrcFile})
+            (ghcOptions, exec{executableSectionMain = Alias $ Last mainSrcFile})
 
     flatten :: Section ([GhcOption], ExecutableSection) -> Section ExecutableSection
     flatten sect@Section{sectionData = (ghcOptions, exec), ..} = sect{
@@ -1394,20 +1494,24 @@ expandMain = flatten . expand
       , sectionConditionals = map (fmap flatten) sectionConditionals
       }
 
-toSection :: Monad m => String -> [String] -> WithCommonOptions CSources CxxSources JsSources a -> Warnings m (Section a)
+toSection :: forall a m. Warnings m => String -> [String] -> WithCommonOptions CSources CxxSources JsSources a -> m (Section a)
 toSection packageName_ executableNames = go
   where
     go (Product CommonOptions{..} a) = do
-      (systemBuildTools, buildTools) <- maybe (return mempty) toBuildTools commonOptionsBuildTools
+      (systemBuildTools, buildTools) <- maybe (return mempty) toBuildTools (unAlias commonOptionsBuildTools)
 
       conditionals <- mapM toConditional (fromMaybeList commonOptionsWhen)
       return Section {
         sectionData = a
-      , sectionSourceDirs = nub $ fromMaybeList commonOptionsSourceDirs
+      , sectionSourceDirs = nub $ fromMaybeList (unAlias commonOptionsSourceDirs)
+      , sectionDependencies = fromMaybe mempty (unAlias commonOptionsDependencies)
+      , sectionPkgConfigDependencies = fromMaybeList (unAlias commonOptionsPkgConfigDependencies)
       , sectionDefaultExtensions = fromMaybeList commonOptionsDefaultExtensions
       , sectionOtherExtensions = fromMaybeList commonOptionsOtherExtensions
+      , sectionLanguage = join . getLast $ unAlias commonOptionsLanguage
       , sectionGhcOptions = fromMaybeList commonOptionsGhcOptions
       , sectionGhcProfOptions = fromMaybeList commonOptionsGhcProfOptions
+      , sectionGhcSharedOptions = fromMaybeList commonOptionsGhcSharedOptions
       , sectionGhcjsOptions = fromMaybeList commonOptionsGhcjsOptions
       , sectionCppOptions = fromMaybeList commonOptionsCppOptions
       , sectionCcOptions = fromMaybeList commonOptionsCcOptions
@@ -1422,33 +1526,30 @@ toSection packageName_ executableNames = go
       , sectionIncludeDirs = fromMaybeList commonOptionsIncludeDirs
       , sectionInstallIncludes = fromMaybeList commonOptionsInstallIncludes
       , sectionLdOptions = fromMaybeList commonOptionsLdOptions
-      , sectionBuildable = commonOptionsBuildable
-      , sectionDependencies = fromMaybe mempty commonOptionsDependencies
-      , sectionPkgConfigDependencies = fromMaybeList commonOptionsPkgConfigDependencies
+      , sectionBuildable = getLast commonOptionsBuildable
       , sectionConditionals = conditionals
       , sectionBuildTools = buildTools
       , sectionSystemBuildTools = systemBuildTools <> fromMaybe mempty commonOptionsSystemBuildTools
       , sectionVerbatim = fromMaybeList commonOptionsVerbatim
       }
-    toBuildTools :: Monad m => BuildTools -> Warnings m (SystemBuildTools, Map BuildTool DependencyVersion)
-    toBuildTools = fmap (mkSystemBuildTools &&& mkBuildTools) . mapM (toBuildTool packageName_ executableNames). unBuildTools
+    toBuildTools :: BuildTools -> m (SystemBuildTools, Map BuildTool DependencyVersion)
+    toBuildTools = fmap (mkSystemBuildTools &&& mkBuildTools) . mapM (toBuildTool packageName_ executableNames) . unBuildTools
       where
         mkSystemBuildTools :: [Either (String, VersionConstraint) b] -> SystemBuildTools
         mkSystemBuildTools = SystemBuildTools . Map.fromList . lefts
 
         mkBuildTools = Map.fromList . rights
 
-    toConditional :: Monad m => ConditionalSection CSources CxxSources JsSources a -> Warnings m (Conditional (Section a))
+    toConditional :: ConditionalSection CSources CxxSources JsSources a -> m (Conditional (Section a))
     toConditional x = case x of
-      ThenElseConditional (Product (ThenElse then_ else_) c) -> conditional c <$> (go then_) <*> (Just <$> go else_)
+      ThenElseConditional (Product (ThenElse then_ else_) c) -> conditional c <$> go then_ <*> (Just <$> go else_)
       FlatConditional (Product sect c) -> conditional c <$> (go sect) <*> pure Nothing
       where
         conditional = Conditional . conditionCondition
 
 type SystemBuildTool = (String, VersionConstraint)
 
-toBuildTool :: Monad m => String -> [String] -> (ParseBuildTool, DependencyVersion)
-  -> Warnings m (Either SystemBuildTool (BuildTool, DependencyVersion))
+toBuildTool :: Warnings m => String -> [String] -> (ParseBuildTool, DependencyVersion) -> m (Either SystemBuildTool (BuildTool, DependencyVersion))
 toBuildTool packageName_ executableNames = \ case
   (QualifiedBuildTool pkg executable, v)
     | pkg == packageName_ && executable `elem` executableNames -> localBuildTool executable v

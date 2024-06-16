@@ -47,6 +47,8 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
       * [Examples](#examples)
       * [Documentation](#documentation)
          * [Handling of Paths_ modules](#handling-of-paths_-modules)
+            * [Modern behavior](#modern-behavior)
+            * [Legacy behavior](#legacy-behavior)
          * [Quick-reference](#quick-reference)
             * [Top-level fields](#top-level-fields)
             * [cabal-version](#cabal-version)
@@ -66,22 +68,46 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
             * [Strings](#strings)
             * [Lists of objects and strings](#lists-of-objects-and-strings)
          * [Not repeating yourself](#not-repeating-yourself)
+      * [The hpack executable](#the-hpack-executable)
       * [Vim integration](#vim-integration)
       * [Stack support](#stack-support)
       * [Binaries for use on Travis CI](#binaries-for-use-on-travis-ci)
 
-<!-- Added by: sol, at: Fri 19 Feb 2021 10:31:47 PM +07 -->
+<!-- Added by: sol, at: Mon Sep 18 11:40:17 AM +07 2023 -->
 
 <!--te-->
 
 ### Handling of `Paths_` modules
 
-Cabal generates a `Paths_` module for every package.  By default Hpack adds
-that module to `other-modules` when generating a `.cabal` file.  This is
-sometimes useful and most of the time not harmful.
+Cabal generates a `Paths_` module for every package.  How exactly Hpack behaves
+in regards to that module depends on the value of the `spec-version` field.
 
-However, there are situations when this can lead to compilation errors (e.g
-when using a custom `Prelude`).
+If the `spec-version` is explicitly specified and at least `0.36.0` the modern
+behavior is used, otherwise Hpack falls back to the legacy behavior.
+
+To use the modern behavior, require at least
+```yaml
+spec-version: 0.36.0
+```
+in your `package.yaml`.
+
+#### Modern behavior
+
+If you want to use the `Paths_` module for a component, you have to explicitly
+specify it under `generated-other-modules`.
+
+***Example:***
+
+```yaml
+library:
+  source-dirs: src
+  generated-other-modules: Paths_name # substitute name with the package name
+```
+
+#### Legacy behavior
+
+For historic reasons Hpack adds the `Paths_` module to `other-modules` when
+generating a `.cabal` file.
 
 To prevent Hpack from adding the `Paths_` module to `other-modules` add the
 following to `package.yaml`:
@@ -218,9 +244,11 @@ values are merged with per section values.
 | `buildable` | · | | Per section takes precedence over top-level |
 | `source-dirs` | `hs-source-dirs` | | |
 | `default-extensions` | · | | |
+| `language` | `default-language` | `Haskell2010` | Also accepts `Haskell98`, `GHC2021` or `GHC2024`. Per section takes precedence over top-level |
 | `other-extensions` | · | | |
 | `ghc-options` | · | | |
 | `ghc-prof-options` | · | | |
+| `ghc-shared-options` | · | | |
 | `ghcjs-options` | · | | |
 | `cpp-options` | · | | |
 | `cc-options` | · | | |
@@ -237,7 +265,7 @@ values are merged with per section values.
 | `ld-options` | · | | |
 | `dependencies` | `build-depends` | | See [Dependencies](#dependencies) |
 | `pkg-config-dependencies` | `pkgconfig-depends` | | |
-| `build-tools` | [`build-tools`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tools) and/or [`build-tool-depends`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tool-depends) | | |
+| `build-tools` | [`build-tools`](https://cabal.readthedocs.io/en/stable/cabal-package.html#pkg-field-build-tools) and/or [`build-tool-depends`](https://cabal.readthedocs.io/en/stable/cabal-package.html#pkg-field-build-tool-depends) | | |
 | `system-build-tools` | `build-tools` | | A set of system executables that have to be on the `PATH` to build this component |
 | `when` | | | Accepts a list of conditionals (see [Conditionals](#conditionals)) |
 
@@ -296,7 +324,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 | `reexported-modules` | · | | |
 | `signatures` | · | | |
-| | `default-language` | `Haskell2010` | |
 
 #### Executable fields
 
@@ -305,7 +332,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
 
 #### Test fields
 
@@ -315,7 +341,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
 
 #### Benchmark fields
 
@@ -325,7 +350,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
 
 #### Flags
 
@@ -635,6 +659,37 @@ lib.yaml:
   dependencies: [hlint]
 ```
 
+## The hpack executable
+
+If the `hpack` executable is on the `PATH`, to obtain help about its usage,
+command `hpack --help`. In addition to its main use, `hpack` can also be used as
+follows:
+
+* `hpack --version` Output information about the version of `hpack` to the
+  standard output channel, in the format `hpack version x.y.z`.
+* `hpack --numeric-version` Output information about the version of `hpack` to
+  the standard output channel, in the format `x.y.z`.
+* `hpack --help` Output information about the usage of `hpack` to the standard
+  error channel.
+
+In respect of its main use, `hpack` has the following optional flags:
+
+* `--silent` Output no information other than error messages.
+* `--canonical` By default, `hpack` takes into account aspects of the format of
+  an existing Cabal file when generating a new Cabal file. Pass this flag to
+  cause `hpack` to ignore the format of an existing Cabal file when generating a
+  new one.
+* `--force` or `-f` By default, `hpack` will not generate a Cabal file
+  unnecessarily. Pass this flag to force the generation of a new Cabal file.
+* `--[no-]hash` Enable/disable the inclusion of a SHA-256 hash of the other
+  content of the generated Cabal file in the header comment added by `hpack` to
+  the generated Cabal file. (default: disabled)
+* `-` Output the generated Cabal file contents to the standard output channel.
+
+By default, `hpack` will assume the package description in the Hpack format is
+in file `package.yaml` in the current working directory. Alternatively, a
+relative or absolute path to a file can be specified.
+
 ## Vim integration
 
 To run `hpack` automatically on modifications to `package.yaml` add the
@@ -659,10 +714,5 @@ steps are required.
 
 ## Binaries for use on Travis CI
 
-You can get binaries for use on Travis CI with:
-
-```
-curl -sSL https://github.com/sol/hpack/raw/main/get-hpack.sh | bash
-```
-
-(both Linux and OS X are supported)
+Previously, we distributed binaries for use on Travis CI but, currently, we do
+not do so.

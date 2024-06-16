@@ -1,22 +1,24 @@
-cabal-version: 1.12
+cabal-version: 2.0
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.34.4
+version:        0.36.0
 synopsis:       A modern format for Haskell packages
 description:    See README at <https://github.com/sol/hpack#readme>
 category:       Development
 homepage:       https://github.com/sol/hpack#readme
 bug-reports:    https://github.com/sol/hpack/issues
+author:         Simon Hengel <sol@typeful.net>
 maintainer:     Simon Hengel <sol@typeful.net>
 license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     CHANGELOG.md
+    resources/test/hpack.cabal
 
 source-repository head
   type: git
@@ -25,23 +27,24 @@ source-repository head
 library
   hs-source-dirs:
       src
-  ghc-options: -Wall
+  ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
-      Cabal >=3.0.0.0 && <3.6
+      Cabal >=3.0.0.0 && <3.11
     , Glob >=0.9.0
     , aeson >=1.4.3.0
-    , base >=4.9 && <5
+    , base >=4.13 && <5
     , bifunctors
     , bytestring
     , containers
-    , cryptonite
+    , crypton
     , deepseq
     , directory >=1.2.5.0
     , filepath
     , http-client
-    , http-client-tls
+    , http-client-tls >=0.3.6.2
     , http-types
     , infer-license >=0.2.0 && <0.3
+    , mtl
     , pretty
     , scientific
     , text
@@ -54,8 +57,11 @@ library
       Hpack.Config
       Hpack.Render
       Hpack.Yaml
+      Hpack.Error
   other-modules:
       Data.Aeson.Config.FromValue
+      Data.Aeson.Config.Key
+      Data.Aeson.Config.KeyMap
       Data.Aeson.Config.Parser
       Data.Aeson.Config.Types
       Data.Aeson.Config.Util
@@ -78,30 +84,36 @@ library
       Imports
       Path
       Paths_hpack
+  autogen-modules:
+      Paths_hpack
   default-language: Haskell2010
+  if impl(ghc >= 9.4.5) && os(windows)
+    build-depends:
+        network >=3.1.2.9
 
 executable hpack
   main-is: Main.hs
   hs-source-dirs:
       driver
-  ghc-options: -Wall
+  ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
-      Cabal >=3.0.0.0 && <3.6
+      Cabal >=3.0.0.0 && <3.11
     , Glob >=0.9.0
     , aeson >=1.4.3.0
-    , base >=4.9 && <5
+    , base >=4.13 && <5
     , bifunctors
     , bytestring
     , containers
-    , cryptonite
+    , crypton
     , deepseq
     , directory >=1.2.5.0
     , filepath
     , hpack
     , http-client
-    , http-client-tls
+    , http-client-tls >=0.3.6.2
     , http-types
     , infer-license >=0.2.0 && <0.3
+    , mtl
     , pretty
     , scientific
     , text
@@ -109,9 +121,10 @@ executable hpack
     , unordered-containers
     , vector
     , yaml >=0.10.0
-  other-modules:
-      Paths_hpack
   default-language: Haskell2010
+  if impl(ghc >= 9.4.5) && os(windows)
+    build-depends:
+        network >=3.1.2.9
 
 test-suite spec
   type: exitcode-stdio-1.0
@@ -119,29 +132,30 @@ test-suite spec
   hs-source-dirs:
       test
       src
-  ghc-options: -Wall
+  ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   cpp-options: -DTEST
   build-depends:
-      Cabal >=3.0.0.0 && <3.6
+      Cabal >=3.0.0.0 && <3.11
     , Glob >=0.9.0
     , HUnit >=1.6.0.0
     , QuickCheck
     , aeson >=1.4.3.0
-    , base >=4.9 && <5
+    , base >=4.13 && <5
     , bifunctors
     , bytestring
     , containers
-    , cryptonite
+    , crypton
     , deepseq
     , directory >=1.2.5.0
     , filepath
     , hspec ==2.*
     , http-client
-    , http-client-tls
+    , http-client-tls >=0.3.6.2
     , http-types
     , infer-license >=0.2.0 && <0.3
     , interpolate
     , mockery >=0.3
+    , mtl
     , pretty
     , scientific
     , template-haskell
@@ -177,6 +191,8 @@ test-suite spec
       Hpack.UtilSpec
       HpackSpec
       Data.Aeson.Config.FromValue
+      Data.Aeson.Config.Key
+      Data.Aeson.Config.KeyMap
       Data.Aeson.Config.Parser
       Data.Aeson.Config.Types
       Data.Aeson.Config.Util
@@ -184,6 +200,7 @@ test-suite spec
       Hpack.CabalFile
       Hpack.Config
       Hpack.Defaults
+      Hpack.Error
       Hpack.Haskell
       Hpack.License
       Hpack.Module
@@ -203,4 +220,9 @@ test-suite spec
       Imports
       Path
       Paths_hpack
+  autogen-modules:
+      Paths_hpack
   default-language: Haskell2010
+  if impl(ghc >= 9.4.5) && os(windows)
+    build-depends:
+        network >=3.1.2.9

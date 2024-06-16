@@ -28,12 +28,14 @@ import           Control.Monad.Trans.Writer (runWriter)
 import           Hpack.Syntax.Dependencies
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.BuildTools
-import           Hpack.Config hiding (package)
+import           Hpack.Config hiding (section, package)
 import qualified Hpack.Config as Config
 
 import           Data.Aeson.Config.Types
 import           Data.Aeson.Config.FromValue
 
+section :: a -> Section a
+section a = (Config.section a) {sectionLanguage = Just $ Language "Haskell2010"}
 
 instance Exts.IsList (Maybe (List a)) where
   type Item (Maybe (List a)) = a
@@ -418,6 +420,15 @@ spec = do
         withPackageConfig_ [i|
           library:
             source-dirs:
+              - foo
+              - bar
+          |]
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
+
+      it "accepts hs-source-dirs as an alias for source-dirs" $ do
+        withPackageConfig_ [i|
+          library:
+            hs-source-dirs:
               - foo
               - bar
           |]

@@ -1,3 +1,48 @@
+## Changes in 0.36.0
+ - Don't infer `Paths_`-module with `spec-version: 0.36.0` or later
+
+## Changes in 0.35.5
+ - Add (undocumented) `list` command
+
+## Changes in 0.35.4
+ - Add `--canonical`, which can be used to produce canonical output instead of
+   trying to produce minimal diffs
+ - Avoid unnecessary writes on `--force` (see #555)
+ - When an existing `.cabal` does not align fields then do not align fields in
+   the generated `.cabal` file.
+ - Fix a bug related to git conflict markers in existing `.cabal` files: When a
+   `.cabal` file was essentially unchanged, but contained git conflict markers
+   then `hpack` did not write a new `.cabal` file at all.  To address this
+   `hpack` now unconditionally writes a new `.cabal` file when the existing
+   `.cabal` file contains any git conflict markers.
+
+## Changes in 0.35.3
+  - Depend on `crypton` instead of `cryptonite`
+
+## Changes in 0.35.2
+  - Add support for `ghc-shared-options`
+
+## Changes in 0.35.1
+  - Allow `Cabal-3.8.*`
+  - Additions to internal API
+
+## Changes in 0.35.0
+  - Add support for `language` (thanks @mpilgrem)
+  - Accept Cabal names for fields where Hpack and Cabal use different
+    terminology, but still warn (e.g. accept `hs-source-dirs` as an alias for
+    `source-dirs`)
+
+## Changes in 0.34.7
+  - Support `Cabal-3.6.*`
+  - Make sure that verbatim `import` fields are rendered at the beginning of
+    a section (see #486)
+
+## Changes in 0.34.6
+  - Add `Paths_` module to `autogen-modules` when `cabal-version >= 2`
+
+## Changes in 0.34.5
+  - Compatibility with `aeson-2.*`
+
 ## Changes in 0.34.4
   - Render `default-extensions` / `other-extensions` line-separated
   - Compatibility with `Cabal-3.4.0.0`
@@ -8,7 +53,7 @@
   - Reject empty `then` / `else` sections (see #362)
   - Omit conditionals that are always `false` from generated `.cabal` file
     (see #404)
-  - Infer correct `cabal-version` when `Path_` is used with `RebindableSyntax`
+  - Infer correct `cabal-version` when `Paths_` is used with `RebindableSyntax`
     and `OverloadedStrings` or `OverloadedLists` (see #400)
   - Do not use indentation from any existing `.cabal` file if it is invalid
     (e.g. `0`) (fixes #252)

@@ -6,8 +6,11 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
-
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DeriveFunctor #-}
 module Data.Aeson.Config.FromValue (
   FromValue(..)
 , Parser
@@ -34,34 +37,44 @@ module Data.Aeson.Config.FromValue (
 , (.:)
 , (.:?)
 
+, Key
 , Value(..)
 , Object
 , Array
+
+, Alias(..)
+, unAlias
 ) where
 
 import           Imports
 
+import           Data.Monoid (Last(..))
 import           GHC.Generics
+import           GHC.TypeLits
+import           Data.Proxy
 
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
-import qualified Data.Text as T
 import qualified Data.Vector as V
-import qualified Data.HashMap.Strict as HashMap
+import           Data.Aeson.Config.Key (Key)
+import qualified Data.Aeson.Config.Key as Key
+import           Data.Aeson.Config.KeyMap (member)
+import qualified Data.Aeson.Config.KeyMap as KeyMap
+
 import           Data.Aeson.Types (FromJSON(..))
 
 import           Data.Aeson.Config.Util
 import           Data.Aeson.Config.Parser
 
-type Result a = Either String (a, [String])
+type Result a = Either String (a, [String], [(String, String)])
 
 decodeValue :: FromValue a => Value -> Result a
 decodeValue = runParser fromValue
 
-(.:) :: FromValue a => Object -> Text -> Parser a
+(.:) :: FromValue a => Object -> Key -> Parser a
 (.:) = explicitParseField fromValue
 
-(.:?) :: FromValue a => Object -> Text -> Parser (Maybe a)
+(.:?) :: FromValue a => Object -> Key -> Parser (Maybe a)
 (.:?) = explicitParseFieldMaybe fromValue
 
 class FromValue a where
@@ -102,11 +115,11 @@ parseArray f = zipWithM (parseIndexed f) [0..] . V.toList
 instance FromValue a => FromValue (Map String a) where
   fromValue = withObject $ \ o -> do
     xs <- traverseObject fromValue o
-    return $ Map.fromList (map (first T.unpack) xs)
+    return $ Map.fromList (map (first Key.toString) xs)
 
-traverseObject :: (Value -> Parser a) -> Object -> Parser [(Text, a)]
+traverseObject :: (Value -> Parser a) -> Object -> Parser [(Key, a)]
 traverseObject f o = do
-  forM (HashMap.toList o) $ \ (name, value) ->
+  forM (KeyMap.toList o) $ \ (name, value) ->
     (,) name <$> f value <?> Key name
 
 instance (FromValue a, FromValue b) => FromValue (a, b) where
@@ -134,13 +147,49 @@ instance (GenericDecode a) => GenericDecode (C1 c a) where
 instance (GenericDecode a, GenericDecode b) => GenericDecode (a :*: b) where
   genericDecode opts o = (:*:) <$> genericDecode opts o <*> genericDecode opts o
 
-instance (Selector sel, FromValue a) => GenericDecode (S1 sel (Rec0 a)) where
+type RecordField sel a = S1 sel (Rec0 a)
+
+instance (Selector sel, FromValue a) => GenericDecode (RecordField sel a) where
   genericDecode = accessFieldWith (.:)
 
-instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (S1 sel (Rec0 (Maybe a))) where
+instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (RecordField sel (Maybe a)) where
   genericDecode = accessFieldWith (.:?)
 
-accessFieldWith :: forall sel a p. Selector sel => (Object -> Text -> Parser a) -> Options -> Value -> Parser (S1 sel (Rec0 a) p)
-accessFieldWith op Options{..} v = M1 . K1 <$> withObject (`op` T.pack label) v
+instance {-# OVERLAPPING #-} (Selector sel, FromValue a) => GenericDecode (RecordField sel (Last a)) where
+  genericDecode = accessFieldWith (\ value key -> Last <$> (value .:? key))
+
+instance {-# OVERLAPPING #-} (Selector sel, FromValue a, KnownBool deprecated, KnownSymbol alias) => GenericDecode (RecordField sel (Alias deprecated alias (Maybe a))) where
+  genericDecode = accessFieldWith (\ value key -> aliasAccess (.:?) value (Alias key))
+
+instance {-# OVERLAPPING #-} (Selector sel, FromValue a, KnownBool deprecated, KnownSymbol alias) => GenericDecode (RecordField sel (Alias deprecated alias (Last a))) where
+  genericDecode = accessFieldWith (\ value key -> fmap Last <$> aliasAccess (.:?) value (Alias key))
+
+aliasAccess :: forall deprecated alias a. (KnownBool deprecated, KnownSymbol alias) => (Object -> Key -> Parser a) -> Object -> (Alias deprecated alias Key) -> Parser (Alias deprecated alias a)
+aliasAccess op value (Alias key)
+  | alias `member` value && not (key `member` value) = Alias <$> value `op` alias <* deprecated
+  | otherwise = Alias <$> value `op` key
   where
-    label = optionsRecordSelectorModifier $ selName (undefined :: S1 sel (Rec0 a) p)
+    deprecated = case boolVal (Proxy @deprecated) of
+      False -> return ()
+      True -> markDeprecated alias key
+    alias = Key.fromString (symbolVal $ Proxy @alias)
+
+accessFieldWith :: forall sel a p. Selector sel => (Object -> Key -> Parser a) -> Options -> Value -> Parser (RecordField sel a p)
+accessFieldWith op Options{..} v = M1 . K1 <$> withObject (`op` Key.fromString label) v
+  where
+    label = optionsRecordSelectorModifier $ selName (undefined :: RecordField sel a p)
+
+newtype Alias (deprecated :: Bool) (alias :: Symbol) a = Alias a
+  deriving (Show, Eq, Semigroup, Monoid, Functor)
+
+unAlias :: Alias deprecated alias a -> a
+unAlias (Alias a) = a
+
+class KnownBool (a :: Bool) where
+  boolVal :: Proxy a -> Bool
+
+instance KnownBool 'True where
+  boolVal _ = True
+
+instance KnownBool 'False where
+  boolVal _ = False

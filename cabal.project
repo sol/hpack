@@ -3,3 +3,5 @@ packages:
 
 package hpack
   ghc-options: -Werror
+
+tests: True
