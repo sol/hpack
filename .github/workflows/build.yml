@@ -24,36 +24,25 @@ jobs:
         os:
           - ubuntu-latest
         ghc:
-          - '8.2'
-          - '8.4'
-          - '8.6'
           - '8.8'
           - '8.10'
           - '9.0'
           - '9.2'
           - '9.4'
+          - '9.6'
         include:
-          - os: macos-latest
+          - os: macos-12
             ghc: system
           - os: windows-latest
-            ghc: system
+            ghc: '9.2'
     steps:
       - uses: actions/checkout@v3
       - uses: hspec/setup-haskell@v1
         with:
           ghc-version: ${{ matrix.ghc }}
-
-      - run: cabal update
-      - run: echo "::set-output name=version::`ghc --numeric-version`"
-        shell: bash
-        id: ghc
-      - uses: actions/cache@v3
-        with:
-          path: ${{ runner.os == 'Windows' && 'C:/cabal/store' || '~/.cabal/store' }}
-          key: ${{ runner.os }}-v2-${{ steps.ghc.outputs.version }}-${{ github.run_id }}
-          restore-keys: ${{ runner.os }}-v2-${{ steps.ghc.outputs.version }}-
-
       - uses: sol/run-haskell-tests@v1
+        with:
+          caching: true
 
   success:
     needs: build

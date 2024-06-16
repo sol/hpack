@@ -48,10 +48,10 @@ import           Hpack.Render.Dsl hiding (sortFieldsBy)
 import qualified Hpack.Render.Dsl as Dsl
 
 renderPackage :: [String] -> Package -> String
-renderPackage oldCabalFile = renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder
+renderPackage oldCabalFile = renderPackageWith settings headerFieldsAlignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder
   where
     FormattingHints{..} = sniffFormattingHints oldCabalFile
-    alignment = fromMaybe 16 formattingHintsAlignment
+    headerFieldsAlignment = fromMaybe 16 formattingHintsAlignment
     settings = formattingHintsRenderSettings
 
 renderPackageWith :: RenderSettings -> Alignment -> [String] -> [(String, [String])] -> Package -> String
@@ -231,6 +231,7 @@ renderSection renderSectionData extraFieldsStart Section{..} = addVerbatim secti
   , renderOtherExtensions sectionOtherExtensions
   , renderGhcOptions sectionGhcOptions
   , renderGhcProfOptions sectionGhcProfOptions
+  , renderGhcSharedOptions sectionGhcSharedOptions
   , renderGhcjsOptions sectionGhcjsOptions
   , renderCppOptions sectionCppOptions
   , renderCcOptions sectionCcOptions
@@ -381,6 +382,9 @@ renderGhcOptions = Field "ghc-options" . WordList
 
 renderGhcProfOptions :: [GhcProfOption] -> Element
 renderGhcProfOptions = Field "ghc-prof-options" . WordList
+
+renderGhcSharedOptions :: [GhcOption] -> Element
+renderGhcSharedOptions = Field "ghc-shared-options" . WordList
 
 renderGhcjsOptions :: [GhcjsOption] -> Element
 renderGhcjsOptions = Field "ghcjs-options" . WordList

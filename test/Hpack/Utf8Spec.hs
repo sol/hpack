@@ -18,7 +18,7 @@ spec = do
           B.writeFile name "foo\r\nbar"
           Utf8.readFile name `shouldReturn` "foo\nbar"
 
-  describe "writeFile" $ do
+  describe "ensureFile" $ do
     it "uses system specific newline encoding" $ do
       inTempDirectory $ do
         let
@@ -28,5 +28,5 @@ spec = do
         writeFile name c
         systemSpecific <- B.readFile name
 
-        Utf8.writeFile name c
+        Utf8.ensureFile name c
         B.readFile name `shouldReturn` systemSpecific

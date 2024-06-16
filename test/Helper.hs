@@ -11,6 +11,7 @@ module Helper (
 , module System.FilePath
 , withCurrentDirectory
 , yaml
+, makeVersion
 ) where
 
 import           Imports
@@ -19,6 +20,7 @@ import           Test.Hspec
 import           Test.Mockery.Directory
 import           Control.Monad
 import           Control.Applicative
+import           Data.Version (Version(..))
 import           System.Directory (getCurrentDirectory, setCurrentDirectory, canonicalizePath)
 import           Control.Exception
 import qualified System.IO.Temp as Temp
@@ -44,3 +46,6 @@ withTempDirectory action = Temp.withSystemTempDirectory "hspec" $ \dir -> do
 
 yaml :: Language.Haskell.TH.Quote.QuasiQuoter
 yaml = yamlQQ
+
+makeVersion :: [Int] -> Version
+makeVersion v = Version v []
