@@ -4,6 +4,7 @@ module Hpack.Render.Hints (
   FormattingHints (..)
 , sniffFormattingHints
 #ifdef TEST
+, sniffRenderSettings
 , extractFieldOrder
 , extractSectionsFieldOrder
 , sanitize
@@ -15,12 +16,13 @@ module Hpack.Render.Hints (
 #endif
 ) where
 
+import           Imports
+
 import           Data.Char
 import           Data.Maybe
-import           Data.List
-import           Control.Applicative
 
 import           Hpack.Render.Dsl
+import           Hpack.Util
 
 data FormattingHints = FormattingHints {
   formattingHintsFieldOrder :: [String]
@@ -66,16 +68,32 @@ unindent input = map (drop indentation) input
   where
     indentation = minimum $ map (length . takeWhile isSpace) input
 
-sniffAlignment :: [String] -> Maybe Alignment
-sniffAlignment input = case nub . catMaybes . map indentation . catMaybes . map splitField $ input of
-  [n] -> Just (Alignment n)
-  _ -> Nothing
-  where
+data Indentation = Indentation {
+  indentationFieldNameLength :: Int
+, indentationPadding :: Int
+}
 
-    indentation :: (String, String) -> Maybe Int
+indentationTotal :: Indentation -> Int
+indentationTotal (Indentation fieldName padding) = fieldName + padding
+
+sniffAlignment :: [String] -> Maybe Alignment
+sniffAlignment input = case indentations of
+  [] -> Nothing
+  _ | all (indentationPadding >>> (== 1)) indentations -> Just 0
+  _ -> case nub (map indentationTotal indentations) of
+    [n] -> Just (Alignment n)
+    _ -> Nothing
+  where
+    indentations :: [Indentation]
+    indentations = catMaybes . map (splitField >=> indentation) $ input
+
+    indentation :: (String, String) -> Maybe Indentation
     indentation (name, value) = case span isSpace value of
       (_, "") -> Nothing
-      (xs, _) -> (Just . succ . length $ name ++ xs)
+      (padding, _) -> Just Indentation {
+        indentationFieldNameLength = succ $ length name
+      , indentationPadding = length padding
+      }
 
 splitField :: String -> Maybe (String, String)
 splitField field = case span isNameChar field of
@@ -109,6 +127,8 @@ sniffCommaStyle input
 sniffRenderSettings :: [String] -> RenderSettings
 sniffRenderSettings input = RenderSettings indentation fieldAlignment commaStyle
   where
-    indentation = fromMaybe (renderSettingsIndentation defaultRenderSettings) (sniffIndentation input)
+    indentation = max def $ fromMaybe def (sniffIndentation input)
+      where def = renderSettingsIndentation defaultRenderSettings
+
     fieldAlignment = renderSettingsFieldAlignment defaultRenderSettings
     commaStyle = fromMaybe (renderSettingsCommaStyle defaultRenderSettings) (sniffCommaStyle input)

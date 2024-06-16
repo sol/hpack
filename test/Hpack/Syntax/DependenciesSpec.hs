@@ -1,5 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Hpack.Syntax.DependenciesSpec (spec) where
 
 import           Helper
@@ -18,6 +19,16 @@ defaultInfo = DependencyInfo [] anyVersion
 
 spec :: Spec
 spec = do
+  describe "parseDependency" $ do
+    it "accepts dependencies" $ do
+      parseDependency "dependency" "foo" `shouldReturn` ("foo", DependencyVersion Nothing AnyVersion)
+
+    it "accepts dependencies with a subcomponent" $ do
+      parseDependency "dependency" "foo:bar" `shouldReturn` ("foo:bar", DependencyVersion Nothing AnyVersion)
+
+    it "accepts dependencies with multiple subcomponents" $ do
+      parseDependency "dependency" "foo:{bar,baz}" `shouldReturn` ("foo:{bar,baz}", DependencyVersion Nothing AnyVersion)
+
   describe "fromValue" $ do
     context "when parsing Dependencies" $ do
       context "with a scalar" $ do
@@ -28,8 +39,8 @@ spec = do
 
         it "accepts dependencies with constraints" $ do
           [yaml|
-            hpack >= 2 && < 3
-          |] `shouldDecodeTo_` Dependencies [("hpack", defaultInfo { dependencyInfoVersion = versionRange ">=2 && <3" })]
+            hpack >= 2 && < 4
+          |] `shouldDecodeTo_` Dependencies [("hpack", defaultInfo { dependencyInfoVersion = versionRange ">=2 && <4" })]
 
         context "with invalid constraint" $ do
           it "returns an error message" $ do
@@ -45,8 +56,8 @@ spec = do
 
         it "accepts dependencies with constraints" $ do
           [yaml|
-            - hpack >= 2 && < 3
-          |] `shouldDecodeTo_` Dependencies [("hpack", defaultInfo { dependencyInfoVersion = versionRange ">=2 && <3" })]
+            - hpack >= 2 && < 4
+          |] `shouldDecodeTo_` Dependencies [("hpack", defaultInfo { dependencyInfoVersion = versionRange ">=2 && <4" })]
 
         it "accepts ^>=" $ do
           [yaml|
@@ -125,7 +136,7 @@ spec = do
         it "rejects invalid values" $ do
           [yaml|
             hpack: []
-          |] `shouldDecodeTo` left "Error while parsing $.hpack - expected Null, Object, Number, or String, encountered Array"
+          |] `shouldDecodeTo` left "Error while parsing $.hpack - expected Null, Object, Number, or String, but encountered Array"
 
         context "when the constraint is a Number" $ do
           it "accepts 1" $ do
@@ -201,7 +212,7 @@ spec = do
               outer-name:
                 name: inner-name
                 path: somewhere
-            |] `shouldDecodeTo` Right (Dependencies [("outer-name", defaultInfo { dependencyInfoVersion = DependencyVersion source AnyVersion })], ["$.outer-name.name"])
+            |] `shouldDecodeTo` Right (Dependencies [("outer-name", defaultInfo { dependencyInfoVersion = DependencyVersion source AnyVersion })], ["$.outer-name.name"], [])
 
           it "defaults to any version" $ do
             [yaml|
@@ -213,7 +224,7 @@ spec = do
               [yaml|
                 foo:
                   version: {}
-              |] `shouldDecodeTo` left "Error while parsing $.foo.version - expected Null, Number, or String, encountered Object"
+              |] `shouldDecodeTo` left "Error while parsing $.foo.version - expected Null, Number, or String, but encountered Object"
 
             it "accepts a string" $ do
               [yaml|

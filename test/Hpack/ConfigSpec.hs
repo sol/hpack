@@ -19,7 +19,6 @@ import           Helper
 import           Data.Aeson.Config.FromValueSpec hiding (spec)
 
 import           Data.String.Interpolate.IsString
-import           Control.Arrow
 import qualified GHC.Exts as Exts
 import           System.Directory (createDirectory)
 import           Data.Either
@@ -29,12 +28,14 @@ import           Control.Monad.Trans.Writer (runWriter)
 import           Hpack.Syntax.Dependencies
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.Syntax.BuildTools
-import           Hpack.Config hiding (package)
+import           Hpack.Config hiding (section, package)
 import qualified Hpack.Config as Config
 
 import           Data.Aeson.Config.Types
 import           Data.Aeson.Config.FromValue
 
+section :: a -> Section a
+section a = (Config.section a) {sectionLanguage = Just $ Language "Haskell2010"}
 
 instance Exts.IsList (Maybe (List a)) where
   type Item (Maybe (List a)) = a
@@ -54,7 +55,7 @@ executable :: String -> Executable
 executable main_ = Executable (Just main_) ["Paths_foo"] []
 
 library :: Library
-library = Library Nothing [] ["Paths_foo"] [] [] []
+library = Library Nothing Nothing [] ["Paths_foo"] [] [] []
 
 testDecodeOptions :: FilePath -> DecodeOptions
 testDecodeOptions file = defaultDecodeOptions {decodeOptionsTarget = file, decodeOptionsUserDataDir = Just undefined}
@@ -90,6 +91,7 @@ spec = do
     let
       sect = LibrarySection {
         librarySectionExposed = Nothing
+      , librarySectionVisibility = Nothing
       , librarySectionExposedModules = Nothing
       , librarySectionGeneratedExposedModules = Nothing
       , librarySectionOtherModules = Nothing
@@ -99,6 +101,7 @@ spec = do
       }
       lib = Library {
         libraryExposed = Nothing
+      , libraryVisibility = Nothing
       , libraryExposedModules = []
       , libraryOtherModules = []
       , libraryGeneratedModules = []
@@ -145,25 +148,6 @@ spec = do
                 ]
             }
       renameDependencies "bar" "baz" (sectionWithConditional ["foo", "bar"]) `shouldBe` sectionWithConditional ["foo", "baz"]
-
-  describe "getModules" $ around withTempDirectory $ do
-    it "returns Haskell modules in specified source directory" $ \dir -> do
-      touch (dir </> "src/Foo.hs")
-      touch (dir </> "src/Bar/Baz.hs")
-      touch (dir </> "src/Setup.hs")
-      getModules dir "src" >>= (`shouldMatchList` ["Foo", "Bar.Baz", "Setup"])
-
-    context "when source directory is '.'" $ do
-      it "ignores Setup" $ \dir -> do
-        touch (dir </> "Foo.hs")
-        touch (dir </> "Setup.hs")
-        getModules dir  "." `shouldReturn` ["Foo"]
-
-    context "when source directory is './.'" $ do
-      it "ignores Setup" $ \dir -> do
-        touch (dir </> "Foo.hs")
-        touch (dir </> "Setup.hs")
-        getModules dir  "./." `shouldReturn` ["Foo"]
 
   describe "toBuildTool" $ do
     let toBuildTool_ name = runWriter $ toBuildTool "my-package" ["foo"] (name, anyVersion)
@@ -441,6 +425,15 @@ spec = do
           |]
           (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
 
+      it "accepts hs-source-dirs as an alias for source-dirs" $ do
+        withPackageConfig_ [i|
+          library:
+            hs-source-dirs:
+              - foo
+              - bar
+          |]
+          (packageLibrary >>> (`shouldBe` Just (section library) {sectionSourceDirs = ["foo", "bar"]}))
+
       it "accepts default-extensions" $ do
         withPackageConfig_ [i|
           library:
@@ -660,22 +653,22 @@ spec = do
       it "accepts Strings" $ do
         [yaml|
         os(windows)
-        |] `shouldDecodeTo_` Cond "os(windows)"
+        |] `shouldDecodeTo_` CondExpression "os(windows)"
 
       it "accepts True" $ do
         [yaml|
         yes
-        |] `shouldDecodeTo_` Cond "true"
+        |] `shouldDecodeTo_` CondBool True
 
       it "accepts False" $ do
         [yaml|
         no
-        |] `shouldDecodeTo_` Cond "false"
+        |] `shouldDecodeTo_` CondBool False
 
       it "rejects other values" $ do
         [yaml|
         23
-        |] `shouldDecodeTo` (Left "Error while parsing $ - expected Boolean or String, encountered Number" :: Result Cond)
+        |] `shouldDecodeTo` (Left "Error while parsing $ - expected Boolean or String, but encountered Number" :: Result Cond)
 
   describe "formatOrList" $ do
     it "formats a singleton list" $ do

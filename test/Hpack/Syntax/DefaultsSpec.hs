@@ -151,4 +151,4 @@ spec = do
         it "fails" $ do
           [yaml|
           10
-          |] `shouldDecodeTo` left "Error while parsing $ - expected Object or String, encountered Number"
+          |] `shouldDecodeTo` left "Error while parsing $ - expected Object or String, but encountered Number"

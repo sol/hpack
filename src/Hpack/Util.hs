@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Hpack.Util (
   GhcOption
 , GhcProfOption
@@ -7,22 +8,24 @@ module Hpack.Util (
 , CxxOption
 , LdOption
 , parseMain
-, toModule
-, getModuleFilesRecursive
+
 , tryReadFile
 , expandGlobs
 , sort
 , lexicographically
 , Hash
 , sha256
+
+, nub
+, nubOn
 ) where
 
+import           Imports
+
 import           Control.Exception
-import           Control.Monad
 import           Data.Char
-import           Data.Bifunctor
-import           Data.List hiding (sort)
 import           Data.Ord
+import qualified Data.Set as Set
 import           System.IO.Error
 import           System.Directory
 import           System.FilePath
@@ -61,38 +64,6 @@ splitOn c = go
     go xs = case break (== c) xs of
       (ys, "") -> [ys]
       (ys, _:zs) -> ys : go zs
-
-toModule :: [FilePath] -> Maybe String
-toModule path = case reverse path of
-  [] -> Nothing
-  x : xs -> do
-    m <- msum $ map (`stripSuffix` x) [
-        ".hs"
-      , ".lhs"
-      , ".chs"
-      , ".hsc"
-      , ".y"
-      , ".ly"
-      , ".x"
-      ]
-    let name = reverse (m : xs)
-    guard (isModule name) >> return (intercalate "." name)
-  where
-    stripSuffix :: String -> String -> Maybe String
-    stripSuffix suffix x = reverse <$> stripPrefix (reverse suffix) (reverse x)
-
-getModuleFilesRecursive :: FilePath -> IO [[String]]
-getModuleFilesRecursive baseDir = go []
-  where
-    go :: [FilePath] -> IO [[FilePath]]
-    go dir = do
-      c <- map ((dir ++) . return) . filter (`notElem` [".", ".."]) <$> getDirectoryContents (pathTo dir)
-      subdirsFiles  <- filterM (doesDirectoryExist . pathTo) c >>= mapM go . filter isModule
-      files <- filterM (doesFileExist . pathTo) c
-      return (files ++ concat subdirsFiles)
-      where
-        pathTo :: [FilePath] -> FilePath
-        pathTo p = baseDir </> joinPath p
 
 tryReadFile :: FilePath -> IO (Maybe String)
 tryReadFile file = do
@@ -158,3 +129,17 @@ type Hash = String
 
 sha256 :: String -> Hash
 sha256 c = show (hash (Utf8.encodeUtf8 c) :: Digest SHA256)
+
+nub :: Ord a => [a] -> [a]
+nub = nubOn id
+
+nubOn :: Ord b => (a -> b) -> [a] -> [a]
+nubOn f = go mempty
+  where
+    go seen = \ case
+        [] -> []
+        a : as
+          | b `Set.member` seen -> go seen as
+          | otherwise -> a : go (Set.insert b seen) as
+          where
+            b = f a

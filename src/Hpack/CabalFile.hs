@@ -1,10 +1,22 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
-module Hpack.CabalFile where
+module Hpack.CabalFile (
+  CabalFile(..)
+, GitConflictMarkers(..)
+, ExistingCabalFile
+, NewCabalFile
+, readCabalFile
+, parseVersion
+#ifdef TEST
+, extractVersion
+, removeGitConflictMarkers
+#endif
+) where
 
-import           Control.Monad
-import           Data.List
+import           Imports
+
 import           Data.Maybe
 import           Data.Version (Version(..))
 import qualified Data.Version as Version
@@ -12,27 +24,42 @@ import           Text.ParserCombinators.ReadP
 
 import           Hpack.Util
 
-makeVersion :: [Int] -> Version
-makeVersion v = Version v []
-
-data CabalFile = CabalFile {
-  cabalFileHpackVersion :: Maybe Version
+data CabalFile a = CabalFile {
+  cabalFileCabalVersion :: [String]
+, cabalFileHpackVersion :: Maybe Version
 , cabalFileHash :: Maybe Hash
 , cabalFileContents :: [String]
+, cabalFileGitConflictMarkers :: a
 } deriving (Eq, Show)
 
-readCabalFile :: FilePath -> IO (Maybe CabalFile)
-readCabalFile cabalFile = fmap parse <$> tryReadFile cabalFile
+data GitConflictMarkers = HasGitConflictMarkers | DoesNotHaveGitConflictMarkers
+  deriving (Show, Eq)
+
+type ExistingCabalFile = CabalFile GitConflictMarkers
+type NewCabalFile = CabalFile ()
+
+readCabalFile :: FilePath -> IO (Maybe ExistingCabalFile)
+readCabalFile cabalFile = fmap parseCabalFile <$> tryReadFile cabalFile
+
+parseCabalFile :: String -> ExistingCabalFile
+parseCabalFile (lines -> input) = case span isComment <$> span (not . isComment) clean of
+  (cabalVersion, (header, body)) -> CabalFile {
+    cabalFileCabalVersion = cabalVersion
+  , cabalFileHpackVersion = extractVersion header
+  , cabalFileHash = extractHash header
+  , cabalFileContents = dropWhile null body
+  , cabalFileGitConflictMarkers = gitConflictMarkers
+  }
   where
-    parse :: String -> CabalFile
-    parse (splitHeader -> (h, c)) = CabalFile (extractVersion h) (extractHash h) c
+    clean :: [String]
+    clean = removeGitConflictMarkers input
 
-    splitHeader :: String -> ([String], [String])
-    splitHeader (removeGitConflictMarkers . lines -> c) =
-      case span (not . isComment) c of
-        (cabalVersion, xs) -> case span isComment xs of
-          (header, body) -> (header, cabalVersion ++ dropWhile null body)
+    gitConflictMarkers :: GitConflictMarkers
+    gitConflictMarkers
+      | input == clean = DoesNotHaveGitConflictMarkers
+      | otherwise = HasGitConflictMarkers
 
+    isComment :: String -> Bool
     isComment = ("--" `isPrefixOf`)
 
 extractHash :: [String] -> Maybe Hash

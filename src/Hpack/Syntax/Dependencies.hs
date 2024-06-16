@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -7,13 +8,22 @@ module Hpack.Syntax.Dependencies (
 , parseDependency
 ) where
 
-import           Data.Text (Text)
+import           Imports
+
+import qualified Control.Monad.Fail as Fail
 import qualified Data.Text as T
-import           Data.Semigroup (Semigroup(..))
 import qualified Distribution.Package as D
+import qualified Distribution.Types.LibraryName as D
+import           Distribution.Pretty (prettyShow)
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import           GHC.Exts
+
+#if MIN_VERSION_Cabal(3,4,0)
+import qualified Distribution.Compat.NonEmptySet as DependencySet
+#else
+import qualified Data.Set as DependencySet
+#endif
 
 import           Data.Aeson.Config.FromValue
 import           Data.Aeson.Config.Types
@@ -46,7 +56,7 @@ instance FromValue Dependencies where
 data DependencyInfo = DependencyInfo {
   dependencyInfoMixins :: [String]
 , dependencyInfoVersion :: DependencyVersion
-} deriving (Eq, Show)
+} deriving (Eq, Ord, Show)
 
 addMixins :: Object -> DependencyVersion -> Parser DependencyInfo
 addMixins o version = do
@@ -59,8 +69,14 @@ objectDependencyInfo o = objectDependency o >>= addMixins o
 dependencyInfo :: Value -> Parser DependencyInfo
 dependencyInfo = withDependencyVersion (DependencyInfo []) addMixins
 
-parseDependency :: Monad m => String -> Text -> m (String, DependencyVersion)
+parseDependency :: Fail.MonadFail m => String -> Text -> m (String, DependencyVersion)
 parseDependency subject = fmap fromCabal . cabalParse subject . T.unpack
   where
     fromCabal :: D.Dependency -> (String, DependencyVersion)
-    fromCabal d = (D.unPackageName $ D.depPkgName d, DependencyVersion Nothing . versionConstraintFromCabal $ D.depVerRange d)
+    fromCabal d = (toName (D.depPkgName d) (DependencySet.toList $ D.depLibraries d), DependencyVersion Nothing . versionConstraintFromCabal $ D.depVerRange d)
+
+    toName :: D.PackageName -> [D.LibraryName] -> String
+    toName package components = prettyShow package <> case components of
+      [D.LMainLibName] -> ""
+      [D.LSubLibName lib] -> ":" <> prettyShow lib
+      xs -> ":{" <> (intercalate "," $ map prettyShow [name | D.LSubLibName name <- xs]) <> "}"

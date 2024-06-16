@@ -1,1 +1,1 @@
-:set -isrc -itest -idist/build/autogen -DTEST -optP-include -optPdist/build/autogen/cabal_macros.h
+:set -XHaskell2010 -Wredundant-constraints -fno-warn-incomplete-uni-patterns -DTEST -isrc -itest -i./dist-newstyle/build/x86_64-linux/ghc-9.6.2/hpack-0.36.0/build/autogen

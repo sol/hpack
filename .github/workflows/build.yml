@@ -1,0 +1,58 @@
+name: build
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: 0 0 * * *
+
+jobs:
+  build:
+    name: ${{ matrix.os }} / GHC ${{ matrix.ghc }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+        ghc:
+          - '8.8'
+          - '8.10'
+          - '9.0'
+          - '9.2'
+          - '9.4'
+          - '9.6'
+        include:
+          - os: macos-12
+            ghc: system
+          - os: windows-latest
+            ghc: '9.2'
+    steps:
+      - uses: actions/checkout@v3
+      - uses: hspec/setup-haskell@v1
+        with:
+          ghc-version: ${{ matrix.ghc }}
+      - uses: sol/run-haskell-tests@v1
+        with:
+          caching: true
+
+  success:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always() # this is required as GitHub considers "skipped" jobs as "passed" when checking branch protection rules
+
+    steps:
+      - run: false
+        if: needs.build.result != 'success'
+
+      - uses: actions/checkout@v3
+      - name: Check for trailing whitespace
+        run: '! git grep -I "\s\+$"'

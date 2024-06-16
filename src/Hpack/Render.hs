@@ -34,24 +34,24 @@ module Hpack.Render (
 #endif
 ) where
 
-import           Control.Monad
+import           Imports
+
 import           Data.Char
 import           Data.Maybe
-import           Data.List
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 
 import           Hpack.Util
 import           Hpack.Config
 import           Hpack.Render.Hints
-import           Hpack.Render.Dsl
-import           Hpack.Syntax.Dependencies
+import           Hpack.Render.Dsl hiding (sortFieldsBy)
+import qualified Hpack.Render.Dsl as Dsl
 
 renderPackage :: [String] -> Package -> String
-renderPackage oldCabalFile = renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder
+renderPackage oldCabalFile = renderPackageWith settings headerFieldsAlignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder
   where
     FormattingHints{..} = sniffFormattingHints oldCabalFile
-    alignment = fromMaybe 16 formattingHintsAlignment
+    headerFieldsAlignment = fromMaybe 16 formattingHintsAlignment
     settings = formattingHintsRenderSettings
 
 renderPackageWith :: RenderSettings -> Alignment -> [String] -> [(String, [String])] -> Package -> String
@@ -66,9 +66,10 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
     packageFields :: [Element]
     packageFields = addVerbatim packageVerbatim . sortFieldsBy existingFieldOrder $
       headerFields ++ [
-        Field "extra-source-files" (LineSeparatedList packageExtraSourceFiles)
-      , Field "extra-doc-files" (LineSeparatedList packageExtraDocFiles)
-      , Field "data-files" (LineSeparatedList packageDataFiles)
+        Field "tested-with" $ CommaSeparatedList packageTestedWith
+      , Field "extra-source-files" (renderPaths packageExtraSourceFiles)
+      , Field "extra-doc-files" (renderPaths packageExtraDocFiles)
+      , Field "data-files" (renderPaths packageDataFiles)
       ] ++ maybe [] (return . Field "data-dir" . Literal) packageDataDir
 
     sourceRepository :: [Element]
@@ -109,7 +110,6 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
       , case packageLicenseFile of
           [file] -> ("license-file", Just file)
           files  -> ("license-files", formatList files)
-      , ("tested-with", packageTestedWith)
       , ("build-type", Just (show packageBuildType))
       ]
 
@@ -166,7 +166,7 @@ renderExecutables :: Map String (Section Executable) -> [Element]
 renderExecutables = map renderExecutable . Map.toList
 
 renderExecutable :: (String, Section Executable) -> Element
-renderExecutable (name, sect@(sectionData -> Executable{..})) =
+renderExecutable (name, sect) =
   Stanza ("executable " ++ name) (renderExecutableSection [] sect)
 
 renderTests :: Map String (Section Executable) -> [Element]
@@ -186,7 +186,7 @@ renderBenchmark (name, sect) =
     (renderExecutableSection [Field "type" "exitcode-stdio-1.0"] sect)
 
 renderExecutableSection :: [Element] -> Section Executable -> [Element]
-renderExecutableSection extraFields = renderSection renderExecutableFields extraFields [defaultLanguage]
+renderExecutableSection extraFields = renderSection renderExecutableFields extraFields
 
 renderExecutableFields :: Executable -> [Element]
 renderExecutableFields Executable{..} = mainIs ++ [otherModules, generatedModules]
@@ -203,11 +203,12 @@ renderLibrary :: Section Library -> Element
 renderLibrary sect = Stanza "library" $ renderLibrarySection sect
 
 renderLibrarySection :: Section Library -> [Element]
-renderLibrarySection = renderSection renderLibraryFields [] [defaultLanguage]
+renderLibrarySection = renderSection renderLibraryFields []
 
 renderLibraryFields :: Library -> [Element]
 renderLibraryFields Library{..} =
-  maybe [] (return . renderExposed) libraryExposed ++ [
+  maybe [] (return . renderExposed) libraryExposed ++
+  maybe [] (return . renderVisibility) libraryVisibility ++ [
     renderExposedModules libraryExposedModules
   , renderOtherModules libraryOtherModules
   , renderGeneratedModules libraryGeneratedModules
@@ -218,8 +219,11 @@ renderLibraryFields Library{..} =
 renderExposed :: Bool -> Element
 renderExposed = Field "exposed" . Literal . show
 
-renderSection :: (a -> [Element]) -> [Element] -> [Element] -> Section a -> [Element]
-renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = addVerbatim sectionVerbatim $
+renderVisibility :: String -> Element
+renderVisibility = Field "visibility" . Literal
+
+renderSection :: (a -> [Element]) -> [Element] -> Section a -> [Element]
+renderSection renderSectionData extraFieldsStart Section{..} = addVerbatim sectionVerbatim $
      extraFieldsStart
   ++ renderSectionData sectionData ++ [
     renderDirectories "hs-source-dirs" sectionSourceDirs
@@ -227,15 +231,16 @@ renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = ad
   , renderOtherExtensions sectionOtherExtensions
   , renderGhcOptions sectionGhcOptions
   , renderGhcProfOptions sectionGhcProfOptions
+  , renderGhcSharedOptions sectionGhcSharedOptions
   , renderGhcjsOptions sectionGhcjsOptions
   , renderCppOptions sectionCppOptions
   , renderCcOptions sectionCcOptions
   , renderCxxOptions sectionCxxOptions
   , renderDirectories "include-dirs" sectionIncludeDirs
   , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
-  , Field "c-sources" (LineSeparatedList sectionCSources)
-  , Field "cxx-sources" (LineSeparatedList sectionCxxSources)
-  , Field "js-sources" (LineSeparatedList sectionJsSources)
+  , Field "c-sources" (renderPaths sectionCSources)
+  , Field "cxx-sources" (renderPaths sectionCxxSources)
+  , Field "js-sources" (renderPaths sectionJsSources)
   , renderDirectories "extra-lib-dirs" sectionExtraLibDirs
   , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
   , renderDirectories "extra-frameworks-dirs" sectionExtraFrameworksDirs
@@ -246,8 +251,8 @@ renderSection renderSectionData extraFieldsStart extraFieldsEnd Section{..} = ad
   ++ renderBuildTools sectionBuildTools sectionSystemBuildTools
   ++ renderDependencies "build-depends" sectionDependencies
   ++ maybe [] (return . renderBuildable) sectionBuildable
+  ++ maybe [] (return . renderLanguage) sectionLanguage
   ++ map (renderConditional renderSectionData) sectionConditionals
-  ++ extraFieldsEnd
 
 addVerbatim :: [Verbatim] -> [Element] -> [Element]
 addVerbatim verbatim fields = filterVerbatim verbatim fields ++ renderVerbatim verbatim
@@ -281,32 +286,35 @@ renderVerbatimObject = map renderPair . Map.toList
 renderConditional :: (a -> [Element]) -> Conditional (Section a) -> Element
 renderConditional renderSectionData (Conditional condition sect mElse) = case mElse of
   Nothing -> if_
-  Just else_ -> Group if_ (Stanza "else" $ renderSection renderSectionData [] [] else_)
+  Just else_ -> Group if_ (Stanza "else" $ renderSection renderSectionData [] else_)
   where
-    if_ = Stanza ("if " ++ condition) (renderSection renderSectionData [] [] sect)
+    if_ = Stanza ("if " ++ renderCond condition) (renderSection renderSectionData [] sect)
 
-defaultLanguage :: Element
-defaultLanguage = Field "default-language" "Haskell2010"
+renderCond :: Cond -> String
+renderCond = \ case
+  CondExpression c -> c
+  CondBool True -> "true"
+  CondBool False -> "false"
 
 renderDirectories :: String -> [String] -> Element
 renderDirectories name = Field name . LineSeparatedList . replaceDots
   where
     replaceDots = map replaceDot
     replaceDot xs = case xs of
-      "." -> "./."
+      "." -> "./"
       _ -> xs
 
-renderExposedModules :: [String] -> Element
-renderExposedModules = Field "exposed-modules" . LineSeparatedList
+renderExposedModules :: [Module] -> Element
+renderExposedModules = Field "exposed-modules" . LineSeparatedList . map unModule
 
-renderOtherModules :: [String] -> Element
-renderOtherModules = Field "other-modules" . LineSeparatedList
+renderOtherModules :: [Module] -> Element
+renderOtherModules = Field "other-modules" . LineSeparatedList . map unModule
 
-renderGeneratedModules :: [String] -> Element
-renderGeneratedModules = Field "autogen-modules" . LineSeparatedList
+renderGeneratedModules :: [Module] -> Element
+renderGeneratedModules = Field "autogen-modules" . LineSeparatedList . map unModule
 
 renderReexportedModules :: [String] -> Element
-renderReexportedModules = Field "reexported-modules" . LineSeparatedList
+renderReexportedModules = Field "reexported-modules" . CommaSeparatedList
 
 renderSignatures :: [String] -> Element
 renderSignatures = Field "signatures" . CommaSeparatedList
@@ -366,11 +374,17 @@ renderSystemBuildTools = map renderSystemBuildTool . Map.toList . unSystemBuildT
 renderSystemBuildTool :: (String, VersionConstraint) -> String
 renderSystemBuildTool (name, constraint) = name ++ renderVersionConstraint constraint
 
+renderLanguage :: Language -> Element
+renderLanguage (Language lang) = Field "default-language" (Literal lang)
+
 renderGhcOptions :: [GhcOption] -> Element
 renderGhcOptions = Field "ghc-options" . WordList
 
 renderGhcProfOptions :: [GhcProfOption] -> Element
 renderGhcProfOptions = Field "ghc-prof-options" . WordList
+
+renderGhcSharedOptions :: [GhcOption] -> Element
+renderGhcSharedOptions = Field "ghc-shared-options" . WordList
 
 renderGhcjsOptions :: [GhcjsOption] -> Element
 renderGhcjsOptions = Field "ghcjs-options" . WordList
@@ -391,7 +405,21 @@ renderBuildable :: Bool -> Element
 renderBuildable = Field "buildable" . Literal . show
 
 renderDefaultExtensions :: [String] -> Element
-renderDefaultExtensions = Field "default-extensions" . WordList
+renderDefaultExtensions = Field "default-extensions" . LineSeparatedList
 
 renderOtherExtensions :: [String] -> Element
-renderOtherExtensions = Field "other-extensions" . WordList
+renderOtherExtensions = Field "other-extensions" . LineSeparatedList
+
+renderPaths :: [Path] -> Value
+renderPaths = LineSeparatedList . map renderPath
+  where
+    renderPath :: Path -> FilePath
+    renderPath (Path path)
+      | needsQuoting path = show path
+      | otherwise = path
+
+    needsQuoting :: FilePath -> Bool
+    needsQuoting = any (\x -> isSpace x || x == ',')
+
+sortFieldsBy :: [String] -> [Element] -> [Element]
+sortFieldsBy existingFieldOrder = Dsl.sortFieldsBy ("import" : existingFieldOrder)

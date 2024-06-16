@@ -1,6 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
 module Hpack.Options where
 
+import           Imports
+
+import           Data.Maybe
 import           System.FilePath
 import           System.Directory
 
@@ -13,11 +16,16 @@ data Verbose = Verbose | NoVerbose
 data Force = Force | NoForce
   deriving (Eq, Show)
 
+data OutputStrategy = CanonicalOutput | MinimizeDiffs
+  deriving (Eq, Show)
+
 data ParseOptions = ParseOptions {
   parseOptionsVerbose :: Verbose
 , parseOptionsForce :: Force
+, parseOptionsHash :: Maybe Bool
 , parseOptionsToStdout :: Bool
 , parseOptionsTarget :: FilePath
+, parseOptionsOutputStrategy :: OutputStrategy
 } deriving (Eq, Show)
 
 parseOptions :: FilePath -> [String] -> IO ParseResult
@@ -30,18 +38,34 @@ parseOptions defaultTarget = \ case
       file <- expandTarget defaultTarget target
       let
         options
-          | toStdout = ParseOptions NoVerbose Force toStdout file
-          | otherwise = ParseOptions verbose force toStdout file
+          | toStdout = ParseOptions NoVerbose Force hash toStdout file outputStrategy
+          | otherwise = ParseOptions verbose force hash toStdout file outputStrategy
       return (Run options)
     Left err -> return err
     where
       silentFlag = "--silent"
       forceFlags = ["--force", "-f"]
+      hashFlag = "--hash"
+      noHashFlag = "--no-hash"
+      canonicalFlag = "--canonical"
 
-      flags = silentFlag : forceFlags
+      flags = canonicalFlag : hashFlag : noHashFlag : silentFlag : forceFlags
 
+      verbose :: Verbose
       verbose = if silentFlag `elem` args then NoVerbose else Verbose
+
+      outputStrategy :: OutputStrategy
+      outputStrategy = if canonicalFlag `elem` args then CanonicalOutput else MinimizeDiffs
+
+      force :: Force
       force = if any (`elem` args) forceFlags then Force else NoForce
+
+      hash :: Maybe Bool
+      hash = listToMaybe . reverse $ mapMaybe parse args
+        where
+          parse :: String -> Maybe Bool
+          parse t = True <$ guard (t == hashFlag) <|> False <$ guard (t == noHashFlag)
+
       ys = filter (`notElem` flags) args
 
       targets :: Either ParseResult (Maybe FilePath, Bool)

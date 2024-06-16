@@ -1,3 +1,1 @@
-resolver: nightly-2018-08-29
-extra-deps:
-- yaml-0.10.0
+snapshot: lts-22.25 # GHC 9.6.5

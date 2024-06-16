@@ -1,3 +1,7 @@
+[![Hackage version](https://img.shields.io/hackage/v/hpack.svg?label=Hackage&color=informational)](http://hackage.haskell.org/package/hpack)
+[![Stackage LTS version](https://www.stackage.org/package/hpack/badge/lts?label=Stackage)](https://www.stackage.org/package/hpack)
+[![hpack on Stackage Nightly](https://stackage.org/package/hpack/badge/nightly)](https://stackage.org/nightly/package/hpack)
+
 # hpack: A modern format for Haskell packages
 
 Hpack is a format for Haskell packages.  It is a modern alternative to the
@@ -35,6 +39,86 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 
 ## Documentation
 
+<!--ts-->
+   * [hpack: A modern format for Haskell packages](#hpack-a-modern-format-for-haskell-packages)
+      * [Design principles](#design-principles)
+      * [Tool integration](#tool-integration)
+      * [There is no user guide](#there-is-no-user-guide)
+      * [Examples](#examples)
+      * [Documentation](#documentation)
+         * [Handling of Paths_ modules](#handling-of-paths_-modules)
+            * [Modern behavior](#modern-behavior)
+            * [Legacy behavior](#legacy-behavior)
+         * [Quick-reference](#quick-reference)
+            * [Top-level fields](#top-level-fields)
+            * [cabal-version](#cabal-version)
+            * [Defaults](#defaults)
+            * [Custom setup](#custom-setup)
+            * [Common fields](#common-fields)
+            * [Library fields](#library-fields)
+            * [Executable fields](#executable-fields)
+            * [Test fields](#test-fields)
+            * [Benchmark fields](#benchmark-fields)
+            * [Flags](#flags)
+            * [Dependencies](#dependencies)
+            * [Conditionals](#conditionals)
+         * [File globbing](#file-globbing)
+         * [Passing things to Cabal verbatim](#passing-things-to-cabal-verbatim)
+            * [Objects](#objects)
+            * [Strings](#strings)
+            * [Lists of objects and strings](#lists-of-objects-and-strings)
+         * [Not repeating yourself](#not-repeating-yourself)
+      * [The hpack executable](#the-hpack-executable)
+      * [Vim integration](#vim-integration)
+      * [Stack support](#stack-support)
+      * [Binaries for use on Travis CI](#binaries-for-use-on-travis-ci)
+
+<!-- Added by: sol, at: Mon Sep 18 11:40:17 AM +07 2023 -->
+
+<!--te-->
+
+### Handling of `Paths_` modules
+
+Cabal generates a `Paths_` module for every package.  How exactly Hpack behaves
+in regards to that module depends on the value of the `spec-version` field.
+
+If the `spec-version` is explicitly specified and at least `0.36.0` the modern
+behavior is used, otherwise Hpack falls back to the legacy behavior.
+
+To use the modern behavior, require at least
+```yaml
+spec-version: 0.36.0
+```
+in your `package.yaml`.
+
+#### Modern behavior
+
+If you want to use the `Paths_` module for a component, you have to explicitly
+specify it under `generated-other-modules`.
+
+***Example:***
+
+```yaml
+library:
+  source-dirs: src
+  generated-other-modules: Paths_name # substitute name with the package name
+```
+
+#### Legacy behavior
+
+For historic reasons Hpack adds the `Paths_` module to `other-modules` when
+generating a `.cabal` file.
+
+To prevent Hpack from adding the `Paths_` module to `other-modules` add the
+following to `package.yaml`:
+
+```yaml
+library:
+  when:
+  - condition: false
+    other-modules: Paths_name # substitute name with the package name
+```
+
 ### Quick-reference
 
 #### Top-level fields
@@ -55,7 +139,7 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
 | `copyright` | · | | May be a list | |
 | `license` | · | Inferred from `license-file` | Both [SPDX license expressions](https://spdx.org/licenses/) and traditional Cabal license identifiers are accepted. | `license: MIT` | SPDX: `0.29.0` |
 | `license-file` | `license-file` or `license-files` | `LICENSE` if file exists | May be a list | | |
-| `tested-with` | · | | | | |
+| `tested-with` | · | | May be a list (since `0.34.3`) | | |
 | `build-type` | · | `Simple`, or `Custom` if `custom-setup` exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | | |
 | `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | | |
 | `extra-doc-files` | · | | Accepts [glob patterns](#file-globbing) | | `0.21.2` |
@@ -87,7 +171,7 @@ verbatim:
   cabal-version: 2.2
 ```
 
-#### <a name="defaults"></a>Defaults
+#### Defaults
 
 Hpack allows the inclusion of [common fields](#common-fields) from a file on
 GitHub or a local file.
@@ -144,13 +228,13 @@ this reason it is recommended to only use tags as Git references.
    defaults file, then you can achieve this by adding that file to the cache
    manually.
 
-#### <a name="custom-setup"></a>Custom setup
+#### Custom setup
 
 | Hpack | Cabal | Default | Notes | Example |
 | --- | --- | --- | --- | --- |
 | `dependencies` | `setup-depends` | | Implies `build-type: Custom` | |
 
-#### <a name="common-fields"></a>Common fields
+#### Common fields
 
 These fields can be specified top-level or on a per section basis; top-level
 values are merged with per section values.
@@ -160,9 +244,11 @@ values are merged with per section values.
 | `buildable` | · | | Per section takes precedence over top-level |
 | `source-dirs` | `hs-source-dirs` | | |
 | `default-extensions` | · | | extensions that will be enabled in every source file |
+| `language` | `default-language` | `Haskell2010` | Also accepts `Haskell98`, `GHC2021` or `GHC2024`. Per section takes precedence over top-level |
 | `other-extensions` | · | | indicates that these extensions will be used in at least one source file |
 | `ghc-options` | · | | |
 | `ghc-prof-options` | · | | |
+| `ghc-shared-options` | · | | |
 | `ghcjs-options` | · | | |
 | `cpp-options` | · | | |
 | `cc-options` | · | | |
@@ -179,7 +265,7 @@ values are merged with per section values.
 | `ld-options` | · | | |
 | `dependencies` | `build-depends` | | See [Dependencies](#dependencies) |
 | `pkg-config-dependencies` | `pkgconfig-depends` | | |
-| `build-tools` | [`build-tools`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tools) and/or [`build-tool-depends`](https://www.haskell.org/cabal/users-guide/developing-packages.html#pkg-field-build-tool-depends) | | |
+| `build-tools` | [`build-tools`](https://cabal.readthedocs.io/en/stable/cabal-package.html#pkg-field-build-tools) and/or [`build-tool-depends`](https://cabal.readthedocs.io/en/stable/cabal-package.html#pkg-field-build-tool-depends) | | |
 | `system-build-tools` | `build-tools` | | A set of system executables that have to be on the `PATH` to build this component |
 | `when` | | | Accepts a list of conditionals (see [Conditionals](#conditionals)) |
 
@@ -226,39 +312,28 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 **Note:** Unlike `Cabal`, Hpack does not accept system executables as
 `build-tools`.  Use `system-build-tools` if you need this.
 
-#### <a name="library-fields"></a>Library fields
+#### Library fields
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | `exposed` | · | | |
+| `visibility` | · | | |
 | `exposed-modules` | · | All modules in `source-dirs` less `other-modules` less any modules mentioned in `when` | |
 | `generated-exposed-modules` | | | Added to `exposed-modules` and `autogen-modules`. Since `0.23.0`.
 | `other-modules` | · | Outside conditionals: All modules in `source-dirs` less `exposed-modules` less any modules mentioned in `when`. Inside conditionals, and only if `exposed-modules` is not specified inside the conditional: All modules in `source-dirs` of the conditional less any modules mentioned in `when` of the conditional | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 | `reexported-modules` | · | | |
 | `signatures` | · | | |
-| | `default-language` | `Haskell2010` | |
 
-#### <a name="executable-fields"></a>Executable fields
+#### Executable fields
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
 
-#### <a name="test-fields"></a>Test fields
-
-| Hpack | Cabal | Default | Notes |
-| --- | --- | --- | --- |
-| | `type` | `exitcode-stdio-1.0` | |
-| `main` | `main-is` | | |
-| `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
-| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
-
-#### <a name="benchmark-fields"></a>Benchmark fields
+#### Test fields
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
@@ -266,9 +341,17 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `main` | `main-is` | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-| | `default-language` | `Haskell2010` | |
 
-#### <a name="flags"></a>Flags
+#### Benchmark fields
+
+| Hpack | Cabal | Default | Notes |
+| --- | --- | --- | --- |
+| | `type` | `exitcode-stdio-1.0` | |
+| `main` | `main-is` | | |
+| `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
+| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
+
+#### Flags
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
@@ -276,7 +359,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `manual` | · | | Required (unlike Cabal) |
 | `default` | · | | Required (unlike Cabal) |
 
-#### <a name="dependencies"></a> Dependencies
+#### Dependencies
 
 Dependencies can be specified as either a list or an object. These are
 equivalent:
@@ -351,7 +434,7 @@ imported!
 
 `mixin` was added in version `0.31.0`.
 
-#### <a name="conditionals"></a> Conditionals
+#### Conditionals
 
 Conditionals with no else branch:
 
@@ -375,7 +458,6 @@ Conditionals with an else branch:
 - Must have a `condition` field
 - Must have a `then` field, itself an object containing any number of other fields
 - Must have a `else` field, itself an object containing any number of other fields
-- All other top-level fields are ignored
 
 For example,
 
@@ -393,11 +475,13 @@ becomes
     else
       ghc-options: -O0
 
+**Note:** Conditionals with `condition: false` are omitted from the generated
+`.cabal` file.
 
-### <a name="file-globbing"></a>File globbing
+### File globbing
 
 At place where you can specify a list of files you can also use glob patterns.
-Glob patters and ordinary file names can be freely mixed, e.g.:
+Glob patterns and ordinary file names can be freely mixed, e.g.:
 
 ```yaml
 extra-source-files:
@@ -575,6 +659,37 @@ lib.yaml:
   dependencies: [hlint]
 ```
 
+## The hpack executable
+
+If the `hpack` executable is on the `PATH`, to obtain help about its usage,
+command `hpack --help`. In addition to its main use, `hpack` can also be used as
+follows:
+
+* `hpack --version` Output information about the version of `hpack` to the
+  standard output channel, in the format `hpack version x.y.z`.
+* `hpack --numeric-version` Output information about the version of `hpack` to
+  the standard output channel, in the format `x.y.z`.
+* `hpack --help` Output information about the usage of `hpack` to the standard
+  error channel.
+
+In respect of its main use, `hpack` has the following optional flags:
+
+* `--silent` Output no information other than error messages.
+* `--canonical` By default, `hpack` takes into account aspects of the format of
+  an existing Cabal file when generating a new Cabal file. Pass this flag to
+  cause `hpack` to ignore the format of an existing Cabal file when generating a
+  new one.
+* `--force` or `-f` By default, `hpack` will not generate a Cabal file
+  unnecessarily. Pass this flag to force the generation of a new Cabal file.
+* `--[no-]hash` Enable/disable the inclusion of a SHA-256 hash of the other
+  content of the generated Cabal file in the header comment added by `hpack` to
+  the generated Cabal file. (default: disabled)
+* `-` Output the generated Cabal file contents to the standard output channel.
+
+By default, `hpack` will assume the package description in the Hpack format is
+in file `package.yaml` in the current working directory. Alternatively, a
+relative or absolute path to a file can be specified.
+
 ## Vim integration
 
 To run `hpack` automatically on modifications to `package.yaml` add the
@@ -599,10 +714,5 @@ steps are required.
 
 ## Binaries for use on Travis CI
 
-You can get binaries for use on Travis CI with:
-
-```
-curl -sSL https://github.com/sol/hpack/raw/master/get-hpack.sh | bash
-```
-
-(both Linux and OS X are supported)
+Previously, we distributed binaries for use on Travis CI but, currently, we do
+not do so.

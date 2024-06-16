@@ -3,20 +3,20 @@
 module Hpack.RenderSpec (spec) where
 
 import           Helper
-import           Data.List
 
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.ConfigSpec hiding (spec)
 import           Hpack.Config hiding (package)
 import           Hpack.Render.Dsl
 import           Hpack.Render
-import           Hpack.Syntax.Dependencies
 
 library :: Library
-library = Library Nothing [] [] [] [] []
+library = Library Nothing Nothing [] [] [] [] []
 
 executable :: Section Executable
-executable = section (Executable (Just "Main.hs") [] [])
+executable = (section $ Executable (Just "Main.hs") [] []) {
+  sectionLanguage = Just $ Language "Haskell2010"
+}
 
 renderEmptySection :: Empty -> [Element]
 renderEmptySection Empty = []
@@ -119,19 +119,7 @@ spec = do
         , ""
         , "library"
         , "  buildable: False"
-        , "  default-language: Haskell2010"
         ]
-
-    context "when rendering library section" $ do
-      it "renders library section" $ do
-        renderPackage_ package {packageLibrary = Just $ section library} `shouldBe` unlines [
-            "name: foo"
-          , "version: 0.0.0"
-          , "build-type: Simple"
-          , ""
-          , "library"
-          , "  default-language: Haskell2010"
-          ]
 
     context "when given list of existing fields" $ do
       it "retains field order" $ do
@@ -343,7 +331,7 @@ spec = do
       (render defaultRenderSettings 0 $ renderDirectories "name" ["."])
         `shouldBe` [
             "name:"
-          , "    ./."
+          , "    ./"
           ]
 
   describe "renderDependencies" $ do

@@ -7,11 +7,10 @@ module Hpack.Syntax.BuildTools (
 , SystemBuildTools(..)
 ) where
 
-import           Data.Text (Text)
+import           Imports
+
+import qualified Control.Monad.Fail as Fail
 import qualified Data.Text as T
-import           Data.Semigroup (Semigroup(..))
-import           Data.Bifunctor
-import           Control.Applicative
 import qualified Distribution.Package as D
 import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
@@ -53,7 +52,7 @@ instance FromValue BuildTools where
       buildToolFromString :: Text -> Parser (ParseBuildTool, DependencyVersion)
       buildToolFromString s = parseQualifiedBuildTool s <|> parseUnqualifiedBuildTool s
 
-      parseQualifiedBuildTool :: Monad m => Text -> m (ParseBuildTool, DependencyVersion)
+      parseQualifiedBuildTool :: Fail.MonadFail m => Text -> m (ParseBuildTool, DependencyVersion)
       parseQualifiedBuildTool = fmap fromCabal . cabalParse "build tool" . T.unpack
         where
           fromCabal :: D.ExeDependency -> (ParseBuildTool, DependencyVersion)
@@ -62,7 +61,7 @@ instance FromValue BuildTools where
             , DependencyVersion Nothing $ versionConstraintFromCabal version
             )
 
-      parseUnqualifiedBuildTool :: Monad m => Text -> m (ParseBuildTool, DependencyVersion)
+      parseUnqualifiedBuildTool :: Fail.MonadFail m => Text -> m (ParseBuildTool, DependencyVersion)
       parseUnqualifiedBuildTool = fmap (first UnqualifiedBuildTool) . parseDependency "build tool"
 
 newtype SystemBuildTools = SystemBuildTools {
@@ -80,7 +79,7 @@ instance FromValue SystemBuildTools where
       , parseName = T.unpack
       }
 
-      parseSystemBuildTool :: Monad m => Text -> m (String, VersionConstraint)
+      parseSystemBuildTool :: Fail.MonadFail m => Text -> m (String, VersionConstraint)
       parseSystemBuildTool = fmap fromCabal . cabalParse "system build tool" . T.unpack
         where
           fromCabal :: D.LegacyExeDependency -> (String, VersionConstraint)

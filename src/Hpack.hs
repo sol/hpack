@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
 module Hpack (
 -- | /__NOTE:__/ This module is exposed to allow integration of Hpack into
 -- other tools.  It is not meant for general use by end users.  The following
@@ -19,6 +21,7 @@ module Hpack (
 -- * Running Hpack
 , hpack
 , hpackResult
+, hpackResultWithError
 , printResult
 , Result(..)
 , Status(..)
@@ -28,18 +31,23 @@ module Hpack (
 , setProgramName
 , setTarget
 , setDecode
+, setFormatYamlParseError
 , getOptions
 , Verbose(..)
 , Options(..)
 , Force(..)
+, GenerateHashStrategy(..)
+, OutputStrategy(..)
 
 #ifdef TEST
 , hpackResultWithVersion
 , header
+, renderCabalFile
 #endif
 ) where
 
-import           Control.Monad
+import           Imports
+
 import           Data.Version (Version)
 import qualified Data.Version as Version
 import           System.FilePath
@@ -47,40 +55,48 @@ import           System.Environment
 import           System.Exit
 import           System.IO (stderr)
 import           Data.Aeson (Value)
+import           Data.Maybe
 
 import           Paths_hpack (version)
 import           Hpack.Options
 import           Hpack.Config
+import           Hpack.Error (HpackError, formatHpackError)
 import           Hpack.Render
 import           Hpack.Util
 import           Hpack.Utf8 as Utf8
 import           Hpack.CabalFile
+import qualified Data.Yaml as Yaml
 
-programVersion :: Version -> String
-programVersion v = "hpack version " ++ Version.showVersion v
+programVersion :: Maybe Version -> String
+programVersion Nothing = "hpack"
+programVersion (Just v) = "hpack version " ++ Version.showVersion v
 
-header :: FilePath -> Version -> Hash -> String
-header p v hash = unlines [
+header :: FilePath -> Maybe Version -> (Maybe Hash) -> [String]
+header p v hash = [
     "-- This file has been generated from " ++ takeFileName p ++ " by " ++ programVersion v ++ "."
   , "--"
   , "-- see: https://github.com/sol/hpack"
-  , "--"
-  , "-- hash: " ++ hash
-  , ""
-  ]
+  ] ++ case hash of
+    Just h -> ["--" , "-- hash: " ++ h, ""]
+    Nothing -> [""]
 
 data Options = Options {
   optionsDecodeOptions :: DecodeOptions
 , optionsForce :: Force
+, optionsGenerateHashStrategy :: GenerateHashStrategy
 , optionsToStdout :: Bool
+, optionsOutputStrategy :: OutputStrategy
 }
+
+data GenerateHashStrategy = ForceHash | ForceNoHash | PreferHash | PreferNoHash
+  deriving (Eq, Show)
 
 getOptions :: FilePath -> [String] -> IO (Maybe (Verbose, Options))
 getOptions defaultPackageConfig args = do
   result <- parseOptions defaultPackageConfig args
   case result of
     PrintVersion -> do
-      putStrLn (programVersion version)
+      putStrLn (programVersion $ Just version)
       return Nothing
     PrintNumericVersion -> do
       putStrLn (Version.showVersion version)
@@ -88,9 +104,12 @@ getOptions defaultPackageConfig args = do
     Help -> do
       printHelp
       return Nothing
-    Run options -> case options of
-      ParseOptions verbose force toStdout file -> do
-        return $ Just (verbose, Options defaultDecodeOptions {decodeOptionsTarget = file} force toStdout)
+    Run (ParseOptions verbose force hash toStdout file outputStrategy) -> do
+      let generateHash = case hash of
+            Just True -> ForceHash
+            Just False -> ForceNoHash
+            Nothing -> PreferNoHash
+      return $ Just (verbose, Options defaultDecodeOptions {decodeOptionsTarget = file} force generateHash toStdout outputStrategy)
     ParseError -> do
       printHelp
       exitFailure
@@ -99,7 +118,7 @@ printHelp :: IO ()
 printHelp = do
   name <- getProgName
   Utf8.hPutStrLn stderr $ unlines [
-      "Usage: " ++ name ++ " [ --silent ] [ --force | -f ] [ PATH ] [ - ]"
+      "Usage: " ++ name ++ " [ --silent ] [ --canonical ] [ --force | -f ] [ --[no-]hash ] [ PATH ] [ - ]"
     , "       " ++ name ++ " --version"
     , "       " ++ name ++ " --numeric-version"
     , "       " ++ name ++ " --help"
@@ -109,7 +128,7 @@ hpack :: Verbose -> Options -> IO ()
 hpack verbose options = hpackResult options >>= printResult verbose
 
 defaultOptions :: Options
-defaultOptions = Options defaultDecodeOptions NoForce False
+defaultOptions = Options defaultDecodeOptions NoForce PreferNoHash False MinimizeDiffs
 
 setTarget :: FilePath -> Options -> Options
 setTarget target options@Options{..} =
@@ -122,6 +141,41 @@ setProgramName name options@Options{..} =
 setDecode :: (FilePath -> IO (Either String ([String], Value))) -> Options -> Options
 setDecode decode options@Options{..} =
   options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsDecode = decode}}
+
+-- | This is used to format any `Yaml.ParseException`s encountered during
+-- decoding of <https://github.com/sol/hpack#defaults defaults>.
+--
+-- Note that:
+--
+-- 1. This is not used to format `Yaml.ParseException`s encountered during
+-- decoding of the main @package.yaml@.  To customize this you have to set a
+-- custom decode function.
+--
+-- 2. Some of the constructors of `Yaml.ParseException` are never produced by
+-- Hpack (e.g. `Yaml.AesonException` as Hpack uses it's own mechanism to decode
+-- `Yaml.Value`s).
+--
+-- Example:
+--
+-- @
+-- example :: IO (Either `HpackError` `Result`)
+-- example = `hpackResultWithError` options
+--   where
+--     options :: `Options`
+--     options = setCustomYamlParseErrorFormat format `defaultOptions`
+--
+--     format :: FilePath -> `Yaml.ParseException` -> String
+--     format file err = file ++ ": " ++ displayException err
+--
+-- setCustomYamlParseErrorFormat :: (FilePath -> `Yaml.ParseException` -> String) -> `Options` -> `Options`
+-- setCustomYamlParseErrorFormat format = `setDecode` decode >>> `setFormatYamlParseError` format
+--   where
+--     decode :: FilePath -> IO (Either String ([String], Value))
+--     decode file = first (format file) \<$> `Hpack.Yaml.decodeYamlWithParseError` file
+-- @
+setFormatYamlParseError :: (FilePath -> Yaml.ParseException -> String) -> Options -> Options
+setFormatYamlParseError formatYamlParseError options@Options{..} =
+  options {optionsDecodeOptions = optionsDecodeOptions {decodeOptionsFormatYamlParseError = formatYamlParseError}}
 
 data Result = Result {
   resultWarnings :: [String]
@@ -154,41 +208,94 @@ printResult verbose r = do
 printWarnings :: [String] -> IO ()
 printWarnings = mapM_ $ Utf8.hPutStrLn stderr . ("WARNING: " ++)
 
-mkStatus :: [String] -> Version -> CabalFile -> Status
-mkStatus new v (CabalFile mOldVersion mHash old) = case (mOldVersion, mHash) of
-  (Nothing, _) -> ExistingCabalFileWasModifiedManually
-  (Just oldVersion, _) | oldVersion < makeVersion [0, 20, 0] -> Generated
-  (_, Nothing) -> ExistingCabalFileWasModifiedManually
-  (Just oldVersion, Just hash)
-    | old == new -> OutputUnchanged
-    | v < oldVersion -> AlreadyGeneratedByNewerHpack
-    | sha256 (unlines old) /= hash -> ExistingCabalFileWasModifiedManually
-    | otherwise -> Generated
+mkStatus :: NewCabalFile -> ExistingCabalFile -> Status
+mkStatus new@(CabalFile _ mNewVersion mNewHash _ _) existing@(CabalFile _ mExistingVersion _ _ _)
+  | new `hasSameContent` existing = OutputUnchanged
+  | otherwise = case mExistingVersion of
+      Nothing -> ExistingCabalFileWasModifiedManually
+      Just _
+        | mNewVersion < mExistingVersion -> AlreadyGeneratedByNewerHpack
+        | isJust mNewHash && hashMismatch existing -> ExistingCabalFileWasModifiedManually
+        | otherwise -> Generated
+
+hasSameContent :: NewCabalFile -> ExistingCabalFile -> Bool
+hasSameContent (CabalFile cabalVersionA _ _ a ()) (CabalFile cabalVersionB _ _ b gitConflictMarkers) =
+     cabalVersionA == cabalVersionB
+  && a == b
+  && gitConflictMarkers == DoesNotHaveGitConflictMarkers
+
+hashMismatch :: ExistingCabalFile -> Bool
+hashMismatch cabalFile = case cabalFileHash cabalFile of
+  Nothing -> False
+  Just hash -> cabalFileGitConflictMarkers cabalFile == HasGitConflictMarkers || hash /= calculateHash cabalFile
+
+calculateHash :: CabalFile a -> Hash
+calculateHash (CabalFile cabalVersion _ _ body _) = sha256 (unlines $ cabalVersion ++ body)
 
 hpackResult :: Options -> IO Result
-hpackResult = hpackResultWithVersion version
+hpackResult opts = hpackResultWithError opts >>= either (die . formatHpackError programName) return
+  where
+    programName = decodeOptionsProgramName (optionsDecodeOptions opts)
 
-hpackResultWithVersion :: Version -> Options -> IO Result
-hpackResultWithVersion v (Options options force toStdout) = do
-  DecodeResult pkg cabalVersion cabalFile warnings <- readPackageConfig options >>= either die return
-  oldCabalFile <- readCabalFile cabalFile
-  let
-    body = renderPackage (maybe [] cabalFileContents oldCabalFile) pkg
-    withoutHeader = cabalVersion ++ body
-  let
-    status = case force of
-      Force -> Generated
-      NoForce -> maybe Generated (mkStatus (lines withoutHeader) v) oldCabalFile
-  case status of
-    Generated -> do
-      let hash = sha256 withoutHeader
-          out  = cabalVersion ++ header (decodeOptionsTarget options) v hash ++ body
-      if toStdout
-        then Utf8.putStr out
-        else Utf8.writeFile cabalFile out
-    _ -> return ()
-  return Result {
-      resultWarnings = warnings
-    , resultCabalFile = cabalFile
-    , resultStatus = status
-    }
+hpackResultWithError :: Options -> IO (Either HpackError Result)
+hpackResultWithError = hpackResultWithVersion version
+
+hpackResultWithVersion :: Version -> Options -> IO (Either HpackError Result)
+hpackResultWithVersion v (Options options force generateHashStrategy toStdout outputStrategy) = do
+  readPackageConfigWithError options >>= \ case
+    Right (DecodeResult pkg (lines -> cabalVersion) cabalFileName warnings) -> do
+      mExistingCabalFile <- readCabalFile cabalFileName
+      let
+        newCabalFile = makeCabalFile outputStrategy generateHashStrategy mExistingCabalFile cabalVersion v pkg
+
+        status = case force of
+          Force -> Generated
+          NoForce -> maybe Generated (mkStatus newCabalFile) mExistingCabalFile
+
+      case status of
+        Generated -> writeCabalFile options toStdout cabalFileName newCabalFile
+        _ -> return ()
+
+      return $ Right Result {
+        resultWarnings = warnings
+      , resultCabalFile = cabalFileName
+      , resultStatus = status
+      }
+    Left err -> return $ Left err
+
+writeCabalFile :: DecodeOptions -> Bool -> FilePath -> NewCabalFile -> IO ()
+writeCabalFile options toStdout name cabalFile = do
+  write . unlines $ renderCabalFile (decodeOptionsTarget options) cabalFile
+  where
+    write = if toStdout then Utf8.putStr else Utf8.ensureFile name
+
+makeCabalFile :: OutputStrategy -> GenerateHashStrategy -> Maybe ExistingCabalFile -> [String] -> Version -> Package -> NewCabalFile
+makeCabalFile outputStrategy generateHashStrategy mExistingCabalFile cabalVersion v pkg = cabalFile
+  where
+    hints :: [String]
+    hints = case outputStrategy of
+      CanonicalOutput -> []
+      MinimizeDiffs -> maybe [] cabalFileContents mExistingCabalFile
+
+    cabalFile :: NewCabalFile
+    cabalFile = CabalFile cabalVersion (Just v) hash body ()
+
+    hash :: Maybe Hash
+    hash
+      | shouldGenerateHash mExistingCabalFile generateHashStrategy = Just $ calculateHash cabalFile
+      | otherwise = Nothing
+
+    body :: [String]
+    body = lines $ renderPackage hints pkg
+
+shouldGenerateHash :: Maybe ExistingCabalFile -> GenerateHashStrategy -> Bool
+shouldGenerateHash mExistingCabalFile strategy = case (strategy, mExistingCabalFile) of
+  (ForceHash, _) -> True
+  (ForceNoHash, _) -> False
+  (PreferHash, Nothing) -> True
+  (PreferNoHash, Nothing) -> False
+  (_, Just CabalFile {cabalFileHash = Nothing}) -> False
+  (_, Just CabalFile {cabalFileHash = Just _}) -> True
+
+renderCabalFile :: FilePath -> NewCabalFile -> [String]
+renderCabalFile file (CabalFile cabalVersion hpackVersion hash body _) = cabalVersion ++ header file hpackVersion hash ++ body

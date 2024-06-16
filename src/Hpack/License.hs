@@ -1,15 +1,16 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE LambdaCase #-}
 module Hpack.License where
 
-import           Control.Arrow ((&&&))
+import           Imports
 
 import           Distribution.Pretty (prettyShow)
 import           Distribution.Version (mkVersion)
 import qualified Distribution.License as Cabal
 import qualified Distribution.SPDX.License as SPDX
-import           Distribution.Parsec.Class (eitherParsec)
+import           Distribution.Parsec (eitherParsec)
 
 import qualified Data.License.Infer as Infer
 

@@ -7,10 +7,21 @@ import           Hpack.Render.Dsl
 
 spec :: Spec
 spec = do
+  describe "sniffRenderSettings" $ do
+    context "when sniffed indentation is < default" $ do
+      it "uses default instead" $ do
+        let input = [
+                "library"
+              , "exposed-modules:"
+              , "    Foo"
+              ]
+        sniffIndentation input `shouldBe` Just 0
+        renderSettingsIndentation (sniffRenderSettings input) `shouldBe` 2
+
   describe "extractFieldOrder" $ do
     it "extracts field order hints" $ do
       let input = [
-              "name:           cabalize"
+              "name:           hpack"
             , "version:        0.0.0"
             , "license:"
             , "license-file: "
@@ -27,7 +38,7 @@ spec = do
   describe "extractSectionsFieldOrder" $ do
     it "splits input into sections" $ do
       let input = [
-              "name:           cabalize"
+              "name:           hpack"
             , "version:        0.0.0"
             , ""
             , "library"
@@ -77,7 +88,7 @@ spec = do
   describe "sniffAlignment" $ do
     it "sniffs field alignment from given cabal file" $ do
       let input = [
-              "name:           cabalize"
+              "name:           hpack"
             , "version:        0.0.0"
             , "license:        MIT"
             , "license-file:   LICENSE"
@@ -87,13 +98,29 @@ spec = do
 
     it "ignores fields without a value on the same line" $ do
       let input = [
-              "name:           cabalize"
+              "name:           hpack"
             , "version:        0.0.0"
             , "description: "
             , "  foo"
             , "  bar"
             ]
       sniffAlignment input `shouldBe` Just 16
+
+    context "when all fields are padded with exactly one space" $ do
+      it "returns 0" $ do
+        let input = [
+                "name: hpack"
+              , "version: 0.0.0"
+              , "license: MIT"
+              , "license-file: LICENSE"
+              , "build-type: Simple"
+              ]
+        sniffAlignment input `shouldBe` Just 0
+
+    context "with an empty input list" $ do
+      it "returns Nothing" $ do
+        let input = []
+        sniffAlignment input `shouldBe` Nothing
 
   describe "splitField" $ do
     it "splits fields" $ do
@@ -109,7 +136,7 @@ spec = do
       splitField "foo bar" `shouldBe` Nothing
 
   describe "sniffIndentation" $ do
-    it "sniff alignment from executable section" $ do
+    it "sniffs indentation from executable section" $ do
       let input = [
               "name: foo"
             , "version: 0.0.0"
@@ -119,7 +146,7 @@ spec = do
             ]
       sniffIndentation input `shouldBe` Just 4
 
-    it "sniff alignment from library section" $ do
+    it "sniffs indentation from library section" $ do
       let input = [
               "name: foo"
             , "version: 0.0.0"
