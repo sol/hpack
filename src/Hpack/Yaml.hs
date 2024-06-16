@@ -14,6 +14,10 @@ module Hpack.Yaml (
 -- tool that supports Hpack (e.g. @stack@ or @cabal2nix@).
 
   decodeYaml
+, decodeYamlWithParseError
+, ParseException
+, formatYamlParseError
+, formatWarning
 , module Data.Aeson.Config.FromValue
 ) where
 
@@ -25,18 +29,22 @@ import           Data.Yaml.Internal (Warning(..))
 import           Data.Aeson.Config.FromValue
 import           Data.Aeson.Config.Parser (fromAesonPath, formatPath)
 
+decodeYaml :: FilePath -> IO (Either String ([String], Value))
+decodeYaml file = first (formatYamlParseError file) <$> decodeYamlWithParseError file
+
+decodeYamlWithParseError :: FilePath -> IO (Either ParseException ([String], Value))
+decodeYamlWithParseError file = do
+  result <- decodeFileWithWarnings file
+  return $ fmap (first (map $ formatWarning file)) result
+
+formatYamlParseError :: FilePath -> ParseException -> String
+formatYamlParseError file err = file ++ case err of
+  AesonException e -> ": " ++ e
+  InvalidYaml (Just (YamlException s)) -> ": " ++ s
+  InvalidYaml (Just (YamlParseException{..})) -> ":" ++ show yamlLine ++ ":" ++ show yamlColumn ++ ": " ++ yamlProblem ++ " " ++ yamlContext
+    where YamlMark{..} = yamlProblemMark
+  _ -> ": " ++ displayException err
+
 formatWarning :: FilePath -> Warning -> String
 formatWarning file = \ case
   DuplicateKey path -> file ++ ": Duplicate field " ++ formatPath (fromAesonPath path)
-
-decodeYaml :: FilePath -> IO (Either String ([String], Value))
-decodeYaml file = do
-  result <- decodeFileWithWarnings file
-  return $ either (Left . errToString) (Right . first (map $ formatWarning file)) result
-  where
-    errToString err = file ++ case err of
-      AesonException e -> ": " ++ e
-      InvalidYaml (Just (YamlException s)) -> ": " ++ s
-      InvalidYaml (Just (YamlParseException{..})) -> ":" ++ show yamlLine ++ ":" ++ show yamlColumn ++ ": " ++ yamlProblem ++ " " ++ yamlContext
-        where YamlMark{..} = yamlProblemMark
-      _ -> ": " ++ show err

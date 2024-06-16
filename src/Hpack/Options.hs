@@ -16,12 +16,16 @@ data Verbose = Verbose | NoVerbose
 data Force = Force | NoForce
   deriving (Eq, Show)
 
+data OutputStrategy = CanonicalOutput | MinimizeDiffs
+  deriving (Eq, Show)
+
 data ParseOptions = ParseOptions {
   parseOptionsVerbose :: Verbose
 , parseOptionsForce :: Force
 , parseOptionsHash :: Maybe Bool
 , parseOptionsToStdout :: Bool
 , parseOptionsTarget :: FilePath
+, parseOptionsOutputStrategy :: OutputStrategy
 } deriving (Eq, Show)
 
 parseOptions :: FilePath -> [String] -> IO ParseResult
@@ -34,8 +38,8 @@ parseOptions defaultTarget = \ case
       file <- expandTarget defaultTarget target
       let
         options
-          | toStdout = ParseOptions NoVerbose Force hash toStdout file
-          | otherwise = ParseOptions verbose force hash toStdout file
+          | toStdout = ParseOptions NoVerbose Force hash toStdout file outputStrategy
+          | otherwise = ParseOptions verbose force hash toStdout file outputStrategy
       return (Run options)
     Left err -> return err
     where
@@ -43,11 +47,15 @@ parseOptions defaultTarget = \ case
       forceFlags = ["--force", "-f"]
       hashFlag = "--hash"
       noHashFlag = "--no-hash"
+      canonicalFlag = "--canonical"
 
-      flags = hashFlag : noHashFlag : silentFlag : forceFlags
+      flags = canonicalFlag : hashFlag : noHashFlag : silentFlag : forceFlags
 
       verbose :: Verbose
       verbose = if silentFlag `elem` args then NoVerbose else Verbose
+
+      outputStrategy :: OutputStrategy
+      outputStrategy = if canonicalFlag `elem` args then CanonicalOutput else MinimizeDiffs
 
       force :: Force
       force = if any (`elem` args) forceFlags then Force else NoForce

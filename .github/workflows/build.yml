@@ -1,6 +1,13 @@
 name: build
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -17,31 +24,25 @@ jobs:
         os:
           - ubuntu-latest
         ghc:
-          - '8.2'
-          - '8.4'
-          - '8.6'
           - '8.8'
           - '8.10'
           - '9.0'
           - '9.2'
+          - '9.4'
+          - '9.6'
         include:
-          - os: macos-latest
-            ghc: latest
+          - os: macos-12
+            ghc: system
           - os: windows-latest
-            ghc: latest
+            ghc: '9.2'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: hspec/setup-haskell@v1
         with:
           ghc-version: ${{ matrix.ghc }}
-
-      - uses: actions/cache@v2
-        with:
-          key: ${{ runner.os }}-v2-${{ matrix.ghc }}-${{ github.sha }}
-          path: ~/.cabal/store
-          restore-keys: ${{ runner.os }}-v2-${{ matrix.ghc }}-
-
       - uses: sol/run-haskell-tests@v1
+        with:
+          caching: true
 
   success:
     needs: build
@@ -51,3 +52,7 @@ jobs:
     steps:
       - run: false
         if: needs.build.result != 'success'
+
+      - uses: actions/checkout@v3
+      - name: Check for trailing whitespace
+        run: '! git grep -I "\s\+$"'

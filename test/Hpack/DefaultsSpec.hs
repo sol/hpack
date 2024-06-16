@@ -4,6 +4,7 @@ module Hpack.DefaultsSpec (spec) where
 import           Helper
 import           System.Directory
 
+import           Hpack.Error
 import           Hpack.Syntax.Defaults
 import           Hpack.Defaults
 
@@ -12,7 +13,7 @@ spec = do
   describe "ensure" $ do
     it "fails when local file does not exist" $ do
       cwd <- getCurrentDirectory
-      let expected = Left $ "Invalid value for \"defaults\"! File " ++ (cwd </> "foo") ++ " does not exist!"
+      let expected = Left (DefaultsFileNotFound $ cwd </> "foo")
       ensure undefined cwd (DefaultsLocal $ Local "foo") `shouldReturn` expected
 
   describe "ensureFile" $ do

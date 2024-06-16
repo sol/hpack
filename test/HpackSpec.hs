@@ -1,15 +1,18 @@
+{-# LANGUAGE OverloadedStrings #-}
 module HpackSpec (spec) where
 
 import           Helper
 
 import           Prelude hiding (readFile)
 import qualified Prelude as Prelude
+import           System.Exit (die)
 
 import           Control.DeepSeq
 
 import           Hpack.Config
 import           Hpack.CabalFile
-import           Hpack hiding (hpack)
+import           Hpack.Error (formatHpackError)
+import           Hpack
 
 readFile :: FilePath -> IO String
 readFile name = Prelude.readFile name >>= (return $!!)
@@ -47,15 +50,15 @@ spec = do
 
   describe "renderCabalFile" $ do
     it "is inverse to readCabalFile" $ do
-      expected <- lines <$> readFile "hpack.cabal"
-      Just c <- readCabalFile "hpack.cabal"
-      renderCabalFile "package.yaml" c `shouldBe` expected
+      expected <- lines <$> readFile "resources/test/hpack.cabal"
+      Just c <- readCabalFile "resources/test/hpack.cabal"
+      renderCabalFile "package.yaml" c {cabalFileGitConflictMarkers = ()} `shouldBe` expected
 
   describe "hpackResult" $ around_ inTempDirectory $ before_ (writeFile packageConfig "name: foo") $ do
     let
       file = "foo.cabal"
 
-      hpackWithVersion v = hpackResultWithVersion (makeVersion v) defaultOptions
+      hpackWithVersion v = hpackResultWithVersion (makeVersion v) defaultOptions >>= either (die . formatHpackError "hpack") return
       hpackWithStrategy strategy = hpackResult defaultOptions { optionsGenerateHashStrategy = strategy }
       hpackForce = hpackResult defaultOptions {optionsForce = Force}
 
@@ -152,3 +155,26 @@ spec = do
           old <- readFile file
           hpackWithVersion [0,20,0] `shouldReturn` outputUnchanged
           readFile file `shouldReturn` old
+
+      context "with git conflict markers" $ do
+        context "when the new and the existing .cabal file are essentially the same" $ do
+          it "still removes the conflict markers" $ do
+            writeFile file $ unlines [
+                "--"
+              , "name: foo"
+              ]
+            hpack NoVerbose defaultOptions {optionsForce = Force}
+            old <- readFile file
+            let
+              modified :: String
+              modified = unlines $ case break (== "version: 0.0.0") $ lines old of
+                (xs, v : ys)  -> xs ++
+                  "<<<<<<< ours" :
+                  v :
+                  "=======" :
+                  "version: 0.1.0" :
+                  ">>>>>>> theirs" : ys
+                _ -> undefined
+            writeFile file modified
+            hpack NoVerbose defaultOptions
+            readFile file `shouldReturn` old
