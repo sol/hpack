@@ -68,6 +68,7 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
             * [Strings](#strings)
             * [Lists of objects and strings](#lists-of-objects-and-strings)
          * [Not repeating yourself](#not-repeating-yourself)
+      * [The hpack executable](#the-hpack-executable)
       * [Vim integration](#vim-integration)
       * [Stack support](#stack-support)
       * [Binaries for use on Travis CI](#binaries-for-use-on-travis-ci)
@@ -657,6 +658,37 @@ lib.yaml:
   main: hlint.hs
   dependencies: [hlint]
 ```
+
+## The hpack executable
+
+If the `hpack` executable is on the `PATH`, to obtain help about its usage,
+command `hpack --help`. In addition to its main use, `hpack` can also be used as
+follows:
+
+* `hpack --version` Output information about the version of `hpack` to the
+  standard output channel, in the format `hpack version x.y.z`.
+* `hpack --numeric-version` Output information about the version of `hpack` to
+  the standard output channel, in the format `x.y.z`.
+* `hpack --help` Output information about the usage of `hpack` to the standard
+  error channel.
+
+In respect of its main use, `hpack` has the following optional flags:
+
+* `--silent` Output no information other than error messages.
+* `--canonical` By default, `hpack` takes into account aspects of the format of
+  an existing Cabal file when generating a new Cabal file. Pass this flag to
+  cause `hpack` to ignore the format of an existing Cabal file when generating a
+  new one.
+* `--force` or `-f` By default, `hpack` will not generate a Cabal file
+  unnecessarily. Pass this flag to force the generation of a new Cabal file.
+* `--[no-]hash` Enable/disable the inclusion of a SHA-256 hash of the other
+  content of the generated Cabal file in the header comment added by `hpack` to
+  the generated Cabal file. (default: disabled)
+* `-` Output the generated Cabal file contents to the standard output channel.
+
+By default, `hpack` will assume the package description in the Hpack format is
+in file `package.yaml` in the current working directory. Alternatively, a
+relative or absolute path to a file can be specified.
 
 ## Vim integration
 
