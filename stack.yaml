@@ -1,1 +1,1 @@
-resolver: nightly-2023-05-03 # GHC 9.4.5
+snapshot: lts-22.25 # GHC 9.6.5
