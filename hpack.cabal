@@ -29,7 +29,7 @@ library
       src
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
-      Cabal >=3.0.0.0 && <3.11
+      Cabal >=3.0.0.0 && <3.13
     , Glob >=0.9.0
     , aeson >=1.4.3.0
     , base >=4.13 && <5
@@ -97,7 +97,7 @@ executable hpack
       driver
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   build-depends:
-      Cabal >=3.0.0.0 && <3.11
+      Cabal >=3.0.0.0 && <3.13
     , Glob >=0.9.0
     , aeson >=1.4.3.0
     , base >=4.13 && <5
@@ -135,7 +135,7 @@ test-suite spec
   ghc-options: -Wall -fno-warn-incomplete-uni-patterns
   cpp-options: -DTEST
   build-depends:
-      Cabal >=3.0.0.0 && <3.11
+      Cabal >=3.0.0.0 && <3.13
     , Glob >=0.9.0
     , HUnit >=1.6.0.0
     , QuickCheck
