@@ -671,6 +671,8 @@ follows:
   the standard output channel, in the format `x.y.z`.
 * `hpack --help` Output information about the usage of `hpack` to the standard
   error channel.
+* `hpack list` (undocumented) Output the names of the package's exposed modules
+  to the standard output channel, in the format of one name on each line.
 
 In respect of its main use, `hpack` has the following optional flags:
 
