@@ -24,17 +24,17 @@ jobs:
         os:
           - ubuntu-latest
         ghc:
-          - '8.8'
-          - '8.10'
           - '9.0'
           - '9.2'
           - '9.4'
           - '9.6'
+          - '9.8'
+          - '9.10'
         include:
           - os: macos-12
             ghc: system
           - os: windows-latest
-            ghc: '9.2'
+            ghc: '9.10'
     steps:
       - uses: actions/checkout@v3
       - uses: hspec/setup-haskell@v1
