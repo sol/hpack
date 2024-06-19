@@ -1,20 +1,24 @@
+## Changes in 0.36.1
+  - Allow `Cabal-3.12.*`
+  - Support `base >= 4.20.0` (`Imports` does not re-export `Data.List.List`)
+
 ## Changes in 0.36.0
- - Don't infer `Paths_`-module with `spec-version: 0.36.0` or later
+  - Don't infer `Paths_`-module with `spec-version: 0.36.0` or later
 
 ## Changes in 0.35.5
- - Add (undocumented) `list` command
+  - Add (undocumented) `list` command
 
 ## Changes in 0.35.4
- - Add `--canonical`, which can be used to produce canonical output instead of
-   trying to produce minimal diffs
- - Avoid unnecessary writes on `--force` (see #555)
- - When an existing `.cabal` does not align fields then do not align fields in
-   the generated `.cabal` file.
- - Fix a bug related to git conflict markers in existing `.cabal` files: When a
-   `.cabal` file was essentially unchanged, but contained git conflict markers
-   then `hpack` did not write a new `.cabal` file at all.  To address this
-   `hpack` now unconditionally writes a new `.cabal` file when the existing
-   `.cabal` file contains any git conflict markers.
+  - Add `--canonical`, which can be used to produce canonical output instead of
+    trying to produce minimal diffs
+  - Avoid unnecessary writes on `--force` (see #555)
+  - When an existing `.cabal` does not align fields then do not align fields in
+    the generated `.cabal` file.
+  - Fix a bug related to git conflict markers in existing `.cabal` files: When a
+    `.cabal` file was essentially unchanged, but contained git conflict markers
+    then `hpack` did not write a new `.cabal` file at all.  To address this
+    `hpack` now unconditionally writes a new `.cabal` file when the existing
+    `.cabal` file contains any git conflict markers.
 
 ## Changes in 0.35.3
   - Depend on `crypton` instead of `cryptonite`
