@@ -1,3 +1,6 @@
+## Changes in 0.37.0
+  - Add support for `asm-options` and `asm-sources` (see #573)
+
 ## Changes in 0.36.1
   - Allow `Cabal-3.12.*`
   - Support `base >= 4.20.0` (`Imports` does not re-export `Data.List.List`)
