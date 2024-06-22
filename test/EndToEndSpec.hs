@@ -877,6 +877,19 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
             bar
         |]
 
+    describe "includes" $ do
+      it "accepts includes" $ do
+        [i|
+        includes:
+          - foo.h
+          - bar.h
+        executable: {}
+        |] `shouldRenderTo` executable_ "my-package" [i|
+        includes:
+            foo.h
+            bar.h
+        |]
+
     describe "install-includes" $ do
       it "accepts install-includes" $ do
         [i|

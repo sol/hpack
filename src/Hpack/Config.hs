@@ -192,7 +192,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, info) | (name, info) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] Nothing [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
+section a = Section a [] mempty [] [] [] Nothing [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -296,6 +296,7 @@ data CommonOptions asmSources cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsExtraFrameworksDirs :: Maybe (List FilePath)
 , commonOptionsFrameworks :: Maybe (List String)
 , commonOptionsIncludeDirs :: Maybe (List FilePath)
+, commonOptionsIncludes :: Maybe (List FilePath)
 , commonOptionsInstallIncludes :: Maybe (List FilePath)
 , commonOptionsLdOptions :: Maybe (List LdOption)
 , commonOptionsBuildable :: Last Bool
@@ -333,6 +334,7 @@ instance (Semigroup asmSources, Semigroup cSources, Semigroup cxxSources, Semigr
   , commonOptionsExtraFrameworksDirs = Nothing
   , commonOptionsFrameworks = Nothing
   , commonOptionsIncludeDirs = Nothing
+  , commonOptionsIncludes = Nothing
   , commonOptionsInstallIncludes = Nothing
   , commonOptionsLdOptions = Nothing
   , commonOptionsBuildable = mempty
@@ -368,6 +370,7 @@ instance (Semigroup asmSources, Semigroup cSources, Semigroup cxxSources, Semigr
   , commonOptionsExtraFrameworksDirs = commonOptionsExtraFrameworksDirs a <> commonOptionsExtraFrameworksDirs b
   , commonOptionsFrameworks = commonOptionsFrameworks a <> commonOptionsFrameworks b
   , commonOptionsIncludeDirs = commonOptionsIncludeDirs a <> commonOptionsIncludeDirs b
+  , commonOptionsIncludes = commonOptionsIncludes a <> commonOptionsIncludes b
   , commonOptionsInstallIncludes = commonOptionsInstallIncludes a <> commonOptionsInstallIncludes b
   , commonOptionsLdOptions = commonOptionsLdOptions a <> commonOptionsLdOptions b
   , commonOptionsBuildable = commonOptionsBuildable a <> commonOptionsBuildable b
@@ -1044,6 +1047,7 @@ data Section a = Section {
 , sectionExtraFrameworksDirs :: [FilePath]
 , sectionFrameworks :: [FilePath]
 , sectionIncludeDirs :: [FilePath]
+, sectionIncludes :: [FilePath]
 , sectionInstallIncludes :: [FilePath]
 , sectionLdOptions :: [LdOption]
 , sectionBuildable :: Maybe Bool
@@ -1543,6 +1547,7 @@ toSection packageName_ executableNames = go
       , sectionExtraFrameworksDirs = fromMaybeList commonOptionsExtraFrameworksDirs
       , sectionFrameworks = fromMaybeList commonOptionsFrameworks
       , sectionIncludeDirs = fromMaybeList commonOptionsIncludeDirs
+      , sectionIncludes = fromMaybeList commonOptionsIncludes
       , sectionInstallIncludes = fromMaybeList commonOptionsInstallIncludes
       , sectionLdOptions = fromMaybeList commonOptionsLdOptions
       , sectionBuildable = getLast commonOptionsBuildable

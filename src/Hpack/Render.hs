@@ -238,6 +238,7 @@ renderSection renderSectionData extraFieldsStart Section{..} = addVerbatim secti
   , renderCcOptions sectionCcOptions
   , renderCxxOptions sectionCxxOptions
   , renderDirectories "include-dirs" sectionIncludeDirs
+  , Field "includes" (LineSeparatedList sectionIncludes)
   , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
   , Field "asm-sources" (renderPaths sectionAsmSources)
   , Field "c-sources" (renderPaths sectionCSources)

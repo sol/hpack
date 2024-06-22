@@ -261,6 +261,7 @@ values are merged with per section values.
 | `extra-lib-dirs` | · | | |
 | `extra-libraries` | · | | |
 | `include-dirs` | · | | |
+| `includes` | · | | |
 | `install-includes` | · | | |
 | `frameworks` | · | | |
 | `extra-frameworks-dirs` | · | | |
