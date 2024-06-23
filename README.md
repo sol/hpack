@@ -251,6 +251,8 @@ values are merged with per section values.
 | `ghc-shared-options` | · | | |
 | `ghcjs-options` | · | | |
 | `cpp-options` | · | | |
+| `asm-options` | · | | |
+| `asm-sources` | · | | Accepts [glob patterns](#file-globbing) |
 | `cc-options` | · | | |
 | `c-sources` | · | | Accepts [glob patterns](#file-globbing) |
 | `cxx-options` | · | | |

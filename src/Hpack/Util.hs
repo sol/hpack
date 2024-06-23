@@ -4,6 +4,7 @@ module Hpack.Util (
 , GhcProfOption
 , GhcjsOption
 , CppOption
+, AsmOption
 , CcOption
 , CxxOption
 , LdOption
@@ -46,6 +47,7 @@ type GhcOption = String
 type GhcProfOption = String
 type GhcjsOption = String
 type CppOption = String
+type AsmOption = String
 type CcOption = String
 type CxxOption = String
 type LdOption = String

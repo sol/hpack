@@ -234,10 +234,12 @@ renderSection renderSectionData extraFieldsStart Section{..} = addVerbatim secti
   , renderGhcSharedOptions sectionGhcSharedOptions
   , renderGhcjsOptions sectionGhcjsOptions
   , renderCppOptions sectionCppOptions
+  , renderAsmOptions sectionAsmOptions
   , renderCcOptions sectionCcOptions
   , renderCxxOptions sectionCxxOptions
   , renderDirectories "include-dirs" sectionIncludeDirs
   , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
+  , Field "asm-sources" (renderPaths sectionAsmSources)
   , Field "c-sources" (renderPaths sectionCSources)
   , Field "cxx-sources" (renderPaths sectionCxxSources)
   , Field "js-sources" (renderPaths sectionJsSources)
@@ -391,6 +393,9 @@ renderGhcjsOptions = Field "ghcjs-options" . WordList
 
 renderCppOptions :: [CppOption] -> Element
 renderCppOptions = Field "cpp-options" . WordList
+
+renderAsmOptions :: [AsmOption] -> Element
+renderAsmOptions = Field "asm-options" . WordList
 
 renderCcOptions :: [CcOption] -> Element
 renderCcOptions = Field "cc-options" . WordList

@@ -924,6 +924,32 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
             jsbits/bar.js
         |]
 
+    describe "asm-options" $ do
+      it "accepts asm-options" $ do
+        [i|
+        executable:
+          asm-options: -Wall
+        |] `shouldRenderTo` (executable_ "my-package" [i|
+        autogen-modules:
+            Paths_my_package
+        asm-options: -Wall
+        |]) {packageCabalVersion = "3.0"}
+
+    describe "asm-sources" $ before_ (touch "foo.asm" >> touch "asmbits/bar.asm") $ do
+      it "accepts asm-sources" $ do
+        [i|
+        executable:
+          asm-sources:
+            - foo.asm
+            - asmbits/*.asm
+        |] `shouldRenderTo` (executable_ "my-package" [i|
+        autogen-modules:
+            Paths_my_package
+        asm-sources:
+            foo.asm
+            asmbits/bar.asm
+        |]) {packageCabalVersion = "3.0"}
+
     describe "cxx-options" $ do
       it "accepts cxx-options" $ do
         [i|
