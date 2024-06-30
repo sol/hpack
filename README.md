@@ -243,9 +243,9 @@ values are merged with per section values.
 | --- | --- | --- | --- |
 | `buildable` | · | | Per section takes precedence over top-level |
 | `source-dirs` | `hs-source-dirs` | | |
-| `default-extensions` | · | | |
+| `default-extensions` | · | | extensions that will be enabled in every source file |
 | `language` | `default-language` | `Haskell2010` | Also accepts `Haskell98`, `GHC2021` or `GHC2024`. Per section takes precedence over top-level |
-| `other-extensions` | · | | |
+| `other-extensions` | · | | indicates that these extensions will be used in at least one source file |
 | `ghc-options` | · | | |
 | `ghc-prof-options` | · | | |
 | `ghc-shared-options` | · | | |
