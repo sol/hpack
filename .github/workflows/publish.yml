@@ -1,5 +1,8 @@
 name: publish
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
@@ -9,7 +12,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+
+      - run: cabal check --ignore=missing-upper-bounds
 
       - uses: sol/haskell-autotag@v1
         id: autotag
@@ -22,4 +27,16 @@ jobs:
         with:
           hackageToken: ${{ secrets.HACKAGE_AUTH_TOKEN }}
           publish: true
+        if: steps.autotag.outputs.created
+
+      - name: publish binaries
+        run: |
+          cabal update
+          cabal build --disable-tests --disable-benchmarks --disable-documentation
+          binary=hpack
+          asset="${binary}_linux.gz"
+          cat "$(cabal list-bin $binary)" | gzip > "$asset"
+          gh release create ${{ steps.autotag.outputs.name }} --title ${{ steps.autotag.outputs.name }} --verify-tag "$asset"
+        env:
+          GH_TOKEN: ${{ github.token }}
         if: steps.autotag.outputs.created
