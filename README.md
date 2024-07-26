@@ -716,7 +716,12 @@ endfunction
 If you are using Stack you can use `package.yaml` instead of a `.cabal` file.  No additional
 steps are required.
 
-## Binaries for use on Travis CI
+## Binaries for use on CI
 
-Previously, we distributed binaries for use on Travis CI but, currently, we do
-not do so.
+You can get binaries for use on CI with:
+
+```
+curl -sSL https://raw.githubusercontent.com/sol/hpack/main/get-hpack.sh | bash
+```
+
+(both Linux and ~OS X~ are supported)
