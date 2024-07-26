@@ -722,6 +722,7 @@ You can get binaries for use on CI with:
 
 ```
 curl -sSL https://raw.githubusercontent.com/sol/hpack/main/get-hpack.sh | bash
+hpack && git diff --exit-code
 ```
 
 (both Linux and ~OS X~ are supported)
