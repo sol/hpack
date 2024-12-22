@@ -408,6 +408,10 @@ see and how its signatures are filled in:
 
 ```
   dependencies:
+    # This is the simplest mixin syntax with no module renaming or hiding.
+    - name: base
+      mixin:
+        - ''
     # This gives you a shorter name to import from, and hides the other modules.
     - name: containers
       mixin:
