@@ -21,6 +21,9 @@ executable = (section $ Executable (Just "Main.hs") [] []) {
 renderEmptySection :: Empty -> [Element]
 renderEmptySection Empty = []
 
+cabalVersion :: CabalVersion
+cabalVersion = makeCabalVersion [1,12]
+
 spec :: Spec
 spec = do
   describe "renderPackageWith" $ do
@@ -222,7 +225,7 @@ spec = do
   describe "renderConditional" $ do
     it "renders conditionals" $ do
       let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} Nothing
-      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
+      render defaultRenderSettings 0 (renderConditional cabalVersion renderEmptySection conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"
@@ -230,7 +233,7 @@ spec = do
 
     it "renders conditionals with else-branch" $ do
       let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} (Just $ (section Empty) {sectionDependencies = deps ["unix"]})
-      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
+      render defaultRenderSettings 0 (renderConditional cabalVersion renderEmptySection conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"
@@ -242,7 +245,7 @@ spec = do
     it "renders nested conditionals" $ do
       let conditional = Conditional "arch(i386)" (section Empty) {sectionGhcOptions = ["-threaded"], sectionConditionals = [innerConditional]} Nothing
           innerConditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} Nothing
-      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
+      render defaultRenderSettings 0 (renderConditional cabalVersion renderEmptySection conditional) `shouldBe` [
           "if arch(i386)"
         , "  ghc-options: -threaded"
         , "  if os(windows)"
@@ -253,7 +256,7 @@ spec = do
     it "conditionalises both build-depends and mixins" $ do
       let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = [("Win32", depInfo)]} Nothing
           depInfo = defaultInfo { dependencyInfoMixins = ["hiding (Blah)"] }
-      render defaultRenderSettings 0 (renderConditional renderEmptySection conditional) `shouldBe` [
+      render defaultRenderSettings 0 (renderConditional cabalVersion renderEmptySection conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"

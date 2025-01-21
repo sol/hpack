@@ -79,7 +79,7 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
     customSetup = maybe [] (return . renderCustomSetup) packageCustomSetup
 
     library :: [Element]
-    library = maybe [] (return . renderLibrary) packageLibrary
+    library = maybe [] (return . renderLibrary packageCabalVersion) packageLibrary
 
     stanzas :: [Element]
     stanzas = concat [
@@ -87,10 +87,10 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
       , customSetup
       , map renderFlag packageFlags
       , library
-      , renderInternalLibraries packageInternalLibraries
-      , renderExecutables packageExecutables
-      , renderTests packageTests
-      , renderBenchmarks packageBenchmarks
+      , renderInternalLibraries packageCabalVersion packageInternalLibraries
+      , renderExecutables packageCabalVersion packageExecutables
+      , renderTests packageCabalVersion packageTests
+      , renderBenchmarks packageCabalVersion packageBenchmarks
       ]
 
     headerFields :: [Element]
@@ -155,38 +155,38 @@ renderFlag Flag {..} = Stanza ("flag " ++ flagName) $ description ++ [
   where
     description = maybe [] (return . Field "description" . Literal) flagDescription
 
-renderInternalLibraries :: Map String (Section Library) -> [Element]
-renderInternalLibraries = map renderInternalLibrary . Map.toList
+renderInternalLibraries :: CabalVersion -> Map String (Section Library) -> [Element]
+renderInternalLibraries cabalVersion = map (renderInternalLibrary cabalVersion) . Map.toList
 
-renderInternalLibrary :: (String, Section Library) -> Element
-renderInternalLibrary (name, sect) =
-  Stanza ("library " ++ name) (renderLibrarySection sect)
+renderInternalLibrary :: CabalVersion -> (String, Section Library) -> Element
+renderInternalLibrary cabalVersion (name, sect) =
+  Stanza ("library " ++ name) (renderLibrarySection cabalVersion sect)
 
-renderExecutables :: Map String (Section Executable) -> [Element]
-renderExecutables = map renderExecutable . Map.toList
+renderExecutables :: CabalVersion -> Map String (Section Executable) -> [Element]
+renderExecutables cabalVersion = map (renderExecutable cabalVersion) . Map.toList
 
-renderExecutable :: (String, Section Executable) -> Element
-renderExecutable (name, sect) =
-  Stanza ("executable " ++ name) (renderExecutableSection [] sect)
+renderExecutable :: CabalVersion -> (String, Section Executable) -> Element
+renderExecutable cabalVersion (name, sect) =
+  Stanza ("executable " ++ name) (renderExecutableSection cabalVersion [] sect)
 
-renderTests :: Map String (Section Executable) -> [Element]
-renderTests = map renderTest . Map.toList
+renderTests :: CabalVersion -> Map String (Section Executable) -> [Element]
+renderTests cabalVersion = map (renderTest cabalVersion) . Map.toList
 
-renderTest :: (String, Section Executable) -> Element
-renderTest (name, sect) =
+renderTest :: CabalVersion -> (String, Section Executable) -> Element
+renderTest cabalVersion (name, sect) =
   Stanza ("test-suite " ++ name)
-    (renderExecutableSection [Field "type" "exitcode-stdio-1.0"] sect)
+    (renderExecutableSection cabalVersion [Field "type" "exitcode-stdio-1.0"] sect)
 
-renderBenchmarks :: Map String (Section Executable) -> [Element]
-renderBenchmarks = map renderBenchmark . Map.toList
+renderBenchmarks :: CabalVersion -> Map String (Section Executable) -> [Element]
+renderBenchmarks cabalVersion = map (renderBenchmark cabalVersion) . Map.toList
 
-renderBenchmark :: (String, Section Executable) -> Element
-renderBenchmark (name, sect) =
+renderBenchmark :: CabalVersion -> (String, Section Executable) -> Element
+renderBenchmark cabalVersion (name, sect) =
   Stanza ("benchmark " ++ name)
-    (renderExecutableSection [Field "type" "exitcode-stdio-1.0"] sect)
+    (renderExecutableSection cabalVersion [Field "type" "exitcode-stdio-1.0"] sect)
 
-renderExecutableSection :: [Element] -> Section Executable -> [Element]
-renderExecutableSection extraFields = renderSection renderExecutableFields extraFields
+renderExecutableSection :: CabalVersion -> [Element] -> Section Executable -> [Element]
+renderExecutableSection cabalVersion extraFields = renderSection cabalVersion renderExecutableFields extraFields
 
 renderExecutableFields :: Executable -> [Element]
 renderExecutableFields Executable{..} = mainIs ++ [otherModules, generatedModules]
@@ -199,11 +199,11 @@ renderCustomSetup :: CustomSetup -> Element
 renderCustomSetup CustomSetup{..} =
   Stanza "custom-setup" $ renderDependencies "setup-depends" customSetupDependencies
 
-renderLibrary :: Section Library -> Element
-renderLibrary sect = Stanza "library" $ renderLibrarySection sect
+renderLibrary :: CabalVersion -> Section Library -> Element
+renderLibrary cabalVersion sect = Stanza "library" $ renderLibrarySection cabalVersion sect
 
-renderLibrarySection :: Section Library -> [Element]
-renderLibrarySection = renderSection renderLibraryFields []
+renderLibrarySection :: CabalVersion -> Section Library -> [Element]
+renderLibrarySection cabalVersion = renderSection cabalVersion renderLibraryFields []
 
 renderLibraryFields :: Library -> [Element]
 renderLibraryFields Library{..} =
@@ -222,8 +222,8 @@ renderExposed = Field "exposed" . Literal . show
 renderVisibility :: String -> Element
 renderVisibility = Field "visibility" . Literal
 
-renderSection :: (a -> [Element]) -> [Element] -> Section a -> [Element]
-renderSection renderSectionData extraFieldsStart Section{..} = addVerbatim sectionVerbatim $
+renderSection :: CabalVersion -> (a -> [Element]) -> [Element] -> Section a -> [Element]
+renderSection cabalVersion renderSectionData extraFieldsStart Section{..} = addVerbatim sectionVerbatim $
      extraFieldsStart
   ++ renderSectionData sectionData ++ [
     renderDirectories "hs-source-dirs" sectionSourceDirs
@@ -250,11 +250,11 @@ renderSection renderSectionData extraFieldsStart Section{..} = addVerbatim secti
   , renderLdOptions sectionLdOptions
   , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigDependencies)
   ]
-  ++ renderBuildTools sectionBuildTools sectionSystemBuildTools
+  ++ renderBuildTools cabalVersion sectionBuildTools sectionSystemBuildTools
   ++ renderDependencies "build-depends" sectionDependencies
   ++ maybe [] (return . renderBuildable) sectionBuildable
   ++ maybe [] (return . renderLanguage) sectionLanguage
-  ++ map (renderConditional renderSectionData) sectionConditionals
+  ++ map (renderConditional cabalVersion renderSectionData) sectionConditionals
 
 addVerbatim :: [Verbatim] -> [Element] -> [Element]
 addVerbatim verbatim fields = filterVerbatim verbatim fields ++ renderVerbatim verbatim
@@ -285,12 +285,12 @@ renderVerbatimObject = map renderPair . Map.toList
       [x] -> Field key (Literal x)
       xs -> Field key (LineSeparatedList xs)
 
-renderConditional :: (a -> [Element]) -> Conditional (Section a) -> Element
-renderConditional renderSectionData (Conditional condition sect mElse) = case mElse of
+renderConditional :: CabalVersion -> (a -> [Element]) -> Conditional (Section a) -> Element
+renderConditional cabalVersion renderSectionData (Conditional condition sect mElse) = case mElse of
   Nothing -> if_
-  Just else_ -> Group if_ (Stanza "else" $ renderSection renderSectionData [] else_)
+  Just else_ -> Group if_ (Stanza "else" $ renderSection cabalVersion renderSectionData [] else_)
   where
-    if_ = Stanza ("if " ++ renderCond condition) (renderSection renderSectionData [] sect)
+    if_ = Stanza ("if " ++ renderCond condition) (renderSection cabalVersion renderSectionData [] sect)
 
 renderCond :: Cond -> String
 renderCond = \ case
@@ -343,19 +343,19 @@ renderVersionConstraint version = case version of
   AnyVersion -> ""
   VersionRange x -> " " ++ x
 
-renderBuildTools :: Map BuildTool DependencyVersion -> SystemBuildTools -> [Element]
-renderBuildTools (map renderBuildTool . Map.toList -> xs) systemBuildTools = [
+renderBuildTools :: CabalVersion -> Map BuildTool DependencyVersion -> SystemBuildTools -> [Element]
+renderBuildTools cabalVersion (map (renderBuildTool cabalVersion) . Map.toList -> xs) systemBuildTools = [
     Field "build-tools" (CommaSeparatedList $ [x | BuildTools x <- xs] ++ renderSystemBuildTools systemBuildTools)
   , Field "build-tool-depends" (CommaSeparatedList [x | BuildToolDepends x <- xs])
   ]
 
 data RenderBuildTool = BuildTools String | BuildToolDepends String
 
-renderBuildTool :: (BuildTool,  DependencyVersion) -> RenderBuildTool
-renderBuildTool (buildTool, renderVersion -> version) = case buildTool of
+renderBuildTool :: CabalVersion -> (BuildTool,  DependencyVersion) -> RenderBuildTool
+renderBuildTool cabalVersion (buildTool, renderVersion -> version) = case buildTool of
   LocalBuildTool executable -> BuildTools (executable ++ version)
   BuildTool pkg executable
-    | pkg == executable && executable `elem` knownBuildTools -> BuildTools (executable ++ version)
+    | cabalVersion < makeCabalVersion [2] && pkg == executable && executable `elem` knownBuildTools -> BuildTools (executable ++ version)
     | otherwise -> BuildToolDepends (pkg ++ ":" ++ executable ++ version)
   where
     knownBuildTools :: [String]
