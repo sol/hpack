@@ -1,1 +1,1 @@
-:set -XHaskell2010 -Wredundant-constraints -fno-warn-incomplete-uni-patterns -DTEST -isrc -itest -i./dist-newstyle/build/x86_64-linux/ghc-9.6.2/hpack-0.36.0/build/autogen
+:set -XHaskell2010 -Wredundant-constraints -fno-warn-incomplete-uni-patterns -DTEST -isrc -itest -i./dist-newstyle/build/x86_64-linux/ghc-9.10.1/hpack-0.37.0/build/autogen

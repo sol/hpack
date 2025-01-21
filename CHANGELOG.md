@@ -1,3 +1,6 @@
+## Changes in 0.38.0
+  - Don't generate `build-tools` starting with `cabal-version: 2` (fixes #596)
+
 ## Changes in 0.37.0
   - Add support for `asm-options` and `asm-sources` (see #573)
 

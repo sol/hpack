@@ -19,7 +19,7 @@ import           Data.String.Interpolate.Util
 import           Data.Version (showVersion)
 
 import qualified Hpack.Render as Hpack
-import           Hpack.Config (packageConfig, readPackageConfig, DecodeOptions(..), DecodeResult(..), defaultDecodeOptions)
+import           Hpack.Config (packageConfig, readPackageConfig, DecodeOptions(..), defaultDecodeOptions, DecodeResult(..))
 import           Hpack.Render.Hints (FormattingHints(..), sniffFormattingHints)
 
 import qualified Paths_hpack as Hpack (version)
@@ -639,42 +639,62 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         |] `shouldWarn` ["Specified pattern \"*.markdown\" for extra-doc-files does not match any files"]
 
     describe "build-tools" $ do
-      it "adds known build tools to build-tools" $ do
-        [i|
-        executable:
-          build-tools:
-            alex == 0.1.0
-        |] `shouldRenderTo` executable_ "my-package" [i|
-        build-tools:
-            alex ==0.1.0
-        |]
+      context "with known build tools" $ do
+        context "when cabal-version < 2" $ do
+          it "adds them to build-tools" $ do
+            [i|
+            executable:
+              build-tools:
+                alex == 0.1.0
+            |] `shouldRenderTo` executable_ "my-package" [i|
+            build-tools:
+                alex ==0.1.0
+            |]
 
-      it "adds other build tools to build-tool-depends" $ do
-        [i|
-        executable:
-          build-tools:
-            hspec-discover: 0.1.0
-        |] `shouldRenderTo` (executable_ "my-package" [i|
-        build-tool-depends:
-            hspec-discover:hspec-discover ==0.1.0
-        |]) {
-          -- NOTE: We do not set this to 2.0 on purpose, so that the .cabal
-          -- file is compatible with a wider range of Cabal versions!
-          packageCabalVersion = "1.12"
-        }
+        context "when cabal-version >= 2" $ do
+          it "adds them to build-tool-depends" $ do
+            [i|
+            verbatim:
+              cabal-version: 2.0
+            executable:
+              build-tools:
+                alex == 0.1.0
+            |] `shouldRenderTo` (executable_ "my-package" [i|
+            autogen-modules:
+                Paths_my_package
+            build-tool-depends:
+                alex:alex ==0.1.0
+            |]) {
+              packageCabalVersion = "2.0"
+            }
 
-      it "accepts build-tool-depends as an alias" $ do
-        [i|
-        executable:
+      context "with other build tools" $ do
+        it "adds them to build-tool-depends" $ do
+          [i|
+          executable:
+            build-tools:
+              hspec-discover: 0.1.0
+          |] `shouldRenderTo` (executable_ "my-package" [i|
           build-tool-depends:
-            hspec-discover: 0.1.0
-        |] `shouldRenderTo` (executable_ "my-package" [i|
-        build-tool-depends:
-            hspec-discover:hspec-discover ==0.1.0
-        |]) {
-          packageCabalVersion = "1.12"
-        , packageWarnings = ["package.yaml: $.executable.build-tool-depends is deprecated, use $.executable.build-tools instead"]
-        }
+              hspec-discover:hspec-discover ==0.1.0
+          |]) {
+            -- NOTE: We do not set this to 2.0 on purpose, so that the .cabal
+            -- file is compatible with a wider range of Cabal versions!
+            packageCabalVersion = "1.12"
+          }
+
+        it "accepts build-tool-depends as an alias" $ do
+          [i|
+          executable:
+            build-tool-depends:
+              hspec-discover: 0.1.0
+          |] `shouldRenderTo` (executable_ "my-package" [i|
+          build-tool-depends:
+              hspec-discover:hspec-discover ==0.1.0
+          |]) {
+            packageCabalVersion = "1.12"
+          , packageWarnings = ["package.yaml: $.executable.build-tool-depends is deprecated, use $.executable.build-tools instead"]
+          }
 
       context "when the name of a build tool matches an executable from the same package" $ do
         it "adds it to build-tools" $ do
@@ -1888,8 +1908,25 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         it "overrides header fields" $ do
           [i|
           verbatim:
-            cabal-version: foo
-          |] `shouldRenderTo` (package "") {packageCabalVersion = "foo"}
+            build-type: foo
+          |] `shouldRenderTo` (package "") {packageBuildType = "foo"}
+
+        context "with cabal-version" $ do
+          context "with a string value" $ do
+            it "takes precedence over inferred version" $ do
+              [i|
+              license: BSD-3-Clause
+              verbatim:
+                cabal-version: foo
+              |] `shouldRenderTo` (package "license: BSD-3-Clause") {packageCabalVersion = "foo"}
+
+          context "with a version" $ do
+            it "takes precedence over inferred version" $ do
+              [i|
+              license: BSD-3-Clause
+              verbatim:
+                cabal-version: 0.8
+              |] `shouldRenderTo` (package "license: BSD-3-Clause") {packageCabalVersion = "0.8"}
 
         it "overrides other fields" $ do
           touch "foo"

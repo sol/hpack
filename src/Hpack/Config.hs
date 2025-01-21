@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
@@ -41,6 +42,8 @@ module Hpack.Config (
 , package
 , section
 , Package(..)
+, CabalVersion(..)
+, makeCabalVersion
 , Dependencies(..)
 , DependencyInfo(..)
 , VersionConstraint(..)
@@ -104,7 +107,8 @@ import           Control.Monad.State (MonadState, StateT, evalStateT)
 import qualified Control.Monad.State as State
 import           Control.Monad.Writer (MonadWriter, WriterT, runWriterT, tell)
 import           Control.Monad.Except
-import           Data.Version (Version, makeVersion, showVersion)
+import           Data.Version (Version, showVersion)
+import qualified Data.Version as Version
 
 import           Distribution.Pretty (prettyShow)
 import qualified Distribution.SPDX.License as SPDX
@@ -132,9 +136,13 @@ import qualified Path
 
 import qualified Paths_hpack as Hpack (version)
 
+defaultCabalVersion :: Version
+defaultCabalVersion = Version.makeVersion [1,12]
+
 package :: String -> String -> Package
 package name version = Package {
-    packageName = name
+    packageCabalVersion = CabalVersion defaultCabalVersion
+  , packageName = name
   , packageVersion = version
   , packageSynopsis = Nothing
   , packageDescription = Nothing
@@ -698,8 +706,13 @@ readPackageConfigWithError (DecodeOptions _ file mUserDataDir readValue formatYa
   userDataDir <- liftIO $ maybe (getAppUserDataDirectory "hpack") return mUserDataDir
   toPackage formatYamlParseError userDataDir dir config
   where
-    addCabalFile :: ((Package, String), [String]) -> DecodeResult
-    addCabalFile ((pkg, cabalVersion), warnings) = DecodeResult pkg cabalVersion (takeDirectory_ file </> (packageName pkg ++ ".cabal")) warnings
+    addCabalFile :: (Package, [String]) -> DecodeResult
+    addCabalFile (pkg, warnings) = DecodeResult {
+        decodeResultPackage = pkg
+      , decodeResultCabalVersion = "cabal-version: " ++ showCabalVersion (packageCabalVersion pkg) ++ "\n\n"
+      , decodeResultCabalFile = takeDirectory_ file </> packageName pkg <.> "cabal"
+      , decodeResultWarnings = warnings
+      }
 
     takeDirectory_ :: FilePath -> FilePath
     takeDirectory_ p
@@ -718,9 +731,9 @@ verbatimValueToString = \ case
   VerbatimBool b -> show b
   VerbatimNull -> ""
 
-addPathsModuleToGeneratedModules  :: Package -> Version -> Package
-addPathsModuleToGeneratedModules pkg cabalVersion
-  | cabalVersion < makeVersion [2] = pkg
+addPathsModuleToGeneratedModules :: Package -> Package
+addPathsModuleToGeneratedModules pkg
+  | packageCabalVersion pkg < makeCabalVersion [2] = pkg
   | otherwise = pkg {
       packageLibrary = fmap mapLibrary <$> packageLibrary pkg
     , packageInternalLibraries = fmap mapLibrary <$> packageInternalLibraries pkg
@@ -749,22 +762,53 @@ addPathsModuleToGeneratedModules pkg cabalVersion
       where
         generatedModules = executableGeneratedModules executable
 
-determineCabalVersion :: Maybe (License SPDX.License) -> Package -> (Package, String, Maybe Version)
-determineCabalVersion inferredLicense pkg@Package{..} = (
-    pkg {
-        packageVerbatim = deleteVerbatimField "cabal-version" packageVerbatim
-      , packageLicense = formatLicense <$> license
-      }
-  , "cabal-version: " ++ effectiveCabalVersion ++ "\n\n"
-  , parseVersion effectiveCabalVersion
-  )
-  where
-    effectiveCabalVersion = fromMaybe inferredCabalVersion verbatimCabalVersion
+data CabalVersion = CabalVersion Version | VerbatimCabalVersion String
+  deriving (Eq, Ord, Show)
 
+makeCabalVersion :: [Int] -> CabalVersion
+makeCabalVersion = CabalVersion . Version.makeVersion
+
+showCabalVersion :: CabalVersion -> String
+showCabalVersion = \ case
+  CabalVersion v -> showVersion v
+  VerbatimCabalVersion v -> v
+
+extractVerbatimCabalVersion :: [Verbatim] -> (Maybe CabalVersion, [Verbatim])
+extractVerbatimCabalVersion verbatim = case listToMaybe (mapMaybe extractCabalVersion verbatim) of
+  Nothing -> (Nothing, verbatim)
+  Just verbatimVersion -> (Just cabalVersion, deleteVerbatimField "cabal-version" verbatim)
+    where
+      cabalVersion :: CabalVersion
+      cabalVersion = case parseVersion verbatimVersion of
+        Nothing -> VerbatimCabalVersion verbatimVersion
+        Just v -> CabalVersion v
+  where
+    extractCabalVersion :: Verbatim -> Maybe String
+    extractCabalVersion = \ case
+      VerbatimLiteral _ -> Nothing
+      VerbatimObject o -> case Map.lookup "cabal-version" o of
+        Just v -> Just (verbatimValueToString v)
+        Nothing -> Nothing
+
+ensureRequiredCabalVersion :: Maybe (License SPDX.License) -> Package -> Package
+ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
+    packageCabalVersion = version
+  , packageLicense = formatLicense <$> license
+  , packageVerbatim = verbatim
+  }
+  where
+    makeVersion :: [Int] -> CabalVersion
+    makeVersion = makeCabalVersion
+
+    (verbatimCabalVersion, verbatim) = extractVerbatimCabalVersion packageVerbatim
+
+    license :: Maybe (License String)
     license = fmap prettyShow <$> (parsedLicense <|> inferredLicense)
 
+    parsedLicense :: Maybe (License SPDX.License)
     parsedLicense = parseLicense <$> packageLicense
 
+    formatLicense :: License String -> String
     formatLicense = \ case
       MustSPDX spdx -> spdx
       CanSPDX _ spdx | version >= makeVersion [2,2] -> spdx
@@ -779,21 +823,14 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
           CanSPDX _ _ -> False
           MustSPDX _ -> True
 
-    verbatimCabalVersion :: Maybe String
-    verbatimCabalVersion = listToMaybe (mapMaybe f packageVerbatim)
-      where
-        f :: Verbatim -> Maybe String
-        f = \ case
-          VerbatimLiteral _ -> Nothing
-          VerbatimObject o -> case Map.lookup "cabal-version" o of
-            Just v -> Just (verbatimValueToString v)
-            Nothing -> Nothing
+    version :: CabalVersion
+    version = fromMaybe inferredVersion verbatimCabalVersion
 
-    inferredCabalVersion :: String
-    inferredCabalVersion = showVersion version
-
-    version = fromMaybe (makeVersion [1,12]) $ maximum [
-        packageCabalVersion
+    inferredVersion :: CabalVersion
+    inferredVersion = fromMaybe packageCabalVersion $ maximum [
+        makeVersion [2,2] <$ guard mustSPDX
+      , makeVersion [1,24] <$ packageCustomSetup
+      , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
       , packageLibrary >>= libraryCabalVersion
       , internalLibsCabalVersion packageInternalLibraries
       , executablesCabalVersion packageExecutables
@@ -801,15 +838,7 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
       , executablesCabalVersion packageBenchmarks
       ]
 
-    packageCabalVersion :: Maybe Version
-    packageCabalVersion = maximum [
-        Nothing
-      , makeVersion [2,2] <$ guard mustSPDX
-      , makeVersion [1,24] <$ packageCustomSetup
-      , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
-      ]
-
-    libraryCabalVersion :: Section Library -> Maybe Version
+    libraryCabalVersion :: Section Library -> Maybe CabalVersion
     libraryCabalVersion sect = maximum [
         makeVersion [1,22] <$ guard (has libraryReexportedModules)
       , makeVersion [2,0]  <$ guard (has librarySignatures)
@@ -820,17 +849,17 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
       where
         has field = any (not . null . field) sect
 
-    internalLibsCabalVersion :: Map String (Section Library) -> Maybe Version
+    internalLibsCabalVersion :: Map String (Section Library) -> Maybe CabalVersion
     internalLibsCabalVersion internalLibraries
       | Map.null internalLibraries = Nothing
       | otherwise = foldr max (Just $ makeVersion [2,0]) versions
       where
         versions = libraryCabalVersion <$> Map.elems internalLibraries
 
-    executablesCabalVersion :: Map String (Section Executable) -> Maybe Version
+    executablesCabalVersion :: Map String (Section Executable) -> Maybe CabalVersion
     executablesCabalVersion = foldr max Nothing . map executableCabalVersion . Map.elems
 
-    executableCabalVersion :: Section Executable -> Maybe Version
+    executableCabalVersion :: Section Executable -> Maybe CabalVersion
     executableCabalVersion sect = maximum [
         makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
       , sectionCabalVersion (concatMap getExecutableModules) sect
@@ -839,7 +868,7 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
     executableHasGeneratedModules :: Section Executable -> Bool
     executableHasGeneratedModules = any (not . null . executableGeneratedModules)
 
-    sectionCabalVersion :: (Section a -> [Module]) -> Section a -> Maybe Version
+    sectionCabalVersion :: (Section a -> [Module]) -> Section a -> Maybe CabalVersion
     sectionCabalVersion getMentionedModules sect = maximum $ [
         makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxSources) sect)
       , makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxOptions) sect)
@@ -853,17 +882,23 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
           && pathsModule `elem` getMentionedModules sect)
       ] ++ map versionFromSystemBuildTool systemBuildTools
       where
+        defaultExtensions :: [String]
         defaultExtensions = sectionAll sectionDefaultExtensions sect
+
+        uses :: String -> Bool
         uses = (`elem` defaultExtensions)
 
+        pathsModule :: Module
         pathsModule = pathsModuleFromPackageName packageName
 
+        versionFromSystemBuildTool :: String -> Maybe CabalVersion
         versionFromSystemBuildTool name
           | name `elem` known_1_10 = Nothing
           | name `elem` known_1_14 = Just (makeVersion [1,14])
           | name `elem` known_1_22 = Just (makeVersion [1,22])
           | otherwise = Just (makeVersion [2,0])
 
+        known_1_10 :: [String]
         known_1_10 = [
             "ghc"
           , "ghc-pkg"
@@ -891,9 +926,13 @@ determineCabalVersion inferredLicense pkg@Package{..} = (
           , "lhc"
           , "lhc-pkg"
           ]
+
+        known_1_14 :: [String]
         known_1_14 = [
             "hpc"
           ]
+
+        known_1_22 :: [String]
         known_1_22 = [
             "ghcjs"
           , "ghcjs-pkg"
@@ -966,7 +1005,8 @@ instance FromValue ParseSpecVersion where
       Nothing -> fail ("invalid value " ++ show s)
 
 data Package = Package {
-  packageName :: String
+  packageCabalVersion :: CabalVersion
+, packageName :: String
 , packageVersion :: String
 , packageSynopsis :: Maybe String
 , packageDescription :: Maybe String
@@ -1093,7 +1133,7 @@ type ConfigWithDefaults = Product
 type CommonOptionsWithDefaults a = Product DefaultsConfig (CommonOptions ParseAsmSources ParseCSources ParseCxxSources ParseJsSources a)
 type WithCommonOptionsWithDefaults a = Product DefaultsConfig (WithCommonOptions ParseAsmSources ParseCSources ParseCxxSources ParseJsSources a)
 
-toPackage :: FormatYamlParseError -> FilePath -> FilePath -> ConfigWithDefaults -> ConfigM IO (Package, String)
+toPackage :: FormatYamlParseError -> FilePath -> FilePath -> ConfigWithDefaults -> ConfigM IO Package
 toPackage formatYamlParseError userDataDir dir =
       expandDefaultsInConfig formatYamlParseError userDataDir dir
   >=> setDefaultLanguage "Haskell2010"
@@ -1195,9 +1235,9 @@ toExecutableMap name executables mExecutable = do
 
 type GlobalOptions = CommonOptions AsmSources CSources CxxSources JsSources Empty
 
-toPackage_ :: (MonadIO m, Warnings m, State m) => FilePath -> Product GlobalOptions (PackageConfig AsmSources CSources CxxSources JsSources) -> m (Package, String)
+toPackage_ :: (MonadIO m, Warnings m, State m) => FilePath -> Product GlobalOptions (PackageConfig AsmSources CSources CxxSources JsSources) -> m Package
 toPackage_ dir (Product g PackageConfig{..}) = do
-  executableMap <- toExecutableMap packageName_ packageConfigExecutables packageConfigExecutable
+  executableMap <- toExecutableMap packageName packageConfigExecutables packageConfigExecutable
   let
     globalVerbatim = commonOptionsVerbatim g
     globalOptions = g {commonOptionsVerbatim = Nothing}
@@ -1205,13 +1245,13 @@ toPackage_ dir (Product g PackageConfig{..}) = do
     executableNames = maybe [] Map.keys executableMap
 
     toSect :: (Warnings m, Monoid a) => WithCommonOptions AsmSources CSources CxxSources JsSources a -> m (Section a)
-    toSect = toSection packageName_ executableNames . first ((mempty <$ globalOptions) <>)
+    toSect = toSection packageName executableNames . first ((mempty <$ globalOptions) <>)
 
     toSections :: (Warnings m, Monoid a) => Maybe (Map String (WithCommonOptions AsmSources CSources CxxSources JsSources a)) -> m (Map String (Section a))
     toSections = maybe (return mempty) (traverse toSect)
 
-    toLib = toLibrary dir packageName_
-    toExecutables = toSections >=> traverse (toExecutable dir packageName_)
+    toLib = toLibrary dir packageName
+    toExecutables = toSections >=> traverse (toExecutable dir packageName)
 
   mLibrary <- traverse (toSect >=> toLib) packageConfigLibrary
   internalLibraries <- toSections packageConfigInternalLibraries >>= traverse toLib
@@ -1257,7 +1297,8 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       defaultBuildType = maybe Simple (const Custom) mCustomSetup
 
       pkg = Package {
-        packageName = packageName_
+        packageCabalVersion = CabalVersion defaultCabalVersion
+      , packageName
       , packageVersion = maybe "0.0.0" unPackageVersion packageConfigVersion
       , packageSynopsis = packageConfigSynopsis
       , packageDescription = packageConfigDescription
@@ -1290,12 +1331,11 @@ toPackage_ dir (Product g PackageConfig{..}) = do
   tell nameWarnings
   tell (formatMissingSourceDirs missingSourceDirs)
 
-  let (pkg_, renderedCabalVersion, cabalVersion) = determineCabalVersion inferredLicense pkg
-  return (maybe pkg_ (addPathsModuleToGeneratedModules pkg_) cabalVersion, renderedCabalVersion)
+  return $ addPathsModuleToGeneratedModules $ ensureRequiredCabalVersion inferredLicense pkg
   where
     nameWarnings :: [String]
-    packageName_ :: String
-    (nameWarnings, packageName_) = case packageConfigName of
+    packageName :: String
+    (nameWarnings, packageName) = case packageConfigName of
       Nothing -> let inferredName = takeBaseName dir in
         (["Package name not specified, inferred " ++ show inferredName], inferredName)
       Just n -> ([], n)
@@ -1418,7 +1458,7 @@ inferModules dir packageName_ getMentionedModules getInferredModules fromData fr
   let
     pathsModule :: [Module]
     pathsModule = case specVersion of
-      SpecVersion v | v >= makeVersion [0,36,0] -> []
+      SpecVersion v | v >= Version.makeVersion [0,36,0] -> []
       _ -> [pathsModuleFromPackageName packageName_]
 
   removeConditionalsThatAreAlwaysFalse <$> traverseSectionAndConditionals
