@@ -23,6 +23,7 @@ module Hpack.Render (
 , Alignment(..)
 , CommaStyle(..)
 #ifdef TEST
+, RenderEnv(..)
 , renderConditional
 , renderDependencies
 , renderLibraryFields
@@ -48,7 +49,18 @@ import           Hpack.Render.Hints
 import           Hpack.Render.Dsl hiding (sortFieldsBy)
 import qualified Hpack.Render.Dsl as Dsl
 
-type RenderM = Reader CabalVersion
+data RenderEnv = RenderEnv {
+  renderEnvCabalVersion :: CabalVersion
+, renderEnvPackageName :: String
+}
+
+type RenderM = Reader RenderEnv
+
+getCabalVersion :: RenderM CabalVersion
+getCabalVersion = asks renderEnvCabalVersion
+
+getPackageName :: RenderM String
+getPackageName = asks renderEnvPackageName
 
 renderPackage :: [String] -> Package -> String
 renderPackage oldCabalFile = renderPackageWith settings headerFieldsAlignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder
@@ -82,7 +94,7 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
     customSetup = maybe [] (return . renderCustomSetup) packageCustomSetup
 
     stanzas :: [Element]
-    stanzas = flip runReader packageCabalVersion $ do
+    stanzas = flip runReader (RenderEnv packageCabalVersion packageName) $ do
       library <- maybe (return []) (fmap return . renderLibrary) packageLibrary
       internalLibraries <- renderInternalLibraries packageInternalLibraries
       executables <- renderExecutables packageExecutables
@@ -357,21 +369,28 @@ renderBuildTools :: Map BuildTool DependencyVersion -> SystemBuildTools -> Rende
 renderBuildTools buildTools systemBuildTools = do
   xs <- traverse renderBuildTool $ Map.toList buildTools
   return [
-      Field "build-tools" (CommaSeparatedList $ [x | BuildTools x <- xs] ++ renderSystemBuildTools systemBuildTools)
-    , Field "build-tool-depends" (CommaSeparatedList [x | BuildToolDepends x <- xs])
+      Field "build-tools" $ CommaSeparatedList $ [x | BuildTools x <- xs] ++ renderSystemBuildTools systemBuildTools
+    , Field "build-tool-depends" $ CommaSeparatedList [x | BuildToolDepends x <- xs]
     ]
 
 data RenderBuildTool = BuildTools String | BuildToolDepends String
 
 renderBuildTool :: (BuildTool,  DependencyVersion) -> RenderM RenderBuildTool
 renderBuildTool (buildTool, renderVersion -> version) = do
-  cabalVersion <- ask
+  cabalVersion <- getCabalVersion
+  packageName <- getPackageName
+  let supportsBuildTools = cabalVersion < makeCabalVersion [2]
   return $ case buildTool of
-    LocalBuildTool executable -> BuildTools (executable ++ version)
+    LocalBuildTool executable
+      | supportsBuildTools -> BuildTools (executable ++ version)
+      | otherwise -> BuildToolDepends (packageName ++ ":" ++ executable ++ version)
     BuildTool pkg executable
-      | cabalVersion < makeCabalVersion [2] && pkg == executable && executable `elem` knownBuildTools -> BuildTools (executable ++ version)
+      | supportsBuildTools && isknownBuildTool pkg executable -> BuildTools (executable ++ version)
       | otherwise -> BuildToolDepends (pkg ++ ":" ++ executable ++ version)
   where
+    isknownBuildTool :: String -> String -> Bool
+    isknownBuildTool pkg executable = pkg == executable && executable `elem` knownBuildTools
+
     knownBuildTools :: [String]
     knownBuildTools = [
         "alex"

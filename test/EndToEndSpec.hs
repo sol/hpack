@@ -734,6 +734,22 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
               bar ==0.2.0
           |]
 
+        context "when cabal-version >= 2" $ do
+          it "adds it to build-tool-depends" $ do
+            [i|
+            verbatim:
+              cabal-version: 2.0
+            executables:
+              bar:
+                build-tools:
+                  - bar
+            |] `shouldRenderTo` (executable_ "bar" [i|
+            autogen-modules:
+                Paths_my_package
+            build-tool-depends:
+                my-package:bar
+            |]) {packageCabalVersion = "2.0"}
+
       context "when the name of a build tool matches a legacy system build tool" $ do
         it "adds it to build-tools" $ do
           [i|
