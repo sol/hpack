@@ -1,4 +1,5 @@
 ## Unreleased
+  - Add support for `extra-files` (see #603)
 
 ## Changes in 0.38.0
   - Generate `build-tool-depends` instead of `build-tools` starting with
