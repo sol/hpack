@@ -58,7 +58,9 @@ module Hpack.Config (
 , VerbatimValue(..)
 , verbatimValueToString
 , CustomSetup(..)
+, HasEmpty(..)
 , Section(..)
+, maybeSectionAConditional
 , Library(..)
 , Executable(..)
 , Conditional(..)
@@ -527,6 +529,9 @@ instance Monoid Empty where
   mempty = Empty
   mappend = (<>)
 
+instance HasEmpty Empty where
+  empty = Empty
+
 instance Semigroup Empty where
   Empty <> Empty = Empty
 
@@ -868,7 +873,7 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
     executableHasGeneratedModules :: Section Executable -> Bool
     executableHasGeneratedModules = any (not . null . executableGeneratedModules)
 
-    sectionCabalVersion :: (Section a -> [Module]) -> Section a -> Maybe CabalVersion
+    sectionCabalVersion :: (Eq a, HasEmpty a) => (Section a -> [Module]) -> Section a -> Maybe CabalVersion
     sectionCabalVersion getMentionedModules sect = maximum $ [
         makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxSources) sect)
       , makeVersion [2,2] <$ guard (sectionSatisfies (not . null . sectionCxxOptions) sect)
@@ -880,6 +885,7 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
               uses "RebindableSyntax"
           && (uses "OverloadedStrings" || uses "OverloadedLists")
           && pathsModule `elem` getMentionedModules sect)
+      , makeVersion [2,2] <$ guard (sectionSatisfies (isJust . maybeSectionAConditional) sect)
       ] ++ map versionFromSystemBuildTool systemBuildTools
       where
         defaultExtensions :: [String]
@@ -1040,6 +1046,10 @@ data CustomSetup = CustomSetup {
   customSetupDependencies :: Dependencies
 } deriving (Eq, Show)
 
+-- | A class for types that have a value corresponding to being \'empty\'.
+class HasEmpty a where
+  empty :: a
+
 data Library = Library {
   libraryExposed :: Maybe Bool
 , libraryVisibility :: Maybe String
@@ -1050,11 +1060,29 @@ data Library = Library {
 , librarySignatures :: [String]
 } deriving (Eq, Show)
 
+instance HasEmpty Library where
+  empty = Library
+    { libraryExposed = Nothing
+    , libraryVisibility = Nothing
+    , libraryExposedModules = []
+    , libraryOtherModules = []
+    , libraryGeneratedModules = []
+    , libraryReexportedModules = []
+    , librarySignatures = []
+    }
+
 data Executable = Executable {
   executableMain :: Maybe FilePath
 , executableOtherModules :: [Module]
 , executableGeneratedModules :: [Module]
 } deriving (Eq, Show)
+
+instance HasEmpty Executable where
+  empty = Executable
+    { executableMain = Nothing
+    , executableOtherModules = []
+    , executableGeneratedModules = []
+    }
 
 data BuildTool = BuildTool String String | LocalBuildTool String
   deriving (Show, Eq, Ord)
@@ -1092,6 +1120,41 @@ data Section a = Section {
 , sectionSystemBuildTools :: SystemBuildTools
 , sectionVerbatim :: [Verbatim]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
+
+instance HasEmpty a => HasEmpty (Section a) where
+  empty = Section
+    { sectionData = Hpack.Config.empty
+    , sectionSourceDirs = []
+    , sectionDependencies = mempty
+    , sectionPkgConfigDependencies = []
+    , sectionDefaultExtensions = []
+    , sectionOtherExtensions = []
+    , sectionLanguage = Nothing
+    , sectionGhcOptions = []
+    , sectionGhcProfOptions = []
+    , sectionGhcSharedOptions = []
+    , sectionGhcjsOptions = []
+    , sectionCppOptions = []
+    , sectionAsmOptions = []
+    , sectionAsmSources = []
+    , sectionCcOptions = []
+    , sectionCSources = []
+    , sectionCxxOptions = []
+    , sectionCxxSources = []
+    , sectionJsSources = []
+    , sectionExtraLibDirs = []
+    , sectionExtraLibraries = []
+    , sectionExtraFrameworksDirs = []
+    , sectionFrameworks = []
+    , sectionIncludeDirs = []
+    , sectionInstallIncludes = []
+    , sectionLdOptions = []
+    , sectionBuildable = Nothing
+    , sectionConditionals = []
+    , sectionBuildTools = mempty
+    , sectionSystemBuildTools = mempty
+    , sectionVerbatim = []
+    }
 
 data Conditional a = Conditional {
   conditionalCondition :: Cond
@@ -1657,3 +1720,12 @@ pathsModuleFromPackageName name = Module ("Paths_" ++ map f name)
   where
     f '-' = '_'
     f x = x
+
+-- | If the given section contains only a single conditional, yields just that
+-- conditional, otherwise 'Nothing'.
+maybeSectionAConditional :: (Eq a, HasEmpty a) => Section a -> Maybe (Conditional (Section a))
+maybeSectionAConditional s@(Section { sectionConditionals = [c] }) =
+  if s == Hpack.Config.empty { sectionConditionals = sectionConditionals s }
+    then Just c
+    else Nothing
+maybeSectionAConditional _ = Nothing

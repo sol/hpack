@@ -246,6 +246,21 @@ spec = do
         , "      unix"
         ]
 
+    it "renders conditionals with else-branch using elif when applicable" $ do
+      let conditional = Conditional "os(windows)" (section Empty) {sectionSourceDirs = ["windows"]} $ Just (section Empty) {sectionConditionals = [innerConditional]}
+          innerConditional = Conditional "os(darwin) || os(linux)" (section Empty) {sectionSourceDirs = ["unix-like"]} $ Just (section Empty) {sectionSourceDirs = ["unsupported-os"]}
+      render defaultRenderSettings 0 (run $ renderConditional renderEmptySection conditional) `shouldBe` [
+          "if os(windows)"
+        , "  hs-source-dirs:"
+        , "      windows"
+        , "elif os(darwin) || os(linux)"
+        , "  hs-source-dirs:"
+        , "      unix-like"
+        , "else"
+        , "  hs-source-dirs:"
+        , "      unsupported-os"
+        ]
+
     it "renders nested conditionals" $ do
       let conditional = Conditional "arch(i386)" (section Empty) {sectionGhcOptions = ["-threaded"], sectionConditionals = [innerConditional]} Nothing
           innerConditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} Nothing

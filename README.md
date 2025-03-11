@@ -477,6 +477,35 @@ becomes
     else
       ghc-options: -O0
 
+Conditionals with a `else` field that contains only one `when` field will make
+use of `elif` in Cabal files (introduced in `cabal-version: 2.2`).
+
+For example,
+
+    when:
+      - condition: os(windows)
+        then:
+          source-dirs: windows
+        else:
+          when:
+            - condition: "os(darwin) || os(linux)"
+              then:
+                source-dirs: unix-like
+              else:
+                source-dirs: unsupported-os
+
+becomes
+
+    if os(windows)
+      hs-source-dirs:
+          windows
+    elif os(darwin) || os(linux)
+      hs-source-dirs:
+          unix-like
+    else
+      hs-source-dirs:
+          unsupported-os
+
 **Note:** Conditionals with `condition: false` are omitted from the generated
 `.cabal` file.
 

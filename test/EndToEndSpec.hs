@@ -1802,6 +1802,36 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
             build-depends:
                 unix
           |]
+        it "uses elif when applicable and infers cabal-version 2.2" $ do
+          [i|
+          when:
+            condition: os(windows)
+            then:
+              source-dirs: windows
+            else:
+              when:
+                condition: "os(darwin) || os(linux)"
+                then:
+                  source-dirs: unix-like
+                else:
+                  source-dirs: unsupported-os
+          executable: {}
+          |] `shouldRenderTo` (executable "my-package" [i|
+          other-modules:
+              Paths_my_package
+          autogen-modules:
+              Paths_my_package
+          default-language: Haskell2010
+          if os(windows)
+            hs-source-dirs:
+                windows
+          elif os(darwin) || os(linux)
+            hs-source-dirs:
+                unix-like
+          else
+            hs-source-dirs:
+                unsupported-os
+          |]) {packageCabalVersion = "2.2"}
 
         context "with empty then-branch" $ do
           it "provides a hint" $ do

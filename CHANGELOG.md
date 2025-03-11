@@ -1,4 +1,6 @@
 ## Unreleased
+  - Where applicable, use `elif` in Cabal files (introduced in
+    `cabal-version: 2.2`) (see #605)
 
 ## Changes in 0.38.0
   - Generate `build-tool-depends` instead of `build-tools` starting with
