@@ -240,7 +240,7 @@ renderExposed = Field "exposed" . Literal . show
 renderVisibility :: String -> Element
 renderVisibility = Field "visibility" . Literal
 
-renderSection :: (a -> [Element]) -> [Element] -> Section a -> RenderM [Element]
+renderSection :: (Eq a, HasEmpty a) => (a -> [Element]) -> [Element] -> Section a -> RenderM [Element]
 renderSection renderSectionData extraFieldsStart Section{..} = do
   buildTools <- renderBuildTools sectionBuildTools sectionSystemBuildTools
   conditionals <- traverse (renderConditional renderSectionData) sectionConditionals
@@ -307,12 +307,18 @@ renderVerbatimObject = map renderPair . Map.toList
       [x] -> Field key (Literal x)
       xs -> Field key (LineSeparatedList xs)
 
-renderConditional :: (a -> [Element]) -> Conditional (Section a) -> RenderM Element
-renderConditional renderSectionData (Conditional condition sect mElse) = case mElse of
-  Nothing -> if_
-  Just else_ -> Group <$> if_ <*> (Stanza "else" <$> renderSection renderSectionData [] else_)
+renderConditional :: (Eq a, HasEmpty a) => (a -> [Element]) -> Conditional (Section a) -> RenderM Element
+renderConditional = renderConditional' "if "
   where
-    if_ = Stanza ("if " ++ renderCond condition) <$> renderSection renderSectionData [] sect
+    renderConditional' stanza renderSectionData (Conditional condition sect mElse) = case mElse of
+      Nothing -> stanza_
+      Just else_ -> Group <$> stanza_ <*> case maybeSectionAConditional else_ of
+        Just conditional ->
+          renderConditional' "elif " renderSectionData conditional
+        Nothing ->
+          Stanza "else" <$> renderSection renderSectionData [] else_
+      where
+        stanza_ = Stanza (stanza ++ renderCond condition) <$> renderSection renderSectionData [] sect
 
 renderCond :: Cond -> String
 renderCond = \ case
