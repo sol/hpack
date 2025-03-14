@@ -1,3 +1,5 @@
+## Unreleased
+
 ## Changes in 0.38.0
   - Generate `build-tool-depends` instead of `build-tools` starting with
     `cabal-version: 2` (fixes #596)
