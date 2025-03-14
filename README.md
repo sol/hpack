@@ -151,6 +151,7 @@ library:
 | `custom-setup` | · | | See [Custom setup](#custom-setup) | | |
 | `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | | |
 | `library` | · | | See [Library fields](#library-fields) | | |
+| `foreign-libraries` | `foreign-library <name>` | | Map from foreign library name to a dict of [Foreign library fields](#foreign-library-fields) and global top-level fields. | | `0.39.0` |
 | `internal-libraries` | `library <name>` | | Map from internal library name to a dict of [library fields](#library-fields) and global top-level fields. | | `0.21.0` |
 | `executables` | `executable <name>` | | Map from executable name to executable (see [Executable fields](#executable-fields)) | | |
 | `executable` | `executable <package-name>` | | Shortcut for `executables: { package-name: ... }` | | `0.18.0` |
@@ -328,13 +329,13 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `reexported-modules` | · | | |
 | `signatures` | · | | |
 
-#### Foreign Library
+#### Foreign library fields
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
-| `type` | `type` | | |
-| `lib-version-info` | `lib-version-info` | | |
-| `options` | `options` | | [https://cabal.readthedocs.io/en/3.4/cabal-package.html#pkg-field-foreign-library-options](Foreign Library Options) |
+| `type` | . | | |
+| `lib-version-info` | . | | |
+| `options` | . | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 
