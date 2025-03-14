@@ -245,12 +245,13 @@ data ForeignLibrarySection = ForeignLibrarySection {
   foreignLibrarySectionType :: Last String
 , foreignLibrarySectionLibVersionInfo :: Last String
 , foreignLibrarySectionOptions :: Maybe (List String)
+, foreignLibrarySectionModDefFile :: Last String
 , foreignLibrarySectionOtherModules :: Maybe (List Module)
 , foreignLibrarySectionGeneratedOtherModules :: Maybe (List Module)
 } deriving (Eq, Show, Generic, FromValue)
 
 instance Monoid ForeignLibrarySection where
-  mempty = ForeignLibrarySection mempty mempty Nothing Nothing Nothing
+  mempty = ForeignLibrarySection mempty mempty Nothing mempty Nothing Nothing
   mappend = (<>)
 
 instance Semigroup ForeignLibrarySection where
@@ -258,6 +259,7 @@ instance Semigroup ForeignLibrarySection where
       foreignLibrarySectionType = foreignLibrarySectionType a <> foreignLibrarySectionType b
     , foreignLibrarySectionLibVersionInfo = foreignLibrarySectionLibVersionInfo a <> foreignLibrarySectionLibVersionInfo b
     , foreignLibrarySectionOptions = foreignLibrarySectionOptions a <> foreignLibrarySectionOptions b
+    , foreignLibrarySectionModDefFile = foreignLibrarySectionModDefFile a <> foreignLibrarySectionModDefFile b
     , foreignLibrarySectionOtherModules = foreignLibrarySectionOtherModules a <> foreignLibrarySectionOtherModules b
     , foreignLibrarySectionGeneratedOtherModules = foreignLibrarySectionGeneratedOtherModules a <> foreignLibrarySectionGeneratedOtherModules b
     }
@@ -1115,6 +1117,7 @@ data ForeignLibrary = ForeignLibrary {
   foreignLibraryType :: Maybe String
 , foreignLibraryLibVersionInfo :: Maybe String
 , foreignLibraryOptions :: Maybe [String]
+, foreignLibraryModDefFile :: Maybe String
 , foreignLibraryOtherModules :: [Module]
 , foreignLibraryGeneratedModules :: [Module]
 } deriving (Eq, Show)
@@ -1600,7 +1603,7 @@ fromLibrarySectionPlain LibrarySection{..} = Library {
   }
 
 getMentionedForeignLibraryModules :: ForeignLibrarySection -> [Module]
-getMentionedForeignLibraryModules (ForeignLibrarySection _ _ _ otherModules generatedModules)=
+getMentionedForeignLibraryModules (ForeignLibrarySection _ _ _ _ otherModules generatedModules)=
   fromMaybeList (otherModules <> generatedModules)
 
 toForeignLibrary :: (MonadIO m, State m) => FilePath -> String -> Section ForeignLibrarySection -> m (Section ForeignLibrary)
@@ -1613,6 +1616,7 @@ toForeignLibrary dir packageName_ =
         (getLast foreignLibrarySectionType)
         (getLast foreignLibrarySectionLibVersionInfo)
         (fromList <$> foreignLibrarySectionOptions)
+        (getLast foreignLibrarySectionModDefFile)
         (otherModules ++ generatedModules)
         generatedModules
       )
