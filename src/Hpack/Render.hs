@@ -84,6 +84,7 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
         Field "tested-with" $ CommaSeparatedList packageTestedWith
       , Field "extra-source-files" (renderPaths packageExtraSourceFiles)
       , Field "extra-doc-files" (renderPaths packageExtraDocFiles)
+      , Field "extra-files" (renderPaths packageExtraFiles)
       , Field "data-files" (renderPaths packageDataFiles)
       ] ++ maybe [] (return . Field "data-dir" . Literal) packageDataDir
 

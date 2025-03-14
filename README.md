@@ -143,6 +143,7 @@ library:
 | `build-type` | · | `Simple`, or `Custom` if `custom-setup` exists | Must be `Simple`, `Configure`, `Make`, or `Custom` | | |
 | `extra-source-files` | · | | Accepts [glob patterns](#file-globbing) | | |
 | `extra-doc-files` | · | | Accepts [glob patterns](#file-globbing) | | `0.21.2` |
+| `extra-files` | · | | Accepts [glob patterns](#file-globbing) | | UNRELEASED |
 | `data-files` | · | | Accepts [glob patterns](#file-globbing) | | |
 | `data-dir` | · | | | | |
 | `github` | `source-repository head` | | Accepts `owner/repo` or `owner/repo/subdir` | `github: foo/bar` |

@@ -160,6 +160,7 @@ package name version = Package {
   , packageFlags = []
   , packageExtraSourceFiles = []
   , packageExtraDocFiles = []
+  , packageExtraFiles = []
   , packageDataFiles = []
   , packageDataDir = Nothing
   , packageSourceRepository = Nothing
@@ -602,6 +603,7 @@ data PackageConfig_ library executable = PackageConfig {
 , packageConfigFlags :: Maybe (Map String FlagSection)
 , packageConfigExtraSourceFiles :: Maybe (List FilePath)
 , packageConfigExtraDocFiles :: Maybe (List FilePath)
+, packageConfigExtraFiles :: Maybe (List FilePath)
 , packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigDataDir :: Maybe FilePath
 , packageConfigGithub :: Maybe GitHub
@@ -831,6 +833,7 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
         makeVersion [2,2] <$ guard mustSPDX
       , makeVersion [1,24] <$ packageCustomSetup
       , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
+      , makeVersion [3,14] <$ guard (not (null packageExtraFiles))
       , packageLibrary >>= libraryCabalVersion
       , internalLibsCabalVersion packageInternalLibraries
       , executablesCabalVersion packageExecutables
@@ -1024,6 +1027,7 @@ data Package = Package {
 , packageFlags :: [Flag]
 , packageExtraSourceFiles :: [Path]
 , packageExtraDocFiles :: [Path]
+, packageExtraFiles :: [Path]
 , packageDataFiles :: [Path]
 , packageDataDir :: Maybe FilePath
 , packageSourceRepository :: Maybe SourceRepository
@@ -1272,6 +1276,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
 
   extraSourceFiles <- expandGlobs "extra-source-files" dir (fromMaybeList packageConfigExtraSourceFiles)
   extraDocFiles <- expandGlobs "extra-doc-files" dir (fromMaybeList packageConfigExtraDocFiles)
+  extraFiles <- expandGlobs "extra-files" dir (fromMaybeList packageConfigExtraFiles)
 
   let dataBaseDir = maybe dir (dir </>) packageConfigDataDir
 
@@ -1316,6 +1321,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       , packageFlags = flags
       , packageExtraSourceFiles = extraSourceFiles
       , packageExtraDocFiles = extraDocFiles
+      , packageExtraFiles = extraFiles
       , packageDataFiles = dataFiles
       , packageDataDir = packageConfigDataDir
       , packageSourceRepository = sourceRepository

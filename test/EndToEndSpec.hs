@@ -638,6 +638,20 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
           - "*.markdown"
         |] `shouldWarn` ["Specified pattern \"*.markdown\" for extra-doc-files does not match any files"]
 
+    describe "extra-files" $ do
+      it "accepts a list of files" $ do
+        touch "CHANGES.markdown"
+        touch "README.markdown"
+        [i|
+        extra-files:
+          - CHANGES.markdown
+          - README.markdown
+        |] `shouldRenderTo` (package [i|
+        extra-files:
+            CHANGES.markdown
+            README.markdown
+        |]) {packageCabalVersion = "3.14"}
+
     describe "build-tools" $ do
       context "with known build tools" $ do
         context "when cabal-version < 2" $ do
