@@ -639,7 +639,7 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         |] `shouldWarn` ["Specified pattern \"*.markdown\" for extra-doc-files does not match any files"]
 
     describe "extra-files" $ do
-      it "accepts a list of files" $ do
+      it "accepts extra-files" $ do
         touch "CHANGES.markdown"
         touch "README.markdown"
         [i|
