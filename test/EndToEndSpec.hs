@@ -424,7 +424,6 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         |] `shouldFailWith` [i|cycle in defaults (#{canonic1} -> #{canonic2} -> #{canonic1})|]
 
       it "fails if defaults don't exist" $ do
-        pending
         [i|
         defaults:
           github: sol/foo

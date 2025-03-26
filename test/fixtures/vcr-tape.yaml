@@ -1,0 +1,174 @@
+- request:
+    method: GET
+    url: https://raw.githubusercontent.com/sol/foo/bar/.hpack/defaults.yaml
+    headers: []
+    body: ''
+  response:
+    status:
+      code: 404
+      message: Not Found
+    headers:
+    - name: Connection
+      value: keep-alive
+    - name: Content-Length
+      value: '14'
+    - name: Content-Security-Policy
+      value: default-src 'none'; style-src 'unsafe-inline'; sandbox
+    - name: Strict-Transport-Security
+      value: max-age=31536000
+    - name: X-Content-Type-Options
+      value: nosniff
+    - name: X-Frame-Options
+      value: deny
+    - name: X-XSS-Protection
+      value: 1; mode=block
+    - name: Content-Type
+      value: text/plain; charset=utf-8
+    - name: X-GitHub-Request-Id
+      value: EB86:89B15:32F6A:BB26F:67E34432
+    - name: Accept-Ranges
+      value: bytes
+    - name: Date
+      value: Wed, 26 Mar 2025 00:02:58 GMT
+    - name: Via
+      value: 1.1 varnish
+    - name: X-Served-By
+      value: cache-bkk2310024-BKK
+    - name: X-Cache
+      value: MISS
+    - name: X-Cache-Hits
+      value: '0'
+    - name: X-Timer
+      value: S1742947379.520472,VS0,VE307
+    - name: Vary
+      value: Authorization,Accept-Encoding,Origin
+    - name: Access-Control-Allow-Origin
+      value: '*'
+    - name: Cross-Origin-Resource-Policy
+      value: cross-origin
+    - name: X-Fastly-Request-ID
+      value: 2429a59a030eea6929163ebb108303c479ebd96a
+    - name: Expires
+      value: Wed, 26 Mar 2025 00:07:58 GMT
+    - name: Source-Age
+      value: '0'
+    body: '404: Not Found'
+- request:
+    method: GET
+    url: https://raw.githubusercontent.com/sol/hpack/master/Setup.lhs
+    headers: []
+    body: ''
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+    - name: Connection
+      value: keep-alive
+    - name: Content-Length
+      value: '92'
+    - name: Cache-Control
+      value: max-age=300
+    - name: Content-Security-Policy
+      value: default-src 'none'; style-src 'unsafe-inline'; sandbox
+    - name: Content-Type
+      value: text/plain; charset=utf-8
+    - name: ETag
+      value: W/"48b58800a4ac7f29a4c73b1ff4d85f928c02a21f031909cceb27df4781e4c72e"
+    - name: Strict-Transport-Security
+      value: max-age=31536000
+    - name: X-Content-Type-Options
+      value: nosniff
+    - name: X-Frame-Options
+      value: deny
+    - name: X-XSS-Protection
+      value: 1; mode=block
+    - name: X-GitHub-Request-Id
+      value: 9FD1:1BDD62:15A3C:59762:67E33FF8
+    - name: Content-Encoding
+      value: gzip
+    - name: Accept-Ranges
+      value: bytes
+    - name: Date
+      value: Wed, 26 Mar 2025 00:02:59 GMT
+    - name: Via
+      value: 1.1 varnish
+    - name: X-Served-By
+      value: cache-bkk2310026-BKK
+    - name: X-Cache
+      value: HIT
+    - name: X-Cache-Hits
+      value: '0'
+    - name: X-Timer
+      value: S1742947379.147110,VS0,VE366
+    - name: Vary
+      value: Authorization,Accept-Encoding,Origin
+    - name: Access-Control-Allow-Origin
+      value: '*'
+    - name: Cross-Origin-Resource-Policy
+      value: cross-origin
+    - name: X-Fastly-Request-ID
+      value: ac6c3a3e70d21c933163202c8dde1ba0e404e115
+    - name: Expires
+      value: Wed, 26 Mar 2025 00:07:59 GMT
+    - name: Source-Age
+      value: '0'
+    body: |
+      #!/usr/bin/env runhaskell
+      > import Distribution.Simple
+      > main = defaultMain
+- request:
+    method: GET
+    url: https://raw.githubusercontent.com/sol/hpack/master/Setup.foo
+    headers: []
+    body: ''
+  response:
+    status:
+      code: 404
+      message: Not Found
+    headers:
+    - name: Connection
+      value: keep-alive
+    - name: Content-Length
+      value: '14'
+    - name: Content-Security-Policy
+      value: default-src 'none'; style-src 'unsafe-inline'; sandbox
+    - name: Strict-Transport-Security
+      value: max-age=31536000
+    - name: X-Content-Type-Options
+      value: nosniff
+    - name: X-Frame-Options
+      value: deny
+    - name: X-XSS-Protection
+      value: 1; mode=block
+    - name: Content-Type
+      value: text/plain; charset=utf-8
+    - name: X-GitHub-Request-Id
+      value: CCDF:1746CE:189606:474B01:67E34433
+    - name: Accept-Ranges
+      value: bytes
+    - name: Date
+      value: Wed, 26 Mar 2025 00:02:59 GMT
+    - name: Via
+      value: 1.1 varnish
+    - name: X-Served-By
+      value: cache-bkk2310022-BKK
+    - name: X-Cache
+      value: MISS
+    - name: X-Cache-Hits
+      value: '0'
+    - name: X-Timer
+      value: S1742947380.617003,VS0,VE374
+    - name: Vary
+      value: Authorization,Accept-Encoding,Origin
+    - name: Access-Control-Allow-Origin
+      value: '*'
+    - name: Cross-Origin-Resource-Policy
+      value: cross-origin
+    - name: X-Fastly-Request-ID
+      value: 9ce61163b75a9ebdd3c9e418c0379cffc6db5600
+    - name: Expires
+      value: Wed, 26 Mar 2025 00:07:59 GMT
+    - name: Source-Age
+      value: '0'
+    body: '404: Not Found'
