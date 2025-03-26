@@ -69,6 +69,7 @@ tests:
     generated-other-modules: Paths_hpack
     dependencies:
       - hspec == 2.*
+      - vcr
       - QuickCheck
       - temporary
       - mockery >= 0.3

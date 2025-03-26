@@ -152,6 +152,7 @@ test-suite spec
       Hpack.Utf8Spec
       Hpack.UtilSpec
       HpackSpec
+      SpecHook
       Data.Aeson.Config.FromValue
       Data.Aeson.Config.Key
       Data.Aeson.Config.KeyMap
@@ -220,6 +221,7 @@ test-suite spec
     , text
     , transformers
     , unordered-containers
+    , vcr
     , vector
     , yaml >=0.10.0
   default-language: Haskell2010
