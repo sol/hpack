@@ -61,6 +61,7 @@ module Hpack.Config (
 , Section(..)
 , Library(..)
 , Executable(..)
+, ForeignLibrary(..)
 , Conditional(..)
 , Cond(..)
 , Flag(..)
@@ -167,6 +168,7 @@ package name version = Package {
   , packageCustomSetup = Nothing
   , packageLibrary = Nothing
   , packageInternalLibraries = mempty
+  , packageForeignLibraries = mempty
   , packageExecutables = mempty
   , packageTests = mempty
   , packageBenchmarks = mempty
@@ -176,6 +178,7 @@ package name version = Package {
 renamePackage :: String -> Package -> Package
 renamePackage name p@Package{..} = p {
     packageName = name
+  , packageForeignLibraries = fmap (renameDependencies packageName name) packageForeignLibraries
   , packageExecutables = fmap (renameDependencies packageName name) packageExecutables
   , packageTests = fmap (renameDependencies packageName name) packageTests
   , packageBenchmarks = fmap (renameDependencies packageName name) packageBenchmarks
@@ -194,6 +197,7 @@ renameDependencies old new sect@Section{..} = sect {sectionDependencies = (Depen
 packageDependencies :: Package -> [(String, DependencyInfo)]
 packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . fst)) $
      (concatMap deps packageExecutables)
+  ++ (concatMap deps packageForeignLibraries)
   ++ (concatMap deps packageTests)
   ++ (concatMap deps packageBenchmarks)
   ++ maybe [] deps packageLibrary
@@ -235,6 +239,29 @@ instance Semigroup LibrarySection where
     , librarySectionGeneratedOtherModules = librarySectionGeneratedOtherModules a <> librarySectionGeneratedOtherModules b
     , librarySectionReexportedModules = librarySectionReexportedModules a <> librarySectionReexportedModules b
     , librarySectionSignatures = librarySectionSignatures a <> librarySectionSignatures b
+    }
+
+data ForeignLibrarySection = ForeignLibrarySection {
+  foreignLibrarySectionType :: Last String
+, foreignLibrarySectionLibVersionInfo :: Last String
+, foreignLibrarySectionOptions :: Maybe (List String)
+, foreignLibrarySectionModDefFile :: Last String
+, foreignLibrarySectionOtherModules :: Maybe (List Module)
+, foreignLibrarySectionGeneratedOtherModules :: Maybe (List Module)
+} deriving (Eq, Show, Generic, FromValue)
+
+instance Monoid ForeignLibrarySection where
+  mempty = ForeignLibrarySection mempty mempty Nothing mempty Nothing Nothing
+  mappend = (<>)
+
+instance Semigroup ForeignLibrarySection where
+  a <> b = ForeignLibrarySection {
+      foreignLibrarySectionType = foreignLibrarySectionType a <> foreignLibrarySectionType b
+    , foreignLibrarySectionLibVersionInfo = foreignLibrarySectionLibVersionInfo a <> foreignLibrarySectionLibVersionInfo b
+    , foreignLibrarySectionOptions = foreignLibrarySectionOptions a <> foreignLibrarySectionOptions b
+    , foreignLibrarySectionModDefFile = foreignLibrarySectionModDefFile a <> foreignLibrarySectionModDefFile b
+    , foreignLibrarySectionOtherModules = foreignLibrarySectionOtherModules a <> foreignLibrarySectionOtherModules b
+    , foreignLibrarySectionGeneratedOtherModules = foreignLibrarySectionGeneratedOtherModules a <> foreignLibrarySectionGeneratedOtherModules b
     }
 
 data ExecutableSection = ExecutableSection {
@@ -570,10 +597,12 @@ type SectionConfigWithDefaults asmSources cSources cxxSources jsSources a = Prod
 
 type PackageConfigWithDefaults asmSources cSources cxxSources jsSources = PackageConfig_
   (SectionConfigWithDefaults asmSources cSources cxxSources jsSources LibrarySection)
+  (SectionConfigWithDefaults asmSources cSources cxxSources jsSources ForeignLibrarySection)
   (SectionConfigWithDefaults asmSources cSources cxxSources jsSources ExecutableSection)
 
 type PackageConfig asmSources cSources cxxSources jsSources = PackageConfig_
   (WithCommonOptions asmSources cSources cxxSources jsSources LibrarySection)
+  (WithCommonOptions asmSources cSources cxxSources jsSources ForeignLibrarySection)
   (WithCommonOptions asmSources cSources cxxSources jsSources ExecutableSection)
 
 data PackageVersion = PackageVersion {unPackageVersion :: String}
@@ -584,7 +613,7 @@ instance FromValue PackageVersion where
     String s -> return (T.unpack s)
     _ -> typeMismatch "Number or String" v
 
-data PackageConfig_ library executable = PackageConfig {
+data PackageConfig_ library foreignLib executable = PackageConfig {
   packageConfigName :: Maybe String
 , packageConfigVersion :: Maybe PackageVersion
 , packageConfigSynopsis :: Maybe String
@@ -611,6 +640,8 @@ data PackageConfig_ library executable = PackageConfig {
 , packageConfigCustomSetup :: Maybe CustomSetupSection
 , packageConfigLibrary :: Maybe library
 , packageConfigInternalLibraries :: Maybe (Map String library)
+, packageConfigForeignLibraries :: Maybe (Map String foreignLib)
+, packageConfigForeignLibrary :: Maybe foreignLib
 , packageConfigExecutable :: Maybe executable
 , packageConfigExecutables :: Maybe (Map String executable)
 , packageConfigTests :: Maybe (Map String executable)
@@ -639,6 +670,8 @@ traversePackageConfig :: Traversal PackageConfig
 traversePackageConfig t p@PackageConfig{..} = do
   library <- traverse (traverseWithCommonOptions t) packageConfigLibrary
   internalLibraries <- traverseNamedConfigs t packageConfigInternalLibraries
+  foreignLibrary <- traverse (traverseWithCommonOptions t) packageConfigForeignLibrary
+  foreignLibraries <- traverseNamedConfigs t packageConfigForeignLibraries
   executable <- traverse (traverseWithCommonOptions t) packageConfigExecutable
   executables <- traverseNamedConfigs t packageConfigExecutables
   tests <- traverseNamedConfigs t packageConfigTests
@@ -646,6 +679,8 @@ traversePackageConfig t p@PackageConfig{..} = do
   return p {
       packageConfigLibrary = library
     , packageConfigInternalLibraries = internalLibraries
+    , packageConfigForeignLibrary = foreignLibrary
+    , packageConfigForeignLibraries = foreignLibraries
     , packageConfigExecutable = executable
     , packageConfigExecutables = executables
     , packageConfigTests = tests
@@ -739,6 +774,7 @@ addPathsModuleToGeneratedModules pkg
   | otherwise = pkg {
       packageLibrary = fmap mapLibrary <$> packageLibrary pkg
     , packageInternalLibraries = fmap mapLibrary <$> packageInternalLibraries pkg
+    , packageForeignLibraries = fmap mapForeignLibrary <$> packageForeignLibraries pkg
     , packageExecutables = fmap mapExecutable <$> packageExecutables pkg
     , packageTests = fmap mapExecutable <$> packageTests pkg
     , packageBenchmarks = fmap mapExecutable <$> packageBenchmarks pkg
@@ -754,6 +790,15 @@ addPathsModuleToGeneratedModules pkg
       | otherwise = lib
       where
         generatedModules = libraryGeneratedModules lib
+
+    mapForeignLibrary :: ForeignLibrary -> ForeignLibrary
+    mapForeignLibrary foreignLibrary
+      | pathsModule `elem` foreignLibraryOtherModules foreignLibrary = foreignLibrary {
+          foreignLibraryGeneratedModules = if pathsModule `elem` generatedModules then generatedModules else pathsModule : generatedModules
+        }
+      | otherwise = foreignLibrary
+      where
+        generatedModules = foreignLibraryGeneratedModules foreignLibrary
 
     mapExecutable :: Executable -> Executable
     mapExecutable executable
@@ -836,6 +881,7 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
       , makeVersion [3,14] <$ guard (not (null packageExtraFiles))
       , packageLibrary >>= libraryCabalVersion
       , internalLibsCabalVersion packageInternalLibraries
+      , foreignLibsCabalVersion packageForeignLibraries
       , executablesCabalVersion packageExecutables
       , executablesCabalVersion packageTests
       , executablesCabalVersion packageBenchmarks
@@ -859,6 +905,15 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
       where
         versions = libraryCabalVersion <$> Map.elems internalLibraries
 
+    foreignLibsCabalVersion :: Map String (Section ForeignLibrary) -> Maybe CabalVersion
+    foreignLibsCabalVersion = foldr max Nothing . map foreignLibCabalVersion . Map.elems
+
+    foreignLibCabalVersion :: Section ForeignLibrary -> Maybe CabalVersion
+    foreignLibCabalVersion sect = maximum [
+        makeVersion [2,0] <$ guard (foreignLibraryHasGeneratedModules sect)
+      , sectionCabalVersion (concatMap getForeignLibraryModules) sect
+      ]
+
     executablesCabalVersion :: Map String (Section Executable) -> Maybe CabalVersion
     executablesCabalVersion = foldr max Nothing . map executableCabalVersion . Map.elems
 
@@ -867,6 +922,9 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
         makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
       , sectionCabalVersion (concatMap getExecutableModules) sect
       ]
+
+    foreignLibraryHasGeneratedModules :: Section ForeignLibrary -> Bool
+    foreignLibraryHasGeneratedModules = any (not . null . foreignLibraryGeneratedModules)
 
     executableHasGeneratedModules :: Section Executable -> Bool
     executableHasGeneratedModules = any (not . null . executableGeneratedModules)
@@ -1034,6 +1092,7 @@ data Package = Package {
 , packageCustomSetup :: Maybe CustomSetup
 , packageLibrary :: Maybe (Section Library)
 , packageInternalLibraries :: Map String (Section Library)
+, packageForeignLibraries :: Map String (Section ForeignLibrary)
 , packageExecutables :: Map String (Section Executable)
 , packageTests :: Map String (Section Executable)
 , packageBenchmarks :: Map String (Section Executable)
@@ -1052,6 +1111,15 @@ data Library = Library {
 , libraryGeneratedModules :: [Module]
 , libraryReexportedModules :: [String]
 , librarySignatures :: [String]
+} deriving (Eq, Show)
+
+data ForeignLibrary = ForeignLibrary {
+  foreignLibraryType :: Maybe String
+, foreignLibraryLibVersionInfo :: Maybe String
+, foreignLibraryOptions :: Maybe [String]
+, foreignLibraryModDefFile :: Maybe String
+, foreignLibraryOtherModules :: [Module]
+, foreignLibraryGeneratedModules :: [Module]
 } deriving (Eq, Show)
 
 data Executable = Executable {
@@ -1177,6 +1245,8 @@ expandSectionDefaults
 expandSectionDefaults formatYamlParseError userDataDir dir p@PackageConfig{..} = do
   library <- traverse (expandDefaults formatYamlParseError userDataDir dir) packageConfigLibrary
   internalLibraries <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigInternalLibraries
+  foreignLibrary <- traverse (expandDefaults formatYamlParseError userDataDir dir) packageConfigForeignLibrary
+  foreignLibraries <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigForeignLibraries
   executable <- traverse (expandDefaults formatYamlParseError userDataDir dir) packageConfigExecutable
   executables <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigExecutables
   tests <- traverse (traverse (expandDefaults formatYamlParseError userDataDir dir)) packageConfigTests
@@ -1184,6 +1254,8 @@ expandSectionDefaults formatYamlParseError userDataDir dir p@PackageConfig{..} =
   return p{
       packageConfigLibrary = library
     , packageConfigInternalLibraries = internalLibraries
+    , packageConfigForeignLibrary = foreignLibrary
+    , packageConfigForeignLibraries = foreignLibraries
     , packageConfigExecutable = executable
     , packageConfigExecutables = executables
     , packageConfigTests = tests
@@ -1241,25 +1313,28 @@ type GlobalOptions = CommonOptions AsmSources CSources CxxSources JsSources Empt
 
 toPackage_ :: (MonadIO m, Warnings m, State m) => FilePath -> Product GlobalOptions (PackageConfig AsmSources CSources CxxSources JsSources) -> m Package
 toPackage_ dir (Product g PackageConfig{..}) = do
+  foreignLibraryMap <- toExecutableMap packageName packageConfigForeignLibraries packageConfigForeignLibrary
   executableMap <- toExecutableMap packageName packageConfigExecutables packageConfigExecutable
   let
     globalVerbatim = commonOptionsVerbatim g
     globalOptions = g {commonOptionsVerbatim = Nothing}
 
-    executableNames = maybe [] Map.keys executableMap
+    componentNames = maybe [] Map.keys executableMap ++ maybe [] Map.keys foreignLibraryMap
 
     toSect :: (Warnings m, Monoid a) => WithCommonOptions AsmSources CSources CxxSources JsSources a -> m (Section a)
-    toSect = toSection packageName executableNames . first ((mempty <$ globalOptions) <>)
+    toSect = toSection packageName componentNames . first ((mempty <$ globalOptions) <>)
 
     toSections :: (Warnings m, Monoid a) => Maybe (Map String (WithCommonOptions AsmSources CSources CxxSources JsSources a)) -> m (Map String (Section a))
     toSections = maybe (return mempty) (traverse toSect)
 
     toLib = toLibrary dir packageName
+    toForeignLibraries = toSections >=> traverse (toForeignLibrary dir packageName)
     toExecutables = toSections >=> traverse (toExecutable dir packageName)
 
   mLibrary <- traverse (toSect >=> toLib) packageConfigLibrary
   internalLibraries <- toSections packageConfigInternalLibraries >>= traverse toLib
 
+  foreignLibraries <- toForeignLibraries foreignLibraryMap
   executables <- toExecutables executableMap
   tests <- toExecutables packageConfigTests
   benchmarks <- toExecutables packageConfigBenchmarks
@@ -1269,6 +1344,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
   missingSourceDirs <- liftIO $ nub . sort <$> filterM (fmap not <$> doesDirectoryExist . (dir </>)) (
        maybe [] sectionSourceDirs mLibrary
     ++ concatMap sectionSourceDirs internalLibraries
+    ++ concatMap sectionSourceDirs foreignLibraries
     ++ concatMap sectionSourceDirs executables
     ++ concatMap sectionSourceDirs tests
     ++ concatMap sectionSourceDirs benchmarks
@@ -1328,6 +1404,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       , packageCustomSetup = mCustomSetup
       , packageLibrary = mLibrary
       , packageInternalLibraries = internalLibraries
+      , packageForeignLibraries = foreignLibraries
       , packageExecutables = executables
       , packageTests = tests
       , packageBenchmarks = benchmarks
@@ -1437,6 +1514,9 @@ getMentionedLibraryModules (LibrarySection _ _ exposedModules generatedExposedMo
 getLibraryModules :: Library -> [Module]
 getLibraryModules Library{..} = libraryExposedModules ++ libraryOtherModules
 
+getForeignLibraryModules :: ForeignLibrary -> [Module]
+getForeignLibraryModules ForeignLibrary{..} = foreignLibraryOtherModules
+
 getExecutableModules :: Executable -> [Module]
 getExecutableModules Executable{..} = executableOtherModules
 
@@ -1521,6 +1601,28 @@ fromLibrarySectionPlain LibrarySection{..} = Library {
   , libraryReexportedModules = fromMaybeList librarySectionReexportedModules
   , librarySignatures = fromMaybeList librarySectionSignatures
   }
+
+getMentionedForeignLibraryModules :: ForeignLibrarySection -> [Module]
+getMentionedForeignLibraryModules (ForeignLibrarySection _ _ _ _ otherModules generatedModules)=
+  fromMaybeList (otherModules <> generatedModules)
+
+toForeignLibrary :: (MonadIO m, State m) => FilePath -> String -> Section ForeignLibrarySection -> m (Section ForeignLibrary)
+toForeignLibrary dir packageName_ =
+    inferModules dir packageName_ getMentionedForeignLibraryModules getForeignLibraryModules fromForeignLibrarySection (fromForeignLibrarySection [])
+  where
+    fromForeignLibrarySection :: [Module] -> [Module] -> ForeignLibrarySection -> ForeignLibrary
+    fromForeignLibrarySection pathsModule inferableModules ForeignLibrarySection{..} =
+      (ForeignLibrary
+        (getLast foreignLibrarySectionType)
+        (getLast foreignLibrarySectionLibVersionInfo)
+        (fromList <$> foreignLibrarySectionOptions)
+        (getLast foreignLibrarySectionModDefFile)
+        (otherModules ++ generatedModules)
+        generatedModules
+      )
+      where
+        otherModules = maybe (inferableModules ++ pathsModule) fromList foreignLibrarySectionOtherModules
+        generatedModules = maybe [] fromList foreignLibrarySectionGeneratedOtherModules
 
 getMentionedExecutableModules :: ExecutableSection -> [Module]
 getMentionedExecutableModules (ExecutableSection (Alias (Last main)) otherModules generatedModules)=

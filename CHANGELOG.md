@@ -1,5 +1,7 @@
 ## Unreleased
   - Add support for `extra-files` (see #603)
+  - Add new section: `foreign-libraries`, for Cabal 2.0's `foreign-library`
+    stanzas (see #518)
 
 ## Changes in 0.38.0
   - Generate `build-tool-depends` instead of `build-tools` starting with
