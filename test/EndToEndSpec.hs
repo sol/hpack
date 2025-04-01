@@ -67,6 +67,42 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
           , GHC == 7.4.2
         |]
 
+    describe "description" $ do
+      it "renders empty lines as dots" $ do
+        [i|
+        description: |
+          foo
+
+          bar
+
+          baz
+        |] `shouldRenderTo` package [i|
+        description: foo
+                     .
+                     bar
+                     .
+                     baz
+        |]
+
+      context "when cabal-version is >= 3" $ do
+        it "preserves empty lines" $ do
+          [i|
+          verbatim:
+            cabal-version: 3.0
+          description: |
+            foo
+
+            bar
+
+            baz
+          |] `shouldRenderTo` (package [i|
+          description: foo
+
+                       bar
+
+                       baz
+          |]) { packageCabalVersion = "3.0" }
+
     describe "handling of Paths_ module" $ do
       it "adds Paths_ to other-modules" $ do
         [i|
