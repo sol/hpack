@@ -1,5 +1,6 @@
-## Unreleased
+## Changes in 0.38.1
   - Add support for `extra-files` (see #603)
+  - Preserve empty lines in `description` when `cabal-version >= 3` (see #612)
 
 ## Changes in 0.38.0
   - Generate `build-tool-depends` instead of `build-tools` starting with

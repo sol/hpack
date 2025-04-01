@@ -117,7 +117,7 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
         ("name", Just packageName)
       , ("version", Just packageVersion)
       , ("synopsis", packageSynopsis)
-      , ("description", (formatDescription headerFieldsAlignment <$> packageDescription))
+      , ("description", (formatDescription packageCabalVersion headerFieldsAlignment <$> packageDescription))
       , ("category", packageCategory)
       , ("stability", packageStability)
       , ("homepage", packageHomepage)
@@ -145,18 +145,31 @@ sortStanzaFields sectionsFieldOrder = go
       Stanza name fields : xs | Just fieldOrder <- lookup name sectionsFieldOrder -> Stanza name (sortFieldsBy fieldOrder fields) : go xs
       x : xs -> x : go xs
 
-formatDescription :: Alignment -> String -> String
-formatDescription (Alignment alignment) description = case map emptyLineToDot $ lines description of
-  x : xs -> intercalate "\n" (x : map (indentation ++) xs)
+formatDescription :: CabalVersion -> Alignment -> String -> String
+formatDescription cabalVersion (Alignment alignment) description = case map emptyLineToDot $ lines description of
+  x : xs -> intercalate "\n" (x : indent xs)
   [] -> ""
   where
+    n :: Int
     n = max alignment (length ("description: " :: String))
+
+    indentation :: String
     indentation = replicate n ' '
 
+    emptyLineToDot :: String -> String
     emptyLineToDot xs
-      | isEmptyLine xs = "."
+      | isEmptyLine xs && cabalVersion < makeCabalVersion [3] = "."
       | otherwise = xs
 
+    indent :: [String] -> [String]
+    indent = map indentLine
+
+    indentLine :: String -> String
+    indentLine xs
+      | isEmptyLine xs = ""
+      | otherwise = indentation ++ xs
+
+    isEmptyLine :: String -> Bool
     isEmptyLine = all isSpace
 
 renderSourceRepository :: SourceRepository -> Element
