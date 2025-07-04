@@ -332,7 +332,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
-| `main` | `main-is` | | |
+| `main` | `main-is` | | Unlike `Cabal`, also accepts a module name or qualified name (see ['Main' IO action](#main-io-action). |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 
@@ -341,7 +341,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | | `type` | `exitcode-stdio-1.0` | |
-| `main` | `main-is` | | |
+| `main` | `main-is` | |  Unlike `Cabal`, also accepts a module name or qualified name (see ['Main' IO action](#main-io-action). |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 
@@ -350,7 +350,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | | `type` | `exitcode-stdio-1.0` | |
-| `main` | `main-is` | | |
+| `main` | `main-is` | |  Unlike `Cabal`, also accepts a module name or qualified name (see ['Main' IO action](#main-io-action). |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 
@@ -480,6 +480,63 @@ becomes
 
 **Note:** Conditionals with `condition: false` are omitted from the generated
 `.cabal` file.
+
+#### 'Main' IO action
+
+By convention, a Haskell program must have a module called `Main` which exports
+an IO action named `main`. When the program is executed, the action is
+performed. However, GHC's `main-is` option can be used to change the name of the
+relevant IO action.
+
+Hpack's `main` field accepts a module name, a qualified name or a source file
+name. Hpack assumes that anything that does not have the format of the first two
+possibilities is a source file name. For the first two possibilities, Hpack
+assumes that the relevant source file is named after the module.
+
+For example,
+
+```yaml
+executables:
+  my-app:
+    main: MyMainModule # A module name
+```
+
+becomes
+
+    executable my-app
+      main-is: MyMainModule.hs
+      ghc-options: -main-is MyMainModule
+
+and,
+
+```yaml
+executables:
+  my-app:
+    main: MyMainModule.myMainFunc # A qualified name
+```
+
+becomes
+
+    executable my-app
+      main-is: MyMainModule.hs
+      ghc-options: -main-is MyMainModule.myMainFunc
+
+and,
+
+```yaml
+    executables:
+      my-app:
+        main: MyMainSourceFile.hs # A source file name
+```
+
+becomes
+
+    executable my-app
+      main-is: MyMainSourceFile.hs
+
+**Note:** Unlike GHC's `main-is` option, a lower-case identifier is not
+accepted as the name of the relevant IO action. Hpack will assume it is a
+source file name.
 
 ### File globbing
 
