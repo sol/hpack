@@ -1,3 +1,6 @@
+## Changes in 0.38.2
+  - Infer `cabal-version: 3.12` when `PackageInfo_*` is used (see #620)
+
 ## Changes in 0.38.1
   - Add support for `extra-files` (see #603)
   - Preserve empty lines in `description` when `cabal-version >= 3` (see #612)

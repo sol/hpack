@@ -846,11 +846,23 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
         makeVersion [1,22] <$ guard (has libraryReexportedModules)
       , makeVersion [2,0]  <$ guard (has librarySignatures)
       , makeVersion [2,0] <$ guard (has libraryGeneratedModules)
+      , makeVersion [3,12] <$ guard (libraryHasPackageInfoModule sect)
       , makeVersion [3,0] <$ guard (has libraryVisibility)
       , sectionCabalVersion (concatMap getLibraryModules) sect
       ]
       where
         has field = any (not . null . field) sect
+
+    libraryHasPackageInfoModule :: Section Library -> Bool
+    libraryHasPackageInfoModule =
+      any (hasPackageInfoModule . libraryGeneratedModules)
+
+    packageInfoModule :: Module
+    packageInfoModule =
+      Module ("PackageInfo_" ++ moduleNameFromPackageName packageName)
+
+    hasPackageInfoModule :: [Module] -> Bool
+    hasPackageInfoModule = any (== packageInfoModule)
 
     internalLibsCabalVersion :: Map String (Section Library) -> Maybe CabalVersion
     internalLibsCabalVersion internalLibraries
@@ -865,11 +877,16 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
     executableCabalVersion :: Section Executable -> Maybe CabalVersion
     executableCabalVersion sect = maximum [
         makeVersion [2,0] <$ guard (executableHasGeneratedModules sect)
+      , makeVersion [3,12] <$ guard (executableHasPackageInfoModule sect)
       , sectionCabalVersion (concatMap getExecutableModules) sect
       ]
 
     executableHasGeneratedModules :: Section Executable -> Bool
     executableHasGeneratedModules = any (not . null . executableGeneratedModules)
+
+    executableHasPackageInfoModule :: Section Executable -> Bool
+    executableHasPackageInfoModule =
+      any (hasPackageInfoModule . executableGeneratedModules)
 
     sectionCabalVersion :: (Section a -> [Module]) -> Section a -> Maybe CabalVersion
     sectionCabalVersion getMentionedModules sect = maximum $ [
@@ -1659,7 +1676,11 @@ toBuildTool packageName_ executableNames = \ case
     warnLegacySystemTool name = tell ["Listing " ++ show name ++ " under build-tools is deperecated! Please list system executables under system-build-tools instead!"]
 
 pathsModuleFromPackageName :: String -> Module
-pathsModuleFromPackageName name = Module ("Paths_" ++ map f name)
-  where
-    f '-' = '_'
-    f x = x
+pathsModuleFromPackageName name =
+  Module ("Paths_" ++ moduleNameFromPackageName name)
+
+moduleNameFromPackageName :: String -> String
+moduleNameFromPackageName = map f
+ where
+  f '-' = '_'
+  f x = x

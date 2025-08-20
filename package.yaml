@@ -1,6 +1,6 @@
 spec-version: 0.36.0
 name: hpack
-version: 0.38.1
+version: 0.38.2
 synopsis: A modern format for Haskell packages
 description: See README at <https://github.com/sol/hpack#readme>
 author: Simon Hengel <sol@typeful.net>
