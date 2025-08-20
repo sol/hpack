@@ -548,6 +548,7 @@ data BuildType =
   | Configure
   | Make
   | Custom
+  | Hooks
   deriving (Eq, Show, Enum, Bounded)
 
 instance FromValue BuildType where
