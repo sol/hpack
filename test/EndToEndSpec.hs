@@ -1327,6 +1327,20 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
           default-language: Haskell2010
           |]) {packageCabalVersion = "2.0"}
 
+      context "with PackageInfo_my_package" $ do
+        it "infers cabal-version 3.12" $ do
+          [i|
+          spec-version: 0.36.0
+          library:
+            generated-other-modules: PackageInfo_my_package
+          |] `shouldRenderTo` (library [i|
+          other-modules:
+              PackageInfo_my_package
+          autogen-modules:
+              PackageInfo_my_package
+          default-language: Haskell2010
+          |]) {packageCabalVersion = "3.12"}
+
     describe "internal-libraries" $ do
       it "accepts internal-libraries" $ do
         touch "src/Foo.hs"
@@ -1683,6 +1697,23 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
                 Foo
             default-language: Haskell2010
           |]) {packageCabalVersion = "2.0"}
+
+        context "with PackageInfo_my_package" $ do
+          it "infers cabal-version 3.12" $ do
+            [i|
+            spec-version: 0.36.0
+            executables:
+              foo:
+                main: Main.hs
+                generated-other-modules: PackageInfo_my_package
+          |] `shouldRenderTo` (executable "foo" [i|
+            main-is: Main.hs
+            other-modules:
+                PackageInfo_my_package
+            autogen-modules:
+                PackageInfo_my_package
+            default-language: Haskell2010
+          |]) {packageCabalVersion = "3.12"}
 
         context "with a conditional" $ do
           it "doesn't infer any modules mentioned in that conditional" $ do
