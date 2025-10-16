@@ -62,6 +62,7 @@ at the Singapore Haskell meetup: http://typeful.net/talks/hpack
             * [Flags](#flags)
             * [Dependencies](#dependencies)
             * [Conditionals](#conditionals)
+            * ['Main' IO action](#main-io-action)
          * [File globbing](#file-globbing)
          * [Passing things to Cabal verbatim](#passing-things-to-cabal-verbatim)
             * [Objects](#objects)
@@ -332,7 +333,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
-| `main` | `main-is` | | Unlike `Cabal`, also accepts a module name or qualified name (see ['Main' IO action](#main-io-action). |
+| `main` | `main-is` | | Unlike `Cabal`, also accepts a module name or qualified name (see ['Main' IO action](#main-io-action)). |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 
@@ -341,7 +342,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | | `type` | `exitcode-stdio-1.0` | |
-| `main` | `main-is` | |  Unlike `Cabal`, also accepts a module name or qualified name (see ['Main' IO action](#main-io-action). |
+| `main` | `main-is` | |  Unlike `Cabal`, also accepts a module name or qualified name (see ['Main' IO action](#main-io-action)). |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 
@@ -350,7 +351,7 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | Hpack | Cabal | Default | Notes |
 | --- | --- | --- | --- |
 | | `type` | `exitcode-stdio-1.0` | |
-| `main` | `main-is` | |  Unlike `Cabal`, also accepts a module name or qualified name (see ['Main' IO action](#main-io-action). |
+| `main` | `main-is` | |  Unlike `Cabal`, also accepts a module name or qualified name (see ['Main' IO action](#main-io-action)). |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 
