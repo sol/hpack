@@ -1,3 +1,6 @@
+## Changes in 0.38.4
+  - Handle a multi-line value for the `description` key of a flag (see #623)
+
 ## Changes in 0.38.3
   - Accept a list for `category` (see #624)
 

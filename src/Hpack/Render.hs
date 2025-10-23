@@ -104,7 +104,7 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
       return $ concat [
           sourceRepository
         , customSetup
-        , map renderFlag packageFlags
+        , map (renderFlag packageCabalVersion) packageFlags
         , library
         , internalLibraries
         , executables
@@ -151,13 +151,16 @@ sortStanzaFields sectionsFieldOrder = go
       Stanza name fields : xs | Just fieldOrder <- lookup name sectionsFieldOrder -> Stanza name (sortFieldsBy fieldOrder fields) : go xs
       x : xs -> x : go xs
 
+descriptionFieldSize :: Int
+descriptionFieldSize = length ("description: " :: String)
+
 formatDescription :: CabalVersion -> Alignment -> String -> String
 formatDescription cabalVersion (Alignment alignment) description = case map emptyLineToDot $ lines description of
   x : xs -> intercalate "\n" (x : indent xs)
   [] -> ""
   where
     n :: Int
-    n = max alignment (length ("description: " :: String))
+    n = max alignment descriptionFieldSize
 
     indentation :: String
     indentation = replicate n ' '
@@ -185,13 +188,17 @@ renderSourceRepository SourceRepository{..} = Stanza "source-repository head" [
   , Field "subdir" (maybe "" Literal sourceRepositorySubdir)
   ]
 
-renderFlag :: Flag -> Element
-renderFlag Flag {..} = Stanza ("flag " ++ flagName) $ description ++ [
+renderFlag :: CabalVersion -> Flag -> Element
+renderFlag cabalVersion Flag {..} = Stanza ("flag " ++ flagName) $ description ++ [
     Field "manual" (Literal $ show flagManual)
   , Field "default" (Literal $ show flagDefault)
   ]
   where
-    description = maybe [] (return . Field "description" . Literal) flagDescription
+    description = maybe [] (return . Field "description" . Literal) formattedFlagDescription
+    -- We have to 'hard code' that the flag stanza's description field is
+    -- indented by two spaces:
+    alignment = Alignment (descriptionFieldSize + 2)
+    formattedFlagDescription = formatDescription cabalVersion alignment <$> flagDescription
 
 renderInternalLibraries :: Map String (Section Library) -> RenderM [Element]
 renderInternalLibraries = traverse renderInternalLibrary . Map.toList

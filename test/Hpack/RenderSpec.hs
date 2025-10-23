@@ -274,7 +274,7 @@ spec = do
   describe "renderFlag" $ do
     it "renders flags" $ do
       let flag = (Flag "foo" (Just "some flag") True False)
-      render defaultRenderSettings 0 (renderFlag flag) `shouldBe` [
+      render defaultRenderSettings 0 (renderFlag cabalVersion flag) `shouldBe` [
           "flag foo"
         , "  description: some flag"
         , "  manual: True"
