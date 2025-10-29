@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Hpack.Render.Dsl (
@@ -26,14 +27,14 @@ module Hpack.Render.Dsl (
 
 import           Imports
 
+data Element = Stanza String [Element] | Group Element Element | Field String Value | Verbatim String
+  deriving (Eq, Show)
+
 data Value =
     Literal String
   | CommaSeparatedList [String]
   | LineSeparatedList [String]
   | WordList [String]
-  deriving (Eq, Show)
-
-data Element = Stanza String [Element] | Group Element Element | Field String Value | Verbatim String
   deriving (Eq, Show)
 
 data Lines = SingleLine String | MultipleLines [String]
@@ -58,20 +59,21 @@ defaultRenderSettings :: RenderSettings
 defaultRenderSettings = RenderSettings 2 0 LeadingCommas
 
 render :: RenderSettings -> Nesting -> Element -> [String]
-render settings nesting (Stanza name elements) = indent settings nesting name : renderElements settings (succ nesting) elements
-render settings nesting (Group a b) = render settings nesting a ++ render settings nesting b
-render settings nesting (Field name value) = renderField settings nesting name value
-render settings nesting (Verbatim str) = map (indent settings nesting) (lines str)
+render settings nesting = \ case
+  Stanza name elements -> indent settings nesting name : renderElements settings (succ nesting) elements
+  Group a b -> render settings nesting a ++ render settings nesting b
+  Field name value -> map (indent settings nesting) $ renderField settings name value
+  Verbatim str -> map (indent settings nesting) (lines str)
 
 renderElements :: RenderSettings -> Nesting -> [Element] -> [String]
 renderElements settings nesting = concatMap (render settings nesting)
 
-renderField :: RenderSettings -> Nesting -> String -> Value -> [String]
-renderField settings@RenderSettings{..} nesting name value = case renderValue settings value of
+renderField :: RenderSettings -> String -> Value -> [String]
+renderField settings@RenderSettings{..} name value = case renderValue settings value of
   SingleLine "" -> []
-  SingleLine x -> [indent settings nesting (name ++ ": " ++ padding ++ x)]
+  SingleLine x -> [name ++ ": " ++ padding ++ x]
   MultipleLines [] -> []
-  MultipleLines xs -> (indent settings nesting name ++ ":") : map (indent settings $ succ nesting) xs
+  MultipleLines xs -> (name ++ ":") : map (indent settings 1) xs
   where
     Alignment fieldAlignment = renderSettingsFieldAlignment
     padding = replicate (fieldAlignment - length name - 2) ' '
