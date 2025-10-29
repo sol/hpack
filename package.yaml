@@ -1,15 +1,15 @@
 spec-version: 0.36.0
 name: hpack
-version: 0.38.2
+version: 0.38.3
 synopsis: A modern format for Haskell packages
 description: See README at <https://github.com/sol/hpack#readme>
 author: Simon Hengel <sol@typeful.net>
-maintainer: Simon Hengel <sol@typeful.net>
 github: sol/hpack
 category: Development
-extra-source-files:
-  - CHANGELOG.md
-  - resources/**/*
+
+extra-source-files: resources/**/*
+
+extra-doc-files: CHANGELOG.md
 
 ghc-options: -Wall -fno-warn-incomplete-uni-patterns
 

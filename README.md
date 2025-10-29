@@ -131,7 +131,7 @@ library:
 | `version` | · | `0.0.0` | | | |
 | `synopsis` | · | | | | |
 | `description` | · | | | | |
-| `category` | · | | | | |
+| `category` | · | | May be a list (since `0.38.3`) | | |
 | `stability` | · | | | | |
 | `homepage` | · | If `github` given, `<repo>#readme` | | | |
 | `bug-reports` | · | If `github` given, `<repo>/issues` | | | |

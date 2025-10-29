@@ -46,7 +46,7 @@ newtype Nesting = Nesting Int
   deriving (Eq, Show, Num, Enum)
 
 newtype Alignment = Alignment Int
-  deriving (Eq, Show, Num)
+  deriving (Eq, Ord, Show, Num)
 
 data RenderSettings = RenderSettings {
   renderSettingsIndentation :: Int

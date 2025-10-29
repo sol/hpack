@@ -37,7 +37,7 @@ jobs:
           - os: windows-latest
             ghc: '9.10'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - uses: hspec/setup-haskell@v1
         with:
           ghc-version: ${{ matrix.ghc }}
@@ -54,6 +54,6 @@ jobs:
       - run: false
         if: needs.build.result != 'success'
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - name: Check for trailing whitespace
         run: '! git grep -I "\s\+$"'
