@@ -103,6 +103,24 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
                        baz
           |]) { packageCabalVersion = "3.0" }
 
+    describe "category" $ do
+      it "accepts a single category" $ do
+        [i|
+        category: Testing
+        |] `shouldRenderTo` package [i|
+        category: Testing
+        |]
+
+      it "accepts a list of categories" $ do
+        [i|
+        category:
+          - Development
+          - Testing
+        |] `shouldRenderTo` package [i|
+        category: Development,
+                  Testing
+        |]
+
     describe "handling of Paths_ module" $ do
       it "adds Paths_ to other-modules" $ do
         [i|

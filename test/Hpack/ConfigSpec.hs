@@ -225,7 +225,7 @@ spec = do
       withPackageConfig_ [i|
         category: Data
         |]
-        (`shouldBe` package {packageCategory = Just "Data"})
+        (`shouldBe` package {packageCategory = ["Data"]})
 
     it "accepts author" $ do
       withPackageConfig_ [i|

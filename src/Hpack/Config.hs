@@ -148,7 +148,7 @@ package name version = Package {
   , packageDescription = Nothing
   , packageHomepage = Nothing
   , packageBugReports = Nothing
-  , packageCategory = Nothing
+  , packageCategory = []
   , packageStability = Nothing
   , packageAuthor = []
   , packageMaintainer = []
@@ -591,7 +591,7 @@ data PackageConfig_ library executable = PackageConfig {
 , packageConfigDescription :: Maybe String
 , packageConfigHomepage :: Maybe (Maybe String)
 , packageConfigBugReports :: Maybe (Maybe String)
-, packageConfigCategory :: Maybe String
+, packageConfigCategory :: Maybe (List String)
 , packageConfigStability :: Maybe String
 , packageConfigAuthor :: Maybe (List String)
 , packageConfigMaintainer :: Maybe (Maybe (List String))
@@ -1032,7 +1032,7 @@ data Package = Package {
 , packageDescription :: Maybe String
 , packageHomepage :: Maybe String
 , packageBugReports :: Maybe String
-, packageCategory :: Maybe String
+, packageCategory :: [String]
 , packageStability :: Maybe String
 , packageAuthor :: [String]
 , packageMaintainer :: [String]
@@ -1326,7 +1326,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
       , packageDescription = packageConfigDescription
       , packageHomepage = homepage
       , packageBugReports = bugReports
-      , packageCategory = packageConfigCategory
+      , packageCategory = fromMaybeList packageConfigCategory
       , packageStability = packageConfigStability
       , packageAuthor = fromMaybeList packageConfigAuthor
       , packageMaintainer = fromMaybeList maintainer

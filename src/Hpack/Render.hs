@@ -118,24 +118,30 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
       , ("version", Just packageVersion)
       , ("synopsis", packageSynopsis)
       , ("description", (formatDescription packageCabalVersion headerFieldsAlignment <$> packageDescription))
-      , ("category", packageCategory)
+      , formatList "category" packageCategory
       , ("stability", packageStability)
       , ("homepage", packageHomepage)
       , ("bug-reports", packageBugReports)
-      , ("author", formatList packageAuthor)
-      , ("maintainer", formatList packageMaintainer)
-      , ("copyright", formatList packageCopyright)
+      , formatList "author" packageAuthor
+      , formatList "maintainer" packageMaintainer
+      , formatList "copyright" packageCopyright
       , ("license", packageLicense)
       , case packageLicenseFile of
           [file] -> ("license-file", Just file)
-          files  -> ("license-files", formatList files)
+          files  -> formatList "license-files" files
       , ("build-type", Just (show packageBuildType))
       ]
 
-    formatList :: [String] -> Maybe String
-    formatList xs = guard (not $ null xs) >> (Just $ intercalate separator xs)
+    formatList :: String -> [String] -> (String, Maybe String)
+    formatList field = (,) field . formatValues
       where
-        separator = let Alignment n = headerFieldsAlignment in ",\n" ++ replicate n ' '
+        formatValues :: [String] -> Maybe String
+        formatValues values = guard (not $ null values) >> (Just $ intercalate separator values)
+          where
+            separator :: String
+            separator = ",\n" ++ replicate n ' '
+              where
+                Alignment n = max headerFieldsAlignment (Alignment $ length field + 2)
 
 sortStanzaFields :: [(String, [String])] -> [Element] -> [Element]
 sortStanzaFields sectionsFieldOrder = go

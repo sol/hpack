@@ -1,3 +1,6 @@
+## Changes in 0.38.3
+  - Accept a list for `category` (see #624)
+
 ## Changes in 0.38.2
   - Infer `cabal-version: 3.12` when `PackageInfo_*` is used (see #620)
 
