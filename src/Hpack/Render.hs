@@ -31,7 +31,6 @@ module Hpack.Render (
 , renderFlag
 , renderSourceRepository
 , renderDirectories
-, formatDescription
 #endif
 ) where
 
@@ -70,8 +69,11 @@ renderPackage oldCabalFile = renderPackageWith settings headerFieldsAlignment fo
     settings = formattingHintsRenderSettings
 
 renderPackageWith :: RenderSettings -> Alignment -> [String] -> [(String, [String])] -> Package -> String
-renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
+renderPackageWith initial headerFieldsAlignment existingFieldOrder sectionsFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
   where
+    settings :: RenderSettings
+    settings = initial { renderSettingsEmptyLinesAsDot = packageCabalVersion < makeCabalVersion [3] }
+
     chunks :: [String]
     chunks = map unlines . filter (not . null) . map (render settings 0) $ sortStanzaFields sectionsFieldOrder stanzas
 
@@ -117,7 +119,7 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
         ("name", Just packageName)
       , ("version", Just packageVersion)
       , ("synopsis", packageSynopsis)
-      , ("description", (formatDescription packageCabalVersion headerFieldsAlignment <$> packageDescription))
+      , ("description", packageDescription)
       , formatList "category" packageCategory
       , ("stability", packageStability)
       , ("homepage", packageHomepage)
@@ -139,9 +141,7 @@ renderPackageWith settings headerFieldsAlignment existingFieldOrder sectionsFiel
         formatValues values = guard (not $ null values) >> (Just $ intercalate separator values)
           where
             separator :: String
-            separator = ",\n" ++ replicate n ' '
-              where
-                Alignment n = max headerFieldsAlignment (Alignment $ length field + 2)
+            separator = ",\n"
 
 sortStanzaFields :: [(String, [String])] -> [Element] -> [Element]
 sortStanzaFields sectionsFieldOrder = go
@@ -150,33 +150,6 @@ sortStanzaFields sectionsFieldOrder = go
       [] -> []
       Stanza name fields : xs | Just fieldOrder <- lookup name sectionsFieldOrder -> Stanza name (sortFieldsBy fieldOrder fields) : go xs
       x : xs -> x : go xs
-
-formatDescription :: CabalVersion -> Alignment -> String -> String
-formatDescription cabalVersion (Alignment alignment) description = case map emptyLineToDot $ lines description of
-  x : xs -> intercalate "\n" (x : indent xs)
-  [] -> ""
-  where
-    n :: Int
-    n = max alignment (length ("description: " :: String))
-
-    indentation :: String
-    indentation = replicate n ' '
-
-    emptyLineToDot :: String -> String
-    emptyLineToDot xs
-      | isEmptyLine xs && cabalVersion < makeCabalVersion [3] = "."
-      | otherwise = xs
-
-    indent :: [String] -> [String]
-    indent = map indentLine
-
-    indentLine :: String -> String
-    indentLine xs
-      | isEmptyLine xs = ""
-      | otherwise = indentation ++ xs
-
-    isEmptyLine :: String -> Bool
-    isEmptyLine = all isSpace
 
 renderSourceRepository :: SourceRepository -> Element
 renderSourceRepository SourceRepository{..} = Stanza "source-repository head" [

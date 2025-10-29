@@ -125,10 +125,11 @@ sniffCommaStyle input
     startsWithComma = isPrefixOf "," . dropWhile isSpace
 
 sniffRenderSettings :: [String] -> RenderSettings
-sniffRenderSettings input = RenderSettings indentation fieldAlignment commaStyle
+sniffRenderSettings input = RenderSettings indentation fieldAlignment commaStyle emptyLinesAsDot
   where
     indentation = max def $ fromMaybe def (sniffIndentation input)
       where def = renderSettingsIndentation defaultRenderSettings
 
     fieldAlignment = renderSettingsFieldAlignment defaultRenderSettings
     commaStyle = fromMaybe (renderSettingsCommaStyle defaultRenderSettings) (sniffCommaStyle input)
+    emptyLinesAsDot = renderSettingsEmptyLinesAsDot defaultRenderSettings

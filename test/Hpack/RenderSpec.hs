@@ -26,9 +26,6 @@ renderEmptySection Empty = []
 cabalVersion :: CabalVersion
 cabalVersion = makeCabalVersion [1,12]
 
-cabal30 :: CabalVersion
-cabal30 = makeCabalVersion [3,0,0]
-
 spec :: Spec
 spec = do
   describe "renderPackageWith" $ do
@@ -280,66 +277,6 @@ spec = do
         , "  manual: True"
         , "  default: False"
         ]
-
-  describe "formatDescription" $ do
-    it "formats description" $ do
-      let description = unlines [
-              "foo"
-            , "bar"
-            ]
-      "description: " ++ formatDescription cabalVersion 0 description `shouldBe` intercalate "\n" [
-          "description: foo"
-        , "             bar"
-        ]
-
-    it "takes specified alignment into account" $ do
-      let description = unlines [
-              "foo"
-            , "bar"
-            , "baz"
-            ]
-      "description:   " ++ formatDescription cabalVersion 15 description `shouldBe` intercalate "\n" [
-          "description:   foo"
-        , "               bar"
-        , "               baz"
-        ]
-
-    it "formats empty lines" $ do
-      let description = unlines [
-              "foo"
-            , "   "
-            , "bar"
-            ]
-      "description: " ++ formatDescription cabalVersion 0 description `shouldBe` intercalate "\n" [
-          "description: foo"
-        , "             ."
-        , "             bar"
-        ]
-
-    it "correctly handles empty lines at the beginning" $ do
-      let description = unlines [
-              ""
-            , "foo"
-            , "bar"
-            ]
-      "description: " ++ formatDescription cabalVersion 0 description `shouldBe` intercalate "\n" [
-          "description: ."
-        , "             foo"
-        , "             bar"
-        ]
-
-    context "when cabal-version is >= 3" $ do
-      it "preserves empty lines" $ do
-        let description = unlines [
-                "foo"
-              , ""
-              , "bar"
-              ]
-        "description: " ++ formatDescription cabal30 0 description `shouldBe` intercalate "\n" [
-            "description: foo"
-          , ""
-          , "             bar"
-          ]
 
   describe "renderSourceRepository" $ do
     it "renders source-repository without subdir correctly" $ do

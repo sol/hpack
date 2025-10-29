@@ -378,6 +378,26 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
             location: https://github.com/hspec/hspec
           |]
 
+    describe "flags" $ do
+      it "accepts multi-line flag descriptions" $ do
+        [i|
+        flags:
+          some-flag:
+            description: |
+              some
+              flag
+              description
+            manual: True
+            default: False
+        |] `shouldRenderTo` package [i|
+        flag some-flag
+          description: some
+                       flag
+                       description
+          manual: True
+          default: False
+        |]
+
     describe "defaults" $ do
       it "accepts global defaults" $ do
         writeFile "defaults/sol/hpack-template/2017/defaults.yaml" [i|
