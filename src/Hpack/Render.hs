@@ -45,7 +45,7 @@ import           Control.Monad.Reader
 import           Hpack.Util
 import           Hpack.Config
 import           Hpack.Render.Hints
-import           Hpack.Render.Dsl hiding (sortFieldsBy)
+import           Hpack.Render.Dsl hiding (RenderSettings(..), defaultRenderSettings, sortFieldsBy)
 import qualified Hpack.Render.Dsl as Dsl
 
 data RenderEnv = RenderEnv {
@@ -64,21 +64,24 @@ getPackageName = asks renderEnvPackageName
 renderPackage :: [String] -> Package -> String
 renderPackage oldCabalFile = renderPackageWith settings headerFieldsAlignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder
   where
-    FormattingHints{..} = sniffFormattingHints oldCabalFile
+    hints@FormattingHints{..} = sniffFormattingHints oldCabalFile
     headerFieldsAlignment = fromMaybe 16 formattingHintsAlignment
-    settings = formattingHintsRenderSettings
+    settings = formattingHintsRenderSettings hints
 
 renderPackageWith :: RenderSettings -> Alignment -> [String] -> [(String, [String])] -> Package -> String
-renderPackageWith initial headerFieldsAlignment existingFieldOrder sectionsFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
+renderPackageWith RenderSettings{..} headerFieldsAlignment existingFieldOrder sectionsFieldOrder Package{..} = intercalate "\n" (unlines header : chunks)
   where
-    settings :: RenderSettings
-    settings = initial { renderSettingsEmptyLinesAsDot = packageCabalVersion < makeCabalVersion [3] }
+    settings :: Dsl.RenderSettings
+    settings = Dsl.RenderSettings {
+      renderSettingsEmptyLinesAsDot = packageCabalVersion < makeCabalVersion [3]
+    , ..
+    }
 
     chunks :: [String]
     chunks = map unlines . filter (not . null) . map (render settings 0) $ sortStanzaFields sectionsFieldOrder stanzas
 
     header :: [String]
-    header = concatMap (render settings {renderSettingsFieldAlignment = headerFieldsAlignment} 0) packageFields
+    header = concatMap (render settings {Dsl.renderSettingsFieldAlignment = headerFieldsAlignment} 0) packageFields
 
     packageFields :: [Element]
     packageFields = addVerbatim packageVerbatim . sortFieldsBy existingFieldOrder $

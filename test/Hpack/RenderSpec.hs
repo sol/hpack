@@ -9,7 +9,8 @@ import           Control.Monad.Reader (runReader)
 import           Hpack.Syntax.DependencyVersion
 import           Hpack.ConfigSpec hiding (spec)
 import           Hpack.Config hiding (package)
-import           Hpack.Render.Dsl
+import           Hpack.Render.Dsl hiding (RenderSettings, defaultRenderSettings, render)
+import qualified Hpack.Render.Dsl as Dsl
 import           Hpack.Render
 
 library :: Library
@@ -25,6 +26,9 @@ renderEmptySection Empty = []
 
 cabalVersion :: CabalVersion
 cabalVersion = makeCabalVersion [1,12]
+
+render :: Element -> [FilePath]
+render = Dsl.render Dsl.defaultRenderSettings 0
 
 spec :: Spec
 spec = do
@@ -229,7 +233,7 @@ spec = do
 
     it "renders conditionals" $ do
       let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} Nothing
-      render defaultRenderSettings 0 (run $ renderConditional renderEmptySection conditional) `shouldBe` [
+      render (run $ renderConditional renderEmptySection conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"
@@ -237,7 +241,7 @@ spec = do
 
     it "renders conditionals with else-branch" $ do
       let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} (Just $ (section Empty) {sectionDependencies = deps ["unix"]})
-      render defaultRenderSettings 0 (run $ renderConditional renderEmptySection conditional) `shouldBe` [
+      render (run $ renderConditional renderEmptySection conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"
@@ -249,7 +253,7 @@ spec = do
     it "renders nested conditionals" $ do
       let conditional = Conditional "arch(i386)" (section Empty) {sectionGhcOptions = ["-threaded"], sectionConditionals = [innerConditional]} Nothing
           innerConditional = Conditional "os(windows)" (section Empty) {sectionDependencies = deps ["Win32"]} Nothing
-      render defaultRenderSettings 0 (run $ renderConditional renderEmptySection conditional) `shouldBe` [
+      render (run $ renderConditional renderEmptySection conditional) `shouldBe` [
           "if arch(i386)"
         , "  ghc-options: -threaded"
         , "  if os(windows)"
@@ -260,7 +264,7 @@ spec = do
     it "conditionalises both build-depends and mixins" $ do
       let conditional = Conditional "os(windows)" (section Empty) {sectionDependencies = [("Win32", depInfo)]} Nothing
           depInfo = defaultInfo { dependencyInfoMixins = ["hiding (Blah)"] }
-      render defaultRenderSettings 0 (run $ renderConditional renderEmptySection conditional) `shouldBe` [
+      render (run $ renderConditional renderEmptySection conditional) `shouldBe` [
           "if os(windows)"
         , "  build-depends:"
         , "      Win32"
@@ -271,7 +275,7 @@ spec = do
   describe "renderFlag" $ do
     it "renders flags" $ do
       let flag = (Flag "foo" (Just "some flag") True False)
-      render defaultRenderSettings 0 (renderFlag flag) `shouldBe` [
+      render (renderFlag flag) `shouldBe` [
           "flag foo"
         , "  description: some flag"
         , "  manual: True"
@@ -281,7 +285,7 @@ spec = do
   describe "renderSourceRepository" $ do
     it "renders source-repository without subdir correctly" $ do
       let repository = SourceRepository "https://github.com/hspec/hspec" Nothing
-      (render defaultRenderSettings 0 $ renderSourceRepository repository)
+      (render $ renderSourceRepository repository)
         `shouldBe` [
             "source-repository head"
           , "  type: git"
@@ -290,7 +294,7 @@ spec = do
 
     it "renders source-repository with subdir" $ do
       let repository = SourceRepository "https://github.com/hspec/hspec" (Just "hspec-core")
-      (render defaultRenderSettings 0 $ renderSourceRepository repository)
+      (render $ renderSourceRepository repository)
         `shouldBe` [
             "source-repository head"
           , "  type: git"
@@ -300,7 +304,7 @@ spec = do
 
   describe "renderDirectories" $ do
     it "replaces . with ./. (for compatibility with cabal syntax)" $ do
-      (render defaultRenderSettings 0 $ renderDirectories "name" ["."])
+      (render $ renderDirectories "name" ["."])
         `shouldBe` [
             "name:"
           , "    ./"
