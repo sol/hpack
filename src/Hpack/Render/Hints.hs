@@ -25,6 +25,7 @@ import           Data.Char
 import           Data.Maybe
 
 import           Hpack.Render.Dsl (Alignment(..), CommaStyle(..))
+import qualified Hpack.Render.Dsl as Dsl
 import           Hpack.Util
 
 data FormattingHints = FormattingHints {
@@ -136,7 +137,7 @@ data RenderSettings = RenderSettings {
 } deriving (Eq, Show)
 
 defaultRenderSettings :: RenderSettings
-defaultRenderSettings = RenderSettings 2 0 LeadingCommas
+defaultRenderSettings = let Dsl.RenderSettings{..} = Dsl.defaultRenderSettings in RenderSettings{..}
 
 formattingHintsRenderSettings :: FormattingHints -> RenderSettings
 formattingHintsRenderSettings FormattingHints{..} = defaultRenderSettings {
