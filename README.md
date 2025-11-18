@@ -466,18 +466,18 @@ Conditionals with an else branch:
 For example,
 
     when:
-      - condition: flag(fast)
+      - condition: flag(warnings)
         then:
-          ghc-options: -O2
+          ghc-options: -W
         else:
-          ghc-options: -O0
+          ghc-options: -w
 
 becomes
 
-    if flag(fast)
-      ghc-options: -O2
+    if flag(warnings)
+      ghc-options: -W
     else
-      ghc-options: -O0
+      ghc-options: -w
 
 **Note:** Conditionals with `condition: false` are omitted from the generated
 `.cabal` file.
