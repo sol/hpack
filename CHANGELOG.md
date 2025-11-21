@@ -1,3 +1,6 @@
+## Changes in 0.39.0
+  - Handle multi-line values for the `description` field of `flags` (see #623) and other fields
+
 ## Changes in 0.38.3
   - Accept a list for `category` (see #624)
 
