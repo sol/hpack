@@ -3,11 +3,11 @@ module Hpack.Render.HintsSpec (spec) where
 import           Test.Hspec
 
 import           Hpack.Render.Hints
-import           Hpack.Render.Dsl
+import           Hpack.Render.Dsl (CommaStyle(..))
 
 spec :: Spec
 spec = do
-  describe "sniffRenderSettings" $ do
+  describe "formattingHintsRenderSettings" $ do
     context "when sniffed indentation is < default" $ do
       it "uses default instead" $ do
         let input = [
@@ -15,8 +15,9 @@ spec = do
               , "exposed-modules:"
               , "    Foo"
               ]
-        sniffIndentation input `shouldBe` Just 0
-        renderSettingsIndentation (sniffRenderSettings input) `shouldBe` 2
+            hints = sniffFormattingHints input
+        formattingHintsIndentation hints `shouldBe` Just 0
+        renderSettingsIndentation (formattingHintsRenderSettings hints) `shouldBe` 2
 
   describe "extractFieldOrder" $ do
     it "extracts field order hints" $ do

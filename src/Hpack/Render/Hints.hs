@@ -1,10 +1,13 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE RecordWildCards #-}
 module Hpack.Render.Hints (
   FormattingHints (..)
 , sniffFormattingHints
+, RenderSettings (..)
+, defaultRenderSettings
+, formattingHintsRenderSettings
 #ifdef TEST
-, sniffRenderSettings
 , extractFieldOrder
 , extractSectionsFieldOrder
 , sanitize
@@ -21,14 +24,16 @@ import           Imports
 import           Data.Char
 import           Data.Maybe
 
-import           Hpack.Render.Dsl
+import           Hpack.Render.Dsl (Alignment(..), CommaStyle(..))
+import qualified Hpack.Render.Dsl as Dsl
 import           Hpack.Util
 
 data FormattingHints = FormattingHints {
   formattingHintsFieldOrder :: [String]
 , formattingHintsSectionsFieldOrder :: [(String, [String])]
 , formattingHintsAlignment :: Maybe Alignment
-, formattingHintsRenderSettings :: RenderSettings
+, formattingHintsIndentation :: Maybe Int
+, formattingHintsCommaStyle :: Maybe CommaStyle
 } deriving (Eq, Show)
 
 sniffFormattingHints :: [String] -> FormattingHints
@@ -36,7 +41,8 @@ sniffFormattingHints (sanitize -> input) = FormattingHints {
   formattingHintsFieldOrder = extractFieldOrder input
 , formattingHintsSectionsFieldOrder = extractSectionsFieldOrder input
 , formattingHintsAlignment = sniffAlignment input
-, formattingHintsRenderSettings = sniffRenderSettings input
+, formattingHintsIndentation = sniffIndentation input
+, formattingHintsCommaStyle = sniffCommaStyle input
 }
 
 sanitize :: [String] -> [String]
@@ -124,11 +130,20 @@ sniffCommaStyle input
   where
     startsWithComma = isPrefixOf "," . dropWhile isSpace
 
-sniffRenderSettings :: [String] -> RenderSettings
-sniffRenderSettings input = RenderSettings indentation fieldAlignment commaStyle
-  where
-    indentation = max def $ fromMaybe def (sniffIndentation input)
-      where def = renderSettingsIndentation defaultRenderSettings
+data RenderSettings = RenderSettings {
+  renderSettingsIndentation :: Int
+, renderSettingsFieldAlignment :: Alignment
+, renderSettingsCommaStyle :: CommaStyle
+} deriving (Eq, Show)
 
-    fieldAlignment = renderSettingsFieldAlignment defaultRenderSettings
-    commaStyle = fromMaybe (renderSettingsCommaStyle defaultRenderSettings) (sniffCommaStyle input)
+defaultRenderSettings :: RenderSettings
+defaultRenderSettings = let Dsl.RenderSettings{..} = Dsl.defaultRenderSettings in RenderSettings{..}
+
+formattingHintsRenderSettings :: FormattingHints -> RenderSettings
+formattingHintsRenderSettings FormattingHints{..} = defaultRenderSettings {
+  renderSettingsIndentation = indentation
+, renderSettingsCommaStyle = commaStyle
+} where
+    indentation = max def $ fromMaybe def formattingHintsIndentation
+      where def = renderSettingsIndentation defaultRenderSettings
+    commaStyle = fromMaybe (renderSettingsCommaStyle defaultRenderSettings) formattingHintsCommaStyle

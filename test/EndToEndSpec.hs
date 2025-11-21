@@ -20,7 +20,7 @@ import           Data.Version (showVersion)
 
 import qualified Hpack.Render as Hpack
 import           Hpack.Config (packageConfig, readPackageConfig, DecodeOptions(..), defaultDecodeOptions, DecodeResult(..))
-import           Hpack.Render.Hints (FormattingHints(..), sniffFormattingHints)
+import           Hpack.Render.Hints (FormattingHints(..), sniffFormattingHints, formattingHintsRenderSettings)
 
 import qualified Paths_hpack as Hpack (version)
 
@@ -377,6 +377,26 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
             type: git
             location: https://github.com/hspec/hspec
           |]
+
+    describe "flags" $ do
+      it "accepts multi-line flag descriptions" $ do
+        [i|
+        flags:
+          some-flag:
+            description: |
+              some
+              flag
+              description
+            manual: True
+            default: False
+        |] `shouldRenderTo` package [i|
+        flag some-flag
+          description: some
+                       flag
+                       description
+          manual: True
+          default: False
+        |]
 
     describe "defaults" $ do
       it "accepts global defaults" $ do
@@ -2113,9 +2133,9 @@ run_ userDataDir c old = do
   return $ case mPackage of
     Right (DecodeResult pkg cabalVersion _ warnings) ->
       let
-        FormattingHints{..} = sniffFormattingHints (lines old)
+        hints@FormattingHints{..} = sniffFormattingHints (lines old)
         alignment = fromMaybe 0 formattingHintsAlignment
-        settings = formattingHintsRenderSettings
+        settings = formattingHintsRenderSettings hints
         output = cabalVersion ++ Hpack.renderPackageWith settings alignment formattingHintsFieldOrder formattingHintsSectionsFieldOrder pkg
       in
         Right (warnings, output)

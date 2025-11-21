@@ -55,7 +55,79 @@ spec = do
           ]
 
     context "when rendering a Field" $ do
-      context "when rendering a MultipleLines value" $ do
+      context "with a Literal value" $ do
+        let
+          description :: [String] -> Element
+          description = Field "description" . Literal . unlines
+
+          values :: [String]
+          values = [
+              "foo"
+            , "bar"
+            , "baz"
+            ]
+
+        it "renders field" $ do
+          render_ (Field "description" "foo") `shouldBe` ["description: foo"]
+
+        it "formats multi-line values" $ do
+          render_ (description values) `shouldBe` [
+              "description: foo"
+            , "             bar"
+            , "             baz"
+            ]
+
+        it "formats empty lines" $ do
+          let
+            field = description [
+                "foo"
+              , "   "
+              , "baz"
+              ]
+          render_ field `shouldBe` [
+              "description: foo"
+            , "             ."
+            , "             baz"
+            ]
+
+        it "correctly handles empty lines at the beginning" $ do
+          render_ (description $ "" : values) `shouldBe` [
+              "description: ."
+            , "             foo"
+            , "             bar"
+            , "             baz"
+            ]
+
+        it "takes alignment into account" $ do
+          let
+            settings :: RenderSettings
+            settings = defaultRenderSettings { renderSettingsFieldAlignment = 15 }
+
+          render settings 0 (description values) `shouldBe` [
+              "description:   foo"
+            , "               bar"
+            , "               baz"
+            ]
+
+        context "when cabal-version is >= 3" $ do
+          let
+            settings :: RenderSettings
+            settings = defaultRenderSettings { renderSettingsEmptyLinesAsDot = False }
+
+          it "preserves empty lines" $ do
+            let
+              field = description [
+                  "foo"
+                , ""
+                , "baz"
+                ]
+            render settings 0 field `shouldBe` [
+                "description: foo"
+              , ""
+              , "             baz"
+              ]
+
+      context "with MultipleLines" $ do
         it "takes nesting into account" $ do
           let field = Field "foo" (CommaSeparatedList ["bar", "baz"])
           render defaultRenderSettings 1 field `shouldBe` [
@@ -92,14 +164,14 @@ spec = do
       renderValue defaultRenderSettings (WordList ["foo", "bar", "baz"]) `shouldBe` SingleLine "foo bar baz"
 
     it "renders CommaSeparatedList" $ do
-      renderValue defaultRenderSettings (CommaSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
+      renderValue defaultRenderSettings (CommaSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines Indent [
           "  foo"
         , ", bar"
         , ", baz"
         ]
 
     it "renders LineSeparatedList" $ do
-      renderValue defaultRenderSettings (LineSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
+      renderValue defaultRenderSettings (LineSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines Indent [
           "  foo"
         , "  bar"
         , "  baz"
@@ -109,14 +181,14 @@ spec = do
       let settings = defaultRenderSettings{renderSettingsCommaStyle = TrailingCommas}
 
       it "renders CommaSeparatedList with trailing commas" $ do
-        renderValue settings (CommaSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
+        renderValue settings (CommaSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines Indent [
             "foo,"
           , "bar,"
           , "baz"
           ]
 
       it "renders LineSeparatedList without padding" $ do
-        renderValue settings (LineSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines [
+        renderValue settings (LineSeparatedList ["foo", "bar", "baz"]) `shouldBe` MultipleLines Indent [
             "foo"
           , "bar"
           , "baz"

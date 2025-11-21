@@ -33,9 +33,9 @@ jobs:
           - '9.12'
         include:
           - os: macos-latest
-            ghc: '9.10'
+            ghc: '9.12'
           - os: windows-latest
-            ghc: '9.10'
+            ghc: '9.12'
     steps:
       - uses: actions/checkout@v5
       - uses: hspec/setup-haskell@v1

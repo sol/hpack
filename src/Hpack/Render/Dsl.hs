@@ -20,12 +20,14 @@ module Hpack.Render.Dsl (
 
 #ifdef TEST
 , Lines (..)
+, IndentOrAlign (..)
 , renderValue
 , addSortKey
 #endif
 ) where
 
 import           Imports
+import           Data.Char (isSpace)
 
 data Element = Stanza String [Element] | Group Element Element | Field String Value | Verbatim String
   deriving (Eq, Show)
@@ -37,7 +39,26 @@ data Value =
   | WordList [String]
   deriving (Eq, Show)
 
-data Lines = SingleLine String | MultipleLines [String]
+data Lines = SingleLine String | MultipleLines IndentOrAlign [String]
+  deriving (Eq, Show)
+
+data IndentOrAlign =
+  Indent
+  -- ^
+  -- Indent lines, e.g.
+  --
+  -- description:
+  --   some
+  --   multiline
+  --   description
+  |
+  Align
+  -- ^
+  -- Align lines with field labels, e.g.
+  --
+  -- description: some
+  --              multiline
+  --              description
   deriving (Eq, Show)
 
 data CommaStyle = LeadingCommas | TrailingCommas
@@ -53,10 +74,11 @@ data RenderSettings = RenderSettings {
   renderSettingsIndentation :: Int
 , renderSettingsFieldAlignment :: Alignment
 , renderSettingsCommaStyle :: CommaStyle
+, renderSettingsEmptyLinesAsDot :: Bool
 } deriving (Eq, Show)
 
 defaultRenderSettings :: RenderSettings
-defaultRenderSettings = RenderSettings 2 0 LeadingCommas
+defaultRenderSettings = RenderSettings 2 0 LeadingCommas True
 
 render :: RenderSettings -> Nesting -> Element -> [String]
 render settings nesting = \ case
@@ -69,31 +91,55 @@ renderElements :: RenderSettings -> Nesting -> [Element] -> [String]
 renderElements settings nesting = concatMap (render settings nesting)
 
 renderField :: RenderSettings -> String -> Value -> [String]
-renderField settings@RenderSettings{..} name value = case renderValue settings value of
+renderField settings@RenderSettings{..} name = renderValue settings >>> \ case
   SingleLine "" -> []
-  SingleLine x -> [name ++ ": " ++ padding ++ x]
-  MultipleLines [] -> []
-  MultipleLines xs -> (name ++ ":") : map (indent settings 1) xs
+  SingleLine value -> [fieldName ++ value]
+  MultipleLines _ [] -> []
+  MultipleLines Indent values -> (name ++ ":") : map (indent settings 1) values
+  MultipleLines Align (value : values) -> (fieldName ++ value) : map align values
   where
     Alignment fieldAlignment = renderSettingsFieldAlignment
-    padding = replicate (fieldAlignment - length name - 2) ' '
+
+    fieldName :: String
+    fieldName = name ++ ": " ++ fieldNamePadding
+
+    fieldNamePadding :: String
+    fieldNamePadding = replicate (fieldAlignment - length name - 2) ' '
+
+    align :: String -> String
+    align = \ case
+      "" -> ""
+      value -> padding ++ value
+
+    padding :: String
+    padding = replicate (length fieldName) ' '
 
 renderValue :: RenderSettings -> Value -> Lines
-renderValue RenderSettings{..} v = case v of
-  Literal s -> SingleLine s
+renderValue RenderSettings{..} = \ case
+  Literal string -> case lines string of
+    [value] -> SingleLine value
+    values -> MultipleLines Align $ map emptyLineToDot values
   WordList ws -> SingleLine $ unwords ws
   LineSeparatedList xs -> renderLineSeparatedList renderSettingsCommaStyle xs
   CommaSeparatedList xs -> renderCommaSeparatedList renderSettingsCommaStyle xs
+  where
+    emptyLineToDot :: String -> String
+    emptyLineToDot xs
+      | isEmptyLine xs && renderSettingsEmptyLinesAsDot = "."
+      | otherwise = xs
+
+    isEmptyLine :: String -> Bool
+    isEmptyLine = all isSpace
 
 renderLineSeparatedList :: CommaStyle -> [String] -> Lines
-renderLineSeparatedList style = MultipleLines . map (padding ++)
+renderLineSeparatedList style = MultipleLines Indent . map (padding ++)
   where
     padding = case style of
       LeadingCommas -> "  "
       TrailingCommas -> ""
 
 renderCommaSeparatedList :: CommaStyle -> [String] -> Lines
-renderCommaSeparatedList style = MultipleLines . case style of
+renderCommaSeparatedList style = MultipleLines Indent . case style of
   LeadingCommas -> map renderLeadingComma . zip (True : repeat False)
   TrailingCommas -> map renderTrailingComma . reverse . zip (True : repeat False) . reverse
   where
@@ -111,7 +157,9 @@ instance IsString Value where
   fromString = Literal
 
 indent :: RenderSettings -> Nesting -> String -> String
-indent RenderSettings{..} (Nesting nesting) s = replicate (nesting * renderSettingsIndentation) ' ' ++ s
+indent RenderSettings{..} (Nesting nesting) = \ case
+  "" -> ""
+  s -> replicate (nesting * renderSettingsIndentation) ' ' ++ s
 
 sortFieldsBy :: [String] -> [Element] -> [Element]
 sortFieldsBy existingFieldOrder =
