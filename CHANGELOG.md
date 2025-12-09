@@ -1,3 +1,6 @@
+## Changes in 0.39.1
+  - Add support for `mhs-options` (MicroHs)
+
 ## Changes in 0.39.0
   - Handle multi-line values for the `description` field of `flags` (see #623) and other fields
 

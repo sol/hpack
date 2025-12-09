@@ -42,7 +42,6 @@ import           Data.Map.Lazy (Map)
 import qualified Data.Map.Lazy as Map
 import           Control.Monad.Reader
 
-import           Hpack.Util
 import           Hpack.Config
 import           Hpack.Render.Hints
 import           Hpack.Render.Dsl hiding (RenderSettings(..), defaultRenderSettings, sortFieldsBy)
@@ -247,14 +246,15 @@ renderSection renderSectionData extraFieldsStart Section{..} = do
       renderDirectories "hs-source-dirs" sectionSourceDirs
     , renderDefaultExtensions sectionDefaultExtensions
     , renderOtherExtensions sectionOtherExtensions
-    , renderGhcOptions sectionGhcOptions
-    , renderGhcProfOptions sectionGhcProfOptions
-    , renderGhcSharedOptions sectionGhcSharedOptions
-    , renderGhcjsOptions sectionGhcjsOptions
-    , renderCppOptions sectionCppOptions
-    , renderAsmOptions sectionAsmOptions
-    , renderCcOptions sectionCcOptions
-    , renderCxxOptions sectionCxxOptions
+    , Field "mhs-options" $ WordList sectionMhsOptions
+    , Field "ghc-options" $ WordList sectionGhcOptions
+    , Field "ghc-prof-options" $ WordList sectionGhcProfOptions
+    , Field "ghc-shared-options" $ WordList sectionGhcSharedOptions
+    , Field "ghcjs-options" $ WordList sectionGhcjsOptions
+    , Field "cpp-options" $ WordList sectionCppOptions
+    , Field "asm-options" $ WordList sectionAsmOptions
+    , Field "cc-options" $ WordList sectionCcOptions
+    , Field "cxx-options" $ WordList sectionCxxOptions
     , renderDirectories "include-dirs" sectionIncludeDirs
     , Field "install-includes" (LineSeparatedList sectionInstallIncludes)
     , Field "asm-sources" (renderPaths sectionAsmSources)
@@ -265,7 +265,7 @@ renderSection renderSectionData extraFieldsStart Section{..} = do
     , Field "extra-libraries" (LineSeparatedList sectionExtraLibraries)
     , renderDirectories "extra-frameworks-dirs" sectionExtraFrameworksDirs
     , Field "frameworks" (LineSeparatedList sectionFrameworks)
-    , renderLdOptions sectionLdOptions
+    , Field "ld-options" $ WordList sectionLdOptions
     , Field "pkgconfig-depends" (CommaSeparatedList sectionPkgConfigDependencies)
     ]
     ++ buildTools
@@ -407,33 +407,6 @@ renderSystemBuildTool (name, constraint) = name ++ renderVersionConstraint const
 
 renderLanguage :: Language -> Element
 renderLanguage (Language lang) = Field "default-language" (Literal lang)
-
-renderGhcOptions :: [GhcOption] -> Element
-renderGhcOptions = Field "ghc-options" . WordList
-
-renderGhcProfOptions :: [GhcProfOption] -> Element
-renderGhcProfOptions = Field "ghc-prof-options" . WordList
-
-renderGhcSharedOptions :: [GhcOption] -> Element
-renderGhcSharedOptions = Field "ghc-shared-options" . WordList
-
-renderGhcjsOptions :: [GhcjsOption] -> Element
-renderGhcjsOptions = Field "ghcjs-options" . WordList
-
-renderCppOptions :: [CppOption] -> Element
-renderCppOptions = Field "cpp-options" . WordList
-
-renderAsmOptions :: [AsmOption] -> Element
-renderAsmOptions = Field "asm-options" . WordList
-
-renderCcOptions :: [CcOption] -> Element
-renderCcOptions = Field "cc-options" . WordList
-
-renderCxxOptions :: [CxxOption] -> Element
-renderCxxOptions = Field "cxx-options" . WordList
-
-renderLdOptions :: [LdOption] -> Element
-renderLdOptions = Field "ld-options" . WordList
 
 renderBuildable :: Bool -> Element
 renderBuildable = Field "buildable" . Literal . show
