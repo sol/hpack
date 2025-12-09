@@ -248,6 +248,7 @@ values are merged with per section values.
 | `default-extensions` | · | | |
 | `language` | `default-language` | `Haskell2010` | Also accepts `Haskell98`, `GHC2021` or `GHC2024`. Per section takes precedence over top-level |
 | `other-extensions` | · | | |
+| `mhs-options` | · | | Options for [MicroHs](https://github.com/augustss/MicroHs) |
 | `ghc-options` | · | | |
 | `ghc-prof-options` | · | | |
 | `ghc-shared-options` | · | | |

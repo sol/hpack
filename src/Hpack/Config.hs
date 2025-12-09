@@ -201,7 +201,7 @@ packageDependencies Package{..} = nub . sortBy (comparing (lexicographically . f
     deps xs = [(name, info) | (name, info) <- (Map.toList . unDependencies . sectionDependencies) xs]
 
 section :: a -> Section a
-section a = Section a [] mempty [] [] [] Nothing [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
+section a = Section a [] mempty [] [] [] Nothing [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] [] Nothing [] mempty mempty []
 
 packageConfig :: FilePath
 packageConfig = "package.yaml"
@@ -288,6 +288,7 @@ data CommonOptions asmSources cSources cxxSources jsSources a = CommonOptions {
 , commonOptionsDefaultExtensions :: Maybe (List String)
 , commonOptionsOtherExtensions :: Maybe (List String)
 , commonOptionsLanguage :: Alias 'True "default-language" (Last (Maybe Language))
+, commonOptionsMhsOptions :: Maybe (List GhcOption)
 , commonOptionsGhcOptions :: Maybe (List GhcOption)
 , commonOptionsGhcProfOptions :: Maybe (List GhcProfOption)
 , commonOptionsGhcSharedOptions :: Maybe (List GhcOption)
@@ -325,6 +326,7 @@ instance (Semigroup asmSources, Semigroup cSources, Semigroup cxxSources, Semigr
   , commonOptionsDefaultExtensions = Nothing
   , commonOptionsOtherExtensions = Nothing
   , commonOptionsLanguage = mempty
+  , commonOptionsMhsOptions = Nothing
   , commonOptionsGhcOptions = Nothing
   , commonOptionsGhcProfOptions = Nothing
   , commonOptionsGhcSharedOptions = Nothing
@@ -360,6 +362,7 @@ instance (Semigroup asmSources, Semigroup cSources, Semigroup cxxSources, Semigr
   , commonOptionsDefaultExtensions = commonOptionsDefaultExtensions a <> commonOptionsDefaultExtensions b
   , commonOptionsOtherExtensions = commonOptionsOtherExtensions a <> commonOptionsOtherExtensions b
   , commonOptionsLanguage = commonOptionsLanguage a <> commonOptionsLanguage b
+  , commonOptionsMhsOptions = commonOptionsMhsOptions a <> commonOptionsMhsOptions b
   , commonOptionsGhcOptions = commonOptionsGhcOptions a <> commonOptionsGhcOptions b
   , commonOptionsGhcProfOptions = commonOptionsGhcProfOptions a <> commonOptionsGhcProfOptions b
   , commonOptionsGhcSharedOptions = commonOptionsGhcSharedOptions a <> commonOptionsGhcSharedOptions b
@@ -1088,6 +1091,7 @@ data Section a = Section {
 , sectionDefaultExtensions :: [String]
 , sectionOtherExtensions :: [String]
 , sectionLanguage :: Maybe Language
+, sectionMhsOptions :: [GhcOption]
 , sectionGhcOptions :: [GhcOption]
 , sectionGhcProfOptions :: [GhcProfOption]
 , sectionGhcSharedOptions :: [GhcOption]
@@ -1589,6 +1593,7 @@ toSection packageName_ executableNames = go
       , sectionDefaultExtensions = fromMaybeList commonOptionsDefaultExtensions
       , sectionOtherExtensions = fromMaybeList commonOptionsOtherExtensions
       , sectionLanguage = join . getLast $ unAlias commonOptionsLanguage
+      , sectionMhsOptions = fromMaybeList commonOptionsMhsOptions
       , sectionGhcOptions = fromMaybeList commonOptionsGhcOptions
       , sectionGhcProfOptions = fromMaybeList commonOptionsGhcProfOptions
       , sectionGhcSharedOptions = fromMaybeList commonOptionsGhcSharedOptions
