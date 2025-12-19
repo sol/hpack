@@ -21,7 +21,7 @@ spec = do
     it "rejects .lock at the end of a component" $ do
       isValidRef "foo/bar.lock/baz" `shouldBe` False
 
-    it "rejects . at the biginning of a component" $ do
+    it "rejects . at the beginning of a component" $ do
       isValidRef "foo/.bar/baz" `shouldBe` False
 
     it "rejects two consecutive dots .." $ do
