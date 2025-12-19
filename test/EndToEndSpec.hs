@@ -846,7 +846,7 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
           |] `shouldRenderTo` (executable_ "my-package" [i|
           build-tools:
               ghc >=7.10
-          |]) { packageWarnings = ["Listing \"ghc\" under build-tools is deperecated! Please list system executables under system-build-tools instead!"] }
+          |]) { packageWarnings = ["Listing \"ghc\" under build-tools is deprecated! Please list system executables under system-build-tools instead!"] }
 
     describe "system-build-tools" $ do
       it "adds system build tools to build-tools" $ do

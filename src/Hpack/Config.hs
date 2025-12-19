@@ -1678,7 +1678,7 @@ toBuildTool packageName_ executableNames = \ case
       , "nix-build"
       ]
     warnLegacyTool pkg name = tell ["Usage of the unqualified build-tool name " ++ show name ++ " is deprecated! Please use the qualified name \"" ++ pkg ++ ":" ++ name ++ "\" instead!"]
-    warnLegacySystemTool name = tell ["Listing " ++ show name ++ " under build-tools is deperecated! Please list system executables under system-build-tools instead!"]
+    warnLegacySystemTool name = tell ["Listing " ++ show name ++ " under build-tools is deprecated! Please list system executables under system-build-tools instead!"]
 
 pathsModuleFromPackageName :: String -> Module
 pathsModuleFromPackageName name =

@@ -166,7 +166,7 @@ spec = do
 
       context "when name matches a legacy system build tool" $ do
         it "warns" $ do
-          toBuildTool_ (UnqualifiedBuildTool "ghc") `shouldBe` (Left ("ghc", AnyVersion), ["Listing \"ghc\" under build-tools is deperecated! Please list system executables under system-build-tools instead!"])
+          toBuildTool_ (UnqualifiedBuildTool "ghc") `shouldBe` (Left ("ghc", AnyVersion), ["Listing \"ghc\" under build-tools is deprecated! Please list system executables under system-build-tools instead!"])
 
     context "with a QualifiedBuildTool" $ do
       context "when only package matches the current package" $ do
