@@ -405,6 +405,10 @@ specify the individual dependencies:
 Individual dependencies as objects are only supported from version
 `0.31.0`.
 
+When the Cabal file version is 3.4 or greater, a dependency on a named library
+component of the same package must use the `package-name:library-name` format
+introduced in Cabal file version 3.0.
+
 When a dependency is specified as an object, you can use the `mixin`
 field to control what modules from the dependency your program will
 see and how its signatures are filled in:
