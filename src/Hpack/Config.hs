@@ -629,10 +629,37 @@ data GitHub = GitHub {
 instance FromValue GitHub where
   fromValue v = do
     input <- fromValue v
-    case map T.unpack $ T.splitOn "/" input of
-      [owner, repo, subdir] -> return $ GitHub owner repo (Just subdir)
-      [owner, repo] -> return $ GitHub owner repo Nothing
-      _ -> fail $ "expected owner/repo or owner/repo/subdir, but encountered " ++ show input
+    let parsed = case map T.unpack $ T.splitOn "/" input of
+          -- Bad: empty: ""
+          [] ->
+            Nothing
+
+          -- Bad: starts with a slash: "/..."
+          "" : _rest ->
+            Nothing
+
+          -- Bad: starts with an URL-like protocol: "https:...", "git:..."
+          proto : _rest | last proto == ':' ->
+            Nothing
+
+          -- Bad: single path piece: "sol"
+          [_owner] ->
+            Nothing
+
+          -- Good: "sol/hpack"
+          [owner, repo] ->
+
+            Just $ GitHub owner repo Nothing
+
+          -- Good: "sol/hpack/subdir", "sol/hpack/deep/subdir/..."
+          owner : repo : subdirs ->
+            Just $ GitHub owner repo (Just $ intercalate "/" subdirs)
+
+    case parsed of
+      Nothing ->
+        fail $ "expected \"owner/repo\" or \"owner/repo/subdir\", but encountered " ++ show input
+      Just ok ->
+        return ok
 
 data DefaultsConfig = DefaultsConfig {
   defaultsConfigDefaults :: Maybe (List Defaults)
