@@ -458,6 +458,49 @@ becomes
       extra-lib-dirs:
         lib/darwin
 
+Multiple conditionals must fall under one `when`, for example:
+
+    when:
+      - condition: os(darwin)
+        extra-lib-dirs: lib/darwin
+      - condition: os(linux)
+        extra-lib-dirs: /usr/lib/x64
+
+becomes
+
+    if os(darwin)
+      extra-lib-dirs:
+        lib/darwin
+    if os(linux)
+      extra-lib-dirs:
+        /usr/lib/x64
+
+If conditionals are declared under different `when` clauses only the last one
+will make it to the `.cabal` file:
+
+    when:
+      - condition: os(darwin)
+        extra-lib-dirs: lib/darwin
+    when:
+      - condition: os(linux)
+        extra-lib-dirs: /usr/lib/x64
+
+becomes:
+
+    if os(linux)
+      extra-lib-dirs:
+        /usr/lib/x64
+
+Unlike with `.cabal` files compound predicates need to be in parens, for example:
+
+    when:
+      - condition: (!os(darwin) && !os(windows))
+        ghc-options: ...
+
+If they are not the YAML parser will throw this mysterious error:
+
+    ./package.yaml:41:31: did not find expected alphabetic or numeric character while scanning an anchor
+
 Conditionals with an else branch:
 
 - Must have a `condition` field
