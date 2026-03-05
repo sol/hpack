@@ -1,3 +1,6 @@
+## Changes in 0.39.2
+  - Depend on `cryptohash-sha256`, rather than `crypton`, for SHA256 hashes
+
 ## Changes in 0.39.1
   - Add support for `mhs-options` (MicroHs)
 

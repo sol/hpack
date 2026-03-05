@@ -32,7 +32,7 @@ import           System.Directory
 import           System.FilePath
 import qualified System.FilePath.Posix as Posix
 import           System.FilePath.Glob
-import           Crypto.Hash
+import qualified Crypto.Hash.SHA256 as SHA256
 
 import           Hpack.Haskell
 import           Hpack.Utf8 as Utf8
@@ -130,7 +130,7 @@ expandGlobs name dir patterns = do
 type Hash = String
 
 sha256 :: String -> Hash
-sha256 c = show (hash (Utf8.encodeUtf8 c) :: Digest SHA256)
+sha256 c = show (SHA256.hash (Utf8.encodeUtf8 c))
 
 nub :: Ord a => [a] -> [a]
 nub = nubOn id
