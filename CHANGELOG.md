@@ -1,3 +1,7 @@
+## Changes in 0.39.3
+  - Add upper bound `crypton < 1.1`, as dependency `http-client-tls <= 0.3.6.4`
+    does not support `crypton-1.1.0` but does not itself have an upper bound.
+
 ## Changes in 0.39.2
   - Depend on `cryptohash-sha256`, rather than `crypton`, for SHA256 hashes
 
