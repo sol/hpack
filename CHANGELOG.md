@@ -1,3 +1,6 @@
+## Changes in 0.39.4
+  - Remove upper on `crypton`
+
 ## Changes in 0.39.3
   - Add upper bound `crypton < 1.1`, as dependency `http-client-tls <= 0.3.6.4`
     does not support `crypton-1.1.0` but does not itself have an upper bound.
