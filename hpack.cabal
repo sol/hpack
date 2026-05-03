@@ -5,9 +5,9 @@ cabal-version: 2.0
 -- see: https://github.com/sol/hpack
 
 name:           hpack
-version:        0.39.3
+version:        0.39.4
 synopsis:       A modern format for Haskell packages
-description:    See README at <https://github.com/sol/hpack#readme>
+description:    See the README at <https://github.com/sol/hpack#readme>
 category:       Development
 homepage:       https://github.com/sol/hpack#readme
 bug-reports:    https://github.com/sol/hpack/issues
@@ -72,7 +72,6 @@ library
     , bytestring
     , containers
     , cryptohash-sha256
-    , crypton <1.1
     , deepseq
     , directory >=1.2.5.0
     , filepath
@@ -107,7 +106,6 @@ executable hpack
     , bytestring
     , containers
     , cryptohash-sha256
-    , crypton <1.1
     , deepseq
     , directory >=1.2.5.0
     , filepath
@@ -206,7 +204,6 @@ test-suite spec
     , bytestring
     , containers
     , cryptohash-sha256
-    , crypton <1.1
     , deepseq
     , directory >=1.2.5.0
     , filepath
