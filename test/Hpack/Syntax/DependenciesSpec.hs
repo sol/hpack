@@ -29,6 +29,9 @@ spec = do
     it "accepts dependencies with multiple subcomponents" $ do
       parseDependency "dependency" "foo:{bar,baz}" `shouldReturn` ("foo:{bar,baz}", DependencyVersion Nothing AnyVersion)
 
+    it "accepts dependencies with multiple subcomponents including the main library" $ do
+      parseDependency "dependency" "foo:{foo,bar,baz}" `shouldReturn` ("foo:{foo,bar,baz}", DependencyVersion Nothing AnyVersion)
+
   describe "fromValue" $ do
     context "when parsing Dependencies" $ do
       context "with a scalar" $ do
