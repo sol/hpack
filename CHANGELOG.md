@@ -1,3 +1,8 @@
+## Changes in 0.39.5
+  - When rendering build dependencies in a Cabal file, Hpack no longer excludes
+    the reference to the main library from the shorthand syntax such as
+    `my-package:{my-package,my-library1,mylibrary2}`.
+
 ## Changes in 0.39.4
   - Remove upper on `crypton`
 

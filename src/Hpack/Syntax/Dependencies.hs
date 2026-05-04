@@ -73,10 +73,15 @@ parseDependency :: Fail.MonadFail m => String -> Text -> m (String, DependencyVe
 parseDependency subject = fmap fromCabal . cabalParse subject . T.unpack
   where
     fromCabal :: D.Dependency -> (String, DependencyVersion)
-    fromCabal d = (toName (D.depPkgName d) (DependencySet.toList $ D.depLibraries d), DependencyVersion Nothing . versionConstraintFromCabal $ D.depVerRange d)
+    fromCabal (D.Dependency pkgName verRange libraries) =
+      (depName, DependencyVersion Nothing $ versionConstraintFromCabal verRange)
+      where
+        depName :: String
+        depName = prettyShow pkgName <> case DependencySet.toList libraries of
+          [D.LMainLibName] -> ""
+          [D.LSubLibName name] -> ":" <> prettyShow name
+          xs -> ":{" <> intercalate "," (map renderComponent xs) <> "}"
 
-    toName :: D.PackageName -> [D.LibraryName] -> String
-    toName package components = prettyShow package <> case components of
-      [D.LMainLibName] -> ""
-      [D.LSubLibName lib] -> ":" <> prettyShow lib
-      xs -> ":{" <> (intercalate "," $ map prettyShow [name | D.LSubLibName name <- xs]) <> "}"
+        renderComponent :: D.LibraryName -> String
+        renderComponent D.LMainLibName = prettyShow pkgName
+        renderComponent (D.LSubLibName name) = prettyShow name
