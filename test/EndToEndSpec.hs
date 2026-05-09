@@ -314,6 +314,18 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         github: https://github.com/sol/hpack/issues/365
         |] `shouldFailWith` "package.yaml: Error while parsing $.github - expected owner/repo or owner/repo/subdir, but encountered \"https://github.com/sol/hpack/issues/365\""
 
+    describe "codeberg" $ do
+      it "accepts owner/repo" $ do
+        [i|
+        codeberg: sol/hpack
+        |] `shouldRenderTo` package [i|
+        homepage: https://codeberg.org/sol/hpack#readme
+        bug-reports: https://codeberg.org/sol/hpack/issues
+        source-repository head
+          type: git
+          location: https://codeberg.org/sol/hpack
+        |]
+
     describe "homepage" $ do
       it "accepts homepage URL" $ do
         [i|

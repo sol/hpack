@@ -133,8 +133,8 @@ library:
 | `description` | · | | | | |
 | `category` | · | | May be a list (since `0.38.3`) | | |
 | `stability` | · | | | | |
-| `homepage` | · | If `github` given, `<repo>#readme` | | | |
-| `bug-reports` | · | If `github` given, `<repo>/issues` | | | |
+| `homepage` | · | If `codeberg` or `github` is given, `<repo>#readme` | | | |
+| `bug-reports` | · | If `codeberg` or `github` is given, `<repo>/issues` | | | |
 | `author` | · | | May be a list | | |
 | `maintainer` | · | `author` | May be a list | | |
 | `copyright` | · | | May be a list | |
@@ -147,6 +147,7 @@ library:
 | `extra-files` | · | | Accepts [glob patterns](#file-globbing) | | `0.38.1` |
 | `data-files` | · | | Accepts [glob patterns](#file-globbing) | | |
 | `data-dir` | · | | | | |
+| `codeberg` | `source-repository head` | | Accepts `owner/repo` or `owner/repo/subdir` | `codeberg: foo/bar` |
 | `github` | `source-repository head` | | Accepts `owner/repo` or `owner/repo/subdir` | `github: foo/bar` |
 | `git`    | `source-repository head` | | No effect if `github` given | `git: https://my.repo.com/foo` | |
 | `custom-setup` | · | | See [Custom setup](#custom-setup) | | |

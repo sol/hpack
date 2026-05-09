@@ -610,6 +610,7 @@ data PackageConfig_ library executable = PackageConfig {
 , packageConfigDataFiles :: Maybe (List FilePath)
 , packageConfigDataDir :: Maybe FilePath
 , packageConfigGithub :: Maybe GitHub
+, packageConfigCodeberg :: Maybe GitHub
 , packageConfigGit :: Maybe String
 , packageConfigCustomSetup :: Maybe CustomSetupSection
 , packageConfigLibrary :: Maybe library
@@ -1380,7 +1381,7 @@ toPackage_ dir (Product g PackageConfig{..}) = do
         f name = "Specified source-dir " ++ show name ++ " does not exist"
 
     sourceRepository :: Maybe SourceRepository
-    sourceRepository = github <|> (`SourceRepository` Nothing) <$> packageConfigGit
+    sourceRepository = codeberg <|> github <|> (`SourceRepository` Nothing) <$> packageConfigGit
 
     github :: Maybe SourceRepository
     github = toSourceRepository <$> packageConfigGithub
@@ -1388,18 +1389,26 @@ toPackage_ dir (Product g PackageConfig{..}) = do
         toSourceRepository :: GitHub -> SourceRepository
         toSourceRepository (GitHub owner repo subdir) = SourceRepository (githubBaseUrl ++ owner ++ "/" ++ repo) subdir
 
+    codeberg :: Maybe SourceRepository
+    codeberg = toSourceRepository <$> packageConfigCodeberg
+      where
+        toSourceRepository :: GitHub -> SourceRepository
+        toSourceRepository (GitHub owner repo subdir) = SourceRepository (codebergBaseUrl ++ owner ++ "/" ++ repo) subdir
+
     homepage :: Maybe String
     homepage = case packageConfigHomepage of
       Just Nothing -> Nothing
-      _ -> join packageConfigHomepage <|> fromGithub
+      _ -> join packageConfigHomepage <|> fromCodeberg <|> fromGithub
       where
+        fromCodeberg = (++ "#readme") . sourceRepositoryUrl <$> codeberg
         fromGithub = (++ "#readme") . sourceRepositoryUrl <$> github
 
     bugReports :: Maybe String
     bugReports = case packageConfigBugReports of
       Just Nothing -> Nothing
-      _ -> join packageConfigBugReports <|> fromGithub
+      _ -> join packageConfigBugReports <|> fromCodeberg <|> fromGithub
       where
+        fromCodeberg = (++ "/issues") . sourceRepositoryUrl <$> codeberg
         fromGithub = (++ "/issues") . sourceRepositoryUrl <$> github
 
     maintainer :: Maybe (List String)
