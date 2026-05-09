@@ -4,6 +4,7 @@
 {-# LANGUAGE ViewPatterns #-}
 module Hpack.Syntax.DependencyVersion (
   githubBaseUrl
+, codebergBaseUrl
 , GitRef
 , GitUrl
 
@@ -44,6 +45,9 @@ import           Data.Aeson.Config.FromValue
 
 githubBaseUrl :: String
 githubBaseUrl = "https://github.com/"
+
+codebergBaseUrl :: String
+codebergBaseUrl = "https://codeberg.org/"
 
 type GitUrl = String
 type GitRef = String
