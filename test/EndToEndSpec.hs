@@ -703,7 +703,20 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
             CHANGES.markdown
             README.markdown
         |]) {packageCabalVersion = "1.18"}
-
+      it "accepts exclusion patterns" $ do 
+        touch "CHANGES.markdown"
+        touch "README.markdown"
+        touch "LICENSE.markdown"
+        [i|
+        extra-doc-files:
+          - "*.markdown"
+          - "!LICENSE.markdown"
+        |] `shouldRenderTo` (package [i|
+        extra-doc-files:
+            CHANGES.markdown
+            README.markdown
+        |]) {packageCabalVersion = "1.18"}
+ 
       it "warns if a glob pattern does not match anything" $ do
         [i|
         name: foo
@@ -1257,7 +1270,17 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
             cbits/baz.c
             cbits/foo.c
         |]
-
+      it "accepts exclusion patterns" $ do 
+        [i|
+        library:
+          c-sources:
+            - cbits/*.c
+            - "!cbits/foo.c"
+        |] `shouldRenderTo` library_ [i|
+        c-sources:
+            cbits/bar.c
+            cbits/baz.c
+        |]
       it "warns when a glob pattern does not match any files" $ do
         [i|
         name: foo
