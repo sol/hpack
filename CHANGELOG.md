@@ -1,3 +1,7 @@
+## Changes in UNRELEASED
+  - Infer `cabal-version: 3.0` when custom setup has sublibraries as
+    dependencies.
+
 ## Changes in 0.39.6
   - Add support for top-level field `codeberg`
 

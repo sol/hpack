@@ -836,6 +836,7 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
     inferredVersion = fromMaybe packageCabalVersion $ maximum [
         makeVersion [2,2] <$ guard mustSPDX
       , makeVersion [1,24] <$ packageCustomSetup
+      , subLibDepsSyntaxCabalVersion <$ (guard . hasAnySubcomponents . customSetupDependencies =<< packageCustomSetup)
       , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
       , makeVersion [3,14] <$ guard (not (null packageExtraFiles))
       , packageLibrary >>= libraryCabalVersion
@@ -844,6 +845,9 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
       , executablesCabalVersion packageTests
       , executablesCabalVersion packageBenchmarks
       ]
+
+    hasAnySubcomponents :: Dependencies -> Bool
+    hasAnySubcomponents = any hasSubcomponents . Map.keys . unDependencies
 
     libraryCabalVersion :: Section Library -> Maybe CabalVersion
     libraryCabalVersion sect = maximum [
@@ -867,6 +871,9 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
 
     hasPackageInfoModule :: [Module] -> Bool
     hasPackageInfoModule = any (== packageInfoModule)
+
+    subLibDepsSyntaxCabalVersion :: CabalVersion
+    subLibDepsSyntaxCabalVersion = makeVersion [3,0]
 
     internalLibsCabalVersion :: Map String (Section Library) -> Maybe CabalVersion
     internalLibsCabalVersion internalLibraries
@@ -899,7 +906,7 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
       , makeVersion [3,0] <$ guard (sectionSatisfies (not . null . sectionAsmOptions) sect)
       , makeVersion [3,0] <$ guard (sectionSatisfies (not . null . sectionAsmSources) sect)
       , makeVersion [2,0] <$ guard (sectionSatisfies (any hasMixins . unDependencies . sectionDependencies) sect)
-      , makeVersion [3,0] <$ guard (sectionSatisfies (any hasSubcomponents . Map.keys . unDependencies . sectionDependencies) sect)
+      , subLibDepsSyntaxCabalVersion <$ guard (sectionSatisfies (hasAnySubcomponents . sectionDependencies) sect)
       , makeVersion [2,2] <$ guard (
               uses "RebindableSyntax"
           && (uses "OverloadedStrings" || uses "OverloadedLists")
