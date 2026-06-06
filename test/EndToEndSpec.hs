@@ -1300,14 +1300,24 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
           , "package.yaml: Ignoring unrecognized field $.custom-setup.foo"
           ]
 
-      it "accepts dependencies" $ do
+      it "accepts package dependencies" $ do
         [i|
         custom-setup:
           dependencies:
             - base
-        |] `shouldRenderTo` customSetup [i|
+        |] `shouldRenderTo` customSetupWithCabalVersion "1.24" [i|
         setup-depends:
             base
+        |]
+
+      it "accepts sublibrary dependencies" $ do
+        [i|
+        custom-setup:
+          dependencies:
+            - pkg:lib
+        |] `shouldRenderTo` customSetupWithCabalVersion "3.0" [i|
+        setup-depends:
+            pkg:lib
         |]
 
       it "leaves build-type alone, if it exists" $ do
@@ -1316,7 +1326,7 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         custom-setup:
           dependencies:
             - base
-        |] `shouldRenderTo` (customSetup [i|
+        |] `shouldRenderTo` (customSetupWithCabalVersion "1.24" [i|
         setup-depends:
             base
         |]) {packageBuildType = "Make"}
@@ -2179,8 +2189,8 @@ shouldFailWith input expected = do
   writeFile packageConfig input
   run_ "" packageConfig "" `shouldReturn` Left expected
 
-customSetup :: String -> Package
-customSetup a = (package content) {packageCabalVersion = "1.24", packageBuildType = "Custom"}
+customSetupWithCabalVersion :: String -> String -> Package
+customSetupWithCabalVersion cabalVersion a = (package content) {packageCabalVersion = cabalVersion, packageBuildType = "Custom"}
   where
     content = [i|
 custom-setup
