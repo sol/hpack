@@ -873,7 +873,7 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
     hasPackageInfoModule = any (== packageInfoModule)
 
     subLibDepsSyntaxCabalVersion :: CabalVersion
-    subLibDepsSyntaxCabalVersion = makeVersion [3,0]
+    subLibDepsSyntaxCabalVersion = makeVersion [3,4]
 
     internalLibsCabalVersion :: Map String (Section Library) -> Maybe CabalVersion
     internalLibsCabalVersion internalLibraries

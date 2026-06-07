@@ -1,6 +1,7 @@
-## Changes in UNRELEASED
-  - Infer `cabal-version: 3.0` when custom setup has sublibraries as
-    dependencies.
+## Changes in 0.40.0
+  - Infer `cabal-version: 3.4` (rather than `cabal-version: 3.0`) when a section
+    has sublibraries as dependencies. Make the same inference when custom setup
+    has such dependencies.
 
 ## Changes in 0.39.6
   - Add support for top-level field `codeberg`

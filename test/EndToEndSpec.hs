@@ -936,7 +936,7 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
             Paths_my_package
         build-depends:
             foo:bar
-        |]) {packageCabalVersion = "3.0"}
+        |]) {packageCabalVersion = "3.4"}
 
       it "accepts list of dependencies" $ do
         [i|
@@ -1315,7 +1315,7 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         custom-setup:
           dependencies:
             - pkg:lib
-        |] `shouldRenderTo` customSetupWithCabalVersion "3.0" [i|
+        |] `shouldRenderTo` customSetupWithCabalVersion "3.4" [i|
         setup-depends:
             pkg:lib
         |]
