@@ -102,6 +102,7 @@ renderPackageWith RenderSettings{..} headerFieldsAlignment existingFieldOrder se
     stanzas = flip runReader (RenderEnv packageCabalVersion packageName) $ do
       library <- maybe (return []) (fmap return . renderLibrary) packageLibrary
       internalLibraries <- renderInternalLibraries packageInternalLibraries
+      foreignLibraries <- renderForeignLibraries packageForeignLibraries
       executables <- renderExecutables packageExecutables
       tests <- renderTests packageTests
       benchmarks <- renderBenchmarks packageBenchmarks
@@ -111,6 +112,7 @@ renderPackageWith RenderSettings{..} headerFieldsAlignment existingFieldOrder se
         , map renderFlag packageFlags
         , library
         , internalLibraries
+        , foreignLibraries
         , executables
         , tests
         , benchmarks
@@ -175,6 +177,26 @@ renderInternalLibrary :: (String, Section Library) -> RenderM Element
 renderInternalLibrary (name, sect) = do
   Stanza ("library " ++ name) <$> renderLibrarySection sect
 
+renderForeignLibraries :: Map String (Section ForeignLibrary) -> RenderM [Element]
+renderForeignLibraries = traverse renderForeignLibrary . Map.toList
+
+renderForeignLibrary :: (String, Section ForeignLibrary) -> RenderM Element
+renderForeignLibrary (name, sect) =
+  Stanza ("foreign-library " ++ name) <$> (renderForeignLibrarySection [] sect')
+ where
+  -- Cabal supports 'options: standalone' only and requires it to be set on
+  -- Windows and to be not set on all other operating systems:
+  sect' =
+    sect { sectionConditionals = conditionalOptions : sectionConditionals sect }
+  conditionalOptions = Conditional {
+      conditionalCondition = CondExpression "os(windows)"
+    , conditionalThen =
+        emptySectionForeignLibrary { sectionData = optionsStandalone }
+    , conditionalElse = Nothing
+    }
+  optionsStandalone =
+    emptyForeignLibrary { foreignLibraryOptions = Just ["standalone"] }
+
 renderExecutables :: Map String (Section Executable) -> RenderM [Element]
 renderExecutables = traverse renderExecutable . Map.toList
 
@@ -207,6 +229,19 @@ renderExecutableFields Executable{..} = mainIs ++ [otherModules, generatedModule
     mainIs = maybe [] (return . Field "main-is" . Literal) executableMain
     otherModules = renderOtherModules executableOtherModules
     generatedModules = renderGeneratedModules executableGeneratedModules
+
+renderForeignLibrarySection :: [Element] -> Section ForeignLibrary -> RenderM [Element]
+renderForeignLibrarySection extraFields = renderSection renderForeignLibraryFields extraFields
+
+renderForeignLibraryFields :: ForeignLibrary -> [Element]
+renderForeignLibraryFields ForeignLibrary{..} =
+  typeField ++ libVersionInfo ++ options ++ [otherModules, generatedModules]
+  where
+    typeField = maybe [] (return . Field "type" . Literal) foreignLibraryType
+    libVersionInfo = maybe [] (return . Field "lib-version-info" . Literal) foreignLibraryLibVersionInfo
+    options = maybe [] (\opts -> [renderForeignLibOptions opts]) foreignLibraryOptions
+    otherModules = renderOtherModules foreignLibraryOtherModules
+    generatedModules = renderGeneratedModules foreignLibraryGeneratedModules
 
 renderCustomSetup :: CustomSetup -> Element
 renderCustomSetup CustomSetup{..} =
@@ -323,6 +358,9 @@ renderDirectories name = Field name . LineSeparatedList . replaceDots
     replaceDot xs = case xs of
       "." -> "./"
       _ -> xs
+
+renderForeignLibOptions :: [String] -> Element
+renderForeignLibOptions = Field "options" . LineSeparatedList
 
 renderExposedModules :: [Module] -> Element
 renderExposedModules = Field "exposed-modules" . LineSeparatedList . map unModule

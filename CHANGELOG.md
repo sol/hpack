@@ -1,3 +1,7 @@
+## Changes in UNRELEASED
+  - Add new section: `foreign-libraries`, for Cabal 2.0's `foreign-library`
+    stanzas (see #518)
+
 ## Changes in 0.40.0
   - Infer `cabal-version: 3.4` (rather than `cabal-version: 3.0`) when a section
     has sublibraries as dependencies. Make the same inference when custom setup

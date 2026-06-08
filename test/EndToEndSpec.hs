@@ -1822,6 +1822,30 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
                   windows
             |]
 
+    describe "foreign libraries" $ do
+      it "Foreign Library stanza with type and options" $ do
+        [i|
+        foreign-libraries:
+          my-library: {}
+        |] `shouldRenderTo` (foreignLibrary "my-library" [i|
+        type: native-shared
+        default-language: Haskell2010
+        if os(windows)
+          options:
+              standalone
+        |])
+
+      it "Foreign Library stanza named after package" $ do
+        [i|
+        foreign-library: {}
+        |] `shouldRenderTo` (foreignLibrary "my-package" [i|
+        type: native-shared
+        default-language: Haskell2010
+        if os(windows)
+          options:
+              standalone
+        |])
+
     describe "executables" $ do
       it "accepts main-is as an alias for main" $ do
         [i|
@@ -2223,6 +2247,14 @@ internalLibrary name e = (package content) {packageCabalVersion = "2.0"}
 library #{name}
 #{indentBy 2 $ unindent e}
   default-language: Haskell2010
+|]
+
+foreignLibrary :: String -> String -> Package
+foreignLibrary name e = package content
+  where
+    content = [i|
+foreign-library #{name}
+#{indentBy 2 $ unindent e}
 |]
 
 executable_ :: String -> String -> Package

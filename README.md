@@ -158,6 +158,8 @@ library:
 | `executable` | `executable <package-name>` | | Shortcut for `executables: { package-name: ... }` | | `0.18.0` |
 | `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | | |
 | `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | | |
+| `foreign-libraries` | `foreign-library <name>` | | Map from foreign library name to foreign library (see [Foreign library fields](#foreign-library-fields)) | | UNRELEASED |
+| `foreign-library` | `foreign-library <name>` | | Shortcut for `foreign-libraries: { package-name: ... }` | | UNRELEASED |
 | `defaults` | | | See [Defaults](#defaults), may be a list | | |
 
 #### cabal-version
@@ -356,6 +358,14 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `main` | `main-is` | |  Unlike `Cabal`, also accepts a module name or qualified name (see ['Main' IO action](#main-io-action)). |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
+
+#### Foreign library fields
+
+| Hpack | Cabal | Default | Notes |
+| --- | --- | --- | --- |
+| `lib-version-info` | . | | |
+| `other-modules` | · | All modules in `source-dirs` less any modules mentioned in `when` | |
+| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`.|
 
 #### Flags
 
