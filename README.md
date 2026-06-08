@@ -159,6 +159,7 @@ library:
 | `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | | |
 | `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | | |
 | `foreign-libraries` | `foreign-library <name>` | | Map from foreign library name to a dict of [Foreign library fields](#foreign-library-fields) and global top-level fields. | | UNRELEASED |
+| `foreign-library` | `foreign-library <name>` | | Shortcut for `foreign-libraries: { package-name: ... } | | UNRELEASED |
 | `defaults` | | | See [Defaults](#defaults), may be a list | | |
 
 #### cabal-version
