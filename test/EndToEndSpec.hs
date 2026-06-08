@@ -1825,14 +1825,25 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
     describe "foreign libraries" $ do
       it "Foreign Library stanza with type and options" $ do
         [i|
-        foreign-library:
-          type: native-shared
+        foreign-libraries:
+          my-library: {}
+        |] `shouldRenderTo` (foreignLibrary "my-library" [i|
+        type: native-shared
+        default-language: Haskell2010
+        if os(windows)
           options:
-            - standalone
+              standalone
+        |])
+
+      it "Foreign Library stanza named after package" $ do
+        [i|
+        foreign-library: {}
         |] `shouldRenderTo` (foreignLibrary "my-package" [i|
         type: native-shared
-        options:
-            standalone
+        default-language: Haskell2010
+        if os(windows)
+          options:
+              standalone
         |])
 
     describe "executables" $ do
@@ -2243,10 +2254,7 @@ foreignLibrary name e = package content
   where
     content = [i|
 foreign-library #{name}
-  other-modules:
-      Paths_my_package
 #{indentBy 2 $ unindent e}
-  default-language: Haskell2010
 |]
 
 executable_ :: String -> String -> Package
