@@ -406,6 +406,19 @@ specify the individual dependencies:
 Individual dependencies as objects are only supported from version
 `0.31.0`.
 
+Dependencies can be the main (unnamed) library of a package or named
+sublibraries of a package. For example, for a package named `my-package` with
+a main library and a sublibrary named `my-library`:
+
+* `my-package` or `my-package:my-package` specifies a dependency on its main
+  library only;
+
+* `my-package:my-library` specifies a dependency on its sublibrary `my-library`
+  only; and
+
+* `my-package:{my-package,my-library}` specifies a dependency on
+  the libraries listed between `{` and `}` only.
+
 When a dependency is specified as an object, you can use the `mixin`
 field to control what modules from the dependency your program will
 see and how its signatures are filled in:
