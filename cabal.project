@@ -1,7 +1,8 @@
-packages:
-  hpack.cabal
+packages: .
 
-package hpack
-  ghc-options: -Werror
+program-options
+  ghc-options: -Werror -fhide-source-paths
 
 tests: True
+
+disable-optimization: True

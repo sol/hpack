@@ -1305,7 +1305,7 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         custom-setup:
           dependencies:
             - base
-        |] `shouldRenderTo` customSetupWithCabalVersion "1.24" [i|
+        |] `shouldRenderTo` customSetup [i|
         setup-depends:
             base
         |]
@@ -1315,10 +1315,10 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         custom-setup:
           dependencies:
             - pkg:lib
-        |] `shouldRenderTo` customSetupWithCabalVersion "3.4" [i|
+        |] `shouldRenderTo` (customSetup [i|
         setup-depends:
             pkg:lib
-        |]
+        |]) { packageCabalVersion = "3.4" }
 
       it "leaves build-type alone, if it exists" $ do
         [i|
@@ -1326,7 +1326,7 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
         custom-setup:
           dependencies:
             - base
-        |] `shouldRenderTo` (customSetupWithCabalVersion "1.24" [i|
+        |] `shouldRenderTo` (customSetup [i|
         setup-depends:
             base
         |]) {packageBuildType = "Make"}
@@ -2189,8 +2189,8 @@ shouldFailWith input expected = do
   writeFile packageConfig input
   run_ "" packageConfig "" `shouldReturn` Left expected
 
-customSetupWithCabalVersion :: String -> String -> Package
-customSetupWithCabalVersion cabalVersion a = (package content) {packageCabalVersion = cabalVersion, packageBuildType = "Custom"}
+customSetup :: String -> Package
+customSetup a = (package content) {packageCabalVersion = "1.24", packageBuildType = "Custom"}
   where
     content = [i|
 custom-setup
