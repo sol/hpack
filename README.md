@@ -153,12 +153,12 @@ library:
 | `custom-setup` | · | | See [Custom setup](#custom-setup) | | |
 | `flags`  | `flag <name>` | | Map from flag name to flag (see [Flags](#flags)) | | |
 | `library` | · | | See [Library fields](#library-fields) | | |
-| `foreign-libraries` | `foreign-library <name>` | | Map from foreign library name to a dict of [Foreign library fields](#foreign-library-fields) and global top-level fields. | | UNRELEASED |
 | `internal-libraries` | `library <name>` | | Map from internal library name to a dict of [library fields](#library-fields) and global top-level fields. | | `0.21.0` |
 | `executables` | `executable <name>` | | Map from executable name to executable (see [Executable fields](#executable-fields)) | | |
 | `executable` | `executable <package-name>` | | Shortcut for `executables: { package-name: ... }` | | `0.18.0` |
 | `tests` | `test-suite <name>` | | Map from test name to test (see [Test fields](#test-fields)) | | |
 | `benchmarks` | `benchmark <name>` | | Map from benchmark name to benchmark (see [Benchmark fields](#benchmark-fields)) | | |
+| `foreign-libraries` | `foreign-library <name>` | | Map from foreign library name to a dict of [Foreign library fields](#foreign-library-fields) and global top-level fields. | | UNRELEASED |
 | `defaults` | | | See [Defaults](#defaults), may be a list | | |
 
 #### cabal-version
