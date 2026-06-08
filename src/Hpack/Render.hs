@@ -182,7 +182,20 @@ renderForeignLibraries = traverse renderForeignLibrary . Map.toList
 
 renderForeignLibrary :: (String, Section ForeignLibrary) -> RenderM Element
 renderForeignLibrary (name, sect) =
-  Stanza ("foreign-library " ++ name) <$> (renderForeignLibrarySection [] sect)
+  Stanza ("foreign-library " ++ name) <$> (renderForeignLibrarySection [] sect')
+ where
+  -- Cabal supports 'options: standalone' only and requires it to be set on
+  -- Windows and to be not set on all other operating systems:
+  sect' =
+    sect { sectionConditionals = conditionalOptions : sectionConditionals sect }
+  conditionalOptions = Conditional {
+      conditionalCondition = CondExpression "os(windows)"
+    , conditionalThen =
+        emptySectionForeignLibrary { sectionData = optionsStandalone }
+    , conditionalElse = Nothing
+    }
+  optionsStandalone =
+    emptyForeignLibrary { foreignLibraryOptions = Just ["standalone"] }
 
 renderExecutables :: Map String (Section Executable) -> RenderM [Element]
 renderExecutables = traverse renderExecutable . Map.toList
@@ -222,12 +235,11 @@ renderForeignLibrarySection extraFields = renderSection renderForeignLibraryFiel
 
 renderForeignLibraryFields :: ForeignLibrary -> [Element]
 renderForeignLibraryFields ForeignLibrary{..} =
-  typeField ++ libVersionInfo ++ options ++ modDefFile ++ [otherModules, generatedModules]
+  typeField ++ libVersionInfo ++ options ++ [otherModules, generatedModules]
   where
     typeField = maybe [] (return . Field "type" . Literal) foreignLibraryType
     libVersionInfo = maybe [] (return . Field "lib-version-info" . Literal) foreignLibraryLibVersionInfo
     options = maybe [] (\opts -> [renderForeignLibOptions opts]) foreignLibraryOptions
-    modDefFile = maybe [] (return . Field "mod-def-file" . Literal) foreignLibraryModDefFile
     otherModules = renderOtherModules foreignLibraryOtherModules
     generatedModules = renderGeneratedModules foreignLibraryGeneratedModules
 

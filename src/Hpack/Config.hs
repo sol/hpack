@@ -59,9 +59,11 @@ module Hpack.Config (
 , verbatimValueToString
 , CustomSetup(..)
 , Section(..)
+, emptySectionForeignLibrary
 , Library(..)
 , Executable(..)
 , ForeignLibrary(..)
+, emptyForeignLibrary
 , Conditional(..)
 , Cond(..)
 , Flag(..)
@@ -242,24 +244,18 @@ instance Semigroup LibrarySection where
     }
 
 data ForeignLibrarySection = ForeignLibrarySection {
-  foreignLibrarySectionType :: Last String
-, foreignLibrarySectionLibVersionInfo :: Last String
-, foreignLibrarySectionOptions :: Maybe (List String)
-, foreignLibrarySectionModDefFile :: Last String
+  foreignLibrarySectionLibVersionInfo :: Last String
 , foreignLibrarySectionOtherModules :: Maybe (List Module)
 , foreignLibrarySectionGeneratedOtherModules :: Maybe (List Module)
 } deriving (Eq, Show, Generic, FromValue)
 
 instance Monoid ForeignLibrarySection where
-  mempty = ForeignLibrarySection mempty mempty Nothing mempty Nothing Nothing
+  mempty = ForeignLibrarySection mempty Nothing Nothing
   mappend = (<>)
 
 instance Semigroup ForeignLibrarySection where
   a <> b = ForeignLibrarySection {
-      foreignLibrarySectionType = foreignLibrarySectionType a <> foreignLibrarySectionType b
-    , foreignLibrarySectionLibVersionInfo = foreignLibrarySectionLibVersionInfo a <> foreignLibrarySectionLibVersionInfo b
-    , foreignLibrarySectionOptions = foreignLibrarySectionOptions a <> foreignLibrarySectionOptions b
-    , foreignLibrarySectionModDefFile = foreignLibrarySectionModDefFile a <> foreignLibrarySectionModDefFile b
+      foreignLibrarySectionLibVersionInfo = foreignLibrarySectionLibVersionInfo a <> foreignLibrarySectionLibVersionInfo b
     , foreignLibrarySectionOtherModules = foreignLibrarySectionOtherModules a <> foreignLibrarySectionOtherModules b
     , foreignLibrarySectionGeneratedOtherModules = foreignLibrarySectionGeneratedOtherModules a <> foreignLibrarySectionGeneratedOtherModules b
     }
@@ -1142,13 +1138,22 @@ data Library = Library {
 } deriving (Eq, Show)
 
 data ForeignLibrary = ForeignLibrary {
+  -- This is a hack. The 'type' field is required but we also want to exclude it
+  -- from:
+  --
+  -- if os(windows)
+  --   options: standalone
+  --
+  -- So, we treat it as if it were optional:
   foreignLibraryType :: Maybe String
-, foreignLibraryLibVersionInfo :: Maybe String
 , foreignLibraryOptions :: Maybe [String]
-, foreignLibraryModDefFile :: Maybe String
+, foreignLibraryLibVersionInfo :: Maybe String
 , foreignLibraryOtherModules :: [Module]
 , foreignLibraryGeneratedModules :: [Module]
 } deriving (Eq, Show)
+
+emptyForeignLibrary :: ForeignLibrary
+emptyForeignLibrary = ForeignLibrary Nothing Nothing Nothing [] []
 
 data Executable = Executable {
   executableMain :: Maybe FilePath
@@ -1193,6 +1198,42 @@ data Section a = Section {
 , sectionSystemBuildTools :: SystemBuildTools
 , sectionVerbatim :: [Verbatim]
 } deriving (Eq, Show, Functor, Foldable, Traversable)
+
+emptySectionForeignLibrary :: Section ForeignLibrary
+emptySectionForeignLibrary = Section {
+    sectionData = emptyForeignLibrary
+  , sectionSourceDirs = mempty
+  , sectionDependencies = mempty
+  , sectionPkgConfigDependencies = mempty
+  , sectionDefaultExtensions = mempty
+  , sectionOtherExtensions = mempty
+  , sectionLanguage = Nothing
+  , sectionMhsOptions = mempty
+  , sectionGhcOptions = mempty
+  , sectionGhcProfOptions = mempty
+  , sectionGhcSharedOptions = mempty
+  , sectionGhcjsOptions = mempty
+  , sectionCppOptions = mempty
+  , sectionAsmOptions = mempty
+  , sectionAsmSources = mempty
+  , sectionCcOptions = mempty
+  , sectionCSources = mempty
+  , sectionCxxOptions = mempty
+  , sectionCxxSources = mempty
+  , sectionJsSources = mempty
+  , sectionExtraLibDirs = mempty
+  , sectionExtraLibraries = mempty
+  , sectionExtraFrameworksDirs = mempty
+  , sectionFrameworks = mempty
+  , sectionIncludeDirs = mempty
+  , sectionInstallIncludes = mempty
+  , sectionLdOptions = mempty
+  , sectionBuildable = Nothing
+  , sectionConditionals = mempty
+  , sectionBuildTools = mempty
+  , sectionSystemBuildTools = mempty
+  , sectionVerbatim = mempty
+  }
 
 data Conditional a = Conditional {
   conditionalCondition :: Cond
@@ -1568,7 +1609,9 @@ removeConditionalsThatAreAlwaysFalse sect = sect {
     p = (/= CondBool False) . conditionalCondition
 
 inferModules :: (MonadIO m, State m) =>
-     FilePath
+     Bool
+     -- ^ Support only the modern handling of Paths_ modules?
+  -> FilePath
   -> String
   -> (a -> [Module])
   -> (b -> [Module])
@@ -1576,13 +1619,15 @@ inferModules :: (MonadIO m, State m) =>
   -> ([Module] -> a -> b)
   -> Section a
   -> m (Section b)
-inferModules dir packageName_ getMentionedModules getInferredModules fromData fromConditionals sect_ = do
+inferModules modernPaths dir packageName_ getMentionedModules getInferredModules fromData fromConditionals sect_ = do
   specVersion <- State.get
   let
     pathsModule :: [Module]
     pathsModule = case specVersion of
       SpecVersion v | v >= Version.makeVersion [0,36,0] -> []
-      _ -> [pathsModuleFromPackageName packageName_]
+      _
+        | modernPaths -> []
+        | otherwise -> [pathsModuleFromPackageName packageName_]
 
   removeConditionalsThatAreAlwaysFalse <$> traverseSectionAndConditionals
     (fromConfigSection fromData pathsModule)
@@ -1601,7 +1646,7 @@ inferModules dir packageName_ getMentionedModules getInferredModules fromData fr
 
 toLibrary :: (MonadIO m, State m) => FilePath -> String -> Section LibrarySection -> m (Section Library)
 toLibrary dir name =
-    inferModules dir name getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel fromLibrarySectionInConditional
+    inferModules False dir name getMentionedLibraryModules getLibraryModules fromLibrarySectionTopLevel fromLibrarySectionInConditional
   where
     fromLibrarySectionTopLevel :: [Module] -> [Module] -> LibrarySection -> Library
     fromLibrarySectionTopLevel pathsModule inferableModules LibrarySection{..} =
@@ -1640,20 +1685,20 @@ fromLibrarySectionPlain LibrarySection{..} = Library {
   }
 
 getMentionedForeignLibraryModules :: ForeignLibrarySection -> [Module]
-getMentionedForeignLibraryModules (ForeignLibrarySection _ _ _ _ otherModules generatedModules)=
+getMentionedForeignLibraryModules (ForeignLibrarySection _ otherModules generatedModules)=
   fromMaybeList (otherModules <> generatedModules)
 
 toForeignLibrary :: (MonadIO m, State m) => FilePath -> String -> Section ForeignLibrarySection -> m (Section ForeignLibrary)
 toForeignLibrary dir packageName_ =
-    inferModules dir packageName_ getMentionedForeignLibraryModules getForeignLibraryModules fromForeignLibrarySection (fromForeignLibrarySection [])
+    inferModules True dir packageName_ getMentionedForeignLibraryModules getForeignLibraryModules fromForeignLibrarySection (fromForeignLibrarySection [])
   where
     fromForeignLibrarySection :: [Module] -> [Module] -> ForeignLibrarySection -> ForeignLibrary
     fromForeignLibrarySection pathsModule inferableModules ForeignLibrarySection{..} =
       (ForeignLibrary
-        (getLast foreignLibrarySectionType)
+        -- Cabal accepts native-static or native-shared but supports only the latter:
+        (Just "native-shared")
+        Nothing
         (getLast foreignLibrarySectionLibVersionInfo)
-        (fromList <$> foreignLibrarySectionOptions)
-        (getLast foreignLibrarySectionModDefFile)
         (otherModules ++ generatedModules)
         generatedModules
       )
@@ -1667,7 +1712,7 @@ getMentionedExecutableModules (ExecutableSection (Alias (Last main)) otherModule
 
 toExecutable :: (MonadIO m, State m) => FilePath -> String -> Section ExecutableSection -> m (Section Executable)
 toExecutable dir packageName_ =
-    inferModules dir packageName_ getMentionedExecutableModules getExecutableModules fromExecutableSection (fromExecutableSection [])
+    inferModules False dir packageName_ getMentionedExecutableModules getExecutableModules fromExecutableSection (fromExecutableSection [])
   . expandMain
   where
     fromExecutableSection :: [Module] -> [Module] -> ExecutableSection -> Executable

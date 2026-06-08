@@ -332,17 +332,6 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | `reexported-modules` | · | | |
 | `signatures` | · | | |
 
-#### Foreign library fields
-
-| Hpack | Cabal | Default | Notes |
-| --- | --- | --- | --- |
-| `type` | . | | |
-| `lib-version-info` | . | | |
-| `options` | . | | |
-| `mod-def-file` | . | | |
-| `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
-| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
-
 #### Executable fields
 
 | Hpack | Cabal | Default | Notes |
@@ -366,6 +355,14 @@ This is done to allow compatibility with a wider range of `Cabal` versions.
 | --- | --- | --- | --- |
 | | `type` | `exitcode-stdio-1.0` | |
 | `main` | `main-is` | |  Unlike `Cabal`, also accepts a module name or qualified name (see ['Main' IO action](#main-io-action)). |
+| `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
+| `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
+
+#### Foreign library fields
+
+| Hpack | Cabal | Default | Notes |
+| --- | --- | --- | --- |
+| `lib-version-info` | . | | |
 | `other-modules` | · | All modules in `source-dirs` less `main` less any modules mentioned in `when` | |
 | `generated-other-modules` | | | Added to `other-modules` and `autogen-modules`. Since `0.23.0`.
 
