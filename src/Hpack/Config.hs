@@ -1348,10 +1348,10 @@ toPackage_ dir (Product g PackageConfig{..}) = do
     globalVerbatim = commonOptionsVerbatim g
     globalOptions = g {commonOptionsVerbatim = Nothing}
 
-    componentNames = maybe [] Map.keys executableMap ++ maybe [] Map.keys foreignLibraryMap
+    executableNames = maybe [] Map.keys executableMap
 
     toSect :: (Warnings m, Monoid a) => WithCommonOptions AsmSources CSources CxxSources JsSources a -> m (Section a)
-    toSect = toSection packageName componentNames . first ((mempty <$ globalOptions) <>)
+    toSect = toSection packageName executableNames . first ((mempty <$ globalOptions) <>)
 
     toSections :: (Warnings m, Monoid a) => Maybe (Map String (WithCommonOptions AsmSources CSources CxxSources JsSources a)) -> m (Map String (Section a))
     toSections = maybe (return mempty) (traverse toSect)
