@@ -84,14 +84,25 @@ data GlobResult = GlobResult {
 expandGlobs :: String -> FilePath -> [String] -> IO ([String], [FilePath])
 expandGlobs name dir patterns = do
   files <- globDir compiledPatterns dir >>= mapM removeDirectories
+  badFiles <- globDir compiledExcludes dir >>= mapM removeDirectories
   let
+     
     results :: [GlobResult]
     results = map (uncurry $ uncurry GlobResult) $ zip (zip patterns compiledPatterns) (map sort files)
-  return (combineResults results)
-  where
-    combineResults :: [GlobResult] -> ([String], [FilePath])
-    combineResults = bimap concat (nub . concat) . unzip . map fromResult
-
+    exclusions :: [GlobResult] 
+    exclusions = map (uncurry $ uncurry GlobResult) $ zip (zip patterns compiledExcludes) (map sort badFiles)
+  return (combineResults results exclusions)
+  where 
+    combineResults :: [GlobResult] -> [GlobResult] -> ([String], [FilePath])
+    combineResults inc exc = 
+      let
+        
+        (inwarn, include) = convertResults inc
+        (exwarn, exclude) = convertResults exc
+      in 
+        (inwarn ++ exwarn, include \\ exclude)
+    convertResults :: [GlobResult] -> ([String], [FilePath]) 
+    convertResults = bimap concat (nub . concat) . unzip . map fromResult
     fromResult :: GlobResult -> ([String], [FilePath])
     fromResult (GlobResult pattern compiledPattern files) = case files of
       [] -> (warning, literalFile)
@@ -109,10 +120,16 @@ expandGlobs name dir patterns = do
     warn pattern compiledPattern
       | isLiteral compiledPattern = "Specified file " ++ show pattern ++ " for " ++ name ++ " does not exist"
       | otherwise = "Specified pattern " ++ show pattern ++ " for " ++ name ++ " does not match any files"
-
     compiledPatterns :: [Pattern]
-    compiledPatterns = map (compileWith options) patterns
-
+    compiledPatterns = map fst $ filter (not . snd) compiledGlobs
+    compiledExcludes :: [Pattern]
+    compiledExcludes = map fst $ filter snd compiledGlobs
+    compiledGlobs :: [(Pattern, Bool)]
+    compiledGlobs = map compileHelper patterns
+    
+    compileHelper :: String -> (Pattern, Bool)
+    compileHelper ('!':pattern) = (compileWith options pattern, True)
+    compileHelper pattern       = (compileWith options pattern, False)
     removeDirectories :: [FilePath] -> IO [FilePath]
     removeDirectories = filterM doesFileExist
 
