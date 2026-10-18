@@ -664,30 +664,35 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
               |])
 
     describe "build-type" $ do
-      it "accept Simple" $ do
+      it "accepts Simple" $ do
         [i|
         build-type: Simple
         |] `shouldRenderTo` (package "") {packageBuildType = "Simple"}
 
-      it "accept Configure" $ do
+      it "accepts Configure" $ do
         [i|
         build-type: Configure
         |] `shouldRenderTo` (package "") {packageBuildType = "Configure"}
 
-      it "accept Make" $ do
+      it "accepts Make" $ do
         [i|
         build-type: Make
         |] `shouldRenderTo` (package "") {packageBuildType = "Make"}
 
-      it "accept Custom" $ do
+      it "accepts Custom" $ do
         [i|
         build-type: Custom
         |] `shouldRenderTo` (package "") {packageBuildType = "Custom"}
 
+      it "accepts Hooks and infers cabal-version 3.14" $ do
+        [i|
+        build-type: Hooks
+        |] `shouldRenderTo` (package "") {packageCabalVersion = "3.14", packageBuildType = "Hooks"}
+
       it "rejects invalid values" $ do
         [i|
         build-type: foo
-        |] `shouldFailWith` "package.yaml: Error while parsing $.build-type - expected one of Simple, Configure, Make, or Custom"
+        |] `shouldFailWith` "package.yaml: Error while parsing $.build-type - expected one of Simple, Configure, Make, Custom, or Hooks"
 
 
     describe "extra-doc-files" $ do
