@@ -838,6 +838,7 @@ ensureRequiredCabalVersion inferredLicense pkg@Package{..} = pkg {
         makeVersion [2,2] <$ guard mustSPDX
       , makeVersion [1,24] <$ packageCustomSetup
       , subLibDepsSyntaxCabalVersion <$ (guard . hasAnySubcomponents . customSetupDependencies =<< packageCustomSetup)
+      , makeVersion [3,14] <$ guard (packageBuildType == Hooks)
       , makeVersion [1,18] <$ guard (not (null packageExtraDocFiles))
       , makeVersion [3,14] <$ guard (not (null packageExtraFiles))
       , packageLibrary >>= libraryCabalVersion
