@@ -1329,8 +1329,12 @@ toPackage_ dir (Product g PackageConfig{..}) = do
         license -> return license
     _ -> return Nothing
 
+  defaultCustomSetupBuildType <- do
+    exists <- liftIO $ setupHooksFileExists dir
+    pure $ if exists then Hooks else Custom
+
   let defaultBuildType :: BuildType
-      defaultBuildType = maybe Simple (const Custom) mCustomSetup
+      defaultBuildType = maybe Simple (const defaultCustomSetupBuildType) mCustomSetup
 
       pkg = Package {
         packageCabalVersion = CabalVersion defaultCabalVersion

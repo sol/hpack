@@ -4,6 +4,9 @@
     has such dependencies.
   - Add `Hooks` as a permitted value for key `build-type` and infer
     `cabal-version: 3.14` if that value is specified.
+  - If `custom-setup` exists and `SetupHooks.hs` or `SetupHooks.lhs` exists in
+    the package directory, then the default value for key `build-type` is now
+    `Hooks` (rather than `Custom`).
 
 ## Changes in 0.39.6
   - Add support for top-level field `codeberg`

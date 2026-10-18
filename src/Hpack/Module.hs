@@ -5,6 +5,7 @@ module Hpack.Module (
   Module(..)
 , toModule
 , getModules
+, setupHooksFileExists
 #ifdef TEST
 , getModuleFilesRecursive
 #endif
@@ -111,3 +112,17 @@ getModuleFilesRecursive baseDir = go (Path [])
 
         addDir :: PathComponent -> Path
         addDir entry = Path (unPath dir ++ [entry])
+
+setupHooksFileExists :: FilePath -> IO Bool
+setupHooksFileExists dir = do
+  exists <- Directory.doesDirectoryExist dir
+  if exists
+    then do
+      hsExists <- Directory.doesFileExist (dir </> "SetupHooks.hs")
+      -- Note that the implementation by Cabal (the tool) of  Cabal's Hooks
+      -- build type does not support the literate Haskell equivalent of
+      -- SetupHooks.hs up to at least version 3.18.2.0, but that is a bug:
+      lhsExists <- Directory.doesFileExist (dir </> "SetupHooks.lhs")
+      pure (hsExists || lhsExists)
+    else
+      pure False
