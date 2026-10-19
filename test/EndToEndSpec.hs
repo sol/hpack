@@ -664,31 +664,55 @@ spec = around_ (inTempDirectoryNamed "my-package") $ do
               |])
 
     describe "build-type" $ do
-      it "accept Simple" $ do
+      it "accepts Simple" $ do
         [i|
         build-type: Simple
         |] `shouldRenderTo` (package "") {packageBuildType = "Simple"}
 
-      it "accept Configure" $ do
+      it "accepts Configure" $ do
         [i|
         build-type: Configure
         |] `shouldRenderTo` (package "") {packageBuildType = "Configure"}
 
-      it "accept Make" $ do
+      it "accepts Make" $ do
         [i|
         build-type: Make
         |] `shouldRenderTo` (package "") {packageBuildType = "Make"}
 
-      it "accept Custom" $ do
+      it "accepts Custom" $ do
         [i|
         build-type: Custom
         |] `shouldRenderTo` (package "") {packageBuildType = "Custom"}
 
+      it "accepts Hooks and infers cabal-version 3.14" $ do
+        [i|
+        build-type: Hooks
+        |] `shouldRenderTo` (package "") {packageCabalVersion = "3.14", packageBuildType = "Hooks"}
+
       it "rejects invalid values" $ do
         [i|
         build-type: foo
-        |] `shouldFailWith` "package.yaml: Error while parsing $.build-type - expected one of Simple, Configure, Make, or Custom"
+        |] `shouldFailWith` "package.yaml: Error while parsing $.build-type - expected one of Simple, Configure, Make, Custom, or Hooks"
 
+      context "with custom-setup and no SetupHooks.hs or .lhs file" $ do
+        it "infers Custom and cabal-version 1.24" $ do
+          [i|
+          custom-setup: {}
+          |] `shouldRenderTo` (package "") {packageCabalVersion = "1.24", packageBuildType = "Custom", packageContent = "custom-setup"}
+
+      context "with custom-setup and a SetupHooks.hs file" $ do
+        before_ (writeFile "SetupHooks.hs" setupHooksHs) $ do
+          it "infers Hooks and cabal-version 3.14" $ do
+            [i|
+            custom-setup: {}
+            |] `shouldRenderTo` (package "") {packageCabalVersion = "3.14", packageBuildType = "Hooks", packageContent = "custom-setup"}
+
+      context "with custom-setup and a SetupHooks.lhs file" $ do
+        before_ (writeFile "SetupHooks.lhs" setupHooksLhs) $ do
+          it "infers Hooks and cabal-version 3.14" $ do
+            [i|
+            custom-setup: {}
+            |] `shouldRenderTo` (package "") {packageCabalVersion = "3.14", packageBuildType = "Hooks", packageContent = "custom-setup"}
 
     describe "extra-doc-files" $ do
       it "accepts a list of files" $ do
@@ -2290,4 +2314,22 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+|]
+
+setupHooksHs :: String
+setupHooksHs = [i|
+module SetupHooks where
+import Distribution.Simple.SetupHooks ( SetupHooks, noSetupHooks )
+
+setupHooks :: SetupHooks
+setupHooks = noSetupHooks
+|]
+
+setupHooksLhs :: String
+setupHooksLhs = [i|
+> module SetupHooks where
+> import Distribution.Simple.SetupHooks ( SetupHooks, noSetupHooks )
+>
+> setupHooks :: SetupHooks
+> setupHooks = noSetupHooks
 |]
